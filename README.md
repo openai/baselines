@@ -55,7 +55,7 @@ In particular notice that once `deepq.learn` finishes training it returns `act` 
 For some research projects it is sometimes useful to have an already trained agent handy. There's a variety of models to choose from. You can list them all by running:
 
 ```bash
-python -m baselines.deepq.experiments.download_model
+python -m baselines.deepq.experiments.atari.download_model
 ```
 
 Once you pick a model, you can download it and visualize the learned policy. Be sure to pass `--dueling` flag to visualization script when using dueling models.
