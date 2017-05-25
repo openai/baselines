@@ -29,7 +29,7 @@ def parse_args():
 
 
 def make_env(game_name):
-    env = gym.make(game_name + "NoFrameskip-v3")
+    env = gym.make(game_name + "NoFrameskip-v4")
     env = SimpleMonitor(env)
     env = wrap_dqn(env)
     return env
