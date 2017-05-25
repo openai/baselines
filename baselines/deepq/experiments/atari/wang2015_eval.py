@@ -12,7 +12,7 @@ from baselines.deepq.experiments.atari.model import model, dueling_model
 
 
 def make_env(game_name):
-    env = gym.make(game_name + "NoFrameskip-v3")
+    env = gym.make(game_name + "NoFrameskip-v4")
     env_monitored = SimpleMonitor(env)
     env = wrap_dqn(env_monitored)
     return env_monitored, env
