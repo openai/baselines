@@ -98,7 +98,7 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
     Returns
     -------
     act: (tf.Variable, bool, float) -> tf.Variable
-        function to select and action given obsercation.
+        function to select and action given observation.
 `       See the top of the file for details.
     """
     with tf.variable_scope(scope, reuse=reuse):
@@ -164,7 +164,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
     Returns
     -------
     act: (tf.Variable, bool, float) -> tf.Variable
-        function to select and action given obsercation.
+        function to select and action given observation.
 `       See the top of the file for details.
     train: (object, np.array, np.array, object, np.array, np.array) -> np.array
         optimize the error in Bellman's equation.

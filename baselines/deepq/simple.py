@@ -68,7 +68,7 @@ def load(path, num_cpu=16):
     Returns
     -------
     act: ActWrapper
-        function that takes a batch of obsercations
+        function that takes a batch of observations
         and returns actions.
     """
     return ActWrapper.load(path, num_cpu=num_cpu)
