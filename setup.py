@@ -9,7 +9,7 @@ setup(name='baselines',
       packages=[package for package in find_packages()
                 if package.startswith('baselines')],
       install_requires=[
-          'gym',
+          'gym>=0.9.1',
           'scipy',
           'tqdm',
           'joblib',
