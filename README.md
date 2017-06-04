@@ -34,7 +34,7 @@ Be sure to check out the source code of [both](baselines/deepq/experiments/train
 
 ## If you wish to apply DQN to solve a problem.
 
-Check out our simple agented trained with one stop shop `deepq.learn` function. 
+Check out our simple agent trained with one stop shop `deepq.learn` function. 
 
 - `baselines/deepq/experiments/train_cartpole.py` - train a Cartpole agent.
 - `baselines/deepq/experiments/train_pong.py` - train a Pong agent using convolutional neural networks.
