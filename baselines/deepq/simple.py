@@ -123,11 +123,11 @@ def learn(env,
         final value of random action probability
     train_freq: int
         update the model every `train_freq` steps.
-        set to None to disable printing
     batch_size: int
         size of a batched sampled from replay buffer for training
     print_freq: int
         how often to print out training progress
+        set to None to disable printing
     checkpoint_freq: int
         how often to save the model. This is so that the best version is restored
         at the end of the training. If you do not wish to restore the best version at

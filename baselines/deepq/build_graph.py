@@ -27,7 +27,7 @@ The functions in this file can are used to create the following functions:
     Function that takes a transition (s,a,r,s') and optimizes Bellman equation's error:
 
         td_error = Q(s,a) - (r + gamma * max_a' Q(s', a'))
-        loss = hauber_loss[td_error]
+        loss = huber_loss[td_error]
 
     Parameters
     ----------
@@ -127,12 +127,12 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
 
 
 def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=None, gamma=1.0, double_q=True, scope="deepq", reuse=None):
-    """Creates the act function:
+    """Creates the train function:
 
     Parameters
     ----------
     make_obs_ph: str -> tf.placeholder or TfInput
-        a function that take a name and creates a placeholder of input with that name
+        a function that takes a name and creates a placeholder of input with that name
     q_func: (tf.Variable, int, str, bool) -> tf.Variable
         the model that takes the following inputs:
             observation_in: object
@@ -150,7 +150,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
     optimizer: tf.train.Optimizer
         optimizer to use for the Q-learning objective.
     grad_norm_clipping: float or None
-        clip graident norms to this value. If None no clipping is performed.
+        clip gradient norms to this value. If None no clipping is performed.
     gamma: float
         discount rate.
     double_q: bool
