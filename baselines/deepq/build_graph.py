@@ -223,11 +223,12 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
             optimize_expr = optimizer.minimize(weighted_error, var_list=q_func_vars)
 
         # update_target_fn will be called periodically to copy Q network to target Q network
-        update_target_expr = []
-        for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
-                                   sorted(target_q_func_vars, key=lambda v: v.name)):
-            update_target_expr.append(var_target.assign(var))
-        update_target_expr = tf.group(*update_target_expr)
+        with tf.name_scope("update_target_vars"):
+            update_target_expr = []
+            for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
+                                       sorted(target_q_func_vars, key=lambda v: v.name)):
+                update_target_expr.append(var_target.assign(var))
+            update_target_expr = tf.group(*update_target_expr)
 
         # Create callable functions
         train = U.function(
