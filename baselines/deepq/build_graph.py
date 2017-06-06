@@ -198,7 +198,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func"))
 
         # q scores for actions which we know were selected in the given state.
-        q_t_selected = tf.reduce_sum(q_t * tf.one_hot(act_t_ph, num_actions), 1)
+        q_t_selected = tf.reduce_sum(q_t * tf.one_hot(act_t_ph, num_actions), 1, name="q_t_selected")
 
         # compute estimate of best possible value starting from state at t + 1
         if double_q:
@@ -215,7 +215,8 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         # compute the error (potentially clipped)
         td_error = q_t_selected - tf.stop_gradient(q_t_selected_target)
         errors = U.huber_loss(td_error)
-        weighted_error = tf.reduce_mean(importance_weights_ph * errors)
+        with tf.name_scope("weighted_error"):
+            weighted_error = tf.reduce_mean(importance_weights_ph * errors)
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
             optimize_expr = U.minimize_and_clip(optimizer,
