@@ -186,12 +186,13 @@ def ensure_tf_input(thing):
 # ================================================================
 
 
-def huber_loss(x, delta=1.0):
+def huber_loss(x, delta=1.0, name="huber_loss"):
     """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
     return tf.where(
         tf.abs(x) < delta,
         tf.square(x) * 0.5,
-        delta * (tf.abs(x) - 0.5 * delta)
+        delta * (tf.abs(x) - 0.5 * delta),
+        name=name
     )
 
 # ================================================================
