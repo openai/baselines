@@ -207,13 +207,12 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
             q_tp1_best = tf.reduce_sum(q_tp1 * tf.one_hot(q_tp1_best_using_online_net, num_actions), 1)
         else:
             q_tp1_best = tf.reduce_max(q_tp1, 1)
-        q_tp1_best_masked = (1.0 - done_mask_ph) * q_tp1_best
-
-        # compute RHS of bellman equation
-        q_t_selected_target = rew_t_ph + gamma * q_tp1_best_masked
-
+        
         # compute the error (potentially clipped)
-        td_error = q_t_selected - tf.stop_gradient(q_t_selected_target)
+        td_error = U.td_error(q_t_selected, q_tp1_best, 
+                              done_mask = done_mask_ph,
+                              rewards_t = rew_t_ph,
+                              gamma = gamma)
         errors = U.huber_loss(td_error)
         with tf.name_scope("weighted_error"):
             weighted_error = tf.reduce_mean(importance_weights_ph * errors)

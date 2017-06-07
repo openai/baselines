@@ -195,6 +195,18 @@ def huber_loss(x, delta=1.0, name="huber_loss"):
         name=name
     )
 
+def td_error(q_t, q_tp1, done_mask, rewards_t, gamma, name="td_error"):
+    with tf.name_scope(name):
+        q_tp1_masked = (1.0 - done_mask) * q_t
+
+        # compute RHS of bellman equation
+        q_t_target = rewards_t + gamma * q_tp1_masked
+
+        # compute the error (potentially clipped)
+        td_error = q_t - tf.stop_gradient(q_t_target)
+        return td_error
+
+
 # ================================================================
 # Optimizer utils
 # ================================================================
