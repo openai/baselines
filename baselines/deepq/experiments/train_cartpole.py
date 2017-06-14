@@ -5,7 +5,7 @@ from baselines import deepq
 
 def callback(lcl, glb):
     # stop training if reward exceeds 199
-    is_solved = lcl['t'] > 100 and sum(lcl['episode_rewards'][-101:-1]) / 100 >= 199
+    is_solved = lcl['t'] > 100 and sum(lcl['episode_rewards'][-100:]) / 100 >= 199
     return is_solved
 
 
