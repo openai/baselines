@@ -10,7 +10,7 @@ import baselines.common.tf_util as U
 
 from baselines import logger
 from baselines import deepq
-from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from baselines.deepq.replay_buffer import ReplayBuffer, ProportionalReplayBuffer
 from baselines.common.misc_util import (
     boolean_flag,
     pickle_load,
@@ -143,7 +143,7 @@ if __name__ == '__main__':
         ], outside_value=0.01)
 
         if args.prioritized:
-            replay_buffer = PrioritizedReplayBuffer(args.replay_buffer_size, args.prioritized_alpha)
+            replay_buffer = ProportionalReplayBuffer(args.replay_buffer_size, args.prioritized_alpha)
             beta_schedule = LinearSchedule(approximate_num_iters, initial_p=args.prioritized_beta0, final_p=1.0)
         else:
             replay_buffer = ReplayBuffer(args.replay_buffer_size)
