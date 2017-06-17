@@ -10,7 +10,7 @@ import baselines.common.tf_util as U
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
 from baselines import deepq
-from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from baselines.deepq.replay_buffer import ReplayBuffer, ProportionalReplayBuffer, RankBasedReplayBuffer
 
 
 class ActWrapper(object):
@@ -88,7 +88,7 @@ def learn(env,
           learning_starts=1000,
           gamma=1.0,
           target_network_update_freq=500,
-          prioritized_replay=False,
+          prioritized_replay="",
           prioritized_replay_alpha=0.6,
           prioritized_replay_beta0=0.4,
           prioritized_replay_beta_iters=None,
@@ -138,8 +138,8 @@ def learn(env,
         discount factor
     target_network_update_freq: int
         update the target network every `target_network_update_freq` steps.
-    prioritized_replay: True
-        if True prioritized replay buffer will be used.
+    prioritized_replay: str
+        two types of prioritized buffers available: 'proportional' and 'rank_based'
     prioritized_replay_alpha: float
         alpha parameter for prioritized replay buffer
     prioritized_replay_beta0: float
@@ -183,8 +183,16 @@ def learn(env,
         'num_actions': env.action_space.n,
     }
     # Create the replay buffer
-    if prioritized_replay:
-        replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
+    if prioritized_replay == 'proportional':
+        replay_buffer = ProportionalReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
+        if prioritized_replay_beta_iters is None:
+            prioritized_replay_beta_iters = max_timesteps
+        beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+                                       initial_p=prioritized_replay_beta0,
+                                       final_p=1.0)
+    elif prioritized_replay == 'rank_based':
+        replay_buffer = RankBasedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha,
+            n_segs=batch_size)
         if prioritized_replay_beta_iters is None:
             prioritized_replay_beta_iters = max_timesteps
         beta_schedule = LinearSchedule(prioritized_replay_beta_iters,

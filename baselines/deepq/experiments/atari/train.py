@@ -10,7 +10,7 @@ import baselines.common.tf_util as U
 
 from baselines import logger
 from baselines import deepq
-from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from baselines.deepq.replay_buffer import ReplayBuffer, ProportionalReplayBuffer, RankBasedReplayBuffer
 from baselines.common.misc_util import (
     boolean_flag,
     pickle_load,
@@ -43,7 +43,7 @@ def parse_args():
     # Bells and whistles
     boolean_flag(parser, "double-q", default=True, help="whether or not to use double q learning")
     boolean_flag(parser, "dueling", default=False, help="whether or not to use dueling model")
-    boolean_flag(parser, "prioritized", default=False, help="whether or not to use prioritized replay buffer")
+    boolean_flag(parser, "prioritized", default="", help="possible prioritized buffers are 'proportional' and 'rank_based'. Leave empty for no prioritization.")
     parser.add_argument("--prioritized-alpha", type=float, default=0.6, help="alpha parameter for prioritized replay buffer")
     parser.add_argument("--prioritized-beta0", type=float, default=0.4, help="initial value of beta parameters for prioritized replay")
     parser.add_argument("--prioritized-eps", type=float, default=1e-6, help="eps parameter for prioritized replay buffer")
@@ -142,8 +142,12 @@ if __name__ == '__main__':
             (approximate_num_iters / 5, 0.01)
         ], outside_value=0.01)
 
-        if args.prioritized:
-            replay_buffer = PrioritizedReplayBuffer(args.replay_buffer_size, args.prioritized_alpha)
+        if args.prioritized == 'proportional':
+            replay_buffer = ProportionalReplayBuffer(args.replay_buffer_size, args.prioritized_alpha)
+            beta_schedule = LinearSchedule(approximate_num_iters, initial_p=args.prioritized_beta0, final_p=1.0)
+        elif args.prioritized == 'rank_based':
+            replay_buffer = RankBasedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha,
+                n_segs=batch_size)
             beta_schedule = LinearSchedule(approximate_num_iters, initial_p=args.prioritized_beta0, final_p=1.0)
         else:
             replay_buffer = ReplayBuffer(args.replay_buffer_size)
