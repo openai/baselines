@@ -130,7 +130,6 @@ class ProcessFrame84(gym.ObservationWrapper):
 
     @staticmethod
     def process(frame):
-        resized_screen = None
         if frame.size == 210 * 160 * 3:
             img = np.reshape(frame, [210, 160, 3]).astype(np.float32)
         elif frame.size == 250 * 160 * 3:
