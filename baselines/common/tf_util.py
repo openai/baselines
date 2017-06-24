@@ -186,13 +186,26 @@ def ensure_tf_input(thing):
 # ================================================================
 
 
-def huber_loss(x, delta=1.0):
+def huber_loss(x, delta=1.0, name="huber_loss"):
     """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
     return tf.where(
         tf.abs(x) < delta,
         tf.square(x) * 0.5,
-        delta * (tf.abs(x) - 0.5 * delta)
+        delta * (tf.abs(x) - 0.5 * delta),
+        name=name
     )
+
+def td_error(q_t, q_tp1, done_mask, rewards_t, gamma, name="td_error"):
+    with tf.name_scope(name):
+        q_tp1_masked = (1.0 - done_mask) * q_t
+
+        # compute RHS of bellman equation
+        q_t_target = rewards_t + gamma * q_tp1_masked
+
+        # compute the error (potentially clipped)
+        td_error = q_t - tf.stop_gradient(q_t_target)
+        return td_error
+
 
 # ================================================================
 # Optimizer utils
@@ -205,9 +218,10 @@ def minimize_and_clip(optimizer, objective, var_list, clip_val=10):
     variable is clipped to `clip_val`
     """
     gradients = optimizer.compute_gradients(objective, var_list=var_list)
-    for i, (grad, var) in enumerate(gradients):
-        if grad is not None:
-            gradients[i] = (tf.clip_by_norm(grad, clip_val), var)
+    with tf.name_scope("gradient_clipping"):
+        for i, (grad, var) in enumerate(gradients):
+            if grad is not None:
+                gradients[i] = (tf.clip_by_norm(grad, clip_val), var)
     return optimizer.apply_gradients(gradients)
 
 
