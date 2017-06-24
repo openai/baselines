@@ -73,6 +73,6 @@ if __name__ == '__main__':
             if done and len(episode_rewards) % 10 == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", len(episode_rewards))
-                logger.record_tabular("mean episode reward", round(np.mean(episode_rewards[-101:-1]), 1))
+                logger.record_tabular("mean episode reward", round(np.mean(episode_rewards[-100:]), 1))
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
