@@ -125,10 +125,10 @@ def learn(env,
         update the model every `train_freq` steps.
     batch_size: int
         size of a batched sampled from replay buffer for training
-    print_freq: int
+    print_freq: Optional[int]
         how often to print out training progress
         set to None to disable printing
-    checkpoint_freq: int
+    checkpoint_freq: Optional[int]
         how often to save the model. This is so that the best version is restored
         at the end of the training. If you do not wish to restore the best version at
         the end of the training set this variable to None.
@@ -144,14 +144,14 @@ def learn(env,
         alpha parameter for prioritized replay buffer
     prioritized_replay_beta0: float
         initial value of beta for prioritized replay buffer
-    prioritized_replay_beta_iters: int
+    prioritized_replay_beta_iters: Optional[int]
         number of iterations over which beta will be annealed from initial value
         to 1.0. If set to None equals to max_timesteps.
     prioritized_replay_eps: float
         epsilon to add to the TD errors when updating priorities.
     num_cpu: int
         number of cpus to use for training
-    callback: (locals, globals) -> None
+    callback: (locals, globals) -> bool
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
 
