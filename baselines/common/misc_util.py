@@ -155,7 +155,7 @@ class RunningAvg(object):
 
 
 class SimpleMonitor(gym.Wrapper):
-    def __init__(self, env=None):
+    def __init__(self, env):
         """Adds two qunatities to info returned by every step:
 
             num_steps: int

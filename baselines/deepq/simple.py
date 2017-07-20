@@ -99,7 +99,7 @@ def learn(env,
 
     Parameters
     -------
-    env : gym.Env
+    env: gym.Env
         environment to train on
     q_func: (tf.Variable, int, str, bool) -> tf.Variable
         the model that takes the following inputs:
@@ -123,6 +123,7 @@ def learn(env,
         final value of random action probability
     train_freq: int
         update the model every `train_freq` steps.
+        set to None to disable printing
     batch_size: int
         size of a batched sampled from replay buffer for training
     print_freq: int

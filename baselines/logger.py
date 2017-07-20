@@ -13,6 +13,9 @@ import sys
 import shutil
 import os.path as osp
 import json
+import time
+import datetime
+import tempfile
 
 LOG_OUTPUT_FORMATS = ['stdout', 'log', 'json']
 
@@ -22,7 +25,6 @@ WARN = 30
 ERROR = 40
 
 DISABLED = 50
-
 
 class OutputFormat(object):
     def writekvs(self, kvs):
@@ -81,7 +83,6 @@ class HumanOutputFormat(OutputFormat):
         self.file.write('\n')
         self.file.flush()
 
-
 class JSONOutputFormat(OutputFormat):
     def __init__(self, file):
         self.file = file
@@ -94,6 +95,41 @@ class JSONOutputFormat(OutputFormat):
         self.file.write(json.dumps(kvs) + '\n')
         self.file.flush()
 
+class TensorBoardOutputFormat(OutputFormat):
+    """
+    Dumps key/value pairs into TensorBoard's numeric format.
+    """
+    def __init__(self, dir):
+        os.makedirs(dir, exist_ok=True)
+        self.dir = dir
+        self.step = 1
+        prefix = 'events'
+        path = osp.join(osp.abspath(dir), prefix)
+        import tensorflow as tf
+        from tensorflow.python import pywrap_tensorflow        
+        from tensorflow.core.util import event_pb2
+        from tensorflow.python.util import compat
+        self.tf = tf
+        self.event_pb2 = event_pb2
+        self.pywrap_tensorflow = pywrap_tensorflow
+        self.writer = pywrap_tensorflow.EventsWriter(compat.as_bytes(path))
+
+    def writekvs(self, kvs):
+        def summary_val(k, v):
+            kwargs = {'tag': k, 'simple_value': float(v)}
+            return self.tf.Summary.Value(**kwargs)
+        summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
+        event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
+        event.step = self.step # is there any reason why you'd want to specify the step?
+        self.writer.WriteEvent(event)
+        self.writer.Flush()
+        self.step += 1
+
+    def close(self):
+        if self.writer:
+            self.writer.Close()
+            self.writer = None
+
 
 def make_output_format(format, ev_dir):
     os.makedirs(ev_dir, exist_ok=True)
@@ -105,6 +141,8 @@ def make_output_format(format, ev_dir):
     elif format == 'json':
         json_file = open(osp.join(ev_dir, 'progress.json'), 'wt')
         return JSONOutputFormat(json_file)
+    elif format == 'tensorboard':
+        return TensorBoardOutputFormat(osp.join(ev_dir, 'tb'))
     else:
         raise ValueError('Unknown format specified: %s' % (format,))
 
@@ -173,12 +211,6 @@ def get_dir():
     """
     return Logger.CURRENT.get_dir()
 
-
-def get_expt_dir():
-    sys.stderr.write("get_expt_dir() is Deprecated. Switch to get_dir() [%s]\n" % (get_dir(),))
-    return get_dir()
-
-
 # ================================================================
 # Backend
 # ================================================================
@@ -241,17 +273,25 @@ class session(object):
 
     CURRENT = None  # Set to a LoggerContext object using enter/exit or context manager
 
-    def __init__(self, dir, format_strs=None):
+    def __init__(self, dir=None, format_strs=None):
+        if dir is None:
+            dir = os.getenv('OPENAI_LOGDIR')
+        if dir is None:
+            dir = osp.join(tempfile.gettempdir(), 
+                datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
         self.dir = dir
         if format_strs is None:
             format_strs = LOG_OUTPUT_FORMATS
         output_formats = [make_output_format(f, dir) for f in format_strs]
         Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
+        print('Logging to', dir)
 
     def __enter__(self):
         os.makedirs(self.evaluation_dir(), exist_ok=True)
-        output_formats = [make_output_format(f, self.evaluation_dir()) for f in LOG_OUTPUT_FORMATS]
+        output_formats = [make_output_format(f, self.evaluation_dir()) 
+                            for f in LOG_OUTPUT_FORMATS]
         Logger.CURRENT = Logger(dir=self.dir, output_formats=output_formats)
+        os.environ['OPENAI_LOGDIR'] = self.evaluation_dir()
 
     def __exit__(self, *args):
         Logger.CURRENT.close()
@@ -260,6 +300,12 @@ class session(object):
     def evaluation_dir(self):
         return self.dir
 
+def _setup():
+    logdir = os.getenv('OPENAI_LOGDIR')
+    if logdir:
+        session(logdir).__enter__()
+
+_setup()
 
 # ================================================================
 
