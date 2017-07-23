@@ -12,9 +12,8 @@ from baselines.common.mpi_fork import mpi_fork
 from baselines import bench
 from baselines.trpo_mpi import trpo_mpi
 import sys
-num_cpu=1
 
-def train(env_id, num_timesteps, seed):
+def train(env_id, num_timesteps, seed, num_cpu):
     whoami  = mpi_fork(num_cpu)
     if whoami == "parent":
         return
@@ -41,7 +40,7 @@ def train(env_id, num_timesteps, seed):
     env.close()
 
 def main():
-    train('Hopper-v1', num_timesteps=1e6, seed=0)
+    train('Hopper-v1', num_timesteps=1e6, seed=0, num_cpu=1)
 
 if __name__ == '__main__':
     main()

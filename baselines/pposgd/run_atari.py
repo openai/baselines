@@ -48,7 +48,7 @@ def train(env_id, num_timesteps, seed, num_cpu):
     env.close()
 
 def main():
-    train('PongNoFrameskip-v4', num_timesteps=40e6, seed=0, num_cpu=8)
+    train('PongNoFrameskip-v4', num_timesteps=40e6, seed=0, num_cpu=1)
 
 if __name__ == '__main__':
     main()

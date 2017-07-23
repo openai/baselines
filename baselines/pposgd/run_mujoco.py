@@ -6,9 +6,9 @@ import gym, logging
 from baselines import logger
 import sys
 
-def train(env_id, num_timesteps, seed):
+def train(env_id, num_timesteps, seed, num_cpu):
     from baselines.pposgd import mlp_policy, pposgd_simple
-    U.make_session(num_cpu=1).__enter__()
+    U.make_session(num_cpu).__enter__()
     logger.session().__enter__()
     set_global_seeds(seed)
     env = gym.make(env_id)
@@ -28,7 +28,7 @@ def train(env_id, num_timesteps, seed):
     env.close()
 
 def main():
-    train('Hopper-v1', num_timesteps=1e6, seed=0)
+    train('Hopper-v1', num_timesteps=1e6, seed=0, num_cpu=1)
 
 
 if __name__ == '__main__':
