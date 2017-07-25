@@ -5,6 +5,7 @@ import os
 import tensorflow as tf
 import tempfile
 import time
+import json
 
 import baselines.common.tf_util as U
 
@@ -40,10 +41,15 @@ def parse_args():
     parser.add_argument("--batch-size", type=int, default=32, help="number of transitions to optimize at the same time")
     parser.add_argument("--learning-freq", type=int, default=4, help="number of iterations between every optimization step")
     parser.add_argument("--target-update-freq", type=int, default=40000, help="number of iterations between every target network update")
+    parser.add_argument("--param-noise-update-freq", type=int, default=50, help="number of iterations between every re-scaling of the parameter noise")
+    parser.add_argument("--param-noise-reset-freq", type=int, default=10000, help="maximum number of steps to take per episode before re-perturbing the exploration policy")
     # Bells and whistles
     boolean_flag(parser, "double-q", default=True, help="whether or not to use double q learning")
     boolean_flag(parser, "dueling", default=False, help="whether or not to use dueling model")
     boolean_flag(parser, "prioritized", default=False, help="whether or not to use prioritized replay buffer")
+    boolean_flag(parser, "param-noise", default=False, help="whether or not to use parameter space noise for exploration")
+    boolean_flag(parser, "layer-norm", default=False, help="whether or not to use layer norm (should be True if param_noise is used)")
+    boolean_flag(parser, "gym-monitor", default=False, help="whether or not to use a OpenAI Gym monitor (results in slower training due to video recording)")
     parser.add_argument("--prioritized-alpha", type=float, default=0.6, help="alpha parameter for prioritized replay buffer")
     parser.add_argument("--prioritized-beta0", type=float, default=0.4, help="initial value of beta parameters for prioritized replay")
     parser.add_argument("--prioritized-eps", type=float, default=1e-6, help="eps parameter for prioritized replay buffer")
@@ -104,8 +110,11 @@ def maybe_load_model(savedir, container):
 
 if __name__ == '__main__':
     args = parse_args()
+    
     # Parse savedir and azure container.
     savedir = args.save_dir
+    if savedir is None:
+        savedir = os.getenv('OPENAI_LOGDIR', None)
     if args.save_azure_container is not None:
         account_name, account_key, container_name = args.save_azure_container.split(":")
         container = Container(account_name=account_name,
@@ -123,16 +132,27 @@ if __name__ == '__main__':
         set_global_seeds(args.seed)
         env.unwrapped.seed(args.seed)
 
+    if args.gym_monitor and savedir:
+        env = gym.wrappers.Monitor(env, os.path.join(savedir, 'gym_monitor'), force=True)
+
+    if savedir:
+        with open(os.path.join(savedir, 'args.json'), 'w') as f:
+            json.dump(vars(args), f)
+
     with U.make_session(4) as sess:
         # Create training graph and replay buffer
+        def model_wrapper(img_in, num_actions, scope, **kwargs):
+            actual_model = dueling_model if args.dueling else model
+            return actual_model(img_in, num_actions, scope, layer_norm=args.layer_norm, **kwargs)
         act, train, update_target, debug = deepq.build_train(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
-            q_func=dueling_model if args.dueling else model,
+            q_func=model_wrapper,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=1e-4),
             gamma=0.99,
             grad_norm_clipping=10,
-            double_q=args.double_q
+            double_q=args.double_q,
+            param_noise=args.param_noise
         )
 
         approximate_num_iters = args.num_steps / 4
@@ -162,17 +182,43 @@ if __name__ == '__main__':
         steps_per_iter = RunningAvg(0.999)
         iteration_time_est = RunningAvg(0.999)
         obs = env.reset()
+        num_iters_since_reset = 0
+        reset = True
 
         # Main trianing loop
         while True:
             num_iters += 1
+            num_iters_since_reset += 1
+
             # Take action and store transition in the replay buffer.
-            action = act(np.array(obs)[None], update_eps=exploration.value(num_iters))[0]
+            kwargs = {}
+            if not args.param_noise:
+                update_eps = exploration.value(num_iters)
+                update_param_noise_threshold = 0.
+            else:
+                if args.param_noise_reset_freq > 0 and num_iters_since_reset > args.param_noise_reset_freq:
+                    # Reset param noise policy since we have exceeded the maximum number of steps without a reset.
+                    reset = True
+
+                update_eps = 0.01  # ensures that we cannot get stuck completely
+                # Compute the threshold such that the KL divergence between perturbed and non-perturbed
+                # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
+                # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
+                # for detailed explanation.
+                update_param_noise_threshold = -np.log(1. - exploration.value(num_iters) + exploration.value(num_iters) / float(env.action_space.n))
+                kwargs['reset'] = reset
+                kwargs['update_param_noise_threshold'] = update_param_noise_threshold
+                kwargs['update_param_noise_scale'] = (num_iters % args.param_noise_update_freq == 0)
+
+            action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+            reset = False
             new_obs, rew, done, info = env.step(action)
             replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
             if done:
+                num_iters_since_reset = 0
                 obs = env.reset()
+                reset = True
 
             if (num_iters > max(5 * args.batch_size, args.replay_buffer_size // 20) and
                     num_iters % args.learning_freq == 0):
@@ -203,7 +249,7 @@ if __name__ == '__main__':
                 maybe_save_model(savedir, container, {
                     'replay_buffer': replay_buffer,
                     'num_iters': num_iters,
-                    'monitor_state': monitored_env.get_state()
+                    'monitor_state': monitored_env.get_state(),
                 })
 
             if info["steps"] > args.num_steps:

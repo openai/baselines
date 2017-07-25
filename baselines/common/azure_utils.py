@@ -3,7 +3,10 @@ import tempfile
 import zipfile
 
 from azure.common import AzureMissingResourceHttpError
-from azure.storage.blob import BlobService
+try:
+    from azure.storage.blob import BlobService
+except ImportError:
+    from azure.storage.blob import BlockBlobService as BlobService
 from shutil import unpack_archive
 from threading import Event
 
@@ -114,18 +117,23 @@ class Container(object):
             arcpath = os.path.join(td, "archive.zip")
             for backup_blob_name in [blob_name, blob_name + '.backup']:
                 try:
-                    blob_size = self._service.get_blob_properties(
+                    properties = self._service.get_blob_properties(
                         blob_name=backup_blob_name,
                         container_name=self._container_name
-                    )['content-length']
+                    )
+                    if hasattr(properties, 'properties'):
+                        # Annoyingly, Azure has changed the API and this now returns a blob
+                        # instead of it's properties with up-to-date azure package.
+                        blob_size = properties.properties.content_length
+                    else:
+                        blob_size = properties['content-length']
                     if int(blob_size) > 0:
                         self._service.get_blob_to_path(
                             container_name=self._container_name,
                             blob_name=backup_blob_name,
                             file_path=arcpath,
                             max_connections=4,
-                            progress_callback=progress_callback,
-                            max_retries=10)
+                            progress_callback=progress_callback)
                         unpack_archive(arcpath, dest_path)
                         download_done.wait()
                         return True
