@@ -22,6 +22,32 @@ The functions in this file can are used to create the following functions:
     every element of the batch.
 
 
+======= act (in case of parameter noise) ========
+
+    Function to chose an action given an observation
+
+    Parameters
+    ----------
+    observation: object
+        Observation that can be feed into the output of make_obs_ph
+    stochastic: bool
+        if set to False all the actions are always deterministic (default False)
+    update_eps_ph: float
+        update epsilon a new value, if negative not update happens
+        (default: no update)
+    reset_ph: bool
+        reset the perturbed policy by sampling a new perturbation
+    update_param_noise_threshold_ph: float
+        the desired threshold for the difference between non-perturbed and perturbed policy
+    update_param_noise_scale_ph: bool
+        whether or not to update the scale of the noise for the next time it is re-perturbed
+
+    Returns
+    -------
+    Tensor of dtype tf.int64 and shape (BATCH_SIZE,) with an action to be performed for
+    every element of the batch.
+
+
 ======= train =======
 
     Function that takes a transition (s,a,r,s') and optimizes Bellman equation's error:
@@ -169,7 +195,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
 
     Returns
     -------
-    act: (tf.Variable, bool, float) -> tf.Variable
+    act: (tf.Variable, bool, float, bool, float, bool) -> tf.Variable
         function to select and action given observation.
 `       See the top of the file for details.
     """
