@@ -19,6 +19,7 @@ setup(name='baselines',
           'tensorflow >= 1.0.0',
           'azure==1.0.3',
           'progressbar2',
+          'mpi4py ~= 2.0.0'
       ],
       description="OpenAI baselines: high quality implementations of reinforcement learning algorithms",
       author="OpenAI",
