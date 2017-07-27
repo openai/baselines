@@ -95,6 +95,7 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           num_cpu=16,
           param_noise=False,
+          param_noise_threshold=0.05,
           callback=None):
     """Train a deepq model.
 
@@ -224,11 +225,14 @@ def learn(env,
                 update_param_noise_threshold = 0.
             else:
                 update_eps = 0.
-                # Compute the threshold such that the KL divergence between perturbed and non-perturbed
-                # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
-                # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
-                # for detailed explanation.
-                update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
+                if param_noise_threshold >= 0.:
+                    update_param_noise_threshold = param_noise_threshold
+                else:
+                    # Compute the threshold such that the KL divergence between perturbed and non-perturbed
+                    # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
+                    # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
+                    # for detailed explanation.
+                    update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
                 kwargs['reset'] = reset
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
