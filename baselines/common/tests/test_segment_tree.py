@@ -41,7 +41,7 @@ def test_prefixsum_idx():
     assert tree.find_prefixsum_idx(0.99) == 2
     assert tree.find_prefixsum_idx(1.01) == 3
     assert tree.find_prefixsum_idx(3.00) == 3
-    assert tree.find_prefixsum_idx(4.00) == 3
+    assert tree.find_prefixsum_idx(4.00) == 4
 
 
 def test_prefixsum_idx2():
@@ -57,7 +57,7 @@ def test_prefixsum_idx2():
     assert tree.find_prefixsum_idx(0.99) == 1
     assert tree.find_prefixsum_idx(1.51) == 2
     assert tree.find_prefixsum_idx(3.00) == 3
-    assert tree.find_prefixsum_idx(5.50) == 3
+    assert tree.find_prefixsum_idx(5.50) == 4
 
 
 def test_max_interval_tree():
