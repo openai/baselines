@@ -237,8 +237,9 @@ def boolean_flag(parser, name, default=False, help=None):
     help: str
         help string for the flag
     """
-    parser.add_argument("--" + name, action="store_true", default=default, help=help)
-    parser.add_argument("--no-" + name, action="store_false", dest=name)
+    dest = name.replace('-', '_')
+    parser.add_argument("--" + name, action="store_true", default=default, dest=dest, help=help)
+    parser.add_argument("--no-" + name, action="store_false", dest=dest)
 
 
 def get_wrapper_by_name(env, classname):
