@@ -28,7 +28,7 @@ def train(env_id, num_timesteps, seed):
     env.close()
 
 def main():
-    train('Pendulum-v0', num_timesteps=1e6, seed=0)
+    train('Hopper-v1', num_timesteps=1e6, seed=0)
 
 
 if __name__ == '__main__':
