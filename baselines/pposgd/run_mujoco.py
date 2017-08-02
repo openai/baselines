@@ -14,11 +14,11 @@ def train(env_id, num_timesteps, seed):
     env = gym.make(env_id)
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-            hid_size=64, num_hid_layers=2)
+            hid_sizes=[64, 64])
     env = bench.Monitor(env, osp.join(logger.get_dir(), "monitor.json"))
     env.seed(seed)
     gym.logger.setLevel(logging.WARN)
-    pposgd_simple.learn(env, policy_fn, 
+    pposgd_simple.learn(env, policy_fn,
             max_timesteps=num_timesteps,
             timesteps_per_batch=2048,
             clip_param=0.2, entcoeff=0.0,
@@ -28,7 +28,7 @@ def train(env_id, num_timesteps, seed):
     env.close()
 
 def main():
-    train('Hopper-v1', num_timesteps=1e6, seed=0)
+    train('Pendulum-v0', num_timesteps=1e6, seed=0)
 
 
 if __name__ == '__main__':
