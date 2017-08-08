@@ -1,6 +1,6 @@
 import os, subprocess, sys
 
-def mpi_fork(n):
+def mpi_fork(n, bind_to_core=False):
     """Re-launches the current script with workers
     Returns "parent" for original parent, "child" for MPI children
     """
@@ -13,7 +13,11 @@ def mpi_fork(n):
             OMP_NUM_THREADS="1",
             IN_MPI="1"
         )
-        subprocess.check_call(["mpirun", "-np", str(n), sys.executable] + sys.argv, env=env)
+        args = ["mpirun", "-np", str(n)]
+        if bind_to_core:
+            args += ["-bind-to", "core"]
+        args += [sys.executable] + sys.argv
+        subprocess.check_call(args, env=env)
         return "parent"
     else:
         return "child"

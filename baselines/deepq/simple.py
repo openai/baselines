@@ -94,6 +94,8 @@ def learn(env,
           prioritized_replay_beta_iters=None,
           prioritized_replay_eps=1e-6,
           num_cpu=16,
+          param_noise=False,
+          param_noise_threshold=0.05,
           callback=None):
     """Train a deepq model.
 
@@ -176,13 +178,15 @@ def learn(env,
         num_actions=env.action_space.n,
         optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
-        grad_norm_clipping=10
+        grad_norm_clipping=10,
+        param_noise=param_noise
     )
     act_params = {
         'make_obs_ph': make_obs_ph,
         'q_func': q_func,
         'num_actions': env.action_space.n,
     }
+
     # Create the replay buffer
     if prioritized_replay:
         replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
@@ -206,6 +210,7 @@ def learn(env,
     episode_rewards = [0.0]
     saved_mean_reward = None
     obs = env.reset()
+    reset = True
     with tempfile.TemporaryDirectory() as td:
         model_saved = False
         model_file = os.path.join(td, "model")
@@ -214,7 +219,25 @@ def learn(env,
                 if callback(locals(), globals()):
                     break
             # Take action and update exploration to the newest value
-            action = act(np.array(obs)[None], update_eps=exploration.value(t))[0]
+            kwargs = {}
+            if not param_noise:
+                update_eps = exploration.value(t)
+                update_param_noise_threshold = 0.
+            else:
+                update_eps = 0.
+                if param_noise_threshold >= 0.:
+                    update_param_noise_threshold = param_noise_threshold
+                else:
+                    # Compute the threshold such that the KL divergence between perturbed and non-perturbed
+                    # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
+                    # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
+                    # for detailed explanation.
+                    update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
+                kwargs['reset'] = reset
+                kwargs['update_param_noise_threshold'] = update_param_noise_threshold
+                kwargs['update_param_noise_scale'] = True
+            action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+            reset = False
             new_obs, rew, done, _ = env.step(action)
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))
@@ -224,6 +247,7 @@ def learn(env,
             if done:
                 obs = env.reset()
                 episode_rewards.append(0.0)
+                reset = True
 
             if t > learning_starts and t % train_freq == 0:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.

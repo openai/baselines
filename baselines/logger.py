@@ -17,7 +17,7 @@ import time
 import datetime
 import tempfile
 
-LOG_OUTPUT_FORMATS = ['stdout', 'log', 'json']
+LOG_OUTPUT_FORMATS = ['stdout', 'log', 'json', 'tensorboard']
 
 DEBUG = 10
 INFO = 20

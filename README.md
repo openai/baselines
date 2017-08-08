@@ -15,3 +15,4 @@ pip install baselines
 - [DQN](baselines/deepq)
 - [PPO](baselines/pposgd)
 - [TRPO](baselines/trpo_mpi)
+- [DDPG](baselines/ddpg)
