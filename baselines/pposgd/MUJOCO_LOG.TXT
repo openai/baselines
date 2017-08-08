@@ -1,0 +1,3 @@
+Thu Jul 27 22:04:41 2017
+ERROR: Could not open activation key file C:\Users\Viktor/.mujoco/mjkey.txt\mjkey.txt
+

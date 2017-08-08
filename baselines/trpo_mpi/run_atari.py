@@ -28,7 +28,6 @@ def train(env_id, num_timesteps, seed, num_cpu):
     if rank != 0:
         logger.set_level(logger.DISABLED)
 
-
     workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
     set_global_seeds(workerseed)
     env = gym.make(env_id)
@@ -47,7 +46,7 @@ def train(env_id, num_timesteps, seed, num_cpu):
     env.close()
 
 def main():
-    train('PongNoFrameskip-v4', num_timesteps=40e6, seed=0, num_cpu=1)
+    train('PongNoFrameskip-v4', num_timesteps=40e6, seed=0, num_cpu=8)
 
 if __name__ == "__main__":
     main()

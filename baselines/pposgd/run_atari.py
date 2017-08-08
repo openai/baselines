@@ -7,6 +7,7 @@ import os.path as osp
 import gym, logging
 from baselines import logger
 import sys
+import os
 
 def wrap_train(env):
     from baselines.common.atari_wrappers import (wrap_deepmind, FrameStack)
@@ -17,6 +18,8 @@ def wrap_train(env):
 def train(env_id, num_timesteps, seed, num_cpu):
     from baselines.pposgd import pposgd_simple, cnn_policy
     import baselines.common.tf_util as U
+    print('num_cpu = ', num_cpu)
+    os.system("pause")
     whoami  = mpi_fork(num_cpu)
     if whoami == "parent": return
     rank = MPI.COMM_WORLD.Get_rank()
@@ -39,16 +42,16 @@ def train(env_id, num_timesteps, seed, num_cpu):
 
     pposgd_simple.learn(env, policy_fn,
         max_timesteps=num_timesteps,
-        timesteps_per_batch=256,
+        timesteps_per_batch=512, #512
         clip_param=0.2, entcoeff=0.01,
-        optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64,
+        optim_epochs=5, optim_stepsize=5e-4, optim_batchsize=64,
         gamma=0.99, lam=0.95,
         schedule='linear'
     )
     env.close()
 
 def main():
-    train('PongNoFrameskip-v4', num_timesteps=40e6, seed=0, num_cpu=1)
+    train('PongNoFrameskip-v4', num_timesteps=40e6, seed=0, num_cpu=8)
 
 if __name__ == '__main__':
     main()
