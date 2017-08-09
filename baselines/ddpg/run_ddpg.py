@@ -39,7 +39,7 @@ def run(env_id, seed, noise_type, num_cpu, layer_norm, logdir, gym_monitor, eval
         Logger.CURRENT.close()
         Logger.CURRENT = Logger(dir=mkdtemp(), output_formats=[])
         logger.set_level(logger.DISABLED)
-    
+
     # Create envs.
     if rank == 0:
         env = gym.make(env_id)
@@ -110,7 +110,7 @@ def run(env_id, seed, noise_type, num_cpu, layer_norm, logdir, gym_monitor, eval
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument('--env-id', type=str, default='Walker2d-v1') #'Humanoid2-v1') # 'Walker2d2-v1')
     boolean_flag(parser, 'render-eval', default=True)
     boolean_flag(parser, 'layer-norm', default=True)
@@ -133,10 +133,13 @@ def parse_args():
     parser.add_argument('--nb-eval-steps', type=int, default=1000)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-rollout-steps', type=int, default=1000)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
-    parser.add_argument('--logdir', type=str, default='D:/baselines/baselines/ddpg/log') #default=None)
+    parser.add_argument('--logdir', type=str, default='') #default=None)
+    parser.add_argument('--agentName',type=str,default='DDPG-Agent')
+    parser.add_argument('--resume',type=int,default = 0)
     boolean_flag(parser, 'gym-monitor', default=False)
     boolean_flag(parser, 'evaluation', default=True)
     boolean_flag(parser, 'bind-to-core', default=False)
+
  #   boolean_flag(parser, 'test', default=False)
 
     return vars(parser.parse_args())
@@ -148,7 +151,7 @@ if __name__ == '__main__':
     # Figure out what logdir to use.
     if args['logdir'] is None:
         args['logdir'] = os.getenv('OPENAI_LOGDIR')
-    
+
     # Print and save arguments.
     logger.info('Arguments:')
     for key in sorted(args.keys()):

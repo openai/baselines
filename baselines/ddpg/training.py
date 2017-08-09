@@ -16,7 +16,7 @@ from mpi4py import MPI
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise, logdir,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    tau=0.01, eval_env=None, param_noise_adaption_interval=50,agentName = None,resume=0):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -35,14 +35,18 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         saver = tf.train.Saver()
     else:
         saver = None
-    
+
     step = 0
     episode = 0
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
     with U.single_threaded_session() as sess:
         # Prepare everything.
-        agent.initialize(sess)
+        if (resume == 0):
+            agent.initialize(sess)
+        else:
+            restore = "{}-{}".format(agentName,resume)
+            agent.initialize(sess,path = os.path.abspath(logdir),restore = restore)
         sess.graph.finalize()
 
         agent.reset()
@@ -154,7 +158,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['rollout/actions_mean'] = mpi_mean(epoch_actions)
             combined_stats['rollout/actions_std'] = mpi_std(epoch_actions)
             combined_stats['rollout/Q_mean'] = mpi_mean(epoch_qs)
-    
+
             # Train statistics.
             combined_stats['train/loss_actor'] = mpi_mean(epoch_actor_losses)
             combined_stats['train/loss_critic'] = mpi_mean(epoch_critic_losses)
@@ -173,12 +177,13 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['total/episodes'] = mpi_mean(episodes)
             combined_stats['total/epochs'] = epoch + 1
             combined_stats['total/steps'] = t
-            
+
             for key in sorted(combined_stats.keys()):
                 logger.record_tabular(key, combined_stats[key])
             logger.dump_tabular()
             logger.info('')
-
+            agent.save(path = os.path.abspath(logdir), name = agentName)
+            logger.info("agent {} saved".format(agent.itr.eval()))
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):
                     with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:
@@ -186,4 +191,3 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 if eval_env and hasattr(eval_env, 'get_state'):
                     with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
                         pickle.dump(eval_env.get_state(), f)
-

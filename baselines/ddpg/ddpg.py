@@ -10,7 +10,7 @@ from baselines.common.mpi_adam import MpiAdam
 import baselines.common.tf_util as U
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.ddpg.util import reduce_std, mpi_mean
-
+import os
 
 def normalize(x, stats):
     if stats is None:
@@ -68,7 +68,9 @@ class DDPG(object):
         self.actions = tf.placeholder(tf.float32, shape=(None,) + action_shape, name='actions')
         self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
         self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
-
+        self.itr = tf.Variable(0,name="itr")
+        self.one = tf.constant(1)
+        self.itr_up = self.itr.assign_add(self.one)
         # Parameters.
         self.gamma = gamma
         self.tau = tau
@@ -198,7 +200,7 @@ class DDPG(object):
         new_std = self.ret_rms.std
         self.old_mean = tf.placeholder(tf.float32, shape=[1], name='old_mean')
         new_mean = self.ret_rms.mean
-        
+
         self.renormalize_Q_outputs_op = []
         for vs in [self.critic.output_vars, self.target_critic.output_vars]:
             assert len(vs) == 2
@@ -213,15 +215,15 @@ class DDPG(object):
     def setup_stats(self):
         ops = []
         names = []
-        
+
         if self.normalize_returns:
             ops += [self.ret_rms.mean, self.ret_rms.std]
             names += ['ret_rms_mean', 'ret_rms_std']
-        
+
         if self.normalize_observations:
             ops += [tf.reduce_mean(self.obs_rms.mean), tf.reduce_mean(self.obs_rms.std)]
             names += ['obs_rms_mean', 'obs_rms_std']
-        
+
         ops += [tf.reduce_mean(self.critic_tf)]
         names += ['reference_Q_mean']
         ops += [reduce_std(self.critic_tf)]
@@ -231,7 +233,7 @@ class DDPG(object):
         names += ['reference_actor_Q_mean']
         ops += [reduce_std(self.critic_with_actor_tf)]
         names += ['reference_actor_Q_std']
-        
+
         ops += [tf.reduce_mean(self.actor_tf)]
         names += ['reference_action_mean']
         ops += [reduce_std(self.actor_tf)]
@@ -315,12 +317,22 @@ class DDPG(object):
 
         return critic_loss, actor_loss
 
-    def initialize(self, sess):
+    def initialize(self, sess,path = '.',restore=None):
         self.sess = sess
-        self.sess.run(tf.global_variables_initializer())
+        self.saver = tf.train.Saver()
+        if restore is None:
+            self.sess.run(tf.global_variables_initializer())
+            self.sess.run(self.target_init_updates)
+        else:
+            self.saver.restore(self.sess,tf.train.latest_checkpoint(path))
+
+
+        print ("agent {} loaded.".format(self.itr.eval()))
+
         self.actor_optimizer.sync()
         self.critic_optimizer.sync()
-        self.sess.run(self.target_init_updates)
+
+
 
     def update_target_net(self):
         self.sess.run(self.target_soft_updates)
@@ -347,7 +359,7 @@ class DDPG(object):
     def adapt_param_noise(self):
         if self.param_noise is None:
             return 0.
-        
+
         # Perturb a separate copy of the policy to adjust the scale for the next "real" perturbation.
         batch = self.memory.sample(batch_size=self.batch_size)
         self.sess.run(self.perturb_adaptive_policy_ops, feed_dict={
@@ -370,3 +382,6 @@ class DDPG(object):
             self.sess.run(self.perturb_policy_ops, feed_dict={
                 self.param_noise_stddev: self.param_noise.current_stddev,
             })
+    def save(self,path = '.',name="DDPG-Agent"):
+        self.sess.run(self.itr_up)
+        self.saver.save(self.sess,os.path.join(os.getcwd(),name),global_step=self.itr.eval())
