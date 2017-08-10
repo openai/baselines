@@ -32,7 +32,6 @@ def train(env_id, num_timesteps, seed):
     saver.save(sess, '/tmp/model')
 
 def main():
-    print("Start")
     train('CartPole-v1', num_timesteps=1e6, seed=0)
 
 if __name__ == "__main__":

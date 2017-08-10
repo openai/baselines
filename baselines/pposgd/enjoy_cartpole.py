@@ -18,17 +18,16 @@ def enjoy(env_id, num_timesteps, seed):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
             hid_size=64, num_hid_layers=2)
     env = bench.Monitor(env, osp.join(logger.get_dir(), "monitor.json"))
+    obs = env.reset()
     env.seed(seed)
     gym.logger.setLevel(logging.WARN)
     pi = policy_fn('pi', env.observation_space, env.action_space)
-    saver = tf.train.Saver()
-    with tf.Session() as ses:
-        saver.restore('/tmp/model')
-        done = False
-        while not done:
-            action = pi.act(True, obs)[0]
-            obs, reward, done, info = env.step(action)
-            env.render()
+    tf.train.Saver().restore(sess, '/tmp/model')
+    done = False
+    while not done:
+        action = pi.act(True, obs)[0]
+        obs, reward, done, info = env.step(action)
+        env.render()
 
 def main():
     enjoy('CartPole-v1', num_timesteps=1e6, seed=0)
