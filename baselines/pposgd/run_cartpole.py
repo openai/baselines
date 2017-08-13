@@ -6,6 +6,8 @@ import gym, logging
 from baselines import logger
 import sys
 import tensorflow as tf
+import roboschool
+from argparse import ArgumentParser
 
 def train(env_id, num_timesteps, seed):
     from baselines.pposgd import mlp_policy, pposgd_simple
@@ -32,7 +34,9 @@ def train(env_id, num_timesteps, seed):
     saver.save(sess, '/tmp/model')
 
 def main():
-    train('CartPole-v1', num_timesteps=1e6, seed=0)
+    parser = ArgumentParser()
+    parser.add_argument('--env', type=str, default='CartPole-v1')
+    train(parser.parse_args().env, num_timesteps=1e6, seed=0)
 
 if __name__ == "__main__":
     main()
