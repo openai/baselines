@@ -6,6 +6,7 @@ import sys
 import subprocess
 import threading
 import json
+from gym import utils
 
 from baselines.common.mpi_fork import mpi_fork
 from baselines import logger
@@ -139,6 +140,8 @@ def parse_args():
     boolean_flag(parser, 'gym-monitor', default=False)
     boolean_flag(parser, 'evaluation', default=True)
     boolean_flag(parser, 'bind-to-core', default=False)
+    parser.add_argument("--portnum", required=False, type=int, default=5000)
+    parser.add_argument("--server_ip", required=False, default="localhost")
 
  #   boolean_flag(parser, 'test', default=False)
 
@@ -147,6 +150,11 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+
+    utils.portnum = args['portnum']
+    utils.server_ip = args['server_ip']
+    del args['portnum']
+    del args['server_ip']
 
     # Figure out what logdir to use.
     if args['logdir'] is None:
