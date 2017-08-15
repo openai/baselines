@@ -13,7 +13,7 @@ import tensorflow as tf
 from mpi4py import MPI
 
 
-def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
+def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_memory, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise, logdir,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
     tau=0.01, eval_env=None, param_noise_adaption_interval=50,agentName = None,resume=0):
@@ -45,8 +45,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         if (resume == 0):
             agent.initialize(sess)
         else:
-            restore = "{}-{}".format(agentName,resume)
-            agent.initialize(sess,path = os.path.abspath(logdir),restore = restore)
+            #restore = "{}-{}".format(agentName,resume)
+            agent.initialize(sess,path = os.path.abspath(logdir),restore = agentName,itr = resume, overwrite = overwrite_memory)
         sess.graph.finalize()
 
         agent.reset()
@@ -182,8 +182,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 logger.record_tabular(key, combined_stats[key])
             logger.dump_tabular()
             logger.info('')
-            agent.save(path = os.path.abspath(logdir), name = agentName)
-            logger.info("agent {} saved".format(agent.itr.eval()))
+            if rank == 0:
+                agent.save(path = os.path.abspath(logdir), name = agentName,overwrite = overwrite_memory)
+                logger.info("agent {} saved".format(agent.itr.eval()))
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):
                     with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:

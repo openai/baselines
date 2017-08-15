@@ -114,6 +114,7 @@ def parse_args():
     parser.add_argument('--env-id', type=str, default='Walker2d-v1') #'Humanoid2-v1') # 'Walker2d2-v1')
     boolean_flag(parser, 'render-eval', default=True)
     boolean_flag(parser, 'layer-norm', default=True)
+    boolean_flag(parser, 'overwrite-memory', default=True)
     boolean_flag(parser, 'render', default=False)
     parser.add_argument('--num-cpu', type=int, default=1)
     boolean_flag(parser, 'normalize-returns', default=False)

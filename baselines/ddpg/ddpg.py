@@ -10,7 +10,10 @@ from baselines.common.mpi_adam import MpiAdam
 import baselines.common.tf_util as U
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.ddpg.util import reduce_std, mpi_mean
+
+import dill as pickle
 import os
+import bz2
 
 def normalize(x, stats):
     if stats is None:
@@ -127,7 +130,6 @@ class DDPG(object):
         self.critic_with_actor_tf = denormalize(tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
         Q_obs1 = denormalize(target_critic(normalized_obs1, target_actor(normalized_obs1)), self.ret_rms)
         self.target_Q = self.rewards + (1. - self.terminals1) * gamma * Q_obs1
-
         # Set up parts.
         if self.param_noise is not None:
             self.setup_param_noise(normalized_obs0)
@@ -317,17 +319,22 @@ class DDPG(object):
 
         return critic_loss, actor_loss
 
-    def initialize(self, sess,path = '.',restore=None):
+    def initialize(self, sess,path = '.',restore=None,itr=0,overwrite=True):
         self.sess = sess
         self.saver = tf.train.Saver()
         if restore is None:
             self.sess.run(tf.global_variables_initializer())
             self.sess.run(self.target_init_updates)
         else:
-            self.saver.restore(self.sess,tf.train.latest_checkpoint(path))
+            self.saver.restore(self.sess,os.path.join(path,"{}-{}".format(restore,itr)))
+            if overwrite:
+                with bz2.BZ2File(os.path.join(path,"{}.memory".format(restore)),"r") as f:
+                    self.memory = pickle.load(f)
+            else:
+                with bz2.BZ2File(os.path.join(path,"{}-{}.memory".format(restore,itr)),"r") as f:
+                    self.memory = pickle.load(f)
 
-
-        print ("agent {} loaded.".format(self.itr.eval()))
+            print ("agent {} loaded.".format(self.itr.eval()))
 
         self.actor_optimizer.sync()
         self.critic_optimizer.sync()
@@ -382,6 +389,12 @@ class DDPG(object):
             self.sess.run(self.perturb_policy_ops, feed_dict={
                 self.param_noise_stddev: self.param_noise.current_stddev,
             })
-    def save(self,path = '.',name="DDPG-Agent"):
+    def save(self,path = '.',name="DDPG-Agent",overwrite=True):
         self.sess.run(self.itr_up)
         self.saver.save(self.sess,os.path.join(os.getcwd(),name),global_step=self.itr.eval())
+        if overwrite:
+            with bz2.BZ2File(os.path.join(os.getcwd(),"{}.memory".format(name)),"w") as f:
+                pickle.dump(self.memory,f)
+        else:
+            with bz2.BZ2File(os.path.join(os.getcwd(),"{}-{}.memory".format(name,self.itr.eval())),"w") as f:
+                pickle.dump(self.memory,f)
