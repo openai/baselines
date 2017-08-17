@@ -7,6 +7,7 @@ from baselines.common.mpi_adam import MpiAdam
 from baselines.common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
+import os
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     t = 0
@@ -84,7 +85,10 @@ def learn(env, policy_func, *,
         gamma, lam, # advantage estimation
         max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
         callback=None, # you can do anything in the callback, since it takes locals(), globals()
-        schedule='constant' # annealing for stepsize parameters (epsilon and adam)
+        schedule='constant', # annealing for stepsize parameters (epsilon and adam)
+        logdir=".",
+        agentName="PPO-Agent",
+        resume = 0
         ):
     # Setup losses and stuff
     # ----------------------------------------
@@ -141,6 +145,10 @@ def learn(env, policy_func, *,
     lenbuffer = deque(maxlen=100) # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=100) # rolling buffer for episode rewards
 
+    saver = tf.train.Saver()
+    if resume > 0:
+        saver.restore(tf.get_default_session(), os.path.join(os.path.abspath(logdir), "{}-{}".format(agentName, resume)))
+    iters_so_far = resume
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
     while True:
@@ -211,8 +219,11 @@ def learn(env, policy_func, *,
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
         logger.record_tabular("TimeElapsed", time.time() - tstart)
+
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
+            saver.save(tf.get_default_session(), os.path.join(os.getcwd(), agentName), global_step=iters_so_far)
+
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
