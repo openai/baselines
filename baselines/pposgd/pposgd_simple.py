@@ -8,6 +8,7 @@ from baselines.common.mpi_moments import mpi_moments
 from mpi4py import MPI
 from collections import deque
 import os
+import json
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     t = 0
@@ -150,6 +151,8 @@ def learn(env, policy_func, *,
         saver.restore(tf.get_default_session(), os.path.join(os.path.abspath(logdir), "{}-{}".format(agentName, resume)))
     iters_so_far = resume
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
+    logF = open(logdir + "\\" + 'log.txt', 'a')
+    logStats = open(logdir + "\\" + 'log_stats.txt', 'a')
 
     while True:
         if callback: callback(locals(), globals())
@@ -211,7 +214,8 @@ def learn(env, policy_func, *,
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-        logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+        rewmean = np.mean(rewbuffer)
+        logger.record_tabular("EpRewMean", rewmean)
         logger.record_tabular("EpThisIter", len(lens))
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
@@ -221,8 +225,13 @@ def learn(env, policy_func, *,
         logger.record_tabular("TimeElapsed", time.time() - tstart)
 
         if MPI.COMM_WORLD.Get_rank()==0:
+            logF.write(str(rewmean) + "\n")
+            logStats.write(logger.get_str() + "\n")
+            logF.flush()
+            logStats.flush()
+
             logger.dump_tabular()
-            saver.save(tf.get_default_session(), os.path.join(os.getcwd(), agentName), global_step=iters_so_far)
+            saver.save(tf.get_default_session(), os.path.join(logdir, agentName), global_step=iters_so_far)
 
 
 def flatten_lists(listoflists):

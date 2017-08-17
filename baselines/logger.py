@@ -173,6 +173,8 @@ def dumpkvs():
 record_tabular = logkv
 dump_tabular = dumpkvs
 
+def get_str():
+    return Logger.CURRENT.get_str()
 
 def log(*args, level=INFO):
     """
@@ -236,6 +238,9 @@ class Logger(object):
         for fmt in self.output_formats:
             fmt.writekvs(self.name2val)
         self.name2val.clear()
+
+    def get_str(self):
+        return json.dumps(dict(self.name2val))
 
     def log(self, *args, level=INFO):
         if self.level <= level:

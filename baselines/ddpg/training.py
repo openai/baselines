@@ -11,7 +11,7 @@ from baselines import logger
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
-
+import json
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_memory, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise, logdir,
@@ -40,6 +40,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
     episode = 0
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
+
+    logF = open(logdir + "\\" + 'log.txt', 'a')
+    logStats = open(logdir + "\\" + 'log_stats.txt', 'a')
+
     with U.single_threaded_session() as sess:
         # Prepare everything.
         if (resume == 0):
@@ -97,6 +101,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
 
                     if done:
                         # Episode done.
+                        print("Epoch " + str(epoch)+ " episodes " + str(episodes) + " steps " + str(episode_step) + " reward " + str(episode_reward))
                         epoch_episode_rewards.append(episode_reward)
                         episode_rewards_history.append(episode_reward)
                         epoch_episode_steps.append(episode_step)
@@ -104,7 +109,6 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
                         episode_step = 0
                         epoch_episodes += 1
                         episodes += 1
-
                         agent.reset()
                         obs = env.reset()
 
@@ -137,6 +141,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
 
                         eval_qs.append(eval_q)
                         if eval_done:
+                            print("Eval reward " + str(eval_episode_reward))
                             eval_obs = eval_env.reset()
                             eval_episode_rewards.append(eval_episode_reward)
                             eval_episode_rewards_history.append(eval_episode_reward)
@@ -183,6 +188,11 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
             logger.dump_tabular()
             logger.info('')
             if rank == 0:
+                logF.write(str(combined_stats["rollout/return"]) + "\n")
+                json.dump(combined_stats, logStats)
+                logF.flush()
+                logStats.flush()
+
                 agent.save(path = os.path.abspath(logdir), name = agentName,overwrite = overwrite_memory)
                 logger.info("agent {} saved".format(agent.itr.eval()))
             if rank == 0 and logdir:

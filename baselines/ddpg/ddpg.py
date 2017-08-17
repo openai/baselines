@@ -391,10 +391,13 @@ class DDPG(object):
             })
     def save(self,path = '.',name="DDPG-Agent",overwrite=True):
         self.sess.run(self.itr_up)
-        self.saver.save(self.sess,os.path.join(os.getcwd(),name),global_step=self.itr.eval())
+        self.saver.save(self.sess,os.path.join(path,name),global_step=self.itr.eval())
         if overwrite:
-            with bz2.BZ2File(os.path.join(os.getcwd(),"{}.memory".format(name)),"w") as f:
+            with bz2.BZ2File(os.path.join(path,"{}.memory".format(name)),"w") as f:
                 pickle.dump(self.memory,f)
         else:
-            with bz2.BZ2File(os.path.join(os.getcwd(),"{}-{}.memory".format(name,self.itr.eval())),"w") as f:
+            ofilename = os.path.join(path,"{}-{}.memory".format(name,self.itr.eval()-5))
+            if os.path.exists(ofilename):
+                os.remove(ofilename)
+            with bz2.BZ2File(os.path.join(path,"{}-{}.memory".format(name,self.itr.eval())),"w") as f:
                 pickle.dump(self.memory,f)
