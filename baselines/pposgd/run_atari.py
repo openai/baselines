@@ -22,7 +22,6 @@ def train(env_id, num_timesteps, seed, num_cpu):
     rank = MPI.COMM_WORLD.Get_rank()
     sess = U.single_threaded_session()
     sess.__enter__()
-    logger.session().__enter__()
     if rank != 0: logger.set_level(logger.DISABLED)
     workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
     set_global_seeds(workerseed)

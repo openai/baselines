@@ -1,13 +1,3 @@
-"""
-
-See README.md for a description of the logging API.
-
-OFF state corresponds to having Logger.CURRENT == Logger.DEFAULT
-ON state is otherwise
-
-"""
-
-from collections import OrderedDict
 import os
 import sys
 import shutil
@@ -17,7 +7,7 @@ import time
 import datetime
 import tempfile
 
-LOG_OUTPUT_FORMATS = ['stdout', 'log', 'json', 'tensorboard']
+LOG_OUTPUT_FORMATS = ['stdout', 'log', 'json']
 
 DEBUG = 10
 INFO = 20
@@ -49,9 +39,12 @@ class HumanOutputFormat(OutputFormat):
 
     def writekvs(self, kvs):
         # Create strings for printing
-        key2str = OrderedDict()
+        key2str = {}
         for (key, val) in kvs.items():
-            valstr = '%-8.3g' % (val,) if hasattr(val, '__float__') else val
+            if isinstance(val, float):
+                valstr = '%-8.3g' % (val,)
+            else:
+                valstr = str(val)
             key2str[self._truncate(key)] = self._truncate(valstr)
 
         # Find max widths
@@ -61,7 +54,7 @@ class HumanOutputFormat(OutputFormat):
         # Write out the data
         dashes = '-' * (keywidth + valwidth + 7)
         lines = [dashes]
-        for (key, val) in key2str.items():
+        for (key, val) in sorted(key2str.items()):
             lines.append('| %s%s | %s%s |' % (
                 key,
                 ' ' * (keywidth - len(key)),
@@ -150,7 +143,6 @@ def make_output_format(format, ev_dir):
 # API
 # ================================================================
 
-
 def logkv(key, val):
     """
     Log a value of some diagnostic
@@ -158,6 +150,12 @@ def logkv(key, val):
     """
     Logger.CURRENT.logkv(key, val)
 
+def logkvs(d):
+    """
+    Log a dictionary of key-value pairs
+    """
+    for (k, v) in d.items():
+        logkv(k, v)
 
 def dumpkvs():
     """
@@ -168,10 +166,8 @@ def dumpkvs():
     """
     Logger.CURRENT.dumpkvs()
 
-
-# for backwards compatibility
-record_tabular = logkv
-dump_tabular = dumpkvs
+def getkvs():
+    return Logger.CURRENT.name2val    
 
 
 def log(*args, level=INFO):
@@ -203,7 +199,6 @@ def set_level(level):
     """
     Logger.CURRENT.set_level(level)
 
-
 def get_dir():
     """
     Get directory that log files are being written to.
@@ -211,10 +206,12 @@ def get_dir():
     """
     return Logger.CURRENT.get_dir()
 
+record_tabular = logkv
+dump_tabular = dumpkvs
+
 # ================================================================
 # Backend
 # ================================================================
-
 
 class Logger(object):
     DEFAULT = None  # A logger with no output files. (See right below class definition)
@@ -222,7 +219,7 @@ class Logger(object):
     CURRENT = None  # Current logger being used by the free functions above
 
     def __init__(self, dir, output_formats):
-        self.name2val = OrderedDict()  # values this iteration
+        self.name2val = {}  # values this iteration
         self.level = INFO
         self.dir = dir
         self.output_formats = output_formats
@@ -233,6 +230,7 @@ class Logger(object):
         self.name2val[key] = val
 
     def dumpkvs(self):
+        if self.level == DISABLED: return
         for fmt in self.output_formats:
             fmt.writekvs(self.name2val)
         self.name2val.clear()
@@ -259,56 +257,29 @@ class Logger(object):
         for fmt in self.output_formats:
             fmt.writeseq(args)
 
+Logger.DEFAULT = Logger.CURRENT = Logger(dir=None, output_formats=[HumanOutputFormat(sys.stdout)])
+
+def configure(dir=None, format_strs=None):
+    assert Logger.CURRENT is Logger.DEFAULT,\
+        "Only call logger.configure() when it's in the default state. Try calling logger.reset() first."
+    prevlogger = Logger.CURRENT
+    if dir is None:
+        dir = os.getenv('OPENAI_LOGDIR')
+    if dir is None:
+        dir = osp.join(tempfile.gettempdir(), 
+            datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
+    if format_strs is None:
+        format_strs = LOG_OUTPUT_FORMATS
+    output_formats = [make_output_format(f, dir) for f in format_strs]
+    Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
+    log('Logging to %s'%dir)
+
+def reset():
+    Logger.CURRENT = Logger.DEFAULT
+    log('Reset logger')
+
 
 # ================================================================
-
-Logger.DEFAULT = Logger(output_formats=[HumanOutputFormat(sys.stdout)], dir=None)
-Logger.CURRENT = Logger.DEFAULT
-
-
-class session(object):
-    """
-    Context manager that sets up the loggers for an experiment.
-    """
-
-    CURRENT = None  # Set to a LoggerContext object using enter/exit or context manager
-
-    def __init__(self, dir=None, format_strs=None):
-        if dir is None:
-            dir = os.getenv('OPENAI_LOGDIR')
-        if dir is None:
-            dir = osp.join(tempfile.gettempdir(), 
-                datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
-        self.dir = dir
-        if format_strs is None:
-            format_strs = LOG_OUTPUT_FORMATS
-        output_formats = [make_output_format(f, dir) for f in format_strs]
-        Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
-        print('Logging to', dir)
-
-    def __enter__(self):
-        os.makedirs(self.evaluation_dir(), exist_ok=True)
-        output_formats = [make_output_format(f, self.evaluation_dir()) 
-                            for f in LOG_OUTPUT_FORMATS]
-        Logger.CURRENT = Logger(dir=self.dir, output_formats=output_formats)
-        os.environ['OPENAI_LOGDIR'] = self.evaluation_dir()
-
-    def __exit__(self, *args):
-        Logger.CURRENT.close()
-        Logger.CURRENT = Logger.DEFAULT
-
-    def evaluation_dir(self):
-        return self.dir
-
-def _setup():
-    logdir = os.getenv('OPENAI_LOGDIR')
-    if logdir:
-        session(logdir).__enter__()
-
-_setup()
-
-# ================================================================
-
 
 def _demo():
     info("hi")
@@ -319,19 +290,19 @@ def _demo():
     if os.path.exists(dir):
         shutil.rmtree(dir)
     with session(dir=dir):
-        record_tabular("a", 3)
-        record_tabular("b", 2.5)
-        dump_tabular()
-        record_tabular("b", -2.5)
-        record_tabular("a", 5.5)
-        dump_tabular()
+        logkv("a", 3)
+        logkv("b", 2.5)
+        dumpkvs()
+        logkv("b", -2.5)
+        logkv("a", 5.5)
+        dumpkvs()
         info("^^^ should see a = 5.5")
 
-    record_tabular("b", -2.5)
-    dump_tabular()
+    logkv("b", -2.5)
+    dumpkvs()
 
-    record_tabular("a", "longasslongasslongasslongasslongasslongassvalue")
-    dump_tabular()
+    logkv("a", "longasslongasslongasslongasslongasslongassvalue")
+    dumpkvs()
 
 
 if __name__ == "__main__":

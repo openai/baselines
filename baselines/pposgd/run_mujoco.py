@@ -9,7 +9,6 @@ import sys
 def train(env_id, num_timesteps, seed):
     from baselines.pposgd import mlp_policy, pposgd_simple
     U.make_session(num_cpu=1).__enter__()
-    logger.session().__enter__()
     set_global_seeds(seed)
     env = gym.make(env_id)
     def policy_fn(name, ob_space, ac_space):
