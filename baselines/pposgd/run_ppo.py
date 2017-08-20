@@ -12,8 +12,10 @@ from gym import utils
 from baselines import logger
 import sys
 
-def train(env_id, num_timesteps, seed, num_cpu, resume, agentName, logdir,portnum,
-          timesteps_per_batch,hid_size,num_hid_layers,clip_param,entcoeff,optim_epochs,optim_stepsize,optim_batchsize,gamma,lam
+def train(env_id, num_timesteps, timesteps_per_batch, seed, num_cpu, resume, 
+          agentName, logdir, hid_size, num_hid_layers, clip_param, entcoeff, 
+          optim_epochs, optim_stepsize, optim_batchsize, gamma, lam,
+          portnum
 ):
     from baselines.pposgd import mlp_policy, pposgd_simple
     print("num cpu = " + str(num_cpu))
@@ -24,10 +26,13 @@ def train(env_id, num_timesteps, seed, num_cpu, resume, agentName, logdir,portnu
     sess.__enter__()
     logger.session().__enter__()
     if rank != 0: logger.set_level(logger.DISABLED)
-    workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
+    utils.portnum = portnum + rank
+    
+    workerseed = seed + 10000 * rank
     set_global_seeds(workerseed)
-    utils.portnum = portnum+rank
     env = gym.make(env_id)
+    env.seed(seed)
+
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
             hid_size=hid_size, num_hid_layers=num_hid_layers)
@@ -47,16 +52,14 @@ def train(env_id, num_timesteps, seed, num_cpu, resume, agentName, logdir,portnu
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--portnum", required=False, type=int, default=5000)
-    parser.add_argument("--server_ip", required=False, default="localhost")
     parser.add_argument('--env-id', type=str, default='MountainCarContinuous-v0') #'Humanoid2-v1') # 'Walker2d2-v1')
     parser.add_argument('--num-cpu', type=int, default=1)
     parser.add_argument('--seed', type=int, default=57)
     parser.add_argument('--logdir', type=str, default='.') #default=None)
-    parser.add_argument('--agentName',type=str,default='PPO-Agent')
-    parser.add_argument('--resume',type=int,default = 0)
+    parser.add_argument('--agentName', type=str, default='PPO-Agent')
+    parser.add_argument('--resume', type=int, default = 0)
 
-    parser.add_argument('--num_timesteps',type=int,default = 1e6)
+    parser.add_argument('--num_timesteps', type=int,default = 1e6)
     parser.add_argument('--timesteps_per_batch', type=int, default=1000)
     parser.add_argument('--hid_size', type=int, default=64)
     parser.add_argument('--num_hid_layers', type=int, default=2)
@@ -68,6 +71,10 @@ def parse_args():
 
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--lam', type=float, default=0.95)
+
+    parser.add_argument("--portnum", required=False, type=int, default=5000)
+    parser.add_argument("--server_ip", required=False, default="localhost")
+
     return vars(parser.parse_args())
 
 def main():
@@ -77,13 +84,12 @@ def main():
     del args['portnum']
     del args['server_ip']
 
-    train(args['env_id'], num_timesteps=args['num_timesteps'], seed=args['seed'], num_cpu=args['num_cpu'], resume=args['resume'], agentName=args['agentName'], logdir=args['logdir'], portnum=utils.portnum,
-          timesteps_per_batch=args['timesteps_per_batch'],
-          hid_size=args['hid_size'],
-          num_hid_layers=args['num_hid_layers'],
+    train(args['env_id'], num_timesteps=args['num_timesteps'], timesteps_per_batch=args['timesteps_per_batch'],
+          seed=args['seed'], num_cpu=args['num_cpu'], resume=args['resume'], agentName=args['agentName'], 
+          logdir=args['logdir'], hid_size=args['hid_size'], num_hid_layers=args['num_hid_layers'],
           clip_param=args['clip_param'], entcoeff=args['entcoeff'],
           optim_epochs=args['optim_epochs'], optim_stepsize=args['optim_stepsize'], optim_batchsize=args['optim_batchsize'],
-          gamma=args['gamma'], lam=args['lam'],
+          gamma=args['gamma'], lam=args['lam'], portnum=utils.portnum,
           )
 
 

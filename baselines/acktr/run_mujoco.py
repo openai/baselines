@@ -37,6 +37,6 @@ def train(env_id, num_timesteps, seed):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Run Mujoco benchmark.')
-    parser.add_argument('--env_id', type=str, default="Reacher-v1")
+    parser.add_argument('--env_id', type=str, default="Walker2d-v1")
     args = parser.parse_args()
     train(args.env_id, num_timesteps=1e6, seed=1)

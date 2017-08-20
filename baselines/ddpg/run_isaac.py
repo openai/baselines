@@ -112,8 +112,8 @@ def run(env_id, seed, noise_type, num_cpu, layer_norm, logdir, gym_monitor, eval
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--env-id', type=str, default='Walker2d-v1') #'Humanoid2-v1') # 'Walker2d2-v1')
-    boolean_flag(parser, 'render-eval', default=True)
+    parser.add_argument('--env-id', type=str, default='Custom0-v0')
+    boolean_flag(parser, 'render-eval', default=False)
     boolean_flag(parser, 'layer-norm', default=True)
     boolean_flag(parser, 'overwrite-memory', default=True)
     boolean_flag(parser, 'render', default=False)
@@ -123,7 +123,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=57)
     parser.add_argument('--critic-l2-reg', type=float, default=5e-3)
     parser.add_argument('--batch-size', type=int, default=128)  # per MPI worker
-    parser.add_argument('--hidden_size', type=int, default=128)
+    parser.add_argument('--hidden_size', type=int, default=48)
     parser.add_argument('--actor-lr', type=float, default=1e-4)
     parser.add_argument('--critic-lr', type=float, default=1e-3)
     boolean_flag(parser, 'popart', default=False)
@@ -133,17 +133,18 @@ def parse_args():
     parser.add_argument('--nb-epochs', type=int, default=1000)  # with default settings, perform 1M steps total
     parser.add_argument('--nb-epoch-cycles', type=int, default=20)
     parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-eval-steps', type=int, default=200)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-rollout-steps', type=int, default=1000)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-rollout-steps', type=int, default=500)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
-    parser.add_argument('--logdir', type=str, default='.') #default=None)
+    parser.add_argument('--logdir', type=str, default='') #default=None)
     parser.add_argument('--agentName',type=str,default='DDPG-Agent')
     parser.add_argument('--resume',type=int,default = 0)
     boolean_flag(parser, 'gym-monitor', default=False)
-    boolean_flag(parser, 'evaluation', default=True)
+    boolean_flag(parser, 'evaluation', default=False)
     boolean_flag(parser, 'bind-to-core', default=False)
-    parser.add_argument("--portnum", required=False, type=int, default=5000)
+    parser.add_argument("--portnum", required=False, type=int, default=5050)
     parser.add_argument("--server_ip", required=False, default="localhost")
+  #  parser.add_argument("--server_ip", required=False, default='172.17.171.126')
 
  #   boolean_flag(parser, 'test', default=False)
 

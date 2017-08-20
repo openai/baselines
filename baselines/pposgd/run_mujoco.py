@@ -28,7 +28,7 @@ def train(env_id, num_timesteps, seed, num_cpu):
     env.close()
 
 def main():
-    train('Hopper-v1', num_timesteps=1e6, seed=0, num_cpu=1)
+    train('Walker2d-v1', num_timesteps=1e6, seed=0, num_cpu=1)
 
 
 if __name__ == '__main__':

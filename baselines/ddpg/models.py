@@ -20,9 +20,10 @@ class Model(object):
 
 
 class Actor(Model):
-    def __init__(self, nb_actions, name='actor', layer_norm=True):
+    def __init__(self, nb_actions, name='actor', layer_size=64, layer_norm=True):
         super(Actor, self).__init__(name=name)
         self.nb_actions = nb_actions
+        self.layer_size = layer_size
         self.layer_norm = layer_norm
 
     def __call__(self, obs, reuse=False):
@@ -31,15 +32,11 @@ class Actor(Model):
                 scope.reuse_variables()
 
             x = obs
-            x = tf.layers.dense(x, 64)
-            if self.layer_norm:
-                x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
-            
-            x = tf.layers.dense(x, 64)
-            if self.layer_norm:
-                x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
+            for i in range(2):
+                x = tf.layers.dense(x, self.layer_size)
+                if self.layer_norm:
+                    x = tc.layers.layer_norm(x, center=True, scale=True)
+                x = tf.nn.elu(x)
             
             x = tf.layers.dense(x, self.nb_actions, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
             x = tf.nn.tanh(x)
@@ -47,8 +44,9 @@ class Actor(Model):
 
 
 class Critic(Model):
-    def __init__(self, name='critic', layer_norm=True):
+    def __init__(self, name='critic', layer_size=64, layer_norm=True):
         super(Critic, self).__init__(name=name)
+        self.layer_size = layer_size
         self.layer_norm = layer_norm
 
     def __call__(self, obs, action, reuse=False):
@@ -57,16 +55,16 @@ class Critic(Model):
                 scope.reuse_variables()
 
             x = obs
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, self.layer_size)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
+            x = tf.nn.elu(x)
 
             x = tf.concat([x, action], axis=-1)
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, self.layer_size)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
+            x = tf.nn.elu(x)
 
             x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
         return x
