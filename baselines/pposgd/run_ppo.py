@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 from baselines.common import set_global_seeds, tf_util as U
-from baselines import bench
+from baselines import bench, logger
 from baselines.common.mpi_fork import mpi_fork
 
 import os.path as osp
@@ -24,20 +24,22 @@ def train(env_id, num_timesteps, timesteps_per_batch, seed, num_cpu, resume,
     rank = MPI.COMM_WORLD.Get_rank()
     sess = U.single_threaded_session()
     sess.__enter__()
-    logger.session().__enter__()
+
     if rank != 0: logger.set_level(logger.DISABLED)
     utils.portnum = portnum + rank
-    
+
     workerseed = seed + 10000 * rank
     set_global_seeds(workerseed)
     env = gym.make(env_id)
     env.seed(seed)
 
+    if logger.get_dir():
+        env = bench.Monitor(env, osp.join(logger.get_dir(), "monitor.json"))
+
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
             hid_size=hid_size, num_hid_layers=num_hid_layers)
-    env = bench.Monitor(env, osp.join(logger.get_dir(), "monitor.json"))
-    env.seed(seed)
+
     gym.logger.setLevel(logging.WARN)
     pposgd_simple.learn(env, policy_fn, 
             max_timesteps=num_timesteps,
@@ -52,7 +54,7 @@ def train(env_id, num_timesteps, timesteps_per_batch, seed, num_cpu, resume,
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env-id', type=str, default='MountainCarContinuous-v0') #'Humanoid2-v1') # 'Walker2d2-v1')
+    parser.add_argument('--env-id', type=str, default='Custom0-v0') #'Humanoid2-v1') # 'Walker2d2-v1')
     parser.add_argument('--num-cpu', type=int, default=1)
     parser.add_argument('--seed', type=int, default=57)
     parser.add_argument('--logdir', type=str, default='.') #default=None)
@@ -72,7 +74,7 @@ def parse_args():
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--lam', type=float, default=0.95)
 
-    parser.add_argument("--portnum", required=False, type=int, default=5000)
+    parser.add_argument("--portnum", required=False, type=int, default=5050)
     parser.add_argument("--server_ip", required=False, default="localhost")
 
     return vars(parser.parse_args())
