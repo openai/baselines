@@ -15,7 +15,7 @@ python -m baselines.deepq.experiments.enjoy_cartpole
 ```
 
 
-Be sure to check out the source code of [both](experiments/train_cartpole.py) [files](experiments/enjoy_cartpole.py)!
+Be sure to check out the source code of [both](baselines/deepq/experiments/train_cartpole.py) [files](baselines/deepq/experiments/enjoy_cartpole.py)!
 
 ## If you wish to apply DQN to solve a problem.
 

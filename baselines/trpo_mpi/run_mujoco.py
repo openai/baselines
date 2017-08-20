@@ -18,7 +18,6 @@ def train(env_id, num_timesteps, seed, num_cpu):
     if whoami == "parent":
         return
     import baselines.common.tf_util as U
-    logger.session().__enter__()
     sess = U.single_threaded_session()
     sess.__enter__()
 
