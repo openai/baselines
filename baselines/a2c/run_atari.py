@@ -10,6 +10,7 @@ from baselines.a2c.policies import CnnPolicy, LstmPolicy, LnLstmPolicy
 
 def train(env_id, num_timesteps, seed, policy, lrschedule, num_cpu):
     num_timesteps //= 4
+    logger.configure()
 
     def make_env(rank):
         def _thunk():
