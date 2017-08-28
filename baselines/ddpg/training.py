@@ -14,7 +14,7 @@ from mpi4py import MPI
 
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
-    normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise, logdir,
+    normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
     tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
@@ -178,7 +178,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 logger.record_tabular(key, combined_stats[key])
             logger.dump_tabular()
             logger.info('')
-
+            logdir = logger.get_dir()
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):
                     with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:

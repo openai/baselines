@@ -9,10 +9,14 @@ These algorithms will make it easier for the research community to replicate, re
 You can install it by typing:
 
 ```bash
-pip install baselines
+git clone https://github.com/openai/baselines.git
+cd baselines
+pip install -e .
 ```
 
-- [DQN](baselines/deepq)
-- [PPO](baselines/pposgd)
-- [TRPO](baselines/trpo_mpi)
+- [A2C](baselines/a2c)
+- [ACKTR](baselines/acktr)
 - [DDPG](baselines/ddpg)
+- [DQN](baselines/deepq)
+- [PPO](baselines/ppo1)
+- [TRPO](baselines/trpo_mpi)
