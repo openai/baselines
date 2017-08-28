@@ -183,26 +183,5 @@ def learn(policy, env, seed, nsteps=5, nstack=4, total_timesteps=int(80e6), vf_c
             logger.dump_tabular()
     env.close()
 
-def main():
-    env_id = 'SpaceInvaders'
-    seed = 42
-    nenvs = 4
-
-    def make_env(rank):
-        def env_fn():
-            env = gym.make('{}NoFrameskip-v4'.format(env_id))
-            env.seed(seed + rank)
-            if logger.get_dir():
-                from baselines import bench
-                env = bench.Monitor(env, osp.join(logger.get_dir(), "{}.monitor.json".format(rank)))
-                gym.logger.setLevel(logging.WARN)
-            return wrap_deepmind(env)
-        return env_fn
-
-    set_global_seeds(seed)
-    env = SubprocVecEnv([make_env(i) for i in range(nenvs)])
-    policy = CnnPolicy
-    learn(policy, env, seed)
-
 if __name__ == '__main__':
     main()

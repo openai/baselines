@@ -7,17 +7,13 @@ import os.path as osp
 import gym
 import logging
 from baselines import logger
-from baselines.pposgd.mlp_policy import MlpPolicy
+from baselines.ppo1.mlp_policy import MlpPolicy
 from baselines.common.mpi_fork import mpi_fork
 from baselines import bench
 from baselines.trpo_mpi import trpo_mpi
 import sys
-num_cpu=1
 
 def train(env_id, num_timesteps, seed):
-    whoami  = mpi_fork(num_cpu)
-    if whoami == "parent":
-        return
     import baselines.common.tf_util as U
     sess = U.single_threaded_session()
     sess.__enter__()
@@ -31,7 +27,8 @@ def train(env_id, num_timesteps, seed):
     def policy_fn(name, ob_space, ac_space):
         return MlpPolicy(name=name, ob_space=env.observation_space, ac_space=env.action_space,
             hid_size=32, num_hid_layers=2)
-    env = bench.Monitor(env, osp.join(logger.get_dir(), "%i.monitor.json" % rank))
+    env = bench.Monitor(env, logger.get_dir() and 
+        osp.join(logger.get_dir(), "%i.monitor.json" % rank))
     env.seed(workerseed)
     gym.logger.setLevel(logging.WARN)
 
@@ -40,7 +37,13 @@ def train(env_id, num_timesteps, seed):
     env.close()
 
 def main():
-    train('Hopper-v1', num_timesteps=1e6, seed=0)
+    import argparse
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--env', help='environment ID', default='Hopper-v1')
+    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    args = parser.parse_args()
+    train(args.env, num_timesteps=1e6, seed=args.seed)
+
 
 if __name__ == '__main__':
     main()

@@ -40,7 +40,7 @@ class HumanOutputFormat(OutputFormat):
     def writekvs(self, kvs):
         # Create strings for printing
         key2str = {}
-        for (key, val) in kvs.items():
+        for (key, val) in sorted(kvs.items()):
             if isinstance(val, float):
                 valstr = '%-8.3g' % (val,)
             else:
@@ -81,7 +81,7 @@ class JSONOutputFormat(OutputFormat):
         self.file = file
 
     def writekvs(self, kvs):
-        for k, v in kvs.items():
+        for k, v in sorted(kvs.items()):
             if hasattr(v, 'dtype'):
                 v = v.tolist()
                 kvs[k] = float(v)
@@ -274,10 +274,15 @@ def configure(dir=None, format_strs=None):
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
     log('Logging to %s'%dir)
 
+if os.getenv('OPENAI_LOGDIR'): 
+    # if OPENAI_LOGDIR is set, configure the logger on import
+    # this kind of nasty (unexpected to user), but I don't know how else to inject the logger
+    # to a script that's getting run in a subprocess
+    configure(dir=os.getenv('OPENAI_LOGDIR'))
+
 def reset():
     Logger.CURRENT = Logger.DEFAULT
     log('Reset logger')
-
 
 # ================================================================
 
