@@ -18,5 +18,5 @@ pip install -e .
 - [ACKTR](baselines/acktr)
 - [DDPG](baselines/ddpg)
 - [DQN](baselines/deepq)
-- [PPO](baselines/pposgd)
+- [PPO](baselines/ppo1)
 - [TRPO](baselines/trpo_mpi)
