@@ -187,6 +187,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
                 logger.record_tabular(key, combined_stats[key])
             logger.dump_tabular()
             logger.info('')
+            logdir = logger.get_dir()
             if rank == 0:
                 logF.write(str(combined_stats["rollout/return"]) + "\n")
                 json.dump(combined_stats, logStats)

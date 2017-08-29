@@ -3,8 +3,8 @@ import numpy as np
 from baselines import common
 from baselines.common import tf_util as U
 import tensorflow as tf
-import kfac
-from utils import dense
+from baselines.acktr import kfac
+from baselines.acktr.utils import dense
 
 class NeuralNetValueFunction(object):
     def __init__(self, ob_dim, ac_dim): #pylint: disable=W0613

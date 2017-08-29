@@ -15,14 +15,14 @@ python -m baselines.deepq.experiments.enjoy_cartpole
 ```
 
 
-Be sure to check out the source code of [both](baselines/deepq/experiments/train_cartpole.py) [files](baselines/deepq/experiments/enjoy_cartpole.py)!
+Be sure to check out the source code of [both](experiments/train_cartpole.py) [files](experiments/enjoy_cartpole.py)!
 
 ## If you wish to apply DQN to solve a problem.
 
 Check out our simple agent trained with one stop shop `deepq.learn` function. 
 
-- `baselines/deepq/experiments/train_cartpole.py` - train a Cartpole agent.
-- `baselines/deepq/experiments/train_pong.py` - train a Pong agent using convolutional neural networks.
+- [baselines/deepq/experiments/train_cartpole.py](experiments/train_cartpole.py) - train a Cartpole agent.
+- [baselines/deepq/experiments/train_pong.py](experiments/train_pong.py) - train a Pong agent using convolutional neural networks.
 
 In particular notice that once `deepq.learn` finishes training it returns `act` function which can be used to select actions in the environment. Once trained you can easily save it and load at later time. For both of the files listed above there are complimentary files `enjoy_cartpole.py` and `enjoy_pong.py` respectively, that load and visualize the learned policy.
 
@@ -31,8 +31,8 @@ In particular notice that once `deepq.learn` finishes training it returns `act` 
 ##### Check out the examples
 
 
-- `baselines/deepq/experiments/custom_cartpole.py` - Cartpole training with more fine grained control over the internals of DQN algorithm.
-- `baselines/deepq/experiments/atari/train.py` - more robust setup for training at scale.
+- [baselines/deepq/experiments/custom_cartpole.py](experiments/custom_cartpole.py) - Cartpole training with more fine grained control over the internals of DQN algorithm.
+- [baselines/deepq/experiments/atari/train.py](experiments/atari/train.py) - more robust setup for training at scale.
 
 
 ##### Download a pretrained Atari agent
