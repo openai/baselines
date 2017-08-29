@@ -6,6 +6,8 @@ import json
 import time
 import datetime
 import tempfile
+import errno
+
 
 LOG_OUTPUT_FORMATS = ['stdout', 'log', 'json']
 
@@ -93,13 +95,13 @@ class TensorBoardOutputFormat(OutputFormat):
     Dumps key/value pairs into TensorBoard's numeric format.
     """
     def __init__(self, dir):
-        os.makedirs(dir, exist_ok=True)
+        makedirs(dir)
         self.dir = dir
         self.step = 1
         prefix = 'events'
         path = osp.join(osp.abspath(dir), prefix)
         import tensorflow as tf
-        from tensorflow.python import pywrap_tensorflow        
+        from tensorflow.python import pywrap_tensorflow
         from tensorflow.core.util import event_pb2
         from tensorflow.python.util import compat
         self.tf = tf
@@ -125,7 +127,7 @@ class TensorBoardOutputFormat(OutputFormat):
 
 
 def make_output_format(format, ev_dir):
-    os.makedirs(ev_dir, exist_ok=True)
+    makedirs(ev_dir)
     if format == 'stdout':
         return HumanOutputFormat(sys.stdout)
     elif format == 'log':
@@ -167,7 +169,7 @@ def dumpkvs():
     Logger.CURRENT.dumpkvs()
 
 def getkvs():
-    return Logger.CURRENT.name2val    
+    return Logger.CURRENT.name2val
 
 
 def log(*args, **kwargs):
@@ -175,7 +177,7 @@ def log(*args, **kwargs):
     Write the sequence of args, with no separators, to the console and output files (if you've configured an output file).
     """
     level = kwargs['level'] if 'level' in kwargs else INFO
-    Logger.CURRENT.log(level=level, *args)
+    Logger.CURRENT.log(level, *args)
 
 
 def debug(*args):
@@ -206,6 +208,16 @@ def get_dir():
     will be None if there is no output directory (i.e., if you didn't call start)
     """
     return Logger.CURRENT.get_dir()
+
+
+def makedirs(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
 
 record_tabular = logkv
 dump_tabular = dumpkvs
@@ -267,7 +279,7 @@ def configure(dir=None, format_strs=None):
     if dir is None:
         dir = os.getenv('OPENAI_LOGDIR')
     if dir is None:
-        dir = osp.join(tempfile.gettempdir(), 
+        dir = osp.join(tempfile.gettempdir(),
             datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
     if format_strs is None:
         format_strs = LOG_OUTPUT_FORMATS
@@ -275,7 +287,7 @@ def configure(dir=None, format_strs=None):
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
     log('Logging to %s'%dir)
 
-if os.getenv('OPENAI_LOGDIR'): 
+if os.getenv('OPENAI_LOGDIR'):
     # if OPENAI_LOGDIR is set, configure the logger on import
     # this kind of nasty (unexpected to user), but I don't know how else to inject the logger
     # to a script that's getting run in a subprocess
@@ -295,15 +307,17 @@ def _demo():
     dir = "/tmp/testlogging"
     if os.path.exists(dir):
         shutil.rmtree(dir)
-    with session(dir=dir):
-        logkv("a", 3)
-        logkv("b", 2.5)
-        dumpkvs()
-        logkv("b", -2.5)
-        logkv("a", 5.5)
-        dumpkvs()
-        info("^^^ should see a = 5.5")
 
+    Logger.CURRENT = Logger(dir=dir, output_formats=[HumanOutputFormat(sys.stdout)])
+    logkv("a", 3)
+    logkv("b", 2.5)
+    dumpkvs()
+    logkv("b", -2.5)
+    logkv("a", 5.5)
+    dumpkvs()
+    info("^^^ should see a = 5.5")
+
+    reset()
     logkv("b", -2.5)
     dumpkvs()
 
