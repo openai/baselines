@@ -30,10 +30,11 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--num_cpu', help='Number of CPU threads', type=int, default=32)
     parser.add_argument('--million_frames', help='How many frames to train (/ 1e6). '
         'This number gets divided by 4 due to frameskip', type=int, default=40)
     args = parser.parse_args()    
-    train(args.env, num_frames=1e6 * args.million_frames, seed=args.seed, num_cpu=32)
+    train(args.env, num_frames=1e6 * args.million_frames, seed=args.seed, num_cpu=args.num_cpu)
 
 
 if __name__ == '__main__':
