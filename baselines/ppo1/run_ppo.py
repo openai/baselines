@@ -71,7 +71,7 @@ def parse_args():
     parser.add_argument('--entcoeff', type=float, default=0.0)
     parser.add_argument('--optim_epochs', type=int, default=20)
     parser.add_argument('--optim_stepsize', type=float, default=3e-4)
-    parser.add_argument('--optim_batchsize', type=int, default=384)
+    parser.add_argument('--optim_batchsize', type=int, default=64)
 
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--lam', type=float, default=0.95)
