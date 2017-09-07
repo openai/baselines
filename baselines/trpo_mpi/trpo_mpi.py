@@ -207,7 +207,7 @@ def learn(env, policy_func, *,
         if hasattr(pi, "ret_rms"): pi.ret_rms.update(tdlamret)
         if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
 
-        args = seg["ob"], seg["ac"], seg["adv"]
+        args = seg["ob"], seg["ac"], atarg
         fvpargs = [arr[::5] for arr in args]
         def fisher_vector_product(p):
             return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
