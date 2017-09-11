@@ -1,7 +1,7 @@
 import os
 import time
 from collections import deque
-import pickle
+import dill as pickle
 
 from baselines.ddpg.ddpg import DDPG
 from baselines.ddpg.util import mpi_mean, mpi_std, mpi_max, mpi_sum
@@ -15,7 +15,7 @@ import json
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_memory, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise, logdir,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
+    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, eval_jump, batch_size, memory,
     tau=0.01, eval_env=None, param_noise_adaption_interval=50, agentName = None, resume=0):
     rank = MPI.COMM_WORLD.Get_rank()
 
@@ -41,8 +41,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
 
-    logF = open(logdir + "\\" + 'log.txt', 'a')
-    logStats = open(logdir + "\\" + 'log_stats.txt', 'a')
+    logF = open(os.path.join(logdir, 'log.txt'), 'a')
+    logStats = open(os.path.join(logdir, 'log_stats.txt'), 'a')
 
     with U.single_threaded_session() as sess:
         # Prepare everything.
@@ -50,7 +50,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
             agent.initialize(sess)
         else:
             #restore = "{}-{}".format(agentName,resume)
-            agent.initialize(sess,path = os.path.abspath(logdir),restore = agentName,itr = resume, overwrite = overwrite_memory)
+            agent.initialize(sess, path = os.path.abspath(logdir), restore = agentName,itr = resume, overwrite = overwrite_memory)
         sess.graph.finalize()
 
         agent.reset()
@@ -130,7 +130,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
                 # Evaluate.
                 eval_episode_rewards = []
                 eval_qs = []
-                if eval_env is not None:
+                if eval_env is not None and epoch % eval_jump == 0:
                     eval_episode_reward = 0.
                     for t_rollout in range(nb_eval_steps):
                         eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
@@ -170,7 +170,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
             combined_stats['train/param_noise_distance'] = mpi_mean(epoch_adaptive_distances)
 
             # Evaluation statistics.
-            if eval_env is not None:
+            if eval_env is not None and epoch % eval_jump == 0:
                 combined_stats['eval/return'] = mpi_mean(eval_episode_rewards)
                 combined_stats['eval/return_history'] = mpi_mean(np.mean(eval_episode_rewards_history))
                 combined_stats['eval/Q'] = mpi_mean(eval_qs)
@@ -187,14 +187,20 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
                 logger.record_tabular(key, combined_stats[key])
             logger.dump_tabular()
             logger.info('')
-            logdir = logger.get_dir()
+        #    logdir = logger.get_dir()
             if rank == 0:
                 logF.write(str(combined_stats["rollout/return"]) + "\n")
                 json.dump(combined_stats, logStats)
                 logF.flush()
                 logStats.flush()
 
-                agent.save(path = os.path.abspath(logdir), name = agentName,overwrite = overwrite_memory)
+            #    if not os.path.exists(os.path.abspath(logdir)):
+            #        os.makedirs(os.path.abspath(logdir), exist_ok=True)
+            #    print("logdir = ", logdir)
+            #    with open(os.path.join(logdir, "{}_{}".format(agentName, agent.itr.eval())), 'wb') as f:
+            #        pickle.dump(agent, f)
+
+                agent.save(path = logdir, name = agentName, overwrite = overwrite_memory)
                 logger.info("agent {} saved".format(agent.itr.eval()))
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):

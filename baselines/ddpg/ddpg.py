@@ -15,6 +15,11 @@ import dill as pickle
 import os
 import bz2
 
+#import sys
+
+#maxRecursionDepth = 4096
+#sys.setrecursionlimit(maxRecursionDepth)
+
 def normalize(x, stats):
     if stats is None:
         return x
@@ -319,7 +324,7 @@ class DDPG(object):
 
         return critic_loss, actor_loss
 
-    def initialize(self, sess,path = '.',restore=None,itr=0,overwrite=True):
+    def initialize(self, sess, path = '.', restore=None, itr=0, overwrite=True):
         self.sess = sess
         self.saver = tf.train.Saver()
         if restore is None:
@@ -391,11 +396,15 @@ class DDPG(object):
     def save(self, path='.', name="DDPG-Agent", overwrite=True):
         self.sess.run(self.itr_up)
         self.saver.save(self.sess, os.path.join(path, name), global_step=self.itr.eval())
+
+    #    with open(os.path.join(path, "{}_{}".format(name, self.itr.eval())), 'wb') as f:
+    #        pickle.dump(self, f)
+
         if overwrite:
             with bz2.BZ2File(os.path.join(path, "{}.memory".format(name)), "w") as f:
                 pickle.dump(self.memory, f)
         else:
-            ofilename = os.path.join(path, "{}-{}.memory".format(name, self.itr.eval()-5))
+            ofilename = os.path.join(path, "{}-{}.memory".format(name, self.itr.eval() - 5))
             if os.path.exists(ofilename):
                 os.remove(ofilename)
             with bz2.BZ2File(os.path.join(path, "{}-{}.memory".format(name, self.itr.eval())), "w") as f:

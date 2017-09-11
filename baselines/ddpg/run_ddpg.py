@@ -26,7 +26,7 @@ import tensorflow as tf
 from mpi4py import MPI
 
 
-def run(env_id, seed, noise_type, num_cpu, layer_norm, logdir, gym_monitor, evaluation, bind_to_core, hidden_size, portnum, **kwargs):
+def run(env_id, seed, noise_type, num_cpu, layer_size, nb_layers, layer_norm, logdir, gym_monitor, evaluation, bind_to_core, portnum, **kwargs):
     kwargs['logdir'] = logdir
     whoami = mpi_fork(num_cpu, bind_to_core=bind_to_core)
     if whoami == 'parent':
@@ -85,11 +85,11 @@ def run(env_id, seed, noise_type, num_cpu, layer_norm, logdir, gym_monitor, eval
 
     # Configure components.
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
-    critic = Critic(layer_size=hidden_size, layer_norm=layer_norm)
-    actor = Actor(nb_actions, layer_size=hidden_size, layer_norm=layer_norm)
+    critic = Critic(layer_size=layer_size, nb_layers = nb_layers, layer_norm=layer_norm)
+    actor = Actor(nb_actions, layer_size=layer_size, nb_layers = nb_layers, layer_norm=layer_norm)
 
     # Seed everything to make things reproducible.
-    seed = seed + 1000000 * rank
+    seed = seed + 10000 * rank
     logger.info('rank {}: seed={}, logdir={}'.format(rank, seed, logger.get_dir()))
     tf.reset_default_graph()
     set_global_seeds(seed)
@@ -113,35 +113,37 @@ def run(env_id, seed, noise_type, num_cpu, layer_norm, logdir, gym_monitor, eval
 def parse_args():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--env-id', type=str, default='Custom0-v0') #'Humanoid2-v1') # 'Walker2d2-v1')
+    parser.add_argument('--env-id', type=str, default='Custom0-v0')
     boolean_flag(parser, 'render-eval', default=False)
     boolean_flag(parser, 'layer-norm', default=True)
     boolean_flag(parser, 'overwrite-memory', default=True)
     boolean_flag(parser, 'render', default=False)
-    parser.add_argument('--num-cpu', type=int, default=2)
+    parser.add_argument('--num-cpu', type=int, default=6)
     boolean_flag(parser, 'normalize-returns', default=False)
     boolean_flag(parser, 'normalize-observations', default=True)
     parser.add_argument('--seed', type=int, default=57)
     parser.add_argument('--critic-l2-reg', type=float, default=1e-2)
-    parser.add_argument('--batch-size', type=int, default=128)  # per MPI worker
-    parser.add_argument('--hidden_size', type=int, default=128)
+    parser.add_argument('--batch-size', type=int, default=64)  # per MPI worker
+    parser.add_argument('--layer_size', type=int, default=128)
+    parser.add_argument('--nb_layers', type=int, default=2)
     parser.add_argument('--actor-lr', type=float, default=1e-4)
     parser.add_argument('--critic-lr', type=float, default=1e-3)
     boolean_flag(parser, 'popart', default=False)
-    parser.add_argument('--gamma', type=float, default=0.99)
+    parser.add_argument('--gamma', type=float, default=0.995)
     parser.add_argument('--reward-scale', type=float, default=1.)
     parser.add_argument('--clip-norm', type=float, default=5.0)
     parser.add_argument('--nb-epochs', type=int, default=1000)  # with default settings, perform 1M steps total
     parser.add_argument('--nb-epoch-cycles', type=int, default=20)
-    parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-train-steps', type=int, default=24)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-eval-steps', type=int, default=200)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-rollout-steps', type=int, default=1000)  # per epoch cycle and MPI worker
+    parser.add_argument('--eval_jump', type=int, default=10) # how often we evaluate
+    parser.add_argument('--nb-rollout-steps', type=int, default=32)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
-    parser.add_argument('--logdir', type=str, default='saves') #default=None)
-    parser.add_argument('--agentName',type=str, default='DDPG-Agent')
+    parser.add_argument('--logdir', type=str, default='nips_128') #default=None)
+    parser.add_argument('--agentName',type=str, default='DDPG-Nips')
     parser.add_argument('--resume', type=int, default=0)
     boolean_flag(parser, 'gym-monitor', default=False)
-    boolean_flag(parser, 'evaluation', default=False)
+    boolean_flag(parser, 'evaluation', default=True)
     boolean_flag(parser, 'bind-to-core', default=False)
     parser.add_argument("--portnum", required=False, type=int, default=5000)
     parser.add_argument("--server_ip", required=False, default="localhost")
@@ -159,8 +161,10 @@ if __name__ == '__main__':
     del args['portnum']
     del args['server_ip']
 
-    hidden_size = args['hidden_size']
-    del args['hidden_size']
+    layer_size = args['layer_size']
+    nb_layers = args['nb_layers']
+    del args['layer_size']
+    del args['nb_layers']
 
     # Figure out what logdir to use.
     if args['logdir'] is None:
@@ -176,4 +180,4 @@ if __name__ == '__main__':
             json.dump(args, f)
 
     # Run actual script.
-    run(hidden_size=hidden_size, portnum=utils.portnum, **args)
+    run(layer_size=layer_size, nb_layers=nb_layers, portnum=utils.portnum, **args)
