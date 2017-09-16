@@ -6,7 +6,7 @@ from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 
 class ReplayBuffer(object):
     def __init__(self, size):
-        """Create Prioritized Replay buffer.
+        """Create Replay buffer with uniform priority.
 
         Parameters
         ----------
@@ -98,7 +98,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self._max_priority = 1.0
 
     def add(self, *args, **kwargs):
-        """See ReplayBuffer.store_effect"""
+        """See ReplayBuffer.add"""
         idx = self._next_idx
         super().add(*args, **kwargs)
         self._it_sum[idx] = self._max_priority ** self._alpha
