@@ -222,9 +222,10 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
         # We have to wrap this code into a function due to the way tf.cond() works. See
         # https://stackoverflow.com/questions/37063952/confused-by-the-behavior-of-tf-cond for
         # a more detailed discussion.
+
         def perturb_vars(original_scope, perturbed_scope):
-            all_vars = U.scope_vars(U.absolute_scope_name("q_func"))
-            all_perturbed_vars = U.scope_vars(U.absolute_scope_name("perturbed_q_func"))
+            all_vars = U.scope_vars(U.absolute_scope_name(original_scope))
+            all_perturbed_vars = U.scope_vars(U.absolute_scope_name(perturbed_scope))
             assert len(all_vars) == len(all_perturbed_vars)
             perturb_ops = []
             for var, perturbed_var in zip(all_vars, all_perturbed_vars):
