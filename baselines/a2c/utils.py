@@ -7,7 +7,7 @@ from collections import deque
 
 def sample(logits):
     noise = tf.random_uniform(tf.shape(logits))
-    return tf.argmax(logits - tf.log(-tf.log(noise)), 1)
+    return tf.argmax(logits - tf.log(-tf.log(noise+1e-8)+1e-8), 1)
 
 def cat_entropy(logits):
     a0 = logits - tf.reduce_max(logits, 1, keep_dims=True)

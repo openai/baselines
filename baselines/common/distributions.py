@@ -152,7 +152,7 @@ class CategoricalPd(Pd):
         return U.sum(p0 * (tf.log(z0) - a0), axis=-1)
     def sample(self):
         u = tf.random_uniform(tf.shape(self.logits))
-        return tf.argmax(self.logits - tf.log(-tf.log(u)), axis=-1)
+        return tf.argmax(self.logits - tf.log(-tf.log(u+1e-8)+1e-8), axis=-1)
     @classmethod
     def fromflat(cls, flat):
         return cls(flat)
