@@ -331,7 +331,7 @@ class DDPG(object):
             self.sess.run(tf.global_variables_initializer())
             self.sess.run(self.target_init_updates)
         else:
-            self.saver.restore(self.sess,os.path.join(path,"{}-{}".format(restore,itr)))
+            self.saver.restore(self.sess, os.path.join(path,"{}-{}".format(restore,itr)))
             if overwrite:
                 with bz2.BZ2File(os.path.join(path,"{}.memory".format(restore)),"r") as f:
                     self.memory = pickle.load(f)
