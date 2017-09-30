@@ -13,7 +13,7 @@ class NeuralNetValueFunction(object):
         wd_dict = {}
         h1 = tf.nn.elu(dense(X, 64, "h1", weight_init=U.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
         h2 = tf.nn.elu(dense(h1, 64, "h2", weight_init=U.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
-        vpred_n = dense(h2, 1, "hfinal", weight_init=U.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict)[:,0]
+        vpred_n = dense(h2, 1, "hfinal", weight_init=None, bias_init=0, weight_loss_dict=wd_dict)[:,0]
         sample_vpred_n = vpred_n + tf.random_normal(tf.shape(vpred_n))
         wd_loss = tf.get_collection("vf_losses", None)
         loss = U.mean(tf.square(vpred_n - vtarg_n)) + tf.add_n(wd_loss)
@@ -22,7 +22,7 @@ class NeuralNetValueFunction(object):
         optim = kfac.KfacOptimizer(learning_rate=0.001, cold_lr=0.001*(1-0.9), momentum=0.9, \
                                     clip_kl=0.3, epsilon=0.1, stats_decay=0.95, \
                                     async=1, kfac_update=2, cold_iter=50, \
-                                    weight_decay_dict=wd_dict, max_grad_norm=None)
+                                    weight_decay_dict=wd_dict, max_grad_norm=1.0)
         vf_var_list = []
         for var in tf.trainable_variables():
             if "vf" in var.name:
