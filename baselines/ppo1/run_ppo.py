@@ -16,7 +16,7 @@ import sys
 def train(env_id, num_timesteps, timesteps_per_batch, seed, num_cpu, resume, 
           agentName, logdir, hid_size, num_hid_layers, clip_param, entcoeff, 
           optim_epochs, optim_stepsize, optim_batchsize, gamma, lam,
-          portnum
+          portnum,max_to_keep
 ):
     from baselines.ppo1 import mlp_policy, pposgd_simple
     print("num cpu = " + str(num_cpu))
@@ -49,7 +49,7 @@ def train(env_id, num_timesteps, timesteps_per_batch, seed, num_cpu, resume,
             clip_param=clip_param, entcoeff=entcoeff,
             optim_epochs=optim_epochs, optim_stepsize=optim_stepsize, optim_batchsize=optim_batchsize,
             gamma=gamma, lam=lam,
-            resume=resume, agentName=agentName, logdir=logdir
+            resume=resume, agentName=agentName, logdir=logdir, max_to_keep=max_to_keep
         )
     env.close()
 
@@ -57,11 +57,11 @@ def train(env_id, num_timesteps, timesteps_per_batch, seed, num_cpu, resume,
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--env-id', type=str, default='Custom0-v0') #'Humanoid2-v1') # 'Walker2d2-v1')
-    parser.add_argument('--num-cpu', type=int, default=6)
+    parser.add_argument('--num-cpu', type=int, default=1)
     parser.add_argument('--seed', type=int, default=57)
     parser.add_argument('--logdir', type=str, default='.') #default=None)
     parser.add_argument('--agentName', type=str, default='PPO-Agent')
-    parser.add_argument('--resume', type=int, default = 2011)
+    parser.add_argument('--resume', type=int, default = 0)
 
     parser.add_argument('--num_timesteps', type=int,default = 1e6)
     parser.add_argument('--timesteps_per_batch', type=int, default=1000)
@@ -76,8 +76,9 @@ def parse_args():
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--lam', type=float, default=0.95)
 
-    parser.add_argument("--portnum", required=False, type=int, default=5000)
+    parser.add_argument("--portnum", required=False, type=int, default=5050)
     parser.add_argument("--server_ip", required=False, default="localhost")
+    parser.add_argument("--max_to_keep", required=False, default=100)
 
     return vars(parser.parse_args())
 
@@ -93,7 +94,7 @@ def main():
           logdir=args['logdir'], hid_size=args['hid_size'], num_hid_layers=args['num_hid_layers'],
           clip_param=args['clip_param'], entcoeff=args['entcoeff'],
           optim_epochs=args['optim_epochs'], optim_stepsize=args['optim_stepsize'], optim_batchsize=args['optim_batchsize'],
-          gamma=args['gamma'], lam=args['lam'], portnum=utils.portnum,
+          gamma=args['gamma'], lam=args['lam'], portnum=utils.portnum, max_to_keep=args['max_to_keep']
           )
 
 

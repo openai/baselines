@@ -90,7 +90,8 @@ def learn(env, policy_func, *,
         schedule='constant', # annealing for stepsize parameters (epsilon and adam)
         logdir=".",
         agentName="PPO-Agent",
-        resume = 0       
+        resume = 0,
+        max_to_keep = 100        #maximum number of weights to keep around before deleting
         ):
     # Setup losses and stuff
     # ----------------------------------------
@@ -144,7 +145,7 @@ def learn(env, policy_func, *,
     lenbuffer = deque(maxlen=100) # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=100) # rolling buffer for episode rewards
 
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=max_to_keep)
     if resume > 0:
         saver.restore(tf.get_default_session(), os.path.join(os.path.abspath(logdir), "{}-{}".format(agentName, resume)))
     iters_so_far = resume
@@ -224,7 +225,7 @@ def learn(env, policy_func, *,
 
         if MPI.COMM_WORLD.Get_rank()==0:
 
-            logF.write(str(rewmean) + "\n")
+            logF.write(str(iters_so_far) + "," + str(rewmean) + "\n")
             logStats.write(logger.get_str() + "\n")
             logF.flush()
             logStats.flush()
