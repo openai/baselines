@@ -30,3 +30,9 @@ src
 
 *.egg-info
 .cache
+
+mylogdir/
+
+*.index
+*.meta
+*.data*

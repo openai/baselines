@@ -16,7 +16,7 @@ import json
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_memory, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise, logdir,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, eval_jump, batch_size, memory,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50, agentName = None, resume=0):
+    tau=0.01, eval_env=None, param_noise_adaption_interval=50, agentName = None, resume=0, max_to_keep=100):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -32,7 +32,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
 
     # Set up logging stuff only for a single worker.
     if rank == 0:
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(max_to_keep=max_to_keep)
     else:
         saver = None
 
@@ -43,6 +43,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
 
     logF = open(os.path.join(logdir, 'log.txt'), 'a')
     logStats = open(os.path.join(logdir, 'log_stats.txt'), 'a')
+    logReward = open(os.path.join(logdir, 'logReward.txt'), 'a')
 
     with U.single_threaded_session() as sess:
         # Prepare everything.
@@ -74,7 +75,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
         epoch_actions = []
         epoch_qs = []
         epoch_episodes = 0
-        for epoch in range(nb_epochs):
+        for epoch in range(resume, resume+nb_epochs):
             for cycle in range(nb_epoch_cycles):
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
@@ -189,6 +190,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
             logger.info('')
         #    logdir = logger.get_dir()
             if rank == 0:
+                logReward.write(str(epoch) + "," + str(combined_stats["rollout/return"]) + "\n")
+                logReward.flush()
                 logF.write(str(combined_stats["rollout/return"]) + "\n")
                 json.dump(combined_stats, logStats)
                 logF.flush()

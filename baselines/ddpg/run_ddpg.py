@@ -26,7 +26,7 @@ import tensorflow as tf
 from mpi4py import MPI
 
 
-def run(env_id, seed, noise_type, num_cpu, layer_size, nb_layers, layer_norm, logdir, gym_monitor, evaluation, bind_to_core, portnum, **kwargs):
+def run(env_id, seed, noise_type, num_cpu, layer_size, nb_layers, layer_norm, logdir, gym_monitor, evaluation, bind_to_core, portnum, max_to_keep, **kwargs):
     kwargs['logdir'] = logdir
     whoami = mpi_fork(num_cpu, bind_to_core=bind_to_core)
     if whoami == 'parent':
@@ -101,7 +101,7 @@ def run(env_id, seed, noise_type, num_cpu, layer_size, nb_layers, layer_norm, lo
     if rank == 0:
         start_time = time.time()
     training.train(env=env, eval_env=eval_env, param_noise=param_noise,
-        action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
+        action_noise=action_noise, actor=actor, critic=critic, memory=memory, max_to_keep=max_to_keep, **kwargs)
     env.close()
     if eval_env is not None:
         eval_env.close()
@@ -118,7 +118,7 @@ def parse_args():
     boolean_flag(parser, 'layer-norm', default=True)
     boolean_flag(parser, 'overwrite-memory', default=True)
     boolean_flag(parser, 'render', default=False)
-    parser.add_argument('--num-cpu', type=int, default=6)
+    parser.add_argument('--num-cpu', type=int, default=1)
     boolean_flag(parser, 'normalize-returns', default=False)
     boolean_flag(parser, 'normalize-observations', default=True)
     parser.add_argument('--seed', type=int, default=57)
@@ -132,21 +132,22 @@ def parse_args():
     parser.add_argument('--gamma', type=float, default=0.995)
     parser.add_argument('--reward-scale', type=float, default=1.)
     parser.add_argument('--clip-norm', type=float, default=5.0)
-    parser.add_argument('--nb-epochs', type=int, default=1000)  # with default settings, perform 1M steps total
+    parser.add_argument('--nb-epochs', type=int, default=20000)  # with default settings, perform 1M steps total
     parser.add_argument('--nb-epoch-cycles', type=int, default=20)
     parser.add_argument('--nb-train-steps', type=int, default=24)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-eval-steps', type=int, default=200)  # per epoch cycle and MPI worker
     parser.add_argument('--eval_jump', type=int, default=10) # how often we evaluate
     parser.add_argument('--nb-rollout-steps', type=int, default=32)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
-    parser.add_argument('--logdir', type=str, default='nips_128') #default=None)
+    parser.add_argument('--logdir', type=str, default=None)
     parser.add_argument('--agentName',type=str, default='DDPG-Nips')
     parser.add_argument('--resume', type=int, default=0)
     boolean_flag(parser, 'gym-monitor', default=False)
     boolean_flag(parser, 'evaluation', default=True)
     boolean_flag(parser, 'bind-to-core', default=False)
-    parser.add_argument("--portnum", required=False, type=int, default=5000)
+    parser.add_argument("--portnum", required=False, type=int, default=5050)
     parser.add_argument("--server_ip", required=False, default="localhost")
+    parser.add_argument("--max_to_keep", type=int, required=False, default=100)
 
  #   boolean_flag(parser, 'test', default=False)
 
