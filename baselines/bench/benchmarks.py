@@ -126,7 +126,7 @@ _atari50 =  [ # actually 49
 
 register_benchmark({
     'name' : 'Atari50_40M',
-    'description' :'7 Atari games from Mnih et al. (2013), with pixel observations, 40M frames',
+    'description' :'49 Atari games from Mnih et al. (2013), with pixel observations, 40M frames',
     'tasks'  : [{'env_id' : _game + _ATARI_SUFFIX, 'trials' : 3, 'num_timesteps' : int(40e6)} for _game in _atari50]
 })
 
