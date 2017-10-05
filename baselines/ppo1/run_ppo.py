@@ -19,7 +19,6 @@ def train(env_id, num_timesteps, timesteps_per_batch, seed, num_cpu, resume,
           portnum,max_to_keep
 ):
     from baselines.ppo1 import mlp_policy, pposgd_simple
-    print("num cpu = " + str(num_cpu))
 
     whoami  = mpi_fork(num_cpu)
     if whoami == "parent": return
@@ -63,7 +62,7 @@ def parse_args():
     parser.add_argument('--agentName', type=str, default='PPO-Agent')
     parser.add_argument('--resume', type=int, default = 0)
 
-    parser.add_argument('--num_timesteps', type=int,default = 1e6)
+    parser.add_argument('--num_timesteps', type=int,default = 1e7)
     parser.add_argument('--timesteps_per_batch', type=int, default=1000)
     parser.add_argument('--hid_size', type=int, default=64)
     parser.add_argument('--num_hid_layers', type=int, default=2)
@@ -78,7 +77,7 @@ def parse_args():
 
     parser.add_argument("--portnum", required=False, type=int, default=5050)
     parser.add_argument("--server_ip", required=False, default="localhost")
-    parser.add_argument("--max_to_keep", required=False, default=100)
+    parser.add_argument("--max_to_keep", type=int, required=False, default=100)
 
     return vars(parser.parse_args())
 
