@@ -90,6 +90,7 @@ class DDPG(object):
         self.batch_size = batch_size
         self.stats_sample = None
         self.critic_l2_reg = critic_l2_reg
+        self.adaptive_param_noise_policy_threshold = adaptive_param_noise_policy_threshold
 
         # Observation normalization.
         if self.normalize_observations:
@@ -367,6 +368,7 @@ class DDPG(object):
         if self.action_noise is not None:
             self.action_noise.reset()
         if self.param_noise is not None:
+            stddev = self.param_noise.current_stddev if self.param_noise.current_stddev > self.adaptive_param_noise_policy_threshold else self.adaptive_param_noise_policy_threshold
             self.sess.run(self.perturb_policy_ops, feed_dict={
-                self.param_noise_stddev: self.param_noise.current_stddev,
+                self.param_noise_stddev: stddev,
             })
