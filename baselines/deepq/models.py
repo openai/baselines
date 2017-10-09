@@ -72,7 +72,7 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
 
     Parameters
     ----------
-    convs: [(int, int int)]
+    convs: [(int, int, int)]
         list of convolutional layers in form of
         (num_outputs, kernel_size, stride)
     hiddens: [int]
