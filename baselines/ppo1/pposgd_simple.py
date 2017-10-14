@@ -82,11 +82,13 @@ def learn(env, policy_func, *,
         clip_param, entcoeff, # clipping parameter epsilon, entropy coeff
         optim_epochs, optim_stepsize, optim_batchsize,# optimization hypers
         gamma, lam, # advantage estimation
+        save_model_with_prefix, # Save the model with this prefix after 500 iters
+        restore_model_from_file,# Load the states/model from this file.
         max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
         callback=None, # you can do anything in the callback, since it takes locals(), globals()
         adam_epsilon=1e-5,
-        schedule='constant' # annealing for stepsize parameters (epsilon and adam)
-        ):
+        schedule='constant', # annealing for stepsize parameters (epsilon and adam)
+       ):
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
@@ -127,6 +129,12 @@ def learn(env, policy_func, *,
 
     U.initialize()
     adam.sync()
+
+    # Resume model if a model file is provided
+    if restore_model_from_file:
+        saver=tf.train.Saver()
+        saver.restore(tf.get_default_session(), restore_model_from_file)
+        logger.log("Loaded model from {}".format(restore_model_from_file))
 
     # Prepare for rollouts
     # ----------------------------------------
@@ -211,6 +219,15 @@ def learn(env, policy_func, *,
         logger.record_tabular("TimeElapsed", time.time() - tstart)
         if MPI.COMM_WORLD.Get_rank()==0:
             logger.dump_tabular()
+
+        # Save model after every 500 iters if a file name to save is given
+        import os 
+        if iters_so_far % 500 ==0:
+            if save_model_with_prefix:
+                basePath=os.path.dirname(os.path.abspath(__file__))
+                modelF= basePath + '/' + save_model_with_prefix+"_afterIter_"+str(iters_so_far)+".model"
+                U.save_state(modelF)
+                logger.log("Saved model to file :{}".format(modelF))
 
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
