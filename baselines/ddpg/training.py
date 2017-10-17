@@ -48,10 +48,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale,overwrite_m
     with U.single_threaded_session() as sess:
         # Prepare everything.
         if (resume == 0):
-            agent.initialize(sess)
+            agent.initialize(sess, max_to_keep=max_to_keep)
         else:
             #restore = "{}-{}".format(agentName,resume)
-            agent.initialize(sess, path = os.path.abspath(logdir), restore = agentName,itr = resume, overwrite = overwrite_memory)
+            agent.initialize(sess, path = os.path.abspath(logdir), restore = agentName,itr = resume, overwrite = overwrite_memory, max_to_keep=max_to_keep)
         sess.graph.finalize()
 
         agent.reset()

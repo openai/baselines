@@ -324,9 +324,9 @@ class DDPG(object):
 
         return critic_loss, actor_loss
 
-    def initialize(self, sess, path = '.', restore=None, itr=0, overwrite=True):
+    def initialize(self, sess, path = '.', restore=None, itr=0, overwrite=True, max_to_keep=5):
         self.sess = sess
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(max_to_keep=max_to_keep)
         if restore is None:
             self.sess.run(tf.global_variables_initializer())
             self.sess.run(self.target_init_updates)
