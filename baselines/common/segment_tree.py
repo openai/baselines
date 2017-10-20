@@ -53,7 +53,7 @@ class SegmentTree(object):
         """Returns result of applying `self.operation`
         to a contiguous subsequence of the array.
 
-            self.operation(arr[start], operation(arr[start+1], operation(... arr[end - 1])))
+            self.operation(arr[start], operation(arr[start + 1], operation(... arr[end - 1])))
 
         Parameters
         ----------
@@ -105,7 +105,7 @@ class SumSegmentTree(SegmentTree):
 
     def find_prefixsum_idx(self, prefixsum):
         """Find the highest index `i` in the array such that
-            sum(arr[0] + arr[1] + ... + arr[i - i]) <= prefixsum
+            sum(arr[0] + arr[1] + ... + arr[i - 1]) <= prefixsum
 
         if array values are probabilities, this function
         allows to sample indexes according to the discrete
@@ -142,5 +142,4 @@ class MinSegmentTree(SegmentTree):
 
     def min(self, start=0, end=None):
         """Returns min(arr[start], ...,  arr[end - 1])"""
-
         return super(MinSegmentTree, self).reduce(start, end)
