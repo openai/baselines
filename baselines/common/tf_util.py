@@ -120,7 +120,7 @@ class TfInput(object):
         raise NotImplemented()
 
 
-class PlacholderTfInput(TfInput):
+class PlaceholderTfInput(TfInput):
     def __init__(self, placeholder):
         """Wrapper for regular tensorflow placeholder."""
         super().__init__(placeholder.name)
@@ -133,7 +133,7 @@ class PlacholderTfInput(TfInput):
         return {self._placeholder: data}
 
 
-class BatchInput(PlacholderTfInput):
+class BatchInput(PlaceholderTfInput):
     def __init__(self, shape, dtype=tf.float32, name=None):
         """Creates a placeholder for a batch of tensors of a given shape and dtype
 
@@ -149,7 +149,7 @@ class BatchInput(PlacholderTfInput):
         super().__init__(tf.placeholder(dtype, [None] + list(shape), name=name))
 
 
-class Uint8Input(PlacholderTfInput):
+class Uint8Input(PlaceholderTfInput):
     def __init__(self, shape, name=None):
         """Takes input in uint8 format which is cast to float32 and divided by 255
         before passing it to the model.
@@ -177,7 +177,7 @@ def ensure_tf_input(thing):
     if isinstance(thing, TfInput):
         return thing
     elif is_placeholder(thing):
-        return PlacholderTfInput(thing)
+        return PlaceholderTfInput(thing)
     else:
         raise ValueError("Must be a placeholder or TfInput")
 
