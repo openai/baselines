@@ -113,7 +113,6 @@ class Runner(object):
         nenv = env.num_envs
         self.batch_ob_shape = (nenv*nsteps, nh, nw, nc*nstack)
         self.obs = np.zeros((nenv, nh, nw, nc*nstack), dtype=np.uint8)
-        self.nc = nc
         obs = env.reset()
         self.update_obs(obs)
         self.gamma = gamma
@@ -122,8 +121,8 @@ class Runner(object):
         self.dones = [False for _ in range(nenv)]
 
     def update_obs(self, obs):
-        self.obs = np.roll(self.obs, shift=-self.nc, axis=3)
-        self.obs[:, :, :, -self.nc:] = obs
+        self.obs = np.roll(self.obs, shift=-1, axis=3)
+        self.obs[:, :, :, -1] = obs[:, :, :, 0]
 
     def run(self):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]
@@ -189,7 +188,8 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
     nbatch = nenvs*nsteps
     tstart = time.time()
-    enqueue_threads = model.q_runner.create_threads(model.sess, coord=tf.train.Coordinator(), start=True)
+    coord = tf.train.Coordinator()
+    enqueue_threads = model.q_runner.create_threads(model.sess, coord=coord, start=True)
     for update in range(1, total_timesteps//nbatch+1):
         obs, states, rewards, masks, actions, values = runner.run()
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
@@ -211,5 +211,6 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
             savepath = osp.join(logger.get_dir(), 'checkpoint%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
-
+    coord.request_stop()
+    coord.join(enqueue_threads)
     env.close()

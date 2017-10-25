@@ -110,7 +110,6 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         ob_no = np.concatenate([path["observation"] for path in paths])
         action_na = np.concatenate([path["action"] for path in paths])
         oldac_dist = np.concatenate([path["action_dist"] for path in paths])
-        logp_n = np.concatenate([path["logp"] for path in paths])
         adv_n = np.concatenate(advs)
         standardized_adv_n = (adv_n - adv_n.mean()) / (adv_n.std() + 1e-8)
 
@@ -126,7 +125,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             U.eval(tf.assign(stepsize, tf.maximum(min_stepsize, stepsize / 1.5)))
         elif kl < desired_kl / 2:
             logger.log("kl too low")
-            U.eval(tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)))
+            U.eval(tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)))            
         else:
             logger.log("kl just right!")
 
@@ -138,3 +137,6 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             callback()
         logger.dump_tabular()
         i += 1
+
+    coord.request_stop()
+    coord.join(enqueue_threads)

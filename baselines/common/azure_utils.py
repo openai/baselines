@@ -10,10 +10,7 @@ except ImportError:
 from shutil import unpack_archive
 from threading import Event
 
-"""TODOS:
-   - use Azure snapshots instead of hacky backups
-"""
-
+# TODOS: use Azure snapshots instead of hacky backups
 
 def fixed_list_blobs(service, *args, **kwargs):
     """By defualt list_containers only returns a subset of results.
@@ -37,7 +34,7 @@ def make_archive(source_path, dest_path):
     prefix_path = os.path.dirname(source_path)
     with zipfile.ZipFile(dest_path, "w", compression=zipfile.ZIP_STORED) as zf:
         if os.path.isdir(source_path):
-            for dirname, subdirs, files in os.walk(source_path):
+            for dirname, _subdirs, files in os.walk(source_path):
                 zf.write(dirname, os.path.relpath(dirname, prefix_path))
                 for filename in files:
                     filepath = os.path.join(dirname, filename)

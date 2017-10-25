@@ -20,3 +20,14 @@ pip install -e .
 - [DQN](baselines/deepq)
 - [PPO](baselines/ppo1)
 - [TRPO](baselines/trpo_mpi)
+
+To cite this repository in publications:
+
+    @misc{baselines,
+      author = {Hesse, Christopher and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
+      title = {OpenAI Baselines},
+      year = {2017},
+      publisher = {GitHub},
+      journal = {GitHub repository},
+      howpublished = {\url{https://github.com/openai/baselines}},
+    }

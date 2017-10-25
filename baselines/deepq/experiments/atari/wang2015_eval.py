@@ -5,15 +5,15 @@ import os
 
 import baselines.common.tf_util as U
 
-from baselines import deepq
-from baselines.common.misc_util import get_wrapper_by_name, SimpleMonitor, boolean_flag, set_global_seeds
+from baselines import deepq, bench
+from baselines.common.misc_util import get_wrapper_by_name, boolean_flag, set_global_seeds
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.deepq.experiments.atari.model import model, dueling_model
 
 
 def make_env(game_name):
     env = gym.make(game_name + "NoFrameskip-v4")
-    env_monitored = SimpleMonitor(env)
+    env_monitored = bench.Monitor(env, None)
     env = wrap_dqn(env_monitored)
     return env_monitored, env
 
@@ -47,14 +47,14 @@ def wang2015_eval(game_name, act, stochastic):
             eval_episode_steps += 1
             action = act(np.array(obs)[None], stochastic=stochastic)[0]
 
-            obs, reward, done, info = eval_env.step(action)
+            obs, _reward, done, info = eval_env.step(action)
             if done:
                 obs = eval_env.reset()
             if len(info["rewards"]) > 0:
                 episode_rewards.append(info["rewards"][0])
                 break
             if info["steps"] > 108000:  # 5 minutes of gameplay
-                episode_rewards.append(env_monitored._current_reward)
+                episode_rewards.append(sum(env_monitored.rewards))
                 break
         print("Num steps in episode {} was {} yielding {} reward".format(
               num_noops, eval_episode_steps, episode_rewards[-1]), flush=True)
@@ -66,7 +66,7 @@ def wang2015_eval(game_name, act, stochastic):
 def main():
     set_global_seeds(1)
     args = parse_args()
-    with U.make_session(4) as sess:  # noqa
+    with U.make_session(4):  # noqa
         _, env = make_env(args.env)
         act = deepq.build_act(
             make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),

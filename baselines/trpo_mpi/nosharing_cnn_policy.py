@@ -1,4 +1,3 @@
-from baselines.common.mpi_running_mean_std import RunningMeanStd
 import baselines.common.tf_util as U
 import tensorflow as tf
 import gym
@@ -18,7 +17,7 @@ class CnnPolicy(object):
         sequence_length = None
 
         ob = U.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
-
+        
         obscaled = ob / 255.0
 
         with tf.variable_scope("pol"):
@@ -42,7 +41,7 @@ class CnnPolicy(object):
         self.state_out = []
 
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
-        ac = self.pd.sample() # XXX
+        ac = self.pd.sample()
         self._act = U.function([stochastic, ob], [ac, self.vpred])
 
     def act(self, stochastic, ob):
