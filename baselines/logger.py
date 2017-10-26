@@ -29,7 +29,7 @@ class SeqWriter(object):
 class HumanOutputFormat(KVWriter, SeqWriter):
     def __init__(self, filename_or_file):
         if isinstance(filename_or_file, str):
-            self.file = open(filename_or_file, 'at')
+            self.file = open(filename_or_file, 'wt')
             self.own_file = True
         else:
             assert hasattr(filename_or_file, 'read'), 'expected file or str, got %s'%filename_or_file
@@ -85,7 +85,7 @@ class HumanOutputFormat(KVWriter, SeqWriter):
 
 class JSONOutputFormat(KVWriter):
     def __init__(self, filename):
-        self.file = open(filename, 'at')
+        self.file = open(filename, 'wt')
 
     def writekvs(self, kvs):
         for k, v in sorted(kvs.items()):
@@ -100,7 +100,7 @@ class JSONOutputFormat(KVWriter):
 
 class CSVOutputFormat(KVWriter):
     def __init__(self, filename):
-        self.file = open(filename, 'a+t')
+        self.file = open(filename, 'w+t')
         self.keys = []
         self.sep = ','
 
