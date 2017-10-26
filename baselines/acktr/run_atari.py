@@ -13,7 +13,7 @@ def train(env_id, num_timesteps, seed, num_cpu):
         def _thunk():
             env = make_atari(env_id)
             env.seed(seed + rank)
-            env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
+            env = bench.Monitor(env, logger.get_dir() and logger.get_dir())
             gym.logger.setLevel(logging.WARN)
             return wrap_deepmind(env)
         return _thunk
