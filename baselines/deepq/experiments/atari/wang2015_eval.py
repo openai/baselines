@@ -7,14 +7,14 @@ import baselines.common.tf_util as U
 
 from baselines import deepq, bench
 from baselines.common.misc_util import get_wrapper_by_name, boolean_flag, set_global_seeds
-from baselines.common.atari_wrappers_deprecated import wrap_dqn
+from baselines.common.atari_wrappers import wrap_deepmind
 from baselines.deepq.experiments.atari.model import model, dueling_model
 
 
 def make_env(game_name):
     env = gym.make(game_name + "NoFrameskip-v4")
     env_monitored = bench.Monitor(env, None)
-    env = wrap_dqn(env_monitored)
+    env = wrap_deepmind(env_monitored)
     return env_monitored, env
 
 
