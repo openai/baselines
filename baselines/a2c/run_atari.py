@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os, logging, gym
 from baselines import logger
 from baselines.common import set_global_seeds
