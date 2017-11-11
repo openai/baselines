@@ -19,11 +19,9 @@ from baselines.common.misc_util import (
     relatively_safe_pickle_dump,
     set_global_seeds,
     RunningAvg,
-    SimpleMonitor
 )
 from baselines.common.schedules import LinearSchedule, PiecewiseSchedule
-# when updating this to non-deperecated ones, it is important to
-# copy over LazyFrames
+from baselines import bench
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.common.azure_utils import Container
 from .model import model, dueling_model
@@ -64,7 +62,7 @@ def parse_args():
 
 def make_env(game_name):
     env = gym.make(game_name + "NoFrameskip-v4")
-    monitored_env = SimpleMonitor(env)  # puts rewards and number of steps in info, before environment is wrapped
+    monitored_env = bench.Monitor(env, logger.get_dir())  # puts rewards and number of steps in info, before environment is wrapped
     env = wrap_dqn(monitored_env)  # applies a bunch of modification to simplify the observation space (downsample, make b/w)
     return env, monitored_env
 

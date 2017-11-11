@@ -10,8 +10,8 @@ import baselines.common.tf_util as U
 from baselines import deepq
 from baselines.common.misc_util import (
     boolean_flag,
-    SimpleMonitor,
 )
+from baselines import bench
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.deepq.experiments.atari.model import model, dueling_model
 
@@ -30,7 +30,7 @@ def parse_args():
 
 def make_env(game_name):
     env = gym.make(game_name + "NoFrameskip-v4")
-    env = SimpleMonitor(env)
+    env = bench.Monitor(env, None)
     env = wrap_dqn(env)
     return env
 

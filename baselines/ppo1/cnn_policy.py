@@ -1,4 +1,3 @@
-from baselines.common.mpi_running_mean_std import RunningMeanStd
 import baselines.common.tf_util as U
 import tensorflow as tf
 import gym
@@ -18,7 +17,7 @@ class CnnPolicy(object):
         sequence_length = None
 
         ob = U.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
-
+    
         x = ob / 255.0
         if kind == 'small': # from A3C paper
             x = tf.nn.relu(U.conv2d(x, 16, "l1", [8, 8], [4, 4], pad="VALID"))

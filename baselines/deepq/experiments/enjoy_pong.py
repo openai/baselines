@@ -1,12 +1,10 @@
 import gym
-
 from baselines import deepq
-from baselines.common.atari_wrappers_deprecated import wrap_dqn, ScaledFloatFrame
 
 
 def main():
     env = gym.make("PongNoFrameskip-v4")
-    env = ScaledFloatFrame(wrap_dqn(env))
+    env = deepq.wrap_atari_dqn(env)
     act = deepq.load("pong_model.pkl")
 
     while True:

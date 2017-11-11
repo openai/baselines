@@ -188,7 +188,8 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
     nbatch = nenvs*nsteps
     tstart = time.time()
-    enqueue_threads = model.q_runner.create_threads(model.sess, coord=tf.train.Coordinator(), start=True)
+    coord = tf.train.Coordinator()
+    enqueue_threads = model.q_runner.create_threads(model.sess, coord=coord, start=True)
     for update in range(1, total_timesteps//nbatch+1):
         obs, states, rewards, masks, actions, values = runner.run()
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
@@ -210,5 +211,6 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
             savepath = osp.join(logger.get_dir(), 'checkpoint%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
-
+    coord.request_stop()
+    coord.join(enqueue_threads)
     env.close()

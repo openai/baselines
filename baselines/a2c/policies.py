@@ -1,9 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm, sample, check_shape
-from baselines.common.distributions import make_pdtype
-import baselines.common.tf_util as U
-import gym
+from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm, sample
 
 class LnLstmPolicy(object):
     def __init__(self, sess, ob_space, ac_space, nenv, nsteps, nstack, nlstm=256, reuse=False):
