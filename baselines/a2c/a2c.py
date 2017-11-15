@@ -16,6 +16,12 @@ from baselines.a2c.utils import Scheduler, make_path, find_trainable_variables
 from baselines.a2c.policies import CnnPolicy
 from baselines.a2c.utils import cat_entropy, mse
 
+# On OS X, certain Objective-C runtime classes must be initialised before any
+# threads are created if they are to be used in forked process. See commit
+# comments for more details.
+from cv2.ocl import useOpenCL
+useOpenCL()
+
 class Model(object):
 
     def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, nstack, num_procs,
