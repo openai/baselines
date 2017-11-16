@@ -15,16 +15,18 @@ pip install -e .
 ```
 
 - [A2C](baselines/a2c)
+- [ACER](baselines/acer)
 - [ACKTR](baselines/acktr)
 - [DDPG](baselines/ddpg)
 - [DQN](baselines/deepq)
-- [PPO](baselines/ppo1)
+- [PPO1](baselines/ppo1) (Multi-CPU using MPI)
+- [PPO2](baselines/ppo2) (Optimized for GPU)
 - [TRPO](baselines/trpo_mpi)
 
 To cite this repository in publications:
 
     @misc{baselines,
-      author = {Hesse, Christopher and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
+      author = {Dhariwal, Prafulla and Hesse, Christopher and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
       title = {OpenAI Baselines},
       year = {2017},
       publisher = {GitHub},

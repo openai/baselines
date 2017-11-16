@@ -238,11 +238,7 @@ def learn(env,
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
-            if isinstance(env.action_space, gym.spaces.MultiBinary):
-                env_action = np.zeros(env.action_space.n)
-                env_action[action] = 1
-            else:
-                env_action = action
+            env_action = action
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
             # Store transition in the replay buffer.
