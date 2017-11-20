@@ -33,9 +33,9 @@ def train(env_id, num_timesteps, seed):
 
     pposgd_simple.learn(env, policy_fn,
         max_timesteps=int(num_timesteps * 1.1),
-        timesteps_per_actorbatch=256,
-        clip_param=0.2, entcoeff=0.01,
-        optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64,
+        timesteps_per_actorbatch=128,
+        clip_param=0.1, entcoeff=0.01,
+        optim_epochs=4, optim_stepsize=2.5e-4, optim_batchsize=64,
         gamma=0.99, lam=0.95,
         schedule='linear'
     )
@@ -44,11 +44,11 @@ def train(env_id, num_timesteps, seed):
 def main():
     import argparse
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--env', help='environment ID', default='PongNoFrameskip-v4')
+    parser.add_argument('--env', help='environment ID', default='Pong')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--num-timesteps', type=int, default=int(10e6))
     args = parser.parse_args()
-    train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
+    train(args.env+"NoFrameskip-v4", num_timesteps=args.num_timesteps, seed=args.seed)
 
 if __name__ == '__main__':
     main()

@@ -14,10 +14,11 @@ def traj_segment_generator(pi, env, horizon, stochastic):
     new = True # marks if we're on first timestep of an episode
     ob = env.reset()
 
-    cur_ep_ret = 0 # return in current episode
+    cur_ep_ret = 0 # clipped return in current episode
     cur_ep_len = 0 # len of current episode
-    ep_rets = [] # returns of completed episodes in this segment
+    ep_rets = [] # clipped returns of completed episodes in this segment
     ep_lens = [] # lengths of ...
+    unclipped_rets = [] # unclipped returns
 
     # Initialize history arrays
     obs = np.array([ob for _ in range(horizon)])
@@ -36,11 +37,12 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         if t > 0 and t % horizon == 0:
             yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
                     "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
-                    "ep_rets" : ep_rets, "ep_lens" : ep_lens}
+                    "ep_rets" : ep_rets, "ep_lens" : ep_lens, "unclipped_ep_rets" : unclipped_rets}
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
             ep_lens = []
+            unclipped_rets = []
         i = t % horizon
         obs[i] = ob
         vpreds[i] = vpred
@@ -48,9 +50,12 @@ def traj_segment_generator(pi, env, horizon, stochastic):
         acs[i] = ac
         prevacs[i] = prevac
 
-        ob, rew, new, _ = env.step(ac)
-        rews[i] = rew
-
+        ob, rew, new, info = env.step(ac)
+        if info: # the monitor inject episode info.
+            if info.get('episode') is not None:
+                if info['episode'].get('r') is not None:
+                    unclipped_rets.append(info['episode']['r'])
+        rews[i] = rew # clipped reward
         cur_ep_ret += rew
         cur_ep_len += 1
         if new:
@@ -137,7 +142,8 @@ def learn(env, policy_func, *,
     iters_so_far = 0
     tstart = time.time()
     lenbuffer = deque(maxlen=100) # rolling buffer for episode lengths
-    rewbuffer = deque(maxlen=100) # rolling buffer for episode rewards
+    rewbuffer = deque(maxlen=100) # rolling buffer for clipped episode rewards
+    unclipped_rew_buffer = deque(maxlen=100) # rolling buffer for unclipped episode rewards
 
     assert sum([max_iters>0, max_timesteps>0, max_episodes>0, max_seconds>0])==1, "Only one time constraint permitted"
 
@@ -195,13 +201,15 @@ def learn(env, policy_func, *,
         for (lossval, name) in zipsame(meanlosses, loss_names):
             logger.record_tabular("loss_"+name, lossval)
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
-        lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
+        lrlocal = (seg["ep_lens"], seg["ep_rets"], seg["unclipped_ep_rets"]) # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
-        lens, rews = map(flatten_lists, zip(*listoflrpairs))
+        lens, rews, unclipped_rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
+        unclipped_rew_buffer.extend(unclipped_rews)
         logger.record_tabular("EpLenMean", np.mean(lenbuffer))
         logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+        logger.record_tabular("EpUnclippedRewMean", np.mean(unclipped_rew_buffer))
         logger.record_tabular("EpThisIter", len(lens))
         episodes_so_far += len(lens)
         timesteps_so_far += sum(lens)
