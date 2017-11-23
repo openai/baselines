@@ -212,6 +212,7 @@ def learn(env,
     update_target()
 
     episode_rewards = [0.0]
+    save_freq = print_freq if print_freq is not None else 100
     saved_mean_reward = None
     obs = env.reset()
     reset = True
@@ -268,24 +269,24 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+            mean_reward = round(np.mean(episode_rewards[-1-save_freq:-1]), 1)
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
-                logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
-                logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
+                logger.record_tabular("mean {} episode reward".format(print_freq), mean_reward)
+                logger.record_tabular("% time spent exploring", float(100 * exploration.value(t)))
                 logger.dump_tabular()
 
             if (checkpoint_freq is not None and t > learning_starts and
-                    num_episodes > 100 and t % checkpoint_freq == 0):
-                if saved_mean_reward is None or mean_100ep_reward > saved_mean_reward:
+                    num_episodes > save_freq and t % checkpoint_freq == 0):
+                if saved_mean_reward is None or mean_reward > saved_mean_reward:
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
-                                   saved_mean_reward, mean_100ep_reward))
+                                   saved_mean_reward, mean_reward))
                     U.save_state(model_file)
                     model_saved = True
-                    saved_mean_reward = mean_100ep_reward
+                    saved_mean_reward = mean_reward
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
