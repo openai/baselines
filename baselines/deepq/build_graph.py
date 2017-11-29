@@ -278,9 +278,9 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
                          updates=updates)
         return act
 
-
-def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=None, gamma=1.0,
-    double_q=True, scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None):
+def build_train(make_obs_ph, q_func, num_actions, optimizer, 
+        grad_norm_clipping=None, gamma=1.0, double_q=True, scope="deepq", 
+        reuse=None, param_noise=False, param_noise_filter_func=None, tao=0.0):
     """Creates the train function:
 
     Parameters
@@ -390,7 +390,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         update_target_expr = []
         for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
                                    sorted(target_q_func_vars, key=lambda v: v.name)):
-            update_target_expr.append(var_target.assign(var))
+            update_target_expr.append(var_target.assign(tao*var_target + (1-tao)*var))
         update_target_expr = tf.group(*update_target_expr)
 
         # Create callable functions
