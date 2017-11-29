@@ -12,12 +12,8 @@ class NoopResetEnv(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         self.noop_max = noop_max
         self.override_num_noops = None
-        if isinstance(env.action_space, gym.spaces.MultiBinary):
-            self.noop_action = np.zeros(self.env.action_space.n, dtype=np.int64)
-        else:
-            # used for atari environments
-            self.noop_action = 0
-            assert env.unwrapped.get_action_meanings()[0] == 'NOOP'
+        self.noop_action = 0
+        assert env.unwrapped.get_action_meanings()[0] == 'NOOP'
 
     def _reset(self, **kwargs):
         """ Do no-op action for a number of steps in [1, noop_max]."""
@@ -175,7 +171,7 @@ class LazyFrames(object):
 
         This object should only be converted to numpy array before being passed to the model.
 
-        You'd not belive how complex the previous solution was."""
+        You'd not believe how complex the previous solution was."""
         self._frames = frames
 
     def __array__(self, dtype=None):
