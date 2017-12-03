@@ -173,6 +173,15 @@ def huber_loss(x, delta=1.0):
         delta * (tf.abs(x) - 0.5 * delta)
     )
 
+def logsigmoid(a):
+    '''Equivalent to tf.log(tf.sigmoid(a))'''
+    return -tf.nn.softplus(-a)
+
+""" Reference: https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51"""
+def logit_bernoulli_entropy(logits):
+    ent = (1.-tf.nn.sigmoid(logits))*logits - logsigmoid(logits)
+    return ent
+
 # ================================================================
 # Optimizer utils
 # ================================================================
@@ -233,16 +242,25 @@ def set_value(v, val):
     get_session().run(set_op, feed_dict={set_endpoint: val})
 
 # ================================================================
+# Save tensorflow summary
+# ================================================================
+
+def file_writer(dir_path):
+    os.makedirs(dir_path, exist_ok=True)
+    return tf.summary.FileWriter(dir_path, get_session().graph)
+
+
+# ================================================================
 # Saving variables
 # ================================================================
 
-def load_state(fname):
-    saver = tf.train.Saver()
+def load_state(fname, var_list=None):
+    saver = tf.train.Saver(var_list=var_list)
     saver.restore(get_session(), fname)
 
-def save_state(fname):
+def save_state(fname, var_list=None):
     os.makedirs(os.path.dirname(fname), exist_ok=True)
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(var_list=var_list)
     saver.save(get_session(), fname)
 
 # ================================================================
