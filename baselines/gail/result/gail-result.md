@@ -3,16 +3,6 @@
 Here's the extensive results for applying GAIL/BC on Mujoco environments, including 
 Hopper, Walker2d, HalfCheetah, Humanoid, HumanoidStandup. Eery imitator is evaluated with seed to be 0.
 
-## details about GAIL imitator
-
-For all environments, the 
-imitator is trained with 1, 5, 10, 50 trajectories, where each trajectory contains at most 
-1024 transitions, and seed 0, 1, 2, 3, respectively.
-
-### details about the BC imitators
-
-All BC imitators are trained with seed 0.
-
 ## Results
 
 ### Determinstic Polciy (Set std=0)
@@ -33,3 +23,12 @@ All BC imitators are trained with seed 0.
 | Humanoid-v1 | <img src='Humanoid-unnormalized-stochastic-scores.png'> | <img src='Humanoid-normalized-stochastic-scores.png'> |
 | HumanoidStandup-v1 | <img src='HumanoidStandup-unnormalized-stochastic-scores.png'> | <img src='HumanoidStandup-normalized-stochastic-scores.png'> |
 
+### details about GAIL imitator
+
+For all environments, the 
+imitator is trained with 1, 5, 10, 50 trajectories, where each trajectory contains at most 
+1024 transitions, and seed 0, 1, 2, 3, respectively.
+
+### details about the BC imitators
+
+All BC imitators are trained with seed 0.
