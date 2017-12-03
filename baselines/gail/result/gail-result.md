@@ -1,19 +1,35 @@
 # Results for GAIL on Mujoco
 
-Here's the extensive results for applying GAIL on Mujoco environment, including 
-Hopper, Walker2d, HalfCheetah, Humanoid, HumanoidStandup. For all environments, the 
+Here's the extensive results for applying GAIL/BC on Mujoco environments, including 
+Hopper, Walker2d, HalfCheetah, Humanoid, HumanoidStandup. Eery imitator is evaluated with seed to be 0.
+
+## details about GAIL imitator
+
+For all environments, the 
 imitator is trained with 1, 5, 10, 50 trajectories, where each trajectory contains at most 
 1024 transitions, and seed 0, 1, 2, 3, respectively.
 
+### details about the BC imitators
+
+All BC imitators are trained with seed 0.
+
 ## Results
 
+### Determinstic Polciy (Set std=0)
 |   | Un-normalized | Normalized |
 |---|---|---|
-| Hopper-v1 | <img src='Hopper-unnormalized-scores.png'> | <img src='Hopper-normalized-scores.png'> |
-| HalfCheetah-v1 | <img src='HalfCheetah-unnormalized-scores.png'> | <img src='HalfCheetah-normalized-scores.png'> |
-| Walker2d-v1 | <img src='Walker2d-unnormalized-scores.png'> | <img src='Walker2d-normalized-scores.png'> |
-| Humanoid-v1 | <img src='Humanoid-unnormalized-scores.png'> | <img src='Humanoid-normalized-scores.png'> |
-| HumanoidStandup-v1 | <img src='HumanoidStandup-unnormalized-scores.png'> | <img src='HumanoidStandup-normalized-scores.png'> |
+| Hopper-v1 | <img src='Hopper-unnormalized-deterministic-scores.png'> | <img src='Hopper-normalized-deterministic-scores.png'> |
+| HalfCheetah-v1 | <img src='HalfCheetah-unnormalized-deterministic-scores.png'> | <img src='HalfCheetah-normalized-deterministic-scores.png'> |
+| Walker2d-v1 | <img src='Walker2d-unnormalized-deterministic-scores.png'> | <img src='Walker2d-normalized-deterministic-scores.png'> |
+| Humanoid-v1 | <img src='Humanoid-unnormalized-deterministic-scores.png'> | <img src='Humanoid-normalized-deterministic-scores.png'> |
+| HumanoidStandup-v1 | <img src='HumanoidStandup-unnormalized-deterministic-scores.png'> | <img src='HumanoidStandup-normalized-deterministic-scores.png'> |
 
-### details
-Each imitator is evaluated with random seed equals to 0.
+### Stochatic Policy 
+|   | Un-normalized | Normalized |
+|---|---|---|
+| Hopper-v1 | <img src='Hopper-unnormalized-stochastic-scores.png'> | <img src='Hopper-normalized-stochastic-scores.png'> |
+| HalfCheetah-v1 | <img src='HalfCheetah-unnormalized-stochastic-scores.png'> | <img src='HalfCheetah-normalized-stochastic-scores.png'> |
+| Walker2d-v1 | <img src='Walker2d-unnormalized-stochastic-scores.png'> | <img src='Walker2d-normalized-stochastic-scores.png'> |
+| Humanoid-v1 | <img src='Humanoid-unnormalized-stochastic-scores.png'> | <img src='Humanoid-normalized-stochastic-scores.png'> |
+| HumanoidStandup-v1 | <img src='HumanoidStandup-unnormalized-stochastic-scores.png'> | <img src='HumanoidStandup-normalized-stochastic-scores.png'> |
+
