@@ -228,7 +228,7 @@ class KfacOptimizer():
                                 Ow = bpropFactor.get_shape()[2]
                                 if Oh == 1 and Ow == 1 and self._channel_fac:
                                     # factorization along the channels
-                                    # assume independence bewteen input channels and spatial
+                                    # assume independence between input channels and spatial
                                     # 2K-1 x 2K-1 covariance matrix and C x C covariance matrix
                                     # factorization along the channels do not
                                     # support homogeneous coordinate, assnBias
