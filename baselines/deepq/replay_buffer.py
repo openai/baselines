@@ -6,7 +6,7 @@ from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 
 class ReplayBuffer(object):
     def __init__(self, size):
-        """Create Prioritized Replay buffer.
+        """Create Replay buffer.
 
         Parameters
         ----------
