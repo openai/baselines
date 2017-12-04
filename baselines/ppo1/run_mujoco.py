@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from baselines.common import set_global_seeds, tf_util as U
 from baselines import bench
 import gym, logging
