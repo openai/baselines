@@ -1,6 +1,8 @@
-# GAIL
+# Generative Adversarial Imitation Learning (GAIL)
 
 - Original paper: https://arxiv.org/abs/1606.03476
+
+For results benchmarking on MuJoCo, please navigate to [here](result/gail-result.md)
 
 ## If you want to train an imitation learning agent
 
@@ -8,7 +10,11 @@
 
 Download the expert data into `./data`
 
-### Step 2: Imitation learning
+Download [Link](https://drive.google.com/drive/folders/1h-bK09Emrteu7vUXllZLRqTx7iNOaxGI?usp=sharing)
+
+### Step 2: Run GAIL
+
+Run with single thread:
 
 ```bash
 python -m baselines.gail.run_mujoco
@@ -22,4 +28,14 @@ mpirun -np 16 python -m baselines.gail.run_mujoco
 
 See help (`-h`) for more options.
 
+#### In case you want to run Behavior Cloning (BC)
 
+```bash
+python -m baselines.gail.behavior_clone
+```
+
+See help (`-h`) for more options.
+
+## Reference repositories
+- @openai/imitation
+- @carpedm20/deep-rl-tensorflow

@@ -1,3 +1,10 @@
+'''
+Data structure of the input .npz:
+the data is save in python dictionary format with keys: 'acs', 'ep_rets', 'rews', 'obs'
+the values of each item is a list storing the expert trajectory sequentially
+a transition can be: (data['obs'][t], data['acs'][t], data['obs'][t+1]) and get reward data['rews'][t]
+'''
+
 from baselines import logger
 import numpy as np
 

@@ -1,5 +1,5 @@
 '''
-This code is used to evalaute the imitators trained with different trajectories
+This code is used to evalaute the imitators trained with different number of trajectories
 and plot the results in the same figure for easy comparison.
 '''
 

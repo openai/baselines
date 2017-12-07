@@ -1,3 +1,7 @@
+'''
+Disclaimer: The trpo part highly rely on trpo_mpi at @openai/baselines
+'''
+
 import time
 import os
 from contextlib import contextmanager

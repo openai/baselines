@@ -1,4 +1,7 @@
-# Reference: https://github.com/openai/imitation
+'''
+Reference: https://github.com/openai/imitation
+I follow the architecture from the official repository
+'''
 import tensorflow as tf
 import numpy as np
 

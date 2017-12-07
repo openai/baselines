@@ -1,5 +1,5 @@
 '''
-from baselines/ppo1/mlp_policy.py
+from baselines/ppo1/mlp_policy.py and add simple modification
 (1) add reuse argument
 (2) cache the `stochastic` placeholder
 '''

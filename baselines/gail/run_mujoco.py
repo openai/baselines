@@ -1,5 +1,5 @@
 '''
-Disclaimer: this code is highly based on trpo_mpi at openai/baselines and openai/imitation
+Disclaimer: this code is highly based on trpo_mpi at @openai/baselines and @openai/imitation
 '''
 
 import argparse

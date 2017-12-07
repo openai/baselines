@@ -1,3 +1,7 @@
+'''
+The code is used to train BC imitator, or pretrained GAIL imitator
+'''
+
 import argparse
 import tempfile
 import os.path as osp
