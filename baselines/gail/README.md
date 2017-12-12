@@ -40,3 +40,5 @@ Thanks to the open source:
 
 - @openai/imitation
 - @carpedm20/deep-rl-tensorflow
+
+Also, thanks [Ryan Jilian](https://github.com/ryanjulian) for reviewing the code
