@@ -1,9 +1,28 @@
 # Results for GAIL on Mujoco
 
-Here's the extensive results for applying GAIL/BC on Mujoco environments, including 
-Hopper, Walker2d, HalfCheetah, Humanoid, HumanoidStandup. Eery imitator is evaluated with seed to be 0.
+Here's the extensive experiment results of applying GAIL/BC on Mujoco environments, including 
+Hopper, Walker2d, HalfCheetah, Humanoid, HumanoidStandup. Every imitator is evaluated with seed to be 0.
 
 ## Results
+
+### Training through iterations
+
+- Hoppers-v1
+<img src='hopper-training.png'> 
+
+- HalfCheetah-v1
+<img src='halfcheetah-training.png'> 
+
+- Walker2d-v1
+<img src='walker2d-training.png'> 
+
+- Humanoid-v1
+<img src='humanoid-training.png'> 
+
+- HumanoidStandup-v1
+<img src='humanoidstandup-training.png'> 
+
+For details (e.g., adversarial loss, discriminator accuracy, etc.) about GAIL training, please see [here](https://drive.google.com/drive/folders/1nnU8dqAV9i37-_5_vWIspyFUJFQLCsDD?usp=sharing)
 
 ### Determinstic Polciy (Set std=0)
 |   | Un-normalized | Normalized |
