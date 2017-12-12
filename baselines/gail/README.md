@@ -8,9 +8,7 @@ For results benchmarking on MuJoCo, please navigate to [here](result/gail-result
 
 ### Step 1: Download expert data
 
-Download the expert data into `./data`
-
-Download [Link](https://drive.google.com/drive/folders/1h-bK09Emrteu7vUXllZLRqTx7iNOaxGI?usp=sharing)
+Download the expert data into `./data`, [download link](https://drive.google.com/drive/folders/1h3H4AY_ZBx08hz-Ct0Nxxus-V1melu1U?usp=sharing)
 
 ### Step 2: Run GAIL
 
@@ -36,6 +34,9 @@ python -m baselines.gail.behavior_clone
 
 See help (`-h`) for more options.
 
-## Reference repositories
+## Others
+
+Thanks to the open source:
+
 - @openai/imitation
 - @carpedm20/deep-rl-tensorflow
