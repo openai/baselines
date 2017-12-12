@@ -1,7 +1,7 @@
-# Results for GAIL on Mujoco
+# Results of GAIL/BC on Mujoco
 
-Here's the extensive experiment results of applying GAIL/BC on Mujoco environments, including 
-Hopper, Walker2d, HalfCheetah, Humanoid, HumanoidStandup. Every imitator is evaluated with seed to be 0.
+Here's the extensive experimental results of applying GAIL/BC on Mujoco environments, including 
+Hopper-v1, Walker2d-v1, HalfCheetah-v1, Humanoid-v1, HumanoidStandup-v1. Every imitator is evaluated with seed to be 0.
 
 ## Results
 
