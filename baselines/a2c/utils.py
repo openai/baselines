@@ -179,11 +179,6 @@ def discount_with_dones(rewards, dones, gamma):
     return discounted[::-1]
 
 
-def find_trainable_variables(key):
-    with tf.variable_scope(key):
-        return tf.trainable_variables()
-
-
 def make_path(f):
     return os.makedirs(f, exist_ok=True)
 

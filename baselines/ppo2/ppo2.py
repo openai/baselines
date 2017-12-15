@@ -6,7 +6,9 @@ import tensorflow as tf
 import time
 from baselines import logger
 from collections import deque
-from baselines.common import explained_variance
+from baselines.common import explained_variance, tf_util
+# TODO refactor common util: logging, pathing, file IO, tf save, load, model pickle
+# TODO need CI, CC. I can ask if they wanna donate
 
 
 def make_path(f):
@@ -59,7 +61,7 @@ class Model(object):
         clipfrac = tf.reduce_mean(tf.to_float(
             tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
 
-        params = find_trainable_variables("model")
+        params = tf_util.find_trainable_variables("model")
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
             grads, _grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
@@ -186,7 +188,7 @@ def constfn(val):
     return f
 
 
-def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
+def learn(policy, env, nsteps, total_timesteps, ent_coef, lr,
           vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
           log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
           save_interval=0):

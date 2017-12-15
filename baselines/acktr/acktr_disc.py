@@ -7,8 +7,8 @@ from baselines import logger
 from baselines.acktr import kfac
 from baselines.acktr.utils import cat_entropy, mse
 from baselines.acktr.utils import discount_with_dones
-from baselines.acktr.utils import Scheduler, find_trainable_variables
-from baselines.common import set_global_seeds, explained_variance
+from baselines.acktr.utils import Scheduler
+from baselines.common import set_global_seeds, explained_variance, tf_util
 
 
 class Model(object):
@@ -57,7 +57,7 @@ class Model(object):
                 tf.pow(train_model.vf - tf.stop_gradient(sample_net), 2))
         self.joint_fisher = joint_fisher_loss = pg_fisher_loss + vf_fisher_loss
 
-        self.params = params = find_trainable_variables("model")
+        self.params = params = tf_util.find_trainable_variables("model")
         self.grads = grads = tf.gradients(loss, params)
         # TODO is max_grad_norm only for the KFac below?
         with tf.device('/gpu:0'):

@@ -236,6 +236,10 @@ def set_value(v, val):
 # Saving variables
 # ================================================================
 
+def find_trainable_variables(key):
+    with tf.variable_scope(key):
+        return tf.trainable_variables()
+
 def load_state(fname):
     saver = tf.train.Saver()
     saver.restore(get_session(), fname)

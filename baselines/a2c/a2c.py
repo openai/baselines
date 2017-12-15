@@ -6,8 +6,8 @@ from baselines import logger
 from baselines.a2c.policies import CnnPolicy
 from baselines.a2c.utils import cat_entropy, mse
 from baselines.a2c.utils import discount_with_dones
-from baselines.a2c.utils import Scheduler, make_path, find_trainable_variables
-from baselines.common import set_global_seeds, explained_variance
+from baselines.a2c.utils import Scheduler, make_path
+from baselines.common import set_global_seeds, explained_variance, tf_util
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
 
@@ -44,7 +44,7 @@ class Model(object):
         vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), R))
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
-        params = find_trainable_variables("model")
+        params = tf_util.find_trainable_variables("model")
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
             grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
