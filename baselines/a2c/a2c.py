@@ -1,4 +1,3 @@
-import joblib
 import numpy as np
 import tensorflow as tf
 import time
@@ -7,7 +6,7 @@ from baselines.a2c.policies import CnnPolicy
 from baselines.a2c.utils import cat_entropy, mse
 from baselines.a2c.utils import discount_with_dones
 from baselines.a2c.utils import Scheduler, make_path
-from baselines.common import set_global_seeds, explained_variance, tf_util
+from baselines.common import set_global_seeds, explained_variance, tf_util as U
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
 
@@ -44,7 +43,7 @@ class Model(object):
         vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), R))
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
-        params = tf_util.find_trainable_variables("model")
+        params = U.find_trainable_variables("model")
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
             grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
@@ -69,16 +68,10 @@ class Model(object):
             return policy_loss, value_loss, policy_entropy
 
         def save(save_path):
-            ps = sess.run(params)
-            make_path(save_path)
-            joblib.dump(ps, save_path)
+            U.save(sess, params, save_path)
 
         def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            ps = sess.run(restores)
+            U.load(sess, params, load_path)
 
         self.train = train
         self.train_model = train_model

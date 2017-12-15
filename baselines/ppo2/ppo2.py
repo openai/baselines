@@ -1,4 +1,3 @@
-import joblib
 import numpy as np
 import os
 import os.path as osp
@@ -6,7 +5,7 @@ import tensorflow as tf
 import time
 from baselines import logger
 from collections import deque
-from baselines.common import explained_variance, tf_util
+from baselines.common import explained_variance, tf_util as U
 # TODO refactor common util: logging, pathing, file IO, tf save, load, model pickle
 # TODO need CI, CC. I can ask if they wanna donate
 
@@ -61,7 +60,7 @@ class Model(object):
         clipfrac = tf.reduce_mean(tf.to_float(
             tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
 
-        params = tf_util.find_trainable_variables("model")
+        params = U.find_trainable_variables("model")
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
             grads, _grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
@@ -88,18 +87,10 @@ class Model(object):
                            'policy_entropy', 'approxkl', 'clipfrac']
 
         def save(save_path):
-            # TODO just refactor into tf_util
-            ps = sess.run(params)
-            make_path(ps)
-            joblib.dump(ps, save_path)
+            U.save(sess, params, save_path)
 
         def load(load_path):
-            # TODO also just refactor into tf_util
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
+            U.load(sess, params, load_path)
 
         self.train = train
         self.train_model = train_model

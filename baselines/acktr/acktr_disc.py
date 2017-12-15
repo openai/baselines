@@ -1,4 +1,3 @@
-import joblib
 import numpy as np
 import os.path as osp
 import tensorflow as tf
@@ -8,7 +7,7 @@ from baselines.acktr import kfac
 from baselines.acktr.utils import cat_entropy, mse
 from baselines.acktr.utils import discount_with_dones
 from baselines.acktr.utils import Scheduler
-from baselines.common import set_global_seeds, explained_variance, tf_util
+from baselines.common import set_global_seeds, explained_variance, tf_util as U
 
 
 class Model(object):
@@ -57,7 +56,7 @@ class Model(object):
                 tf.pow(train_model.vf - tf.stop_gradient(sample_net), 2))
         self.joint_fisher = joint_fisher_loss = pg_fisher_loss + vf_fisher_loss
 
-        self.params = params = tf_util.find_trainable_variables("model")
+        self.params = params = U.find_trainable_variables("model")
         self.grads = grads = tf.gradients(loss, params)
         # TODO is max_grad_norm only for the KFac below?
         with tf.device('/gpu:0'):
@@ -91,16 +90,10 @@ class Model(object):
             return policy_loss, value_loss, policy_entropy
 
         def save(save_path):
-            ps = sess.run(params)
-            joblib.dump(ps, save_path)
-            joblib.dump(ps, save_path)
+            U.save(sess, params, save_path)
 
         def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
+            U.load(sess, params, load_path)
 
         self.train = train
         self.save = save
