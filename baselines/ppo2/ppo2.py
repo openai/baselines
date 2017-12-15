@@ -11,10 +11,10 @@ from baselines.common import explained_variance
 
 class Model(object):
     def __init__(
-            self, policy, ob_space, ac_space, nbatch_act, nbatch_train, nsteps, 
+            self, policy, ob_space, ac_space,
+            nbatch_act, nbatch_train, nsteps,
             ent_coef, vf_coef, max_grad_norm):
         sess = tf.get_default_session()
-
         act_model = policy(sess, ob_space, ac_space,
                            nbatch_act, 1, reuse=False)
         train_model = policy(sess, ob_space, ac_space,
@@ -31,9 +31,11 @@ class Model(object):
         neglogpac = train_model.pd.neglogp(A)
         entropy = tf.reduce_mean(train_model.pd.entropy())
 
+        # TODO similar
         vpred = train_model.vf
         vpredclipped = OLDVPRED + \
             tf.clip_by_value(train_model.vf - OLDVPRED, - CLIPRANGE, CLIPRANGE)
+        # direct reduce sum
         vf_losses1 = tf.square(vpred - R)
         vf_losses2 = tf.square(vpredclipped - R)
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))

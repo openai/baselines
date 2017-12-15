@@ -125,7 +125,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             U.eval(tf.assign(stepsize, tf.maximum(min_stepsize, stepsize / 1.5)))
         elif kl < desired_kl / 2:
             logger.log("kl too low")
-            U.eval(tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)))            
+            U.eval(tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)))
         else:
             logger.log("kl just right!")
 

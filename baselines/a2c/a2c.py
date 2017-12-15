@@ -24,18 +24,16 @@ class Model(object):
             inter_op_parallelism_threads=num_procs)
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
-        nact = ac_space.n
-        nbatch = nenvs * nsteps
+        act_model = policy(sess, ob_space, ac_space,
+                           nenvs, 1, nstack, reuse=False)
+        train_model = policy(sess, ob_space, ac_space,
+                             nenvs, nsteps, nstack, reuse=True)
 
+        nbatch = nenvs * nsteps
         A = tf.placeholder(tf.int32, [nbatch])
         ADV = tf.placeholder(tf.float32, [nbatch])
         R = tf.placeholder(tf.float32, [nbatch])
         LR = tf.placeholder(tf.float32, [])
-
-        act_model = policy(sess, ob_space, ac_space,
-                            nenvs, 1, nstack, reuse=False)
-        train_model = policy(sess, ob_space, ac_space,
-                             nenvs, nsteps, nstack, reuse=True)
 
         neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(
             logits=train_model.pi, labels=A)
