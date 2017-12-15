@@ -8,6 +8,7 @@ from baselines.acktr.utils import (
     Scheduler,
 )
 from baselines.common import set_global_seeds, explained_variance, tf_util as U
+from functools import partial
 from os import path
 
 
@@ -184,17 +185,17 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     ob_space = env.observation_space
     ac_space = env.action_space
 
-    def make_model(): return Model(
-        policy, ob_space, ac_space,
+    make_model = partial(
+        Model,
+        policy=policy, ob_space=ob_space, ac_space=ac_space,
         nenvs=nenvs, nprocs=nprocs, nstack=nstack, nsteps=nsteps,
         total_timesteps=total_timesteps,
         ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef,
         lr=lr, max_grad_norm=max_grad_norm, kfac_clip=kfac_clip,
         lrschedule=lrschedule)
     if save_interval and logger.get_dir():
-        import cloudpickle
-        with open(path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
-            fh.write(cloudpickle.dumps(make_model))
+        filepath = path.join(logger.get_dir(), 'make_model.pkl')
+        file_util.pickle_fn(filepath, make_model)
     model = make_model()
 
     runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)

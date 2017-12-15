@@ -5,6 +5,7 @@ import time
 from baselines import logger
 from collections import deque
 from baselines.common import explained_variance, file_util, tf_util as U
+from functools import partial
 from os import path
 # TODO refactor common util: logging, pathing, file IO, tf save, load, model pickle
 # TODO need CI, CC. I can ask if they wanna donate
@@ -13,7 +14,7 @@ from os import path
 class Model(object):
     # TODO there was a * in first arg, what is its intend?
     def __init__(
-            self, policy, ob_space, ac_space,
+            self, *, policy, ob_space, ac_space,
             nbatch_act, nbatch_train, nsteps,
             ent_coef, vf_coef, max_grad_norm):
         sess = tf.get_default_session()
@@ -174,7 +175,7 @@ def constfn(val):
     return f
 
 
-def learn(policy, env, nsteps, total_timesteps, ent_coef, lr,
+def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
           vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
           log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
           save_interval=0):
@@ -195,15 +196,15 @@ def learn(policy, env, nsteps, total_timesteps, ent_coef, lr,
     nbatch = nenvs * nsteps
     nbatch_train = nbatch // nminibatches
 
-    def make_model(): return Model(
-        policy, ob_space, ac_space,
+    make_model = partial(
+        Model,
+        policy=policy, ob_space=ob_space, ac_space=ac_space,
         nbatch_act=nenvs, nbatch_train=nbatch_train, nsteps=nsteps,
         ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm)
     if save_interval and logger.get_dir():
-        import cloudpickle
-        with open(path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
-            fh.write(cloudpickle.dumps(make_model))
+        filepath = path.join(logger.get_dir(), 'make_model.pkl')
+        file_util.pickle_fn(filepath, make_model)
     model = make_model()
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
 

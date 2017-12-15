@@ -9,6 +9,7 @@ from baselines.a2c.utils import (
 )
 from baselines.common import set_global_seeds, explained_variance, tf_util as U
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
+from functools import partial
 
 
 class Model(object):
@@ -166,11 +167,13 @@ def learn(
     ob_space = env.observation_space
     ac_space = env.action_space
     nprocs = len(env.remotes)  # HACK
-    model = Model(
+    make_model = partial(
+        Model,
         policy=policy, ob_space=ob_space, ac_space=ac_space,
         nenvs=nenvs, nprocs=nprocs, nstack=nstack, nsteps=nsteps,
         ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+    model = make_model()
     runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
 
     nbatch = nenvs * nsteps
