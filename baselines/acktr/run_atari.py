@@ -20,7 +20,7 @@ def train(env_id, num_timesteps, seed, num_cpu):
     set_global_seeds(seed)
     env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
     policy_fn = CnnPolicy
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), nprocs=num_cpu)
+    learn(policy=policy_fn, env=env, seed=seed, total_timesteps=int(num_timesteps * 1.1), nprocs=num_cpu)
     env.close()
 
 def main():

@@ -15,7 +15,7 @@ from functools import partial
 class Model(object):
 
     def __init__(
-            self, policy, ob_space, ac_space,
+            self, *, policy, ob_space, ac_space,
             nenvs, nprocs, nstack, nsteps,
             ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5,
             lr=7e-4, alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
@@ -88,7 +88,7 @@ class Model(object):
 
 class Runner(object):
 
-    def __init__(self, env, model, nsteps=5, nstack=4, gamma=0.99):
+    def __init__(self, *, env, model, nsteps=5, nstack=4, gamma=0.99):
         self.env = env
         self.model = model
         nh, nw, nc = env.observation_space.shape
@@ -157,8 +157,9 @@ class Runner(object):
 
 
 def learn(
-        policy, env, seed, nsteps=5, nstack=4, total_timesteps=int(80e6),
-        vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear',
+    *, policy, env, seed,
+    nsteps=5, nstack=4, total_timesteps=int(80e6),
+    vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear',
         epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
     tf.reset_default_graph()
     set_global_seeds(seed)
@@ -174,7 +175,8 @@ def learn(
         ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     model = make_model()
-    runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
+    runner = Runner(
+        env=env, model=model, nsteps=nsteps, nstack=nstack, gamma=gamma)
 
     nbatch = nenvs * nsteps
     tstart = time.time()

@@ -15,7 +15,7 @@ from os import path
 class Model(object):
 
     def __init__(
-            self, policy, ob_space, ac_space,
+            self, *, policy, ob_space, ac_space,
             nenvs, nprocs=32, nstack=4, nsteps=20, total_timesteps=int(80e6),
             ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0,
             lr=0.25, max_grad_norm=0.5,
@@ -110,7 +110,7 @@ class Model(object):
 
 class Runner(object):
 
-    def __init__(self, env, model, nsteps, nstack, gamma):
+    def __init__(self, *, env, model, nsteps, nstack, gamma):
         self.env = env
         self.act_model = model
         nh, nw, nc = env.observation_space.shape
@@ -175,9 +175,10 @@ class Runner(object):
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
 
 
-def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
-          nstack=4, ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
-          kfac_clip=0.001, save_interval=None, lrschedule='linear'):
+def learn(
+    *, policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
+    nstack=4, ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
+        kfac_clip=0.001, save_interval=None, lrschedule='linear'):
     tf.reset_default_graph()
     set_global_seeds(seed)
 
@@ -198,7 +199,8 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
         file_util.pickle_fn(filepath, make_model)
     model = make_model()
 
-    runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
+    runner = Runner(
+        env=env, model=model, nsteps=nsteps, nstack=nstack, gamma=gamma)
     nbatch = nenvs * nsteps
     tstart = time.time()
     coord = tf.train.Coordinator()
