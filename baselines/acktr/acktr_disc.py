@@ -31,7 +31,7 @@ class Model(object):
         PG_LR = tf.placeholder(tf.float32, [])
         VF_LR = tf.placeholder(tf.float32, [])
 
-        self.model = step_model = policy(sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
+        self.model = act_model = policy(sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
         self.model2 = train_model = policy(sess, ob_space, ac_space, nenvs, nsteps, nstack, reuse=True)
 
         logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=A)
@@ -98,10 +98,10 @@ class Model(object):
         self.save = save
         self.load = load
         self.train_model = train_model
-        self.step_model = step_model
-        self.step = step_model.step
-        self.value = step_model.value
-        self.initial_state = step_model.initial_state
+        self.act_model = act_model
+        self.step = act_model.step
+        self.value = act_model.value
+        self.initial_state = act_model.initial_state
         tf.global_variables_initializer().run(session=sess)
 
 class Runner(object):

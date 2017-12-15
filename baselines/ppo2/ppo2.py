@@ -10,8 +10,9 @@ from baselines.common import explained_variance
 
 
 class Model(object):
-    def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                 nsteps, ent_coef, vf_coef, max_grad_norm):
+    def __init__(
+            self, policy, ob_space, ac_space, nbatch_act, nbatch_train, nsteps, 
+            ent_coef, vf_coef, max_grad_norm):
         sess = tf.get_default_session()
 
         act_model = policy(sess, ob_space, ac_space,

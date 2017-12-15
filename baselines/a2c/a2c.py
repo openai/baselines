@@ -14,9 +14,10 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 class Model(object):
 
     def __init__(
-            self, policy, ob_space, ac_space, nenvs, nsteps, nstack, num_procs,
-            ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
-            alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
+            self, policy, ob_space, ac_space,
+            nenvs, nsteps, nstack, num_procs,
+            ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5,
+            lr=7e-4, alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
         config = tf.ConfigProto(
             allow_soft_placement=True,
             intra_op_parallelism_threads=num_procs,
@@ -31,7 +32,7 @@ class Model(object):
         R = tf.placeholder(tf.float32, [nbatch])
         LR = tf.placeholder(tf.float32, [])
 
-        step_model = policy(sess, ob_space, ac_space,
+        act_model = policy(sess, ob_space, ac_space,
                             nenvs, 1, nstack, reuse=False)
         train_model = policy(sess, ob_space, ac_space,
                              nenvs, nsteps, nstack, reuse=True)
@@ -81,10 +82,10 @@ class Model(object):
 
         self.train = train
         self.train_model = train_model
-        self.step_model = step_model
-        self.step = step_model.step
-        self.value = step_model.value
-        self.initial_state = step_model.initial_state
+        self.act_model = act_model
+        self.step = act_model.step
+        self.value = act_model.value
+        self.initial_state = act_model.initial_state
         self.save = save
         self.load = load
         tf.global_variables_initializer().run(session=sess)
