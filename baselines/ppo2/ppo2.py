@@ -9,6 +9,10 @@ from functools import partial
 from os import path
 # TODO refactor common util: logging, pathing, file IO, tf save, load, model pickle
 # TODO need CI, CC. I can ask if they wanna donate
+# TODO finish similarity transform for Runner, learn, then crease base class
+# TODO ohh logger has some read write methods. actually scan code base to refactor
+# TODO add basic runnability test before further refatoring occues, to ensure no research code is broken
+# TODO build CI for the purpose above
 
 
 class Model(object):
@@ -80,8 +84,9 @@ class Model(object):
                 [pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
                 td_map
             )[:-1]
-        self.loss_names = ['policy_loss', 'value_loss',
-                           'policy_entropy', 'approxkl', 'clipfrac']
+        self.loss_names = [
+            'policy_loss', 'value_loss',
+            'policy_entropy', 'approxkl', 'clipfrac']
 
         def save(save_path):
             U.save(sess, params, save_path)
