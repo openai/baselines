@@ -15,13 +15,13 @@ class Model(object):
 
     def __init__(
             self, policy, ob_space, ac_space,
-            nenvs, nsteps, nstack, num_procs,
+            nenvs, nprocs, nstack, nsteps,
             ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5,
             lr=7e-4, alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
         config = tf.ConfigProto(
             allow_soft_placement=True,
-            intra_op_parallelism_threads=num_procs,
-            inter_op_parallelism_threads=num_procs)
+            intra_op_parallelism_threads=nprocs,
+            inter_op_parallelism_threads=nprocs)
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
         act_model = policy(sess, ob_space, ac_space,
@@ -169,10 +169,11 @@ def learn(
     nenvs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
-    num_procs = len(env.remotes)  # HACK
+    nprocs = len(env.remotes)  # HACK
     model = Model(
-        policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs,
-        nsteps=nsteps, nstack=nstack, num_procs=num_procs, ent_coef=ent_coef, vf_coef=vf_coef,
+        policy=policy, ob_space=ob_space, ac_space=ac_space,
+        nenvs=nenvs, nprocs=nprocs, nstack=nstack, nsteps=nsteps,
+        ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
 

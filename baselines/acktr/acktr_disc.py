@@ -15,7 +15,7 @@ class Model(object):
 
     def __init__(
             self, policy, ob_space, ac_space,
-            nenvs, total_timesteps, nprocs=32, nsteps=20, nstack=4,
+            nenvs, nprocs=32, nstack=4, nsteps=20, total_timesteps=int(80e6),
             ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0,
             lr=0.25, max_grad_norm=0.5,
             kfac_clip=0.001, lrschedule='linear'):
@@ -25,9 +25,9 @@ class Model(object):
             inter_op_parallelism_threads=nprocs)
         config.gpu_options.allow_growth = True
         self.sess = sess = tf.Session(config=config)
-        self.model = act_model = policy(
+        self.act_model = act_model = policy(
             sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
-        self.model2 = train_model = policy(
+        self.train_model = train_model = policy(
             sess, ob_space, ac_space, nenvs, nsteps, nstack, reuse=True)
 
         nact = ac_space.n
@@ -118,7 +118,7 @@ class Runner(object):
 
     def __init__(self, env, model, nsteps, nstack, gamma):
         self.env = env
-        self.model = model
+        self.act_model = model
         nh, nw, nc = env.observation_space.shape
         nenv = env.num_envs
         self.batch_ob_shape = (nenv * nsteps, nh, nw, nc * nstack)
@@ -138,7 +138,7 @@ class Runner(object):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [], [], [], [], []
         mb_states = self.states
         for n in range(self.nsteps):
-            actions, values, states = self.model.step(
+            actions, values, states = self.act_model.step(
                 self.obs, self.states, self.dones)
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
@@ -162,7 +162,7 @@ class Runner(object):
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
         mb_masks = mb_dones[:, :-1]
         mb_dones = mb_dones[:, 1:]
-        last_values = self.model.value(
+        last_values = self.act_model.value(
             self.obs, self.states, self.dones).tolist()
         # discount/bootstrap off value fn
         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
@@ -191,8 +191,13 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     ob_space = env.observation_space
     ac_space = env.action_space
 
-    def make_model(): return Model(policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=nprocs, nsteps=nsteps, nstack=nstack, ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef, lr=lr, max_grad_norm=max_grad_norm, kfac_clip=kfac_clip,
-                                   lrschedule=lrschedule)
+    def make_model(): return Model(
+        policy, ob_space, ac_space,
+        nenvs=nenvs, nprocs=nprocs, nstack=nstack, nsteps=nsteps,
+        total_timesteps=total_timesteps,
+        ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef,
+        lr=lr, max_grad_norm=max_grad_norm, kfac_clip=kfac_clip,
+        lrschedule=lrschedule)
     if save_interval and logger.get_dir():
         import cloudpickle
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
