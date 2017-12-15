@@ -30,7 +30,6 @@ class Model(object):
         self.train_model = train_model = policy(
             sess, ob_space, ac_space, nenvs, nsteps, nstack, reuse=True)
 
-        nact = ac_space.n
         nbatch = nenvs * nsteps
         A = tf.placeholder(tf.int32, [nbatch])
         ADV = tf.placeholder(tf.float32, [nbatch])
@@ -59,9 +58,8 @@ class Model(object):
         self.joint_fisher = joint_fisher_loss = pg_fisher_loss + vf_fisher_loss
 
         self.params = params = find_trainable_variables("model")
-
-        self.grads_check = grads = tf.gradients(loss, params)
-
+        self.grads = grads = tf.gradients(loss, params)
+        # TODO is max_grad_norm only for the KFac below?
         with tf.device('/gpu:0'):
             self.optim = optim = kfac.KfacOptimizer(
                 learning_rate=PG_LR, clip_kl=kfac_clip,
@@ -94,6 +92,7 @@ class Model(object):
 
         def save(save_path):
             ps = sess.run(params)
+            joblib.dump(ps, save_path)
             joblib.dump(ps, save_path)
 
         def load(load_path):

@@ -9,7 +9,13 @@ from collections import deque
 from baselines.common import explained_variance
 
 
+def make_path(f):
+    # TODO create a lib with these methods from all 3 utils
+    os.makedirs(f, exist_ok=True)
+
+
 class Model(object):
+    # TODO there was a * in first arg, what is its intend?
     def __init__(
             self, policy, ob_space, ac_space,
             nbatch_act, nbatch_train, nsteps,
@@ -32,6 +38,7 @@ class Model(object):
         neglogpac = train_model.pd.neglogp(A)
         entropy = tf.reduce_mean(train_model.pd.entropy())
 
+        # TODO the custom loss computation could be refactored out, then applied to other algos
         vpred = train_model.vf
         vpredclipped = OLDVPRED + tf.clip_by_value(
             train_model.vf - OLDVPRED, -CLIPRANGE, CLIPRANGE)
@@ -52,14 +59,16 @@ class Model(object):
         clipfrac = tf.reduce_mean(tf.to_float(
             tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
 
-        with tf.variable_scope('model'):
-            params = tf.trainable_variables()
+        params = find_trainable_variables("model")
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
             grads, _grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
-        trainer = tf.train.AdamOptimizer(learning_rate=LR, epsilon=1e-5)
+        # TODO parametrize optiimzer and their params
+        trainer = tf.train.AdamOptimizer(
+            learning_rate=LR, epsilon=1e-5)
         _train = trainer.apply_gradients(grads)
+        # TODO no lr scheduler
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
             advs = returns - values
@@ -77,10 +86,13 @@ class Model(object):
                            'policy_entropy', 'approxkl', 'clipfrac']
 
         def save(save_path):
+            # TODO just refactor into tf_util
             ps = sess.run(params)
+            make_path(ps)
             joblib.dump(ps, save_path)
 
         def load(load_path):
+            # TODO also just refactor into tf_util
             loaded_params = joblib.load(load_path)
             restores = []
             for p, loaded_p in zip(params, loaded_params):
