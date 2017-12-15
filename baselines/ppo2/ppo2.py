@@ -15,39 +15,43 @@ class Model(object):
             nbatch_act, nbatch_train, nsteps,
             ent_coef, vf_coef, max_grad_norm):
         sess = tf.get_default_session()
-        act_model = policy(sess, ob_space, ac_space,
-                           nbatch_act, 1, reuse=False)
-        train_model = policy(sess, ob_space, ac_space,
-                             nbatch_train, nsteps, reuse=True)
+        act_model = policy(
+            sess, ob_space, ac_space, nbatch_act, 1, reuse=False)
+        train_model = policy(
+            sess, ob_space, ac_space, nbatch_train, nsteps, reuse=True)
 
         A = train_model.pdtype.sample_placeholder([None])
         ADV = tf.placeholder(tf.float32, [None])
         R = tf.placeholder(tf.float32, [None])
+        LR = tf.placeholder(tf.float32, [])
         OLDNEGLOGPAC = tf.placeholder(tf.float32, [None])
         OLDVPRED = tf.placeholder(tf.float32, [None])
-        LR = tf.placeholder(tf.float32, [])
         CLIPRANGE = tf.placeholder(tf.float32, [])
 
+        # define training loss
         neglogpac = train_model.pd.neglogp(A)
         entropy = tf.reduce_mean(train_model.pd.entropy())
 
-        # TODO similar
         vpred = train_model.vf
-        vpredclipped = OLDVPRED + \
-            tf.clip_by_value(train_model.vf - OLDVPRED, - CLIPRANGE, CLIPRANGE)
+        vpredclipped = OLDVPRED + tf.clip_by_value(
+            train_model.vf - OLDVPRED, -CLIPRANGE, CLIPRANGE)
         # direct reduce sum
         vf_losses1 = tf.square(vpred - R)
         vf_losses2 = tf.square(vpredclipped - R)
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
+
         ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
         pg_losses = -ADV * ratio
-        pg_losses2 = -ADV * \
-            tf.clip_by_value(ratio, 1.0 - CLIPRANGE, 1.0 + CLIPRANGE)
+        pg_losses2 = -ADV * tf.clip_by_value(
+            ratio, 1.0 - CLIPRANGE, 1.0 + CLIPRANGE)
         pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
+
+        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+
         approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
         clipfrac = tf.reduce_mean(tf.to_float(
             tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
-        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+
         with tf.variable_scope('model'):
             params = tf.trainable_variables()
         grads = tf.gradients(loss, params)

@@ -24,10 +24,10 @@ class Model(object):
             inter_op_parallelism_threads=nprocs)
         config.gpu_options.allow_growth = True
         sess = tf.Session(config=config)
-        act_model = policy(sess, ob_space, ac_space,
-                           nenvs, 1, nstack, reuse=False)
-        train_model = policy(sess, ob_space, ac_space,
-                             nenvs, nsteps, nstack, reuse=True)
+        act_model = policy(
+            sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
+        train_model = policy(
+            sess, ob_space, ac_space, nenvs, nsteps, nstack, reuse=True)
 
         nbatch = nenvs * nsteps
         A = tf.placeholder(tf.int32, [nbatch])
@@ -35,11 +35,13 @@ class Model(object):
         R = tf.placeholder(tf.float32, [nbatch])
         LR = tf.placeholder(tf.float32, [])
 
+        # define training loss
         neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(
             logits=train_model.pi, labels=A)
+        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
+
         pg_loss = tf.reduce_mean(ADV * neglogpac)
         vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), R))
-        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
         params = find_trainable_variables("model")

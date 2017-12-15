@@ -38,19 +38,19 @@ class Model(object):
         PG_LR = tf.placeholder(tf.float32, [])
         VF_LR = tf.placeholder(tf.float32, [])
 
-        logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        # define training loss
+        neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(
             logits=train_model.pi, labels=A)
+        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
+
+        pg_loss = tf.reduce_mean(ADV * neglogpac)
+        vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), R))
+        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
+
         self.logits = logits = train_model.pi
 
-        # training loss
-        pg_loss = tf.reduce_mean(ADV * logpac)
-        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
-        pg_loss = pg_loss - ent_coef * entropy
-        vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), R))
-        train_loss = pg_loss + vf_coef * vf_loss
-
         # Fisher loss construction
-        self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(logpac)
+        self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(neglogpac)
         sample_net = train_model.vf + \
             tf.random_normal(tf.shape(train_model.vf))
         self.vf_fisher = vf_fisher_loss = - vf_fisher_coef * \
@@ -60,7 +60,7 @@ class Model(object):
 
         self.params = params = find_trainable_variables("model")
 
-        self.grads_check = grads = tf.gradients(train_loss, params)
+        self.grads_check = grads = tf.gradients(loss, params)
 
         with tf.device('/gpu:0'):
             self.optim = optim = kfac.KfacOptimizer(
