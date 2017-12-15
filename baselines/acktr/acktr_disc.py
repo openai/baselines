@@ -1,13 +1,14 @@
 import numpy as np
-import os.path as osp
 import tensorflow as tf
 import time
 from baselines import logger
 from baselines.acktr import kfac
-from baselines.acktr.utils import cat_entropy, mse
-from baselines.acktr.utils import discount_with_dones
-from baselines.acktr.utils import Scheduler
+from baselines.acktr.utils import (
+    cat_entropy, mse, discount_with_dones,
+    Scheduler,
+)
 from baselines.common import set_global_seeds, explained_variance, tf_util as U
+from os import path
 
 
 class Model(object):
@@ -192,7 +193,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
         lrschedule=lrschedule)
     if save_interval and logger.get_dir():
         import cloudpickle
-        with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
+        with open(path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
 
@@ -221,7 +222,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
             logger.dump_tabular()
 
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
-            savepath = osp.join(logger.get_dir(), 'checkpoint%.5i' % update)
+            savepath = path.join(logger.get_dir(), 'checkpoint%.5i' % update)
             print('Saving to', savepath)
             model.save(savepath)
     coord.request_stop()

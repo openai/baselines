@@ -6,6 +6,7 @@ import joblib
 import numpy as np
 import os
 import tensorflow as tf  # pylint: ignore-module
+from baselines.common import file_util
 
 # ================================================================
 # Make consistent with numpy
@@ -272,21 +273,20 @@ def find_trainable_variables(key):
     with tf.variable_scope(key):
         return tf.trainable_variables()
 
+def save_state(fname):
+    file_util.mkdir(fname)
+    saver = tf.train.Saver()
+    saver.save(get_session(), fname)
+
 
 def load_state(fname):
     saver = tf.train.Saver()
     saver.restore(get_session(), fname)
 
 
-def save_state(fname):
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
-    saver = tf.train.Saver()
-    saver.save(get_session(), fname)
-
-
 def save(sess, params, fname):
+    file_util.mkdir(fname)
     ps = sess.run(params)
-    make_path(fname)
     joblib.dump(ps, fname)
 
 

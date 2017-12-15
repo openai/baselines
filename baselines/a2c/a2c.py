@@ -3,9 +3,10 @@ import tensorflow as tf
 import time
 from baselines import logger
 from baselines.a2c.policies import CnnPolicy
-from baselines.a2c.utils import cat_entropy, mse
-from baselines.a2c.utils import discount_with_dones
-from baselines.a2c.utils import Scheduler, make_path
+from baselines.a2c.utils import (
+    cat_entropy, mse, discount_with_dones,
+    Scheduler,
+)
 from baselines.common import set_global_seeds, explained_variance, tf_util as U
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 

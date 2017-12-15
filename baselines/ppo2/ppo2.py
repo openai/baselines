@@ -1,18 +1,13 @@
 import numpy as np
 import os
-import os.path as osp
 import tensorflow as tf
 import time
 from baselines import logger
 from collections import deque
-from baselines.common import explained_variance, tf_util as U
+from baselines.common import explained_variance, file_util, tf_util as U
+from os import path
 # TODO refactor common util: logging, pathing, file IO, tf save, load, model pickle
 # TODO need CI, CC. I can ask if they wanna donate
-
-
-def make_path(f):
-    # TODO create a lib with these methods from all 3 utils
-    os.makedirs(f, exist_ok=True)
 
 
 class Model(object):
@@ -207,7 +202,7 @@ def learn(policy, env, nsteps, total_timesteps, ent_coef, lr,
         max_grad_norm=max_grad_norm)
     if save_interval and logger.get_dir():
         import cloudpickle
-        with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
+        with open(path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
@@ -275,9 +270,9 @@ def learn(policy, env, nsteps, total_timesteps, ent_coef, lr,
                 logger.logkv(lossname, lossval)
             logger.dumpkvs()
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
-            checkdir = osp.join(logger.get_dir(), 'checkpoints')
-            os.makedirs(checkdir, exist_ok=True)
-            savepath = osp.join(checkdir, '%.5i' % update)
+            checkdir = path.join(logger.get_dir(), 'checkpoints')
+            file_util.mkdir(checkdir)
+            savepath = path.join(checkdir, '%.5i' % update)
             print('Saving to', savepath)
             model.save(savepath)
     env.close()

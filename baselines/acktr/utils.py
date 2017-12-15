@@ -101,8 +101,6 @@ def discount_with_dones(rewards, dones, gamma):
         discounted.append(r)
     return discounted[::-1]
 
-def make_path(f):
-    return os.makedirs(f, exist_ok=True)
 
 def constant(p):
     return 1
