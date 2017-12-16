@@ -28,8 +28,8 @@ htmlcov
 junk
 src
 
+.egg*
 *.egg-info
 .cache
 
 MUJOCO_LOG.TXT
-
