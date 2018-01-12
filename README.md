@@ -22,6 +22,7 @@ pip install -e .
 - [PPO1](baselines/ppo1) (Multi-CPU using MPI)
 - [PPO2](baselines/ppo2) (Optimized for GPU)
 - [TRPO](baselines/trpo_mpi)
+- [Rainbow](baselines/rainbow)
 
 To cite this repository in publications:
 
