@@ -17,7 +17,7 @@ from baselines import logger
 from baselines.common import colorize
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import cg
-from statistics import stats
+from baselines.gail.statistics import stats
 
 
 def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):

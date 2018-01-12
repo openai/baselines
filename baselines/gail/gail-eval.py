@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-import run_mujoco
-import mlp_policy
+from baselines.gail import run_mujoco
+from baselines.gail import mlp_policy
 from baselines.common import set_global_seeds, tf_util as U
 from baselines.common.misc_util import boolean_flag
-from dataset.mujoco_dset import Mujoco_Dset
+from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 
 
 plt.style.use('ggplot')
