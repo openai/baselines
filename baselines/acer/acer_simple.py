@@ -70,7 +70,7 @@ class Model(object):
         LR = tf.placeholder(tf.float32, [])
         eps = 1e-6
 
-        step_model = policy(sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
+        act_model = policy(sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
         train_model = policy(sess, ob_space, ac_space, nenvs, nsteps + 1, nstack, reuse=True)
 
         params = find_trainable_variables("model")
@@ -204,9 +204,9 @@ class Model(object):
         self.train = train
         self.save = save
         self.train_model = train_model
-        self.step_model = step_model
-        self.step = step_model.step
-        self.initial_state = step_model.initial_state
+        self.act_model = act_model
+        self.step = act_model.step
+        self.initial_state = act_model.initial_state
         tf.global_variables_initializer().run(session=sess)
 
 class Runner(object):

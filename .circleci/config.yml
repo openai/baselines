@@ -1,0 +1,91 @@
+version: 2
+jobs:
+  build:
+    environment:
+      CC_TEST_REPORTER_ID: ''
+
+    working_directory: ~/baselines
+
+    docker:
+      - image: circleci/python:3.6
+
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "environment.yml" }}
+
+      - run:
+          name: Install apt-get packages for gym
+          command: |
+            sudo apt-get install -y python-numpy python-dev cmake zlib1g-dev libjpeg-dev xvfb libav-tools xorg-dev python-opengl libboost-all-dev libsdl2-dev swig
+
+      - run: echo 'export PATH=$HOME/miniconda3/bin:$PATH' >> $BASH_ENV
+      - run:
+          name: Install Conda
+          command: |
+            if which conda >/dev/null; then
+              echo "Conda is already installed"
+            else
+              curl -O https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+              bash Miniconda3-latest-Linux-x86_64.sh -b -u
+            fi
+
+      - run:
+          name: Install Python dependencies with Conda
+          command: |
+            if conda env list | grep "^baselines " >/dev/null; then
+              echo "conda env baselines is already installed"
+            else
+              conda config --add channels conda-forge
+              conda config --add channels soumith
+              conda create -n baselines python=3.6 ipykernel -c conda-forge -c soumith -y
+              source activate baselines
+              python -m ipykernel install --user --name baselines
+            fi
+            source activate baselines
+            conda env update -f environment.yml
+      - save_cache:
+          key: v1-dependencies-{{ checksum "environment.yml" }}
+          paths:
+            - ~/miniconda3
+            - ~/.cache/pip
+
+  test:
+    environment:
+      PY_ENV: test
+      CC_TEST_REPORTER_ID: ''
+
+    working_directory: ~/baselines
+
+    docker:
+      - image: circleci/python:3.6
+
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "environment.yml" }}
+
+      - run:
+          name: Install apt-get packages for gym
+          command: |
+            sudo apt-get install -y python-numpy python-dev cmake zlib1g-dev libjpeg-dev xvfb libav-tools xorg-dev python-opengl libboost-all-dev libsdl2-dev swig
+      - run: echo 'export PATH=$HOME/miniconda3/bin:$PATH' >> $BASH_ENV
+      - run:
+          name: Run Python tests
+          command: |
+            echo 'TODO add CC test reporter. refer to SLM-Lab'
+            source activate baselines
+            echo 'TODO python setup.py test'
+      - store_test_results:
+          path: htmlcov
+
+workflows:
+  version: 2
+  build-test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
