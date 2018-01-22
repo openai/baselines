@@ -34,11 +34,19 @@ python -m baselines.gail.behavior_clone
 
 See help (`-h`) for more options.
 
+
+##Contributing
+
+Bug reports and pull requests are welcome on GitHub at https://github.com/openai/baselines/pulls.
+
+## Maintainers
+
+- Yuan-Hong Liao, andrewliao11_at_gmail_dot_com
+- Ryan Julian, ryanjulian_at_gmail_dot_com
+
 ## Others
 
 Thanks to the open source:
 
 - @openai/imitation
 - @carpedm20/deep-rl-tensorflow
-
-Also, thanks [Ryan Julian](https://github.com/ryanjulian) for reviewing the code
