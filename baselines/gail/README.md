@@ -35,7 +35,7 @@ python -m baselines.gail.behavior_clone
 See help (`-h`) for more options.
 
 
-##Contributing
+## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/openai/baselines/pulls.
 
