@@ -91,7 +91,7 @@ class Model(object):
 
 class Runner(object):
 
-    def __init__(self, env, model, nsteps=5, nstack=4, gamma=0.99):
+    def __init__(self, env, model, nsteps=5, nstack=4, gamma=0.99, _lambda=1.0):
         self.env = env
         self.model = model
         nh, nw, nc = env.observation_space.shape
@@ -102,6 +102,7 @@ class Runner(object):
         obs = env.reset()
         self.update_obs(obs)
         self.gamma = gamma
+        self._lambda = _lambda
         self.nsteps = nsteps
         self.states = model.initial_state
         self.dones = [False for _ in range(nenv)]
@@ -140,13 +141,13 @@ class Runner(object):
         mb_dones = mb_dones[:, 1:]
         last_values = self.model.value(self.obs, self.states, self.dones).tolist()
         #discount/bootstrap off value fn
-        for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-            rewards = rewards.tolist()
-            dones = dones.tolist()
-            if dones[-1] == 0:
-                rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-            else:
-                rewards = discount_with_dones(rewards, dones, self.gamma)
+        for n, (rewards, dones, values, value) in enumerate(zip(mb_rewards, mb_dones, mb_values, last_values)):
+            values_appended = np.asarray(values.tolist() + [value if dones[-1]==0 else 0])
+            dones_appended = np.asarray(dones.tolist() + [0])
+            one_step_advantages = rewards + (1 - dones_appended[:-1]) * self.gamma * values_appended[1:] - values_appended[:-1]
+            generalized_advantages = discount_with_dones(one_step_advantages, dones, self.gamma * self._lambda)
+            # generalized_advantages becomes same as (nstep discounted returns - values) when _lambda=1 (as in standard A2C/A3C implementation)
+            rewards = values + np.asarray(generalized_advantages)
             mb_rewards[n] = rewards
         mb_rewards = mb_rewards.flatten()
         mb_actions = mb_actions.flatten()
@@ -154,7 +155,7 @@ class Runner(object):
         mb_masks = mb_masks.flatten()
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
 
-def learn(policy, env, seed, nsteps=5, nstack=4, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
+def learn(policy, env, seed, nsteps=5, nstack=4, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, _lambda=1.0, log_interval=100):
     tf.reset_default_graph()
     set_global_seeds(seed)
 
@@ -164,7 +165,7 @@ def learn(policy, env, seed, nsteps=5, nstack=4, total_timesteps=int(80e6), vf_c
     num_procs = len(env.remotes) # HACK
     model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, nstack=nstack, num_procs=num_procs, ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
-    runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
+    runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma, _lambda=_lambda)
 
     nbatch = nenvs*nsteps
     tstart = time.time()
