@@ -19,7 +19,10 @@ def train(env_id, num_timesteps, seed):
     sess.__enter__()
 
     rank = MPI.COMM_WORLD.Get_rank()
-    if rank != 0:
+    if rank == 0:
+        logger.configure()
+    else:
+        logger.configure(format_strs=[])
         logger.set_level(logger.DISABLED)
     workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
     set_global_seeds(workerseed)
@@ -43,7 +46,6 @@ def main():
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     args = parser.parse_args()
-    logger.configure()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 
