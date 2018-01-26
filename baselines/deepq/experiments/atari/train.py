@@ -25,6 +25,7 @@ from baselines import bench
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.common.azure_utils import Container
 from .model import model, dueling_model
+from baselines.deepq.utils import Uint8Input, load_state, save_state
 
 
 def parse_args():
@@ -73,7 +74,7 @@ def maybe_save_model(savedir, container, state):
         return
     start_time = time.time()
     model_dir = "model-{}".format(state["num_iters"])
-    U.save_state(os.path.join(savedir, model_dir, "saved"))
+    save_state(os.path.join(savedir, model_dir, "saved"))
     if container is not None:
         container.put(os.path.join(savedir, model_dir), model_dir)
     relatively_safe_pickle_dump(state, os.path.join(savedir, 'training_state.pkl.zip'), compression=True)
@@ -101,14 +102,14 @@ def maybe_load_model(savedir, container):
         model_dir = "model-{}".format(state["num_iters"])
         if container is not None:
             container.get(savedir, model_dir)
-        U.load_state(os.path.join(savedir, model_dir, "saved"))
+        load_state(os.path.join(savedir, model_dir, "saved"))
         logger.log("Loaded models checkpoint at {} iterations".format(state["num_iters"]))
         return state
 
 
 if __name__ == '__main__':
     args = parse_args()
-    
+
     # Parse savedir and azure container.
     savedir = args.save_dir
     if savedir is None:
@@ -143,7 +144,7 @@ if __name__ == '__main__':
             actual_model = dueling_model if args.dueling else model
             return actual_model(img_in, num_actions, scope, layer_norm=args.layer_norm, **kwargs)
         act, train, update_target, debug = deepq.build_train(
-            make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
+            make_obs_ph=lambda name: Uint8Input(env.observation_space.shape, name=name),
             q_func=model_wrapper,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=args.lr, epsilon=1e-4),

@@ -26,7 +26,7 @@ pip install -e .
 To cite this repository in publications:
 
     @misc{baselines,
-      author = {Dhariwal, Prafulla and Hesse, Christopher and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
+      author = {Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
       title = {OpenAI Baselines},
       year = {2017},
       publisher = {GitHub},

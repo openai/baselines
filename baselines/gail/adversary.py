@@ -8,6 +8,14 @@ import numpy as np
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.common import tf_util as U
 
+def logsigmoid(a):
+    '''Equivalent to tf.log(tf.sigmoid(a))'''
+    return -tf.nn.softplus(-a)
+
+""" Reference: https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51"""
+def logit_bernoulli_entropy(logits):
+    ent = (1.-tf.nn.sigmoid(logits))*logits - logsigmoid(logits)
+    return ent
 
 class TransitionClassifier(object):
     def __init__(self, env, hidden_size, entcoeff=0.001, lr_rate=1e-3, scope="adversary"):

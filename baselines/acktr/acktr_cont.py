@@ -1,10 +1,10 @@
 import numpy as np
 import tensorflow as tf
 from baselines import logger
-from baselines import common
+import baselines.common as common
 from baselines.common import tf_util as U
 from baselines.acktr import kfac
-from baselines.acktr.filters import ZFilter
+from baselines.common.filters import ZFilter
 
 def pathlength(path):
     return path["reward"].shape[0]# Loss function that we'll differentiate to get the policy gradient
@@ -70,7 +70,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
     coord = tf.train.Coordinator()
     for qr in [q_runner, vf.q_runner]:
         assert (qr != None)
-        enqueue_threads.extend(qr.create_threads(U.get_session(), coord=coord, start=True))
+        enqueue_threads.extend(qr.create_threads(tf.get_default_session(), coord=coord, start=True))
 
     i = 0
     timesteps_so_far = 0
@@ -122,10 +122,10 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         kl = policy.compute_kl(ob_no, oldac_dist)
         if kl > desired_kl * 2:
             logger.log("kl too high")
-            U.eval(tf.assign(stepsize, tf.maximum(min_stepsize, stepsize / 1.5)))
+            tf.assign(stepsize, tf.maximum(min_stepsize, stepsize / 1.5)).eval()
         elif kl < desired_kl / 2:
             logger.log("kl too low")
-            U.eval(tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)))            
+            tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)).eval()
         else:
             logger.log("kl just right!")
 

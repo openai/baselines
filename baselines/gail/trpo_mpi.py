@@ -130,14 +130,14 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
     kloldnew = oldpi.pd.kl(pi.pd)
     ent = pi.pd.entropy()
-    meankl = U.mean(kloldnew)
-    meanent = U.mean(ent)
+    meankl = tf_util.reduce_mean(kloldnew)
+    meanent = tf_util.reduce_mean(ent)
     entbonus = entcoeff * meanent
 
-    vferr = U.mean(tf.square(pi.vpred - ret))
+    vferr = tf_util.reduce_mean(tf.square(pi.vpred - ret))
 
     ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # advantage * pnew / pold
-    surrgain = U.mean(ratio * atarg)
+    surrgain = tf_util.reduce_mean(ratio * atarg)
 
     optimgain = surrgain + entbonus
     losses = [optimgain, meankl, entbonus, surrgain, meanent]

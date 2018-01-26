@@ -25,7 +25,6 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     # Create envs.
     env = gym.make(env_id)
     env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
-    gym.logger.setLevel(logging.WARN)
 
     if evaluation and rank==0:
         eval_env = gym.make(env_id)
