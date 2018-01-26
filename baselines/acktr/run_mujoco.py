@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
-import argparse
-import logging
-import os
+
 import tensorflow as tf
-import gym
 from baselines import logger
-from baselines.common import set_global_seeds
-from baselines import bench
+from baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
 from baselines.acktr.acktr_cont import learn
 from baselines.acktr.policies import GaussianMlpPolicy
 from baselines.acktr.value_functions import NeuralNetValueFunction
 
 def train(env_id, num_timesteps, seed):
-    env=gym.make(env_id)
-    env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
-    set_global_seeds(seed)
-    env.seed(seed)
-    gym.logger.setLevel(logging.WARN)
+    env = make_mujoco_env(env_id, seed)
 
     with tf.Session(config=tf.ConfigProto()):
         ob_dim = env.observation_space.shape[0]
@@ -33,11 +25,10 @@ def train(env_id, num_timesteps, seed):
 
         env.close()
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run Mujoco benchmark.')
-    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--env', help='environment ID', type=str, default="Reacher-v1")
-    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
-    args = parser.parse_args()
+def main():
+    args = mujoco_arg_parser().parse_args()
     logger.configure()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
+
+if __name__ == "__main__":
+    main()

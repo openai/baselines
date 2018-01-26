@@ -39,23 +39,19 @@ def ortho_init(scale=1.0):
         return (scale * q[:shape[0], :shape[1]]).astype(np.float32)
     return _ortho_init
 
-def conv(x, scope, nf, rf, stride, pad='VALID', act=tf.nn.relu, init_scale=1.0):
+def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0):
     with tf.variable_scope(scope):
         nin = x.get_shape()[3].value
         w = tf.get_variable("w", [rf, rf, nin, nf], initializer=ortho_init(init_scale))
         b = tf.get_variable("b", [nf], initializer=tf.constant_initializer(0.0))
-        z = tf.nn.conv2d(x, w, strides=[1, stride, stride, 1], padding=pad)+b
-        h = act(z)
-        return h
+        return tf.nn.conv2d(x, w, strides=[1, stride, stride, 1], padding=pad)+b
 
-def fc(x, scope, nh, act=tf.nn.relu, init_scale=1.0):
+def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
     with tf.variable_scope(scope):
         nin = x.get_shape()[1].value
         w = tf.get_variable("w", [nin, nh], initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(0.0))
-        z = tf.matmul(x, w)+b
-        h = act(z)
-        return h
+        b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
+        return tf.matmul(x, w)+b
 
 def batch_to_seq(h, nbatch, nsteps, flat=False):
     if flat:
@@ -162,9 +158,34 @@ def constant(p):
 def linear(p):
     return 1-p
 
+def middle_drop(p):
+    eps = 0.75
+    if 1-p<eps:
+        return eps*0.1
+    return 1-p
+
+def double_linear_con(p):
+    p *= 2
+    eps = 0.125
+    if 1-p<eps:
+        return eps
+    return 1-p
+
+def double_middle_drop(p):
+    eps1 = 0.75
+    eps2 = 0.25
+    if 1-p<eps1:
+        if 1-p<eps2:
+            return eps2*0.5
+        return eps1*0.1
+    return 1-p
+
 schedules = {
     'linear':linear,
-    'constant':constant
+    'constant':constant,
+    'double_linear_con': double_linear_con,
+    'middle_drop': middle_drop,
+    'double_middle_drop': double_middle_drop
 }
 
 class Scheduler(object):

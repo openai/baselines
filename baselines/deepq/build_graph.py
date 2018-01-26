@@ -143,7 +143,7 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
 `       See the top of the file for details.
     """
     with tf.variable_scope(scope, reuse=reuse):
-        observations_ph = U.ensure_tf_input(make_obs_ph("observation"))
+        observations_ph = make_obs_ph("observation")
         stochastic_ph = tf.placeholder(tf.bool, (), name="stochastic")
         update_eps_ph = tf.placeholder(tf.float32, (), name="update_eps")
 
@@ -159,10 +159,12 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
 
         output_actions = tf.cond(stochastic_ph, lambda: stochastic_actions, lambda: deterministic_actions)
         update_eps_expr = eps.assign(tf.cond(update_eps_ph >= 0, lambda: update_eps_ph, lambda: eps))
-        act = U.function(inputs=[observations_ph, stochastic_ph, update_eps_ph],
+        _act = U.function(inputs=[observations_ph, stochastic_ph, update_eps_ph],
                          outputs=output_actions,
                          givens={update_eps_ph: -1.0, stochastic_ph: True},
                          updates=[update_eps_expr])
+        def act(ob, stochastic=True, update_eps=-1):
+            return _act(ob, stochastic, update_eps)
         return act
 
 
@@ -203,7 +205,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
         param_noise_filter_func = default_param_noise_filter
 
     with tf.variable_scope(scope, reuse=reuse):
-        observations_ph = U.ensure_tf_input(make_obs_ph("observation"))
+        observations_ph = make_obs_ph("observation")
         stochastic_ph = tf.placeholder(tf.bool, (), name="stochastic")
         update_eps_ph = tf.placeholder(tf.float32, (), name="update_eps")
         update_param_noise_threshold_ph = tf.placeholder(tf.float32, (), name="update_param_noise_threshold")
@@ -342,20 +344,20 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
 
     with tf.variable_scope(scope, reuse=reuse):
         # set up placeholders
-        obs_t_input = U.ensure_tf_input(make_obs_ph("obs_t"))
+        obs_t_input = make_obs_ph("obs_t")
         act_t_ph = tf.placeholder(tf.int32, [None], name="action")
         rew_t_ph = tf.placeholder(tf.float32, [None], name="reward")
-        obs_tp1_input = U.ensure_tf_input(make_obs_ph("obs_tp1"))
+        obs_tp1_input = make_obs_ph("obs_tp1")
         done_mask_ph = tf.placeholder(tf.float32, [None], name="done")
         importance_weights_ph = tf.placeholder(tf.float32, [None], name="weight")
 
         # q network evaluation
         q_t = q_func(obs_t_input.get(), num_actions, scope="q_func", reuse=True)  # reuse parameters from act
-        q_func_vars = U.scope_vars(U.absolute_scope_name("q_func"))
+        q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/q_func")
 
         # target q network evalution
         q_tp1 = q_func(obs_tp1_input.get(), num_actions, scope="target_q_func")
-        target_q_func_vars = U.scope_vars(U.absolute_scope_name("target_q_func"))
+        target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/target_q_func")
 
         # q scores for actions which we know were selected in the given state.
         q_t_selected = tf.reduce_sum(q_t * tf.one_hot(act_t_ph, num_actions), 1)
@@ -363,7 +365,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         # compute estimate of best possible value starting from state at t + 1
         if double_q:
             q_tp1_using_online_net = q_func(obs_tp1_input.get(), num_actions, scope="q_func", reuse=True)
-            q_tp1_best_using_online_net = tf.arg_max(q_tp1_using_online_net, 1)
+            q_tp1_best_using_online_net = tf.argmax(q_tp1_using_online_net, 1)
             q_tp1_best = tf.reduce_sum(q_tp1 * tf.one_hot(q_tp1_best_using_online_net, num_actions), 1)
         else:
             q_tp1_best = tf.reduce_max(q_tp1, 1)
@@ -379,10 +381,11 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
 
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
-            optimize_expr = U.minimize_and_clip(optimizer,
-                                                weighted_error,
-                                                var_list=q_func_vars,
-                                                clip_val=grad_norm_clipping)
+            gradients = optimizer.compute_gradients(weighted_error, var_list=q_func_vars)
+            for i, (grad, var) in enumerate(gradients):
+                if grad is not None:
+                    gradients[i] = (tf.clip_by_norm(grad, grad_norm_clipping), var)
+            optimize_expr = optimizer.apply_gradients(gradients)
         else:
             optimize_expr = optimizer.minimize(weighted_error, var_list=q_func_vars)
 

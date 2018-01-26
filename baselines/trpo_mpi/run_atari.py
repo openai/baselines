@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+    #!/usr/bin/env python3
 from mpi4py import MPI
 from baselines.common import set_global_seeds
 import os.path as osp
@@ -6,6 +6,7 @@ import gym, logging
 from baselines import logger
 from baselines import bench
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
+from baselines.common.cmd_util import atari_arg_parser
 
 def train(env_id, num_timesteps, seed):
     from baselines.trpo_mpi.nosharing_cnn_policy import CnnPolicy
@@ -26,7 +27,6 @@ def train(env_id, num_timesteps, seed):
         return CnnPolicy(name=name, ob_space=env.observation_space, ac_space=env.action_space)
     env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
     env.seed(workerseed)
-    gym.logger.setLevel(logging.WARN)
 
     env = wrap_deepmind(env)
     env.seed(workerseed)
@@ -36,14 +36,8 @@ def train(env_id, num_timesteps, seed):
     env.close()
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--env', help='environment ID', default='PongNoFrameskip-v4')
-    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--num-timesteps', type=int, default=int(10e6))
-    args = parser.parse_args()
+    args = atari_arg_parser().parse_args()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
-
 
 if __name__ == "__main__":
     main()

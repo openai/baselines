@@ -25,8 +25,7 @@ class Monitor(Wrapper):
                 else:
                     filename = filename + "." + Monitor.EXT
             self.f = open(filename, "wt")
-            self.f.write('#%s\n'%json.dumps({"t_start": self.tstart, "gym_version": gym.__version__,
-                "env_id": env.spec.id if env.spec else 'Unknown'}))
+            self.f.write('#%s\n'%json.dumps({"t_start": self.tstart, 'env_id' : env.spec and env.spec.id}))
             self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't')+reset_keywords)
             self.logger.writeheader()
 
@@ -36,10 +35,11 @@ class Monitor(Wrapper):
         self.needs_reset = True
         self.episode_rewards = []
         self.episode_lengths = []
+        self.episode_times = []
         self.total_steps = 0
         self.current_reset_info = {} # extra info about the current episode, that was passed in during reset()
 
-    def _reset(self, **kwargs):
+    def reset(self, **kwargs):
         if not self.allow_early_resets and not self.needs_reset:
             raise RuntimeError("Tried to reset an environment before done. If you want to allow early resets, wrap your env with Monitor(env, path, allow_early_resets=True)")
         self.rewards = []
@@ -51,7 +51,7 @@ class Monitor(Wrapper):
             self.current_reset_info[k] = v
         return self.env.reset(**kwargs)
 
-    def _step(self, action):
+    def step(self, action):
         if self.needs_reset:
             raise RuntimeError("Tried to step environment that needs reset")
         ob, rew, done, info = self.env.step(action)
@@ -61,12 +61,13 @@ class Monitor(Wrapper):
             eprew = sum(self.rewards)
             eplen = len(self.rewards)
             epinfo = {"r": round(eprew, 6), "l": eplen, "t": round(time.time() - self.tstart, 6)}
+            self.episode_rewards.append(eprew)
+            self.episode_lengths.append(eplen)
+            self.episode_times.append(time.time() - self.tstart)
             epinfo.update(self.current_reset_info)
             if self.logger:
                 self.logger.writerow(epinfo)
                 self.f.flush()
-            self.episode_rewards.append(eprew)
-            self.episode_lengths.append(eplen)
             info['episode'] = epinfo
         self.total_steps += 1
         return (ob, rew, done, info)
@@ -84,6 +85,9 @@ class Monitor(Wrapper):
     def get_episode_lengths(self):
         return self.episode_lengths
 
+    def get_episode_times(self):
+        return self.episode_times
+
 class LoadMonitorResultsError(Exception):
     pass
 
@@ -92,7 +96,9 @@ def get_monitor_files(dir):
 
 def load_results(dir):
     import pandas
-    monitor_files = glob(osp.join(dir, "*monitor.*")) # get both csv and (old) json files
+    monitor_files = (
+        glob(osp.join(dir, "*monitor.json")) + 
+        glob(osp.join(dir, "*monitor.csv"))) # get both csv and (old) json files
     if not monitor_files:
         raise LoadMonitorResultsError("no monitor files of the form *%s found in %s" % (Monitor.EXT, dir))
     dfs = []
@@ -114,10 +120,37 @@ def load_results(dir):
                     episode = json.loads(line)
                     episodes.append(episode)
                 df = pandas.DataFrame(episodes)
-        df['t'] += header['t_start']
+            else:
+                assert 0, 'unreachable'
+            df['t'] += header['t_start']
         dfs.append(df)
     df = pandas.concat(dfs)
     df.sort_values('t', inplace=True)
+    df.reset_index(inplace=True)
     df['t'] -= min(header['t_start'] for header in headers)
     df.headers = headers # HACK to preserve backwards compatibility
     return df
+
+def test_monitor():
+    env = gym.make("CartPole-v1")
+    env.seed(0)
+    mon_file = "/tmp/baselines-test-%s.monitor.csv" % uuid.uuid4()
+    menv = Monitor(env, mon_file)
+    menv.reset()
+    for _ in range(1000):
+        _, _, done, _ = menv.step(0)
+        if done:
+            menv.reset()
+
+    f = open(mon_file, 'rt')
+
+    firstline = f.readline()
+    assert firstline.startswith('#')
+    metadata = json.loads(firstline[1:])
+    assert metadata['env_id'] == "CartPole-v1"
+    assert set(metadata.keys()) == {'env_id', 'gym_version', 't_start'},  "Incorrect keys in monitor metadata"
+
+    last_logline = pandas.read_csv(f, index_col=None)
+    assert set(last_logline.keys()) == {'l', 't', 'r'}, "Incorrect keys in monitor logline"
+    f.close()
+    os.remove(mon_file)
