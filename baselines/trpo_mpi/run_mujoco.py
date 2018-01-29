@@ -27,16 +27,10 @@ def train(env_id, num_timesteps, seed):
     env.close()
 
 def main():
-
-    import argparse
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--env', help='environment ID', default='Hopper-v1')
-    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
-    args = parser.parse_args()
     args = mujoco_arg_parser().parse_args()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 
 if __name__ == '__main__':
     main()
+
