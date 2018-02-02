@@ -68,7 +68,7 @@ def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, 
 
 
 def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
-    """This model takes as input an observation and returns values of all actions.
+    """This model takes input an observation and returns values of all actions.
 
     Parameters
     ----------
