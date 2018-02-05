@@ -41,7 +41,7 @@ class TransitionClassifier(object):
         expert_loss = tf.reduce_mean(expert_loss)
         # Build entropy loss
         logits = tf.concat([generator_logits, expert_logits], 0)
-        entropy = tf.reduce_mean(U.logit_bernoulli_entropy(logits))
+        entropy = tf.reduce_mean(logit_bernoulli_entropy(logits))
         entropy_loss = -entcoeff*entropy
         # Loss + Accuracy terms
         self.losses = [generator_loss, expert_loss, entropy, entropy_loss, generator_acc, expert_acc]
@@ -77,7 +77,7 @@ class TransitionClassifier(object):
         return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
     def get_reward(self, obs, acs):
-        sess = U.get_session()
+        sess = tf.get_default_session()
         if len(obs.shape) == 1:
             obs = np.expand_dims(obs, 0)
         if len(acs.shape) == 1:
