@@ -9,8 +9,7 @@ from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 import baselines.common.tf_util as U
 from baselines.common.mpi_running_mean_std import RunningMeanStd
-from baselines.ddpg.util import reduce_std, mpi_mean
-
+from mpi4py import MPI
 
 def normalize(x, stats):
     if stats is None:
@@ -23,6 +22,13 @@ def denormalize(x, stats):
         return x
     return x * stats.std + stats.mean
 
+def reduce_std(x, axis=None, keepdims=False):
+    return tf.sqrt(reduce_var(x, axis=axis, keepdims=keepdims))
+
+def reduce_var(x, axis=None, keepdims=False):
+    m = tf.reduce_mean(x, axis=axis, keep_dims=True)
+    devs_squared = tf.square(x - m)
+    return tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims)
 
 def get_target_updates(vars, target_vars, tau):
     logger.info('setting up target updates ...')
@@ -198,7 +204,7 @@ class DDPG(object):
         new_std = self.ret_rms.std
         self.old_mean = tf.placeholder(tf.float32, shape=[1], name='old_mean')
         new_mean = self.ret_rms.mean
-        
+
         self.renormalize_Q_outputs_op = []
         for vs in [self.critic.output_vars, self.target_critic.output_vars]:
             assert len(vs) == 2
@@ -213,15 +219,15 @@ class DDPG(object):
     def setup_stats(self):
         ops = []
         names = []
-        
+
         if self.normalize_returns:
             ops += [self.ret_rms.mean, self.ret_rms.std]
             names += ['ret_rms_mean', 'ret_rms_std']
-        
+
         if self.normalize_observations:
             ops += [tf.reduce_mean(self.obs_rms.mean), tf.reduce_mean(self.obs_rms.std)]
             names += ['obs_rms_mean', 'obs_rms_std']
-        
+
         ops += [tf.reduce_mean(self.critic_tf)]
         names += ['reference_Q_mean']
         ops += [reduce_std(self.critic_tf)]
@@ -231,7 +237,7 @@ class DDPG(object):
         names += ['reference_actor_Q_mean']
         ops += [reduce_std(self.critic_with_actor_tf)]
         names += ['reference_actor_Q_std']
-        
+
         ops += [tf.reduce_mean(self.actor_tf)]
         names += ['reference_action_mean']
         ops += [reduce_std(self.actor_tf)]
@@ -347,7 +353,7 @@ class DDPG(object):
     def adapt_param_noise(self):
         if self.param_noise is None:
             return 0.
-        
+
         # Perturb a separate copy of the policy to adjust the scale for the next "real" perturbation.
         batch = self.memory.sample(batch_size=self.batch_size)
         self.sess.run(self.perturb_adaptive_policy_ops, feed_dict={
@@ -358,7 +364,7 @@ class DDPG(object):
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
 
-        mean_distance = mpi_mean(distance)
+        mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
         self.param_noise.adapt(mean_distance)
         return mean_distance
 

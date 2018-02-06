@@ -9,6 +9,7 @@ import baselines.common.tf_util as U
 from baselines import logger
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer
+from baselines.deepq.utils import BatchInput
 from baselines.common.schedules import LinearSchedule
 
 
@@ -27,7 +28,7 @@ if __name__ == '__main__':
         env = gym.make("CartPole-v0")
         # Create all the functions necessary to train the model
         act, train, update_target, debug = deepq.build_train(
-            make_obs_ph=lambda name: U.BatchInput(env.observation_space.shape, name=name),
+            make_obs_ph=lambda name: BatchInput(env.observation_space.shape, name=name),
             q_func=model,
             num_actions=env.action_space.n,
             optimizer=tf.train.AdamOptimizer(learning_rate=5e-4),

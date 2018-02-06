@@ -9,6 +9,7 @@ from baselines import deepq, bench
 from baselines.common.misc_util import get_wrapper_by_name, boolean_flag, set_global_seeds
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.deepq.experiments.atari.model import model, dueling_model
+from baselines.deepq.utils import Uint8Input, load_state
 
 
 def make_env(game_name):
@@ -69,11 +70,11 @@ def main():
     with U.make_session(4):  # noqa
         _, env = make_env(args.env)
         act = deepq.build_act(
-            make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
+            make_obs_ph=lambda name: Uint8Input(env.observation_space.shape, name=name),
             q_func=dueling_model if args.dueling else model,
             num_actions=env.action_space.n)
 
-        U.load_state(os.path.join(args.model_dir, "saved"))
+        load_state(os.path.join(args.model_dir, "saved"))
         wang2015_eval(args.env, act, stochastic=args.stochastic)
 
 

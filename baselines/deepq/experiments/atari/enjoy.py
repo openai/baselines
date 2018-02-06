@@ -3,7 +3,7 @@ import gym
 import os
 import numpy as np
 
-from gym.monitoring import VideoRecorder
+from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
 import baselines.common.tf_util as U
 
@@ -14,6 +14,7 @@ from baselines.common.misc_util import (
 from baselines import bench
 from baselines.common.atari_wrappers_deprecated import wrap_dqn
 from baselines.deepq.experiments.atari.model import model, dueling_model
+from baselines.deepq.utils import Uint8Input, load_state
 
 
 def parse_args():
@@ -63,8 +64,8 @@ if __name__ == '__main__':
         args = parse_args()
         env = make_env(args.env)
         act = deepq.build_act(
-            make_obs_ph=lambda name: U.Uint8Input(env.observation_space.shape, name=name),
+            make_obs_ph=lambda name: Uint8Input(env.observation_space.shape, name=name),
             q_func=dueling_model if args.dueling else model,
             num_actions=env.action_space.n)
-        U.load_state(os.path.join(args.model_dir, "saved"))
+        load_state(os.path.join(args.model_dir, "saved"))
         play(env, act, args.stochastic, args.video)
