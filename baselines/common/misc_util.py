@@ -224,6 +224,7 @@ def relatively_safe_pickle_dump(obj, path, compression=False):
         # Using gzip here would be simpler, but the size is limited to 2GB
         with tempfile.NamedTemporaryFile() as uncompressed_file:
             pickle.dump(obj, uncompressed_file)
+            uncompressed_file.file.flush()
             with zipfile.ZipFile(temp_storage, "w", compression=zipfile.ZIP_DEFLATED) as myzip:
                 myzip.write(uncompressed_file.name, "data")
     else:

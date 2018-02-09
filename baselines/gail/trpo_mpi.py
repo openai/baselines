@@ -130,14 +130,14 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
     kloldnew = oldpi.pd.kl(pi.pd)
     ent = pi.pd.entropy()
-    meankl = tf_util.reduce_mean(kloldnew)
-    meanent = tf_util.reduce_mean(ent)
+    meankl = tf.reduce_mean(kloldnew)
+    meanent = tf.reduce_mean(ent)
     entbonus = entcoeff * meanent
 
-    vferr = tf_util.reduce_mean(tf.square(pi.vpred - ret))
+    vferr = tf.reduce_mean(tf.square(pi.vpred - ret))
 
     ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # advantage * pnew / pold
-    surrgain = tf_util.reduce_mean(ratio * atarg)
+    surrgain = tf.reduce_mean(ratio * atarg)
 
     optimgain = surrgain + entbonus
     losses = [optimgain, meankl, entbonus, surrgain, meanent]
@@ -146,8 +146,8 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
     dist = meankl
 
     all_var_list = pi.get_trainable_variables()
-    var_list = [v for v in all_var_list if v.name.split("/")[1] == "pol"]
-    vf_var_list = [v for v in all_var_list if v.name.split("/")[1] == "vf"]
+    var_list = [v for v in all_var_list if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
+    vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
     assert len(var_list) == len(vf_var_list) + 1
     d_adam = MpiAdam(reward_giver.get_trainable_variables())
     vfadam = MpiAdam(vf_var_list)
@@ -163,7 +163,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
         sz = U.intprod(shape)
         tangents.append(tf.reshape(flat_tangent[start:start+sz], shape))
         start += sz
-    gvp = tf.add_n([U.sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
+    gvp = tf.add_n([tf.reduce_sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
     fvp = U.flatgrad(gvp, var_list)
 
     assign_old_eq_new = U.function([], [], updates=[tf.assign(oldv, newv)
@@ -190,7 +190,6 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
         out /= nworkers
         return out
 
-    writer = U.file_writer(log_dir)
     U.initialize()
     th_init = get_flat()
     MPI.COMM_WORLD.Bcast(th_init, root=0)
@@ -232,7 +231,10 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
         # Save model
         if rank == 0 and iters_so_far % save_per_iter == 0 and ckpt_dir is not None:
-            U.save_state(os.path.join(ckpt_dir, task_name))
+            fname = os.path.join(ckpt_dir, task_name)
+            os.makedirs(os.path.dirname(fname), exist_ok=True)
+            saver = tf.train.Saver()
+            saver.save(tf.get_default_session(), fname)
 
         logger.log("********** Iteration %i ************" % iters_so_far)
 
@@ -346,10 +348,6 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
         if rank == 0:
             logger.dump_tabular()
-            g_loss_stats.add_all_summary(writer, g_losses, iters_so_far)
-            d_loss_stats.add_all_summary(writer, np.mean(d_losses, axis=0), iters_so_far)
-            ep_stats.add_all_summary(writer, [np.mean(true_rewbuffer), np.mean(rewbuffer),
-                                              np.mean(lenbuffer)], iters_so_far)
 
 
 def flatten_lists(listoflists):

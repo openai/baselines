@@ -3,7 +3,7 @@ import gym
 import os
 import numpy as np
 
-from gym.monitoring import VideoRecorder
+from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
 import baselines.common.tf_util as U
 
