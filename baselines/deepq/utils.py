@@ -31,11 +31,11 @@ class TfInput(object):
         """Return the tf variable(s) representing the possibly postprocessed value
         of placeholder(s).
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
-    def make_feed_dict(data):
+    def make_feed_dict(self, data):
         """Given data input it to the placeholder(s)."""
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 class PlaceholderTfInput(TfInput):
@@ -94,6 +94,10 @@ class Uint8Input(PlaceholderTfInput):
 def absolute_scope_name(relative_scope_name):
     """Appends parent scope name to `relative_scope_name`"""
     return scope_name() + "/" + relative_scope_name
+
+def scope_name():
+    """Returns the name of current scope as a string, e.g. deepq/q_func"""
+    return tf.get_variable_scope().name
 
 def scope_vars(scope, trainable_only=False):
     """
