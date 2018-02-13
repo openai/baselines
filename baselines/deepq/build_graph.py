@@ -33,7 +33,7 @@ The functions in this file can are used to create the following functions:
     stochastic: bool
         if set to False all the actions are always deterministic (default False)
     update_eps_ph: float
-        update epsilon a new value, if negative not update happens
+        update epsilon to a new value, if negative no update happens
         (default: no update)
     reset_ph: bool
         reset the perturbed policy by sampling a new perturbation
