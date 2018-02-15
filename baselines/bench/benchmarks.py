@@ -76,9 +76,9 @@ register_benchmark({
 # MuJoCo
 
 _mujocosmall = [
-    'InvertedDoublePendulum-v1', 'InvertedPendulum-v1',
-    'HalfCheetah-v1', 'Hopper-v1', 'Walker2d-v1',
-    'Reacher-v1', 'Swimmer-v1']
+    'InvertedDoublePendulum-v2', 'InvertedPendulum-v2',
+    'HalfCheetah-v2', 'Hopper-v2', 'Walker2d-v2',
+    'Reacher-v2', 'Swimmer-v2']
 register_benchmark({
     'name': 'Mujoco1M',
     'description': 'Some small 2D MuJoCo tasks, run for 1M timesteps',

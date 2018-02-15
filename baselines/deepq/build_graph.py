@@ -97,6 +97,37 @@ import tensorflow as tf
 import baselines.common.tf_util as U
 
 
+def scope_vars(scope, trainable_only=False):
+    """
+    Get variables inside a scope
+    The scope can be specified as a string
+    Parameters
+    ----------
+    scope: str or VariableScope
+        scope in which the variables reside.
+    trainable_only: bool
+        whether or not to return only the variables that were marked as trainable.
+    Returns
+    -------
+    vars: [tf.Variable]
+        list of variables in `scope`.
+    """
+    return tf.get_collection(
+        tf.GraphKeys.TRAINABLE_VARIABLES if trainable_only else tf.GraphKeys.GLOBAL_VARIABLES,
+        scope=scope if isinstance(scope, str) else scope.name
+    )
+
+
+def scope_name():
+    """Returns the name of current scope as a string, e.g. deepq/q_func"""
+    return tf.get_variable_scope().name
+
+
+def absolute_scope_name(relative_scope_name):
+    """Appends parent scope name to `relative_scope_name`"""
+    return scope_name() + "/" + relative_scope_name
+
+
 def default_param_noise_filter(var):
     if var not in tf.trainable_variables():
         # We never perturb non-trainable vars.
@@ -225,8 +256,8 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
         # https://stackoverflow.com/questions/37063952/confused-by-the-behavior-of-tf-cond for
         # a more detailed discussion.
         def perturb_vars(original_scope, perturbed_scope):
-            all_vars = U.scope_vars(U.absolute_scope_name(original_scope))
-            all_perturbed_vars = U.scope_vars(U.absolute_scope_name(perturbed_scope))
+            all_vars = scope_vars(absolute_scope_name(original_scope))
+            all_perturbed_vars = scope_vars(absolute_scope_name(perturbed_scope))
             assert len(all_vars) == len(all_perturbed_vars)
             perturb_ops = []
             for var, perturbed_var in zip(all_vars, all_perturbed_vars):
@@ -274,10 +305,12 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
             tf.cond(update_param_noise_scale_ph, lambda: update_scale(), lambda: tf.Variable(0., trainable=False)),
             update_param_noise_threshold_expr,
         ]
-        act = U.function(inputs=[observations_ph, stochastic_ph, update_eps_ph, reset_ph, update_param_noise_threshold_ph, update_param_noise_scale_ph],
+        _act = U.function(inputs=[observations_ph, stochastic_ph, update_eps_ph, reset_ph, update_param_noise_threshold_ph, update_param_noise_scale_ph],
                          outputs=output_actions,
                          givens={update_eps_ph: -1.0, stochastic_ph: True, reset_ph: False, update_param_noise_threshold_ph: False, update_param_noise_scale_ph: False},
                          updates=updates)
+        def act(ob, reset, update_param_noise_threshold, update_param_noise_scale, stochastic=True, update_eps=-1):
+            return _act(ob, stochastic, update_eps, reset, update_param_noise_threshold, update_param_noise_scale)
         return act
 
 

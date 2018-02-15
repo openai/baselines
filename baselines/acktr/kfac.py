@@ -134,7 +134,7 @@ class KfacOptimizer():
         # check associated weights and bias for homogeneous coordinate representation
         # and check redundent factors
         # TO-DO: there may be a bug to detect associate bias and weights for
-        # forking layer, e.g. in inception models.
+        # forking layer, e.g. in inception predictors.
         for param in varlist:
             factorTensors[param]['assnWeights'] = None
             factorTensors[param]['assnBias'] = None
