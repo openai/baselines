@@ -243,7 +243,7 @@ class Runner(object):
             mb_mus.append(mus)
             mb_dones.append(self.dones)
             obs, rewards, dones, _ = self.env.step(actions)
-            # states information for statefull predictors like LSTM
+            # states information for statefull models like LSTM
             self.states = states
             self.dones = dones
             self.update_obs(obs, dones)
@@ -260,7 +260,7 @@ class Runner(object):
 
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
 
-        mb_masks = mb_dones # Used for statefull predictors like LSTM's to mask state when done
+        mb_masks = mb_dones # Used for statefull models like LSTM's to mask state when done
         mb_dones = mb_dones[:, 1:] # Used for calculating returns. The dones array is now aligned with rewards
 
         # shapes are now [nenv, nsteps, []]
