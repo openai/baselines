@@ -218,7 +218,8 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
     ep_stats = stats(["True_rewards", "Rewards", "Episode_length"])
     # if provide pretrained weight
     if pretrained_weight is not None:
-        U.load_state(pretrained_weight, var_list=pi.get_variables())
+        saver = tf.train.Saver(var_list=pi.get_trainable_variables())
+        saver.restore(tf.get_default_session(), pretrained_weight)
 
     while True:
         if callback: callback(locals(), globals())

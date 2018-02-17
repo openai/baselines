@@ -8,6 +8,7 @@ import logging
 from mpi4py import MPI
 from tqdm import tqdm
 
+import tensorflow as tf
 import numpy as np
 import gym
 
@@ -165,7 +166,8 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     U.initialize()
     # Prepare for rollouts
     # ----------------------------------------
-    U.load_state(load_model_path)
+    saver = tf.train.Saver()
+    saver.restore(tf.get_default_session(), load_model_path)
 
     obs_list = []
     acs_list = []
