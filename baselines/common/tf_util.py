@@ -261,3 +261,20 @@ def get_placeholder_cached(name):
 
 def flattenallbut0(x):
     return tf.reshape(x, [-1, intprod(x.get_shape().as_list()[1:])])
+
+
+# ================================================================
+# Diagnostics 
+# ================================================================
+
+def display_var_info(vars):
+    from baselines import logger
+    count_params = 0
+    for v in vars:
+        name = v.name
+        if "/Adam" in name or "beta1_power" in name or "beta2_power" in name: continue
+        count_params += np.prod(v.shape.as_list())
+        if "/b:" in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
+        logger.info("    %s%s%s" % (name, " "*(55-len(name)), str(v.shape)))
+    logger.info("Total model parameters: %0.1f million" % (count_params*1e-6))
+

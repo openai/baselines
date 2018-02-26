@@ -1,31 +1,42 @@
 import numpy as np
+import gym
 from . import VecEnv
 
 class DummyVecEnv(VecEnv):
     def __init__(self, env_fns):
         self.envs = [fn() for fn in env_fns]
-        env = self.envs[0]        
+        env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
-        self.ts = np.zeros(len(self.envs), dtype='int')        
+
+        obs_spaces = self.observation_space.spaces if isinstance(self.observation_space, gym.spaces.Tuple) else (self.observation_space,)
+        self.buf_obs = [np.zeros((self.num_envs,) + tuple(s.shape), s.dtype) for s in obs_spaces]
+        self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
+        self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
+        self.buf_infos = [{} for _ in range(self.num_envs)]
         self.actions = None
 
     def step_async(self, actions):
         self.actions = actions
 
     def step_wait(self):
-        results = [env.step(a) for (a,env) in zip(self.actions, self.envs)]
-        obs, rews, dones, infos = map(np.array, zip(*results))
-        self.ts += 1
-        for (i, done) in enumerate(dones):
-            if done: 
-                obs[i] = self.envs[i].reset()
-                self.ts[i] = 0
-        self.actions = None
-        return np.array(obs), np.array(rews), np.array(dones), infos
+        for i in range(self.num_envs):
+            obs_tuple, self.buf_rews[i], self.buf_dones[i], self.buf_infos[i] = self.envs[i].step(self.actions[i])
+            if isinstance(obs_tuple, (tuple, list)):
+                for t,x in enumerate(obs_tuple):
+                    self.buf_obs[t][i] = x
+            else:
+                self.buf_obs[0][i] = obs_tuple
+        return self.buf_obs, self.buf_rews, self.buf_dones, self.buf_infos
 
     def reset(self):        
-        results = [env.reset() for env in self.envs]
-        return np.array(results)
+        for i in range(self.num_envs):
+            obs_tuple = self.envs[i].reset()
+            if isinstance(obs_tuple, (tuple, list)):
+                for t,x in enumerate(obs_tuple):
+                    self.buf_obs[t][i] = x
+            else:
+                self.buf_obs[0][i] = obs_tuple
+        return self.buf_obs
 
     def close(self):
         return

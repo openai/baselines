@@ -7,12 +7,13 @@ from glob import glob
 import csv
 import os.path as osp
 import json
+import numpy as np
 
 class Monitor(Wrapper):
     EXT = "monitor.csv"
     f = None
 
-    def __init__(self, env, filename, allow_early_resets=False, reset_keywords=()):
+    def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), info_keywords=()):
         Wrapper.__init__(self, env=env)
         self.tstart = time.time()
         if filename is None:
@@ -26,10 +27,12 @@ class Monitor(Wrapper):
                     filename = filename + "." + Monitor.EXT
             self.f = open(filename, "wt")
             self.f.write('#%s\n'%json.dumps({"t_start": self.tstart, 'env_id' : env.spec and env.spec.id}))
-            self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't')+reset_keywords)
+            self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't')+reset_keywords+info_keywords)
             self.logger.writeheader()
+            self.f.flush()
 
         self.reset_keywords = reset_keywords
+        self.info_keywords = info_keywords
         self.allow_early_resets = allow_early_resets
         self.rewards = None
         self.needs_reset = True
@@ -61,6 +64,8 @@ class Monitor(Wrapper):
             eprew = sum(self.rewards)
             eplen = len(self.rewards)
             epinfo = {"r": round(eprew, 6), "l": eplen, "t": round(time.time() - self.tstart, 6)}
+            for k in self.info_keywords:
+                epinfo[k] = info[k]
             self.episode_rewards.append(eprew)
             self.episode_lengths.append(eplen)
             self.episode_times.append(time.time() - self.tstart)
