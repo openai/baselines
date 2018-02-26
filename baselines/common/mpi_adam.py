@@ -53,7 +53,7 @@ class MpiAdam(object):
 def test_MpiAdam():
     np.random.seed(0)
     tf.set_random_seed(0)
-    
+
     a = tf.Variable(np.random.randn(3).astype('float32'))
     b = tf.Variable(np.random.randn(2,5).astype('float32'))
     loss = tf.reduce_sum(tf.square(a)) + tf.reduce_sum(tf.sin(b))

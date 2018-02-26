@@ -6,7 +6,7 @@ import json
 import time
 import datetime
 import tempfile
-from mpi4py import MPI
+from collections import defaultdict
 
 LOG_OUTPUT_FORMATS = ['stdout', 'log', 'csv']
 # Also valid: json, tensorboard
@@ -125,7 +125,7 @@ class CSVOutputFormat(KVWriter):
             if i > 0:
                 self.file.write(',')
             v = kvs.get(k)
-            if v:
+            if v is not None:
                 self.file.write(str(v))
         self.file.write('\n')
         self.file.flush()
@@ -169,23 +169,18 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer.Close()
             self.writer = None
 
-def make_output_format(format, ev_dir):
+def make_output_format(format, ev_dir, log_suffix=''):
     os.makedirs(ev_dir, exist_ok=True)
-    rank = MPI.COMM_WORLD.Get_rank()
     if format == 'stdout':
         return HumanOutputFormat(sys.stdout)
     elif format == 'log':
-        suffix = "" if rank==0 else ("-mpi%03i"%rank)
-        return HumanOutputFormat(osp.join(ev_dir, 'log%s.txt' % suffix))
+        return HumanOutputFormat(osp.join(ev_dir, 'log%s.txt' % log_suffix))
     elif format == 'json':
-        assert rank==0
-        return JSONOutputFormat(osp.join(ev_dir, 'progress.json'))
+        return JSONOutputFormat(osp.join(ev_dir, 'progress%s.json' % log_suffix))
     elif format == 'csv':
-        assert rank==0
-        return CSVOutputFormat(osp.join(ev_dir, 'progress.csv'))
+        return CSVOutputFormat(osp.join(ev_dir, 'progress%s.csv' % log_suffix))
     elif format == 'tensorboard':
-        assert rank==0
-        return TensorBoardOutputFormat(osp.join(ev_dir, 'tb'))
+        return TensorBoardOutputFormat(osp.join(ev_dir, 'tb%s' % log_suffix))
     else:
         raise ValueError('Unknown format specified: %s' % (format,))
 
@@ -197,8 +192,15 @@ def logkv(key, val):
     """
     Log a value of some diagnostic
     Call this once for each diagnostic quantity, each iteration
+    If called many times, last value will be used.
     """
     Logger.CURRENT.logkv(key, val)
+
+def logkv_mean(key, val):
+    """
+    The same as logkv(), but if called many times, values averaged.
+    """
+    Logger.CURRENT.logkv_mean(key, val)
 
 def logkvs(d):
     """
@@ -255,6 +257,33 @@ def get_dir():
 record_tabular = logkv
 dump_tabular = dumpkvs
 
+class ProfileKV:
+    """
+    Usage:
+    with logger.ProfileKV("interesting_scope"):
+        code
+    """
+    def __init__(self, n):
+        self.n = "wait_" + n
+    def __enter__(self):
+        self.t1 = time.time()
+    def __exit__(self ,type, value, traceback):
+        Logger.CURRENT.name2val[self.n] += time.time() - self.t1
+
+def profile(n):
+    """
+    Usage:
+    @profile("my_func")
+    def my_func(): code
+    """
+    def decorator_with_name(func):
+        def func_wrapper(*args, **kwargs):
+            with ProfileKV(n):
+                return func(*args, **kwargs)
+        return func_wrapper
+    return decorator_with_name
+
+
 # ================================================================
 # Backend
 # ================================================================
@@ -265,7 +294,8 @@ class Logger(object):
     CURRENT = None  # Current logger being used by the free functions above
 
     def __init__(self, dir, output_formats):
-        self.name2val = {}  # values this iteration
+        self.name2val = defaultdict(float)  # values this iteration
+        self.name2cnt = defaultdict(int)
         self.level = INFO
         self.dir = dir
         self.output_formats = output_formats
@@ -275,12 +305,21 @@ class Logger(object):
     def logkv(self, key, val):
         self.name2val[key] = val
 
+    def logkv_mean(self, key, val):
+        if val is None:
+            self.name2val[key] = None
+            return
+        oldval, cnt = self.name2val[key], self.name2cnt[key]
+        self.name2val[key] = oldval*cnt/(cnt+1) + val/(cnt+1)
+        self.name2cnt[key] = cnt + 1
+
     def dumpkvs(self):
         if self.level == DISABLED: return
         for fmt in self.output_formats:
             if isinstance(fmt, KVWriter):
                 fmt.writekvs(self.name2val)
         self.name2val.clear()
+        self.name2cnt.clear()
 
     def log(self, *args, level=INFO):
         if self.level <= level:
@@ -360,6 +399,11 @@ def _demo():
     logkv("a", 5.5)
     dumpkvs()
     info("^^^ should see a = 5.5")
+    logkv_mean("b", -22.5)
+    logkv_mean("b", -44.4)
+    logkv("a", 5.5)
+    dumpkvs()
+    info("^^^ should see b = 33.3")
 
     logkv("b", -2.5)
     dumpkvs()

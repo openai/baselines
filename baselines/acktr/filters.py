@@ -1,4 +1,4 @@
-from baselines.acktr.running_stat import RunningStat
+from .running_stat import RunningStat
 from collections import deque
 import numpy as np
 

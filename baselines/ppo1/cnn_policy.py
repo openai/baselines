@@ -17,25 +17,25 @@ class CnnPolicy(object):
         sequence_length = None
 
         ob = U.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
-    
+
         x = ob / 255.0
         if kind == 'small': # from A3C paper
             x = tf.nn.relu(U.conv2d(x, 16, "l1", [8, 8], [4, 4], pad="VALID"))
             x = tf.nn.relu(U.conv2d(x, 32, "l2", [4, 4], [2, 2], pad="VALID"))
             x = U.flattenallbut0(x)
-            x = tf.nn.relu(U.dense(x, 256, 'lin', U.normc_initializer(1.0)))
+            x = tf.nn.relu(tf.layers.dense(x, 256, name='lin', kernel_initializer=U.normc_initializer(1.0)))
         elif kind == 'large': # Nature DQN
             x = tf.nn.relu(U.conv2d(x, 32, "l1", [8, 8], [4, 4], pad="VALID"))
             x = tf.nn.relu(U.conv2d(x, 64, "l2", [4, 4], [2, 2], pad="VALID"))
             x = tf.nn.relu(U.conv2d(x, 64, "l3", [3, 3], [1, 1], pad="VALID"))
             x = U.flattenallbut0(x)
-            x = tf.nn.relu(U.dense(x, 512, 'lin', U.normc_initializer(1.0)))
+            x = tf.nn.relu(tf.layers.dense(x, 512, name='lin', kernel_initializer=U.normc_initializer(1.0)))
         else:
             raise NotImplementedError
 
-        logits = U.dense(x, pdtype.param_shape()[0], "logits", U.normc_initializer(0.01))
+        logits = tf.layers.dense(x, pdtype.param_shape()[0], name='logits', kernel_initializer=U.normc_initializer(0.01))
         self.pd = pdtype.pdfromflat(logits)
-        self.vpred = U.dense(x, 1, "value", U.normc_initializer(1.0))[:,0]
+        self.vpred = tf.layers.dense(x, 1, name='value', kernel_initializer=U.normc_initializer(1.0))[:,0]
 
         self.state_in = []
         self.state_out = []

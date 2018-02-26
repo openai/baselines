@@ -7,16 +7,17 @@ from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
 
-from baselines.acktr.utils import discount_with_dones
-from baselines.acktr.utils import Scheduler, find_trainable_variables
-from baselines.acktr.utils import cat_entropy, mse
+from baselines.a2c.a2c import Runner
+from baselines.a2c.utils import discount_with_dones
+from baselines.a2c.utils import Scheduler, find_trainable_variables
+from baselines.a2c.utils import cat_entropy, mse
 from baselines.acktr import kfac
 
 
 class Model(object):
 
     def __init__(self, policy, ob_space, ac_space, nenvs,total_timesteps, nprocs=32, nsteps=20,
-                 nstack=4, ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
+                 ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
                  kfac_clip=0.001, lrschedule='linear'):
         config = tf.ConfigProto(allow_soft_placement=True,
                                 intra_op_parallelism_threads=nprocs,
@@ -31,8 +32,8 @@ class Model(object):
         PG_LR = tf.placeholder(tf.float32, [])
         VF_LR = tf.placeholder(tf.float32, [])
 
-        self.model = step_model = policy(sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
-        self.model2 = train_model = policy(sess, ob_space, ac_space, nenvs, nsteps, nstack, reuse=True)
+        self.model = step_model = policy(sess, ob_space, ac_space, nenvs, 1, reuse=False)
+        self.model2 = train_model = policy(sess, ob_space, ac_space, nenvs*nsteps, nsteps, reuse=True)
 
         logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=A)
         self.logits = logits = train_model.pi
@@ -71,7 +72,7 @@ class Model(object):
                 cur_lr = self.lr.value()
 
             td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, PG_LR:cur_lr}
-            if states != []:
+            if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
 
@@ -104,70 +105,8 @@ class Model(object):
         self.initial_state = step_model.initial_state
         tf.global_variables_initializer().run(session=sess)
 
-class Runner(object):
-
-    def __init__(self, env, model, nsteps, nstack, gamma):
-        self.env = env
-        self.model = model
-        nh, nw, nc = env.observation_space.shape
-        nenv = env.num_envs
-        self.batch_ob_shape = (nenv*nsteps, nh, nw, nc*nstack)
-        self.obs = np.zeros((nenv, nh, nw, nc*nstack), dtype=np.uint8)
-        obs = env.reset()
-        self.update_obs(obs)
-        self.gamma = gamma
-        self.nsteps = nsteps
-        self.states = model.initial_state
-        self.dones = [False for _ in range(nenv)]
-
-    def update_obs(self, obs):
-        self.obs = np.roll(self.obs, shift=-1, axis=3)
-        self.obs[:, :, :, -1] = obs[:, :, :, 0]
-
-    def run(self):
-        mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]
-        mb_states = self.states
-        for n in range(self.nsteps):
-            actions, values, states = self.model.step(self.obs, self.states, self.dones)
-            mb_obs.append(np.copy(self.obs))
-            mb_actions.append(actions)
-            mb_values.append(values)
-            mb_dones.append(self.dones)
-            obs, rewards, dones, _ = self.env.step(actions)
-            self.states = states
-            self.dones = dones
-            for n, done in enumerate(dones):
-                if done:
-                    self.obs[n] = self.obs[n]*0
-            self.update_obs(obs)
-            mb_rewards.append(rewards)
-        mb_dones.append(self.dones)
-        #batch of steps to batch of rollouts
-        mb_obs = np.asarray(mb_obs, dtype=np.uint8).swapaxes(1, 0).reshape(self.batch_ob_shape)
-        mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
-        mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
-        mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
-        mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
-        mb_masks = mb_dones[:, :-1]
-        mb_dones = mb_dones[:, 1:]
-        last_values = self.model.value(self.obs, self.states, self.dones).tolist()
-        #discount/bootstrap off value fn
-        for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-            rewards = rewards.tolist()
-            dones = dones.tolist()
-            if dones[-1] == 0:
-                rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-            else:
-                rewards = discount_with_dones(rewards, dones, self.gamma)
-            mb_rewards[n] = rewards
-        mb_rewards = mb_rewards.flatten()
-        mb_actions = mb_actions.flatten()
-        mb_values = mb_values.flatten()
-        mb_masks = mb_masks.flatten()
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
-
 def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
-                 nstack=4, ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
+                 ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
                  kfac_clip=0.001, save_interval=None, lrschedule='linear'):
     tf.reset_default_graph()
     set_global_seeds(seed)
@@ -176,7 +115,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     ob_space = env.observation_space
     ac_space = env.action_space
     make_model = lambda : Model(policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=nprocs, nsteps
-                                =nsteps, nstack=nstack, ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=
+                                =nsteps, ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=
                                 vf_fisher_coef, lr=lr, max_grad_norm=max_grad_norm, kfac_clip=kfac_clip,
                                 lrschedule=lrschedule)
     if save_interval and logger.get_dir():
@@ -185,7 +124,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
 
-    runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
+    runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
     nbatch = nenvs*nsteps
     tstart = time.time()
     coord = tf.train.Coordinator()
