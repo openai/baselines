@@ -4,6 +4,7 @@ Helpers for scripts like run_atari.py.
 
 import os
 import gym
+from gym.wrappers import FlattenDictWrapper
 from baselines import logger
 from baselines.bench import Monitor
 from baselines.common import set_global_seeds
@@ -36,6 +37,19 @@ def make_mujoco_env(env_id, seed):
     env.seed(seed)
     return env
 
+def make_robotics_env(env_id, seed, rank=0):
+    """
+    Create a wrapped, monitored gym.Env for MuJoCo.
+    """
+    set_global_seeds(seed)
+    env = gym.make(env_id)
+    env = FlattenDictWrapper(env, ['observation', 'desired_goal'])
+    env = Monitor(
+        env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
+        info_keywords=('is_success',))
+    env.seed(seed)
+    return env
+
 def arg_parser():
     """
     Create an empty argparse.ArgumentParser.
@@ -58,7 +72,17 @@ def mujoco_arg_parser():
     Create an argparse.ArgumentParser for run_mujoco.py.
     """
     parser = arg_parser()
-    parser.add_argument('--env', help='environment ID', type=str, default="Reacher-v1")
+    parser.add_argument('--env', help='environment ID', type=str, default='Reacher-v2')
+    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
+    return parser
+
+def robotics_arg_parser():
+    """
+    Create an argparse.ArgumentParser for run_mujoco.py.
+    """
+    parser = arg_parser()
+    parser.add_argument('--env', help='environment ID', type=str, default='FetchReach-v0')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     return parser

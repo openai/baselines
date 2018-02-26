@@ -20,6 +20,7 @@ pip install -e .
 - [DDPG](baselines/ddpg)
 - [DQN](baselines/deepq)
 - [GAIL](baselines/gail)
+- [HER](baselines/her)
 - [PPO1](baselines/ppo1) (Multi-CPU using MPI)
 - [PPO2](baselines/ppo2) (Optimized for GPU)
 - [TRPO](baselines/trpo_mpi)
