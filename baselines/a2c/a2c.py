@@ -67,7 +67,7 @@ class Model(object):
 
         def save(save_path):
             ps = sess.run(params)
-            make_path(save_path)
+            make_path(osp.dirname(save_path))
             joblib.dump(ps, save_path)
 
         def load(load_path):
