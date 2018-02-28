@@ -20,20 +20,19 @@ class NotSteppingError(Exception):
         Exception.__init__(self, msg)
 
 class VecEnv(ABC):
-
+    """
+    An abstract asynchronous, vectorized environment.
+    """
     def __init__(self, num_envs, observation_space, action_space):
         self.num_envs = num_envs
         self.observation_space = observation_space
         self.action_space = action_space
 
-    """
-    An abstract asynchronous, vectorized environment.
-    """
     @abstractmethod
     def reset(self):
         """
         Reset all the environments and return an array of
-        observations.
+        observations, or a tuple of observation arrays.
 
         If step_async is still doing work, that work will
         be cancelled and step_wait() should not be called
@@ -59,10 +58,11 @@ class VecEnv(ABC):
         Wait for the step taken with step_async().
 
         Returns (obs, rews, dones, infos):
-         - obs: an array of observations
+         - obs: an array of observations, or a tuple of
+                arrays of observations.
          - rews: an array of rewards
          - dones: an array of "episode done" booleans
-         - infos: an array of info objects
+         - infos: a sequence of info objects
         """
         pass
 

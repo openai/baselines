@@ -21,14 +21,16 @@ class DummyVecEnv(VecEnv):
     def step_wait(self):
         for i in range(self.num_envs):
             obs_tuple, self.buf_rews[i], self.buf_dones[i], self.buf_infos[i] = self.envs[i].step(self.actions[i])
+            if self.buf_dones[i]:
+                obs_tuple = self.envs[i].reset()
             if isinstance(obs_tuple, (tuple, list)):
                 for t,x in enumerate(obs_tuple):
                     self.buf_obs[t][i] = x
             else:
                 self.buf_obs[0][i] = obs_tuple
-        return self.buf_obs, self.buf_rews, self.buf_dones, self.buf_infos
+        return self._obs_from_buf(), self.buf_rews, self.buf_dones, self.buf_infos
 
-    def reset(self):        
+    def reset(self):
         for i in range(self.num_envs):
             obs_tuple = self.envs[i].reset()
             if isinstance(obs_tuple, (tuple, list)):
@@ -36,7 +38,13 @@ class DummyVecEnv(VecEnv):
                     self.buf_obs[t][i] = x
             else:
                 self.buf_obs[0][i] = obs_tuple
-        return self.buf_obs
+        return self._obs_from_buf()
 
     def close(self):
         return
+
+    def _obs_from_buf(self):
+        if len(self.buf_obs) == 1:
+            return self.buf_obs[0]
+        else:
+            return tuple(self.buf_obs)
