@@ -67,13 +67,13 @@ for curr_path in paths:
         print('skipping {}'.format(curr_path))
         continue
     print('loading {} ({})'.format(curr_path, len(results['epoch'])))
-    with open(os.path.join(curr_path, 'metadata.json'), 'r') as f:
+    with open(os.path.join(curr_path, 'params.json'), 'r') as f:
         metadata = json.load(f)
 
     success_rate = np.array(results['test/success_rate'])
     epoch = np.array(results['epoch']) + 1
-    env_id = metadata['kwargs']['env_name']
-    replay_strategy = metadata['kwargs']['replay_strategy']
+    env_id = metadata['env_name']
+    replay_strategy = metadata['replay_strategy']
 
     if replay_strategy == 'future':
         config = 'her'
