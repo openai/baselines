@@ -23,6 +23,7 @@ class ReplayBuffer:
         self.buffers = {key: np.empty([self.size, *shape])
                         for key, shape in buffer_shapes.items()}
 
+
         # memory management
         self.current_size = 0
         self.n_transitions_stored = 0

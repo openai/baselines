@@ -75,6 +75,8 @@ class RolloutWorker:
 
         # generate episodes
         obs, achieved_goals, acts, goals, successes = [], [], [], [], []
+        # @avemula FIX: added a dummy array
+        fakes = []
         info_values = [np.empty((self.T, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
         Qs = []
         for t in range(self.T):
@@ -98,6 +100,8 @@ class RolloutWorker:
             o_new = np.empty((self.rollout_batch_size, self.dims['o']))
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
+            # @avemula FIX: creating a dummy array for rollout batch size
+            fake = np.zeros(self.rollout_batch_size, dtype=np.bool)
             # compute new states and observations
             for i in range(self.rollout_batch_size):
                 try:
@@ -108,6 +112,8 @@ class RolloutWorker:
                         success[i] = info['is_success']
                     o_new[i] = curr_o_new['observation']
                     ag_new[i] = curr_o_new['achieved_goal']
+                    # @avemula FIX: Adding False since these are ER transitions
+                    fake[i] = False
                     for idx, key in enumerate(self.info_keys):
                         info_values[idx][t, i] = info[key]
                     if self.render:
@@ -125,16 +131,20 @@ class RolloutWorker:
             successes.append(success.copy())
             acts.append(u.copy())
             goals.append(self.g.copy())
+            # @avemula FIX: Storing fake values
+            fakes.append(fake.copy())
             o[...] = o_new
             ag[...] = ag_new
         obs.append(o.copy())
         achieved_goals.append(ag.copy())
         self.initial_o[:] = o
 
+        # @avemula FIX: Adding fakes as part of episode data
         episode = dict(o=obs,
                        u=acts,
                        g=goals,
-                       ag=achieved_goals)
+                       ag=achieved_goals,
+                       fakes=fakes)
         for key, value in zip(self.info_keys, info_values):
             episode['info_{}'.format(key)] = value
 
