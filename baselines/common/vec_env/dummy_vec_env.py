@@ -28,7 +28,8 @@ class DummyVecEnv(VecEnv):
                     self.buf_obs[t][i] = x
             else:
                 self.buf_obs[0][i] = obs_tuple
-        return self._obs_from_buf(), self.buf_rews, self.buf_dones, self.buf_infos
+        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
+                self.buf_infos.copy())
 
     def reset(self):
         for i in range(self.num_envs):
@@ -45,6 +46,6 @@ class DummyVecEnv(VecEnv):
 
     def _obs_from_buf(self):
         if len(self.buf_obs) == 1:
-            return self.buf_obs[0]
+            return np.copy(self.buf_obs[0])
         else:
-            return tuple(self.buf_obs)
+            return tuple(np.copy(x) for x in self.buf_obs)
