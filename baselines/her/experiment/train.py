@@ -119,6 +119,18 @@ def launch(
     params = config.prepare_params(params)
     config.log_params(params, logger=logger)
 
+    if num_cpu == 1:
+        logger.warn()
+        logger.warn('*** Warning ***')
+        logger.warn(
+            'You are running HER with just a single MPI worker. This will work, but the ' +
+            'experiments that we report in Plappert et al. (2018, https://arxiv.org/abs/1802.09464) ' +
+            'were obtained with --num_cpu 19. This makes a significant difference and if you ' +
+            'are looking to reproduce those results, be aware of this. Please also refer to ' + 
+            'https://github.com/openai/baselines/issues/314 for further details.')
+        logger.warn('****************')
+        logger.warn()
+
     dims = config.configure_dims(params)
     policy = config.configure_ddpg(dims=dims, params=params, clip_return=clip_return)
 
