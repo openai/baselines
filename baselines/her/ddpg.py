@@ -70,8 +70,6 @@ class DDPG(object):
         for key in ['o', 'g']:
             stage_shapes[key + '_2'] = stage_shapes[key]
         stage_shapes['r'] = (None,)
-        # @avemula FIX: Adding fakes as part of the stage shapes
-        stage_shapes['fakes'] = (None,)
         self.stage_shapes = stage_shapes
 
         # Create network.
@@ -90,8 +88,6 @@ class DDPG(object):
                          for key, val in input_shapes.items()}
         buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
         buffer_shapes['ag'] = (self.T+1, self.dimg)
-        # @avemula FIX: Adding fakes to buffer shapes
-        buffer_shapes['fakes'] = (self.T,)
 
         buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
         self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions)
@@ -274,13 +270,7 @@ class DDPG(object):
         clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
         target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
         self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
-        # @avemula FIX: actor loss here. Change it to supervised loss for fakes=True transitions (or HER transitions)
-        self.square_loss_tf = tf.reduce_sum (tf.square(self.main.pi_tf - batch_tf['u']), axis=1, keep_dims=True)
-        self.square_loss_tf = tf.multiply(batch_tf['fakes'], self.square_loss_tf)
-        self.ddpg_loss_tf = -tf.multiply(1 - batch_tf['fakes'], self.main.Q_pi_tf)
-        # @avemula NOTE: commenting out HER actor loss
-        # self.pi_loss_tf = -tf.reduce_mean(self.main.Q_pi_tf)
-        self.pi_loss_tf = tf.reduce_mean(self.ddpg_loss_tf + self.square_loss_tf)
+        self.pi_loss_tf = -tf.reduce_mean(self.main.Q_pi_tf)
         self.pi_loss_tf += self.action_l2 * tf.reduce_mean(tf.square(self.main.pi_tf / self.max_u))
         Q_grads_tf = tf.gradients(self.Q_loss_tf, self._vars('main/Q'))
         pi_grads_tf = tf.gradients(self.pi_loss_tf, self._vars('main/pi'))

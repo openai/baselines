@@ -41,8 +41,6 @@ def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
         # keep the original goal.
         future_ag = episode_batch['ag'][episode_idxs[her_indexes], future_t]
         transitions['g'][her_indexes] = future_ag
-        # @avemula FIX: Updating transitions which are HER to fakes=True
-        transitions['fakes'][her_indexes] = True
 
         # Reconstruct info dictionary for reward  computation.
         info = {}
