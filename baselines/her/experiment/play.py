@@ -6,7 +6,7 @@ from baselines import logger
 from baselines.common import set_global_seeds
 import baselines.her.experiment.config as config
 from baselines.her.rollout import RolloutWorker
-
+import  micoenv
 
 @click.command()
 @click.argument('policy_file', type=str)

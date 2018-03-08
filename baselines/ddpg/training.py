@@ -75,11 +75,14 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
                     # Execute next action.
                     if rank == 0 and render:
+                        print("a")
                         env.render()
                     assert max_action.shape == action.shape
                     new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                     t += 1
                     if rank == 0 and render:
+                        print("a")
+
                         env.render()
                     episode_reward += r
                     episode_step += 1
@@ -121,7 +124,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 # Evaluate.
                 eval_episode_rewards = []
                 eval_qs = []
-                if eval_env is not None:
+                if eval_env is not None and cycle == 0:
                     eval_episode_reward = 0.
                     for t_rollout in range(nb_eval_steps):
                         eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
@@ -158,11 +161,15 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['rollout/actions_std'] = np.std(epoch_actions)
             # Evaluation statistics.
             if eval_env is not None:
-                combined_stats['eval/return'] = eval_episode_rewards
+                combined_stats['eval/return'] = np.mean(eval_episode_rewards)
                 combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-                combined_stats['eval/Q'] = eval_qs
+                combined_stats['eval/Q_mean'] =  np.mean(eval_qs)
                 combined_stats['eval/episodes'] = len(eval_episode_rewards)
+            print (combined_stats)
             def as_scalar(x):
+                if isinstance(x, list):
+                    assert len(x) == 1
+                    return x[0]
                 if isinstance(x, np.ndarray):
                     assert x.size == 1
                     return x[0]

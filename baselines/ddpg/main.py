@@ -15,6 +15,7 @@ from baselines.ddpg.noise import *
 import gym
 import tensorflow as tf
 from mpi4py import MPI
+import micoenv
 
 def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
@@ -24,12 +25,19 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 
     # Create envs.
     env = gym.make(env_id)
+    if isinstance(env.reset(),dict) :
+        print ("wrapping env")
+        env = gym.wrappers.FlattenDictWrapper(
+            env, dict_keys=['observation', 'desired_goal'])
     env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
 
     if evaluation and rank==0:
         eval_env = gym.make(env_id)
+        if isinstance(eval_env.reset(),dict) :
+            print ("wrapping env")
+            eval_env = gym.wrappers.FlattenDictWrapper(
+                eval_env, dict_keys=['observation', 'desired_goal'])
         eval_env = bench.Monitor(eval_env, os.path.join(logger.get_dir(), 'gym_eval'))
-        env = bench.Monitor(env, None)
     else:
         eval_env = None
 
