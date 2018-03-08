@@ -67,7 +67,9 @@ class Model(object):
 
         def save(save_path):
             ps = sess.run(params)
-            make_path(osp.dirname(save_path))
+            dirname = osp.dirname(save_path)
+            if dirname:
+                make_path(dirname)
             joblib.dump(ps, save_path)
 
         def load(load_path):
@@ -145,7 +147,9 @@ class Runner(object):
         mb_masks = mb_masks.flatten()
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
 
-def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
+def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5,
+          lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100, model_filename=None):
+
     tf.reset_default_graph()
     set_global_seeds(seed)
 
@@ -154,6 +158,7 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     ac_space = env.action_space
     model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 
     nbatch = nenvs*nsteps
@@ -173,3 +178,6 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()
     env.close()
+
+    if model_filename is not None:
+        model.save(model_filename)

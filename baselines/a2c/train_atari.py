@@ -6,7 +6,7 @@ from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.a2c.a2c import learn
 from baselines.ppo2.policies import CnnPolicy, LstmPolicy, LnLstmPolicy
 
-def train(env_id, num_timesteps, seed, policy, lrschedule, num_env):
+def train(env_id, num_timesteps, seed, policy, lrschedule, num_env, model_filename):
     if policy == 'cnn':
         policy_fn = CnnPolicy
     elif policy == 'lstm':
@@ -14,17 +14,25 @@ def train(env_id, num_timesteps, seed, policy, lrschedule, num_env):
     elif policy == 'lnlstm':
         policy_fn = LnLstmPolicy
     env = VecFrameStack(make_atari_env(env_id, num_env, seed), 4)
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lrschedule=lrschedule)
+    learn(
+        policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1),
+        lrschedule=lrschedule, model_filename=model_filename,
+    )
     env.close()
 
 def main():
     parser = atari_arg_parser()
     parser.add_argument('--policy', help='Policy architecture', choices=['cnn', 'lstm', 'lnlstm'], default='cnn')
     parser.add_argument('--lrschedule', help='Learning rate schedule', choices=['constant', 'linear'], default='constant')
+    parser.add_argument('--model-filename', help='Trained model filename', default='atari_a2c.gz')
     args = parser.parse_args()
     logger.configure()
-    train(args.env, num_timesteps=args.num_timesteps, seed=args.seed,
-        policy=args.policy, lrschedule=args.lrschedule, num_env=16)
+
+    train(
+        args.env, num_timesteps=args.num_timesteps, seed=args.seed,
+        policy=args.policy, lrschedule=args.lrschedule, num_env=16,
+        model_filename=args.model_filename,
+    )
 
 if __name__ == '__main__':
     main()
