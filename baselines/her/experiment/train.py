@@ -53,8 +53,6 @@ def train(policy, rollout_worker, evaluator,
             evaluator.generate_rollouts()
 
         # record logs
-        logger.record_tabular('train/critic_loss', mpi_average(critic_losses))
-        logger.record_tabular('train/actor_loss', mpi_average(actor_losses))
         logger.record_tabular('epoch', epoch)
         for key, val in evaluator.logs('test'):
             logger.record_tabular(key, mpi_average(val))
@@ -62,6 +60,9 @@ def train(policy, rollout_worker, evaluator,
             logger.record_tabular(key, mpi_average(val))
         for key, val in policy.logs():
             logger.record_tabular(key, mpi_average(val))
+
+        logger.record_tabular('train/critic_loss', mpi_average(critic_losses))
+        logger.record_tabular('train/actor_loss', mpi_average(actor_losses))
 
         if rank == 0:
             logger.dump_tabular()
