@@ -35,12 +35,16 @@ def train(policy, rollout_worker, evaluator,
     best_success_rate = -1
     for epoch in range(n_epochs):
         # train
+        critic_losses = []
+        actor_losses = []
         rollout_worker.clear_history()
         for _ in range(n_cycles):
             episode = rollout_worker.generate_rollouts()
             policy.store_episode(episode)
             for _ in range(n_batches):
-                policy.train()
+                cl, al = policy.train()
+                critic_losses.append(cl)
+                actor_losses.append(al)
             policy.update_target_net()
 
         # test
@@ -49,6 +53,8 @@ def train(policy, rollout_worker, evaluator,
             evaluator.generate_rollouts()
 
         # record logs
+        logger.record_tabular('train/critic_loss', mpi_average(critic_losses))
+        logger.record_tabular('train/actor_loss', mpi_average(actor_losses))
         logger.record_tabular('epoch', epoch)
         for key, val in evaluator.logs('test'):
             logger.record_tabular(key, mpi_average(val))
