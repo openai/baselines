@@ -103,7 +103,7 @@ def launch(
     # Configure logging
     if rank == 0:
         if logdir or logger.get_dir() is None:
-            logger.configure(dir=logdir, format_strs=['tensorboard', 'log', 'csv', 'stdout'])
+            logger.configure(dir=logdir, format_strs=['stdout', 'tensorboard', 'log', 'csv'])
     else:
         logger.configure()
     logdir = logger.get_dir()
