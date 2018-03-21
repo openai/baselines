@@ -27,9 +27,12 @@ class SeqWriter(object):
         raise NotImplementedError
 
 class HumanOutputFormat(KVWriter, SeqWriter):
-    def __init__(self, filename_or_file):
+    def __init__(self, filename_or_file,retrain=False):
         if isinstance(filename_or_file, str):
-            self.file = open(filename_or_file, 'wt')
+            if(retrain):
+                self.file = open(filename_or_file, 'at') 
+            else:     
+                self.file = open(filename_or_file, 'wt')
             self.own_file = True
         else:
             assert hasattr(filename_or_file, 'read'), 'expected file or str, got %s'%filename_or_file
@@ -99,8 +102,12 @@ class JSONOutputFormat(KVWriter):
         self.file.close()
 
 class CSVOutputFormat(KVWriter):
-    def __init__(self, filename):
-        self.file = open(filename, 'w+t')
+    def __init__(self, filename, retrain=False):
+        if(retrain):
+            self.file = open(filename, 'a+t') 
+        else:     
+            self.file = open(filename, 'w+t')
+        self.begin = self.file.tell()
         self.keys = []
         self.sep = ','
 
@@ -109,9 +116,9 @@ class CSVOutputFormat(KVWriter):
         extra_keys = kvs.keys() - self.keys
         if extra_keys:
             self.keys.extend(extra_keys)
-            self.file.seek(0)
+            self.file.seek(self.begin)
             lines = self.file.readlines()
-            self.file.seek(0)
+            self.file.seek(self.begin)
             for (i, k) in enumerate(self.keys):
                 if i > 0:
                     self.file.write(',')
@@ -169,16 +176,16 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer.Close()
             self.writer = None
 
-def make_output_format(format, ev_dir, log_suffix=''):
+def make_output_format(format, ev_dir, log_suffix='',retrain=False):
     os.makedirs(ev_dir, exist_ok=True)
     if format == 'stdout':
         return HumanOutputFormat(sys.stdout)
     elif format == 'log':
-        return HumanOutputFormat(osp.join(ev_dir, 'log%s.txt' % log_suffix))
+        return HumanOutputFormat(osp.join(ev_dir, 'log%s.txt' % log_suffix),retrain=retrain)
     elif format == 'json':
         return JSONOutputFormat(osp.join(ev_dir, 'progress%s.json' % log_suffix))
     elif format == 'csv':
-        return CSVOutputFormat(osp.join(ev_dir, 'progress%s.csv' % log_suffix))
+        return CSVOutputFormat(osp.join(ev_dir, 'progress%s.csv' % log_suffix),retrain=retrain)
     elif format == 'tensorboard':
         return TensorBoardOutputFormat(osp.join(ev_dir, 'tb%s' % log_suffix))
     else:
@@ -346,7 +353,7 @@ class Logger(object):
 
 Logger.DEFAULT = Logger.CURRENT = Logger(dir=None, output_formats=[HumanOutputFormat(sys.stdout)])
 
-def configure(dir=None, format_strs=None):
+def configure(dir=None, format_strs=None,retrain=False):
     if dir is None:
         dir = os.getenv('OPENAI_LOGDIR')
     if dir is None:
@@ -358,7 +365,7 @@ def configure(dir=None, format_strs=None):
     if format_strs is None:
         strs = os.getenv('OPENAI_LOG_FORMAT')
         format_strs = strs.split(',') if strs else LOG_OUTPUT_FORMATS
-    output_formats = [make_output_format(f, dir) for f in format_strs]
+    output_formats = [make_output_format(f, dir,retrain=retrain) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
     log('Logging to %s'%dir)

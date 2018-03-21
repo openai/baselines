@@ -21,7 +21,7 @@ class DDPG(object):
     def __init__(self, input_dims, buffer_size, hidden, layers, network_class, polyak, batch_size,
                  Q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, T,
                  rollout_batch_size, subtract_goals, relative_goals, clip_pos_returns, clip_return,
-                 sample_transitions, gamma, reuse=False, **kwargs):
+                 sample_transitions, gamma, reuse=False,retrainable=False,from_pickle=False,old_policy=False, **kwargs):
         """Implementation of DDPG that is used in combination with Hindsight Experience Replay (HER).
 
         Args:
@@ -50,10 +50,12 @@ class DDPG(object):
             sample_transitions (function) function that samples from the replay buffer
             gamma (float): gamma used for Q learning updates
             reuse (boolean): whether or not the networks should be reused
+            from_pickle (boolean) : whether the policy has been loaded from a pickle or created newly
+            old_policy (boolean) : whether policy is old so that it's buffer does not needs to be saved
         """
         if self.clip_return is None:
             self.clip_return = np.inf
-
+    
         self.create_actor_critic = import_function(self.network_class)
 
         input_shapes = dims_to_shapes(self.input_dims)
@@ -80,17 +82,25 @@ class DDPG(object):
             self.buffer_ph_tf = [
                 tf.placeholder(tf.float32, shape=shape) for shape in self.stage_shapes.values()]
             self.stage_op = self.staging_tf.put(self.buffer_ph_tf)
+            try:
+                self._create_network(reuse=reuse)
+            except(ValueError):
+                reuse = False
+                self._create_network(reuse=reuse)
+                
+        self.old_policy=old_policy
+        self.retrainable = retrainable
 
-            self._create_network(reuse=reuse)
+        if not(from_pickle):
+            self.best_success_rate = -1
+            # Configure the replay buffer.
+            buffer_shapes = {key: (self.T if key != 'o' else self.T+1, *input_shapes[key])
+                             for key, val in input_shapes.items()}
+            buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
+            buffer_shapes['ag'] = (self.T+1, self.dimg)
 
-        # Configure the replay buffer.
-        buffer_shapes = {key: (self.T if key != 'o' else self.T+1, *input_shapes[key])
-                         for key, val in input_shapes.items()}
-        buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
-        buffer_shapes['ag'] = (self.T+1, self.dimg)
-
-        buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
-        self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions)
+            buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
+            self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions)
 
     def _random_action(self, n):
         return np.random.uniform(low=-self.max_u, high=self.max_u, size=(n, self.dimu))
@@ -227,7 +237,6 @@ class DDPG(object):
 
     def _create_network(self, reuse=False):
         logger.info("Creating a DDPG agent with action space %d x %s..." % (self.dimu, self.max_u))
-
         self.sess = tf.get_default_session()
         if self.sess is None:
             self.sess = tf.InteractiveSession()
@@ -312,29 +321,47 @@ class DDPG(object):
             return logs
 
     def __getstate__(self):
-        """Our policies can be loaded from pkl, but after unpickling you cannot continue training.
-        """
-        excluded_subnames = ['_tf', '_op', '_vars', '_adam', 'buffer', 'sess', '_stats',
-                             'main', 'target', 'lock', 'env', 'sample_transitions',
-                             'stage_shapes', 'create_actor_critic']
-
-        state = {k: v for k, v in self.__dict__.items() if all([not subname in k for subname in excluded_subnames])}
-        state['buffer_size'] = self.buffer_size
-        state['tf'] = self.sess.run([x for x in self._global_vars('') if 'buffer' not in x.name])
+        if(not(self.retrainable) or self.old_policy):
+            excluded_subnames = ['_tf', '_op', '_vars', '_adam', 'buffer', 'sess', '_stats',
+                                 'main', 'target', 'lock', 'env', 'sample_transitions',
+                                 'stage_shapes', 'create_actor_critic']
+            state = {k: v for k, v in self.__dict__.items() if all([not subname in k for subname in excluded_subnames])}
+            state['buffer_size'] = self.buffer_size
+            state['tf'] = self.sess.run([x for x in self._global_vars('') if 'buffer' not in x.name])
+        else:    
+            excluded_subnames = ['_tf', '_op', '_vars', '_adam', 'sess', '_stats',
+                                 'main', 'target', 'lock', 'env',
+                                 'stage_shapes', 'create_actor_critic']
+            state = {k: v for k, v in self.__dict__.items() if all([not subname in k for subname in excluded_subnames])}
+            state['buffer_size'] = self.buffer_size
+            state['tf'] = self.sess.run([x for x in self._global_vars('')])
         return state
 
     def __setstate__(self, state):
-        if 'sample_transitions' not in state:
-            # We don't need this for playing the policy.
-            state['sample_transitions'] = None
 
-        self.__init__(**state)
-        # set up stats (they are overwritten in __init__)
-        for k, v in state.items():
-            if k[-6:] == '_stats':
-                self.__dict__[k] = v
-        # load TF variables
-        vars = [x for x in self._global_vars('') if 'buffer' not in x.name]
+        if( not(state['retrainable']) or state['old_policy']):
+            state['reuse'] = True
+            if 'sample_transitions' not in state:
+                # We don't need this for playing the policy.
+                state['sample_transitions'] = None
+
+            self.__init__(**state)
+            # set up stats (they are overwritten in __init__)
+            for k, v in state.items():
+                if k[-6:] == '_stats':
+                    self.__dict__[k] = v
+            # load TF variables
+            vars = [x for x in self._global_vars('') if 'buffer' not in x.name]
+        else:
+            state['reuse'] = True
+            state['from_pickle']=True
+            self.__init__(**state)
+            # set up stats (they are overwritten in __init__)
+            for k, v in state.items():
+                if k[-6:] == '_stats':
+                    self.__dict__[k] = v
+            # load TF variables
+            vars = [x for x in self._global_vars('')]
         assert(len(vars) == len(state["tf"]))
         node = [tf.assign(var, val) for var, val in zip(vars, state["tf"])]
         self.sess.run(node)

@@ -3,7 +3,6 @@ import numpy as np
 import json
 import os
 import gym
-
 from baselines import logger
 from baselines.her.ddpg import DDPG
 from baselines.her.her import make_sample_her_transitions

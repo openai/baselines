@@ -1,7 +1,7 @@
 from collections import deque
 
 import numpy as np
-import pickle
+import dill as pickle
 from mujoco_py import MujocoException
 
 from baselines.her.util import convert_episode_to_batch_major, store_args
@@ -12,7 +12,7 @@ class RolloutWorker:
     @store_args
     def __init__(self, make_env, policy, dims, logger, T, rollout_batch_size=1,
                  exploit=False, use_target_net=False, compute_Q=False, noise_eps=0,
-                 random_eps=0, history_len=100, render=False, **kwargs):
+                 random_eps=0, history_len=100, render=False,n_episodes=0, **kwargs):
         """Rollout worker generates experience by interacting with one or many environments.
 
         Args:
@@ -39,7 +39,7 @@ class RolloutWorker:
         self.success_history = deque(maxlen=history_len)
         self.Q_history = deque(maxlen=history_len)
 
-        self.n_episodes = 0
+        self.n_episodes = n_episodes
         self.g = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # goals
         self.initial_o = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)  # observations
         self.initial_ag = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # achieved goals
