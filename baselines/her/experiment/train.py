@@ -84,8 +84,10 @@ def train(policy, rollout_worker, evaluator,
             evaluator.policy.best_success_rate = success_rate
             if(not(retrainable) or rank==0):
                 logger.info('New best success rate: {}. Saving policy to {} ...'.format(evaluator.policy.best_success_rate, best_policy_path))
+            evaluator.policy.old_policy = True
             evaluator.save_policy(best_policy_path)
             evaluator.save_policy(latest_policy_path)
+            evaluator.policy.old_policy = True
 
         if policy_save_interval > 0 and epoch % policy_save_interval == 0 and save_policies:
             policy_path = periodic_policy_path.format(epoch)
