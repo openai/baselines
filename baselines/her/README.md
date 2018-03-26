@@ -1,5 +1,5 @@
 # Hindsight Experience Replay
-For details on Hindsight Experience Replay (HER), please read the [paper](https://arxiv.org/pdf/1707.01495.pdf).
+For details on Hindsight Experience Replay (HER), please read the [paper](https://arxiv.org/abs/1707.01495).
 
 ## How to use Hindsight Experience Replay
 
@@ -22,14 +22,11 @@ You can try it right now with the results of the training step (the script print
 This should visualize the current policy for 10 episodes and will also print statistics.
 
 
-### Advanced usage
-The train script comes with advanced features like MPI support, that allows to scale across all cores of a single machine.
-To see all available options, simply run this command:
+### Reproducing results
+In order to reproduce the results from [Plappert et al. (2018)](https://arxiv.org/abs/1802.09464), run the following command:
 ```bash
-python -m baselines.her.experiment.train --help
+python -m baselines.her.experiment.train --num_cpu 19
 ```
-To run on, say, 20 CPU cores, you can use the following command:
-```bash
-python -m baselines.her.experiment.train --num_cpu 20
-```
-That's it, you are now running rollouts using 20 MPI workers and average gradients for network updates across all 20 core.
+This will require a machine with sufficient amount of physical CPU cores. In our experiments,
+we used [Azure's D15v2 instances](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/sizes),
+which have 20 physical cores. We only scheduled the experiment on 19 of those to leave some head-room on the system.
