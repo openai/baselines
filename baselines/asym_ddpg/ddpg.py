@@ -271,9 +271,10 @@ class DDPG(object):
         action = np.clip(action, self.action_range[0], self.action_range[1])
         return action, q
 
-    def store_transition(self, obs0, action, reward, obs1, terminal1):
+    def store_transition(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs):
         reward *= self.reward_scale
-        self.memory.append(obs0, action, reward, obs1, terminal1)
+        self.memory.append(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs)
+
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 

@@ -90,7 +90,16 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     # Book-keeping.
                     epoch_actions.append(action)
                     epoch_qs.append(q)
-                    agent.store_transition(obs, action, r, new_obs, done)
+
+                    # TODO
+                    state = np.zeros(4)
+                    state1 = np.zeros(4)
+                    goal = np.zeros(4)
+                    goal_obs = np.zeros(3)
+
+
+
+                    agent.store_transition(state, obs, action, r, state1, new_obs, done, goal, goal_obs)
                     obs = new_obs
 
                     if done:

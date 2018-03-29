@@ -7,6 +7,7 @@ class RingBuffer(object):
         self.start = 0
         self.length = 0
         self.data = np.zeros((maxlen,) + shape).astype(dtype)
+        self.shape = shape
 
     def __len__(self):
         return self.length
@@ -29,6 +30,9 @@ class RingBuffer(object):
         else:
             # This should never happen.
             raise RuntimeError()
+
+        v = np.array(v,dtype='float32').reshape(self.shape)
+        # assert v.dtype == 'float32'
         self.data[(self.start + self.length - 1) % self.maxlen] = v
 
 
@@ -69,7 +73,8 @@ class Memory(object):
         states_batch = self.states.get_batch(batch_idxs)
         states1_batch = self.states1.get_batch(batch_idxs)
 
-        
+        goals_batch = self.goals.get_batch(batch_idxs)
+        goal_observations_batch = self.goal_observations.get_batch(batch_idxs)
 
         result = {
             'obs0': array_min2d(obs0_batch),
@@ -77,18 +82,28 @@ class Memory(object):
             'rewards': array_min2d(reward_batch),
             'actions': array_min2d(action_batch),
             'terminals1': array_min2d(terminal1_batch),
+            'states': array_min2d(states_batch),
+            'states1': array_min2d(states1_batch),
+            'goals_batch': array_min2d(goals_batch),
+            'goal_observations': array_min2d(goal_observations_batch)
         }
         return result
 
-    def append(self, obs0, action, reward, obs1, terminal1, training=True):
+    def append(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goal_obs,  training=True):
         if not training:
             return
-        
         self.observations0.append(obs0)
         self.actions.append(action)
         self.rewards.append(reward)
         self.observations1.append(obs1)
         self.terminals1.append(terminal1)
+
+        self.states.append(state)
+        self.states1.append(state1)
+
+        self.goals.append(goal)
+        self.goal_observations.append(goal_obs)
+
 
     @property
     def nb_entries(self):
