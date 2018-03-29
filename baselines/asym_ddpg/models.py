@@ -29,18 +29,22 @@ class Actor(Model):
         with tf.variable_scope(self.name) as scope:
             if reuse:
                 scope.reuse_variables()
-
+            
+            for i in range(0, 4):
+                obs = tf.layers.conv2d(
+                    inputs=obs,
+                    filters=32,
+                    kernel_size=2,
+                )
             x = obs
             x = tf.layers.flatten(x)
 
-            x = tf.layers.dense(x, 512)
+            x = tf.layers.dense(x, 200)
             x = tf.nn.relu(x)
             
-            x = tf.layers.dense(x, 512)
+            x = tf.layers.dense(x, 200)
             x = tf.nn.relu(x)
 
-            x = tf.layers.dense(x, 512)
-            x = tf.nn.relu(x)
             
             x = tf.layers.dense(x, self.nb_actions, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
             x = tf.nn.tanh(x)
@@ -59,13 +63,13 @@ class Critic(Model):
 
             x = tf.concat([state, goal, action], axis=-1)
 
-            x = tf.layers.dense(x, 512)
+            x = tf.layers.dense(x, 64)
             x = tf.nn.relu(x)
 
-            x = tf.layers.dense(x, 512)
+            x = tf.layers.dense(x, 64)
             x = tf.nn.relu(x)
 
-            x = tf.layers.dense(x, 512)
+            x = tf.layers.dense(x, 64)
             x = tf.nn.relu(x)
 
             x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
