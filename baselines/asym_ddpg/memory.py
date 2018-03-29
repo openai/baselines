@@ -44,7 +44,7 @@ def array_min2d(x):
 
 
 class Memory(object):
-    def __init__(self, limit, action_shape, observation_shape, state_shape):
+    def __init__(self, limit, action_shape, observation_shape, state_shape, aux_shape):
         self.limit = limit
 
         self.observations0 = RingBuffer(limit, shape=observation_shape)
@@ -54,8 +54,12 @@ class Memory(object):
         self.observations1 = RingBuffer(limit, shape=observation_shape)
 
 
-        self.states = RingBuffer(limit, shape=state_shape) 
+        self.states = RingBuffer(limit, shape=state_shape)
         self.states1 = RingBuffer(limit, shape=state_shape)
+
+
+        self.auxs0 = RingBuffer(limit, shape=aux_shape)
+        self.auxs1 = RingBuffer(limit, shape=aux_shape)
 
         self.goals = RingBuffer(limit, shape=state_shape) # Goal state the system wants to achieve
         self.goal_observations = RingBuffer(limit, shape=observation_shape)  # Render of frame at goal position for second CNN
@@ -76,6 +80,9 @@ class Memory(object):
         goals_batch = self.goals.get_batch(batch_idxs)
         goal_observations_batch = self.goal_observations.get_batch(batch_idxs)
 
+        aux0_batch = self.auxs0.get_batch(batch_idxs)
+        aux1_batch = self.auxs1.get_batch(batch_idxs)
+
         result = {
             'obs0': array_min2d(obs0_batch),
             'obs1': array_min2d(obs1_batch),
@@ -85,11 +92,13 @@ class Memory(object):
             'states0': array_min2d(states_batch),
             'states1': array_min2d(states1_batch),
             'goals': array_min2d(goals_batch),
+            'aux0': array_min2d(aux0_batch),
+            'aux1': array_min2d(aux1_batch),
             'goal_observations': array_min2d(goal_observations_batch)
         }
         return result
 
-    def append(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goal_obs,  training=True):
+    def append(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goal_obs, aux0, aux1,  training=True):
         if not training:
             return
         self.observations0.append(obs0)
@@ -100,6 +109,9 @@ class Memory(object):
 
         self.states.append(state)
         self.states1.append(state1)
+
+        self.auxs0.append(aux0)
+        self.auxs1.append(aux1)
 
         self.goals.append(goal)
         self.goal_observations.append(goal_obs)

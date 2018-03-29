@@ -66,7 +66,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     #TODO:
 
     print (env.observation_space.shape)
-    memory = Memory(limit=int(1e4), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape, state_shape=env.state_space.shape )
+    memory = Memory(limit=int(1e4), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape, state_shape=env.state_space.shape, aux_shape=env.aux_space.shape )
     critic = Critic(layer_norm=layer_norm)
     actor = Actor(nb_actions, layer_norm=layer_norm)
 
@@ -100,6 +100,7 @@ def parse_args():
     boolean_flag(parser, 'render', default=False)
     boolean_flag(parser, 'normalize-returns', default=False)
     boolean_flag(parser, 'normalize-observations', default=True)
+    boolean_flag(parser, 'normalize-aux', default=True)
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--critic-l2-reg', type=float, default=1e-2)
     parser.add_argument('--batch-size', type=int, default=64)  # per MPI worker

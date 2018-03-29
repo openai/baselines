@@ -62,9 +62,9 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 
 
 class DDPG(object):
-    def __init__(self, actor, critic, memory, observation_shape, action_shape, state_shape, param_noise=None, action_noise=None,
-        gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True,
-        batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf),
+    def __init__(self, actor, critic, memory, observation_shape, action_shape, state_shape, aux_shape, param_noise=None, action_noise=None,
+        gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True, normalize_aux=True,
+        batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf), aux_range=(-8, 8),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
         critic_l2_reg=0., actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.):
         # Inputs.
@@ -81,13 +81,18 @@ class DDPG(object):
         self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
         self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
 
+        self.aux0 = tf.placeholder(tf.float32, shape=(None,) + aux_shape, name='aux0')
+        self.aux1 = tf.placeholder(tf.float32, shape=(None,) + aux_shape, name='aux1')
         # Parameters.
+
+        self.aux_shape = aux_shape
         self.gamma = gamma
         self.tau = tau
         self.memory = memory
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.normalize_state = normalize_state
+        self.normalize_aux = normalize_aux
         self.action_noise = action_noise
         self.param_noise = param_noise
         self.action_range = action_range
@@ -97,6 +102,7 @@ class DDPG(object):
         self.actor = actor
         self.actor_lr = actor_lr
         self.state_range = state_range
+        self.aux_range = aux_range
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
         self.enable_popart = enable_popart
@@ -118,6 +124,11 @@ class DDPG(object):
         else:
             self.state_rms
 
+        if self.normalize_aux:
+            with tf.variable_scope('normalize_aux'):
+                self.aux_rms = RunningMeanStd(shape=aux_shape)
+        else:
+            self.aux_rms
 
         normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms),
             self.observation_range[0], self.observation_range[1])
@@ -130,8 +141,12 @@ class DDPG(object):
             self.state_range[0], self.state_range[1])
 
         normalized_goal = tf.clip_by_value(normalize(self.goal, self.state_rms),
-            self.state_range[0], self.state_range[1])        
+            self.state_range[0], self.state_range[1])
 
+        normalized_aux0 = tf.clip_by_value(normalize(self.aux0, self.aux_rms),
+                self.aux_range[0], self.aux_range[1])
+        normalized_aux1 = tf.clip_by_value(normalize(self.aux1, self.aux_rms),
+                self.aux_range[0], self.aux_range[1])
         normalized_goal = self.goal
 
         # Return normalization.
@@ -150,17 +165,17 @@ class DDPG(object):
         self.target_critic = target_critic
 
         # Create networks and core TF parts that are shared across setup parts.
-        self.actor_tf = actor(normalized_obs0)
-        self.normalized_critic_tf = critic(normalized_state0, normalized_goal, self.actions)
+        self.actor_tf = actor(normalized_obs0, normalized_aux0)
+        self.normalized_critic_tf = critic(normalized_state0, normalized_goal, self.actions, normalized_aux0)
         self.critic_tf = denormalize(tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
-        self.normalized_critic_with_actor_tf = critic(normalized_state0, normalized_goal, self.actor_tf, reuse=True)
+        self.normalized_critic_with_actor_tf = critic(normalized_state0, normalized_goal, self.actor_tf, normalized_aux0, reuse=True)
         self.critic_with_actor_tf = denormalize(tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
-        Q_obs1 = denormalize(target_critic(normalized_state1, normalized_goal, target_actor(normalized_obs1)), self.ret_rms)
+        Q_obs1 = denormalize(target_critic(normalized_state1, normalized_goal, target_actor(normalized_obs1, normalized_aux1), normalized_aux1), self.ret_rms)
         self.target_Q = self.rewards + (1. - self.terminals1) * gamma * Q_obs1
 
         # Set up parts.
         if self.param_noise is not None:
-            self.setup_param_noise(normalized_obs0)
+            self.setup_param_noise(normalized_obs0, normalized_aux0)
         self.setup_actor_optimizer()
         self.setup_critic_optimizer()
         if self.normalize_returns and self.enable_popart:
@@ -174,20 +189,20 @@ class DDPG(object):
         self.target_init_updates = [actor_init_updates, critic_init_updates]
         self.target_soft_updates = [actor_soft_updates, critic_soft_updates]
 
-    def setup_param_noise(self, normalized_obs0):
+    def setup_param_noise(self, normalized_obs0, normalized_aux0):
         assert self.param_noise is not None
 
         # Configure perturbed actor.
         param_noise_actor = copy(self.actor)
         param_noise_actor.name = 'param_noise_actor'
-        self.perturbed_actor_tf = param_noise_actor(normalized_obs0)
+        self.perturbed_actor_tf = param_noise_actor(normalized_obs0, normalized_aux0)
         logger.info('setting up param noise')
         self.perturb_policy_ops = get_perturbed_actor_updates(self.actor, param_noise_actor, self.param_noise_stddev)
 
         # Configure separate copy for stddev adoption.
         adaptive_param_noise_actor = copy(self.actor)
         adaptive_param_noise_actor.name = 'adaptive_param_noise_actor'
-        adaptive_actor_tf = adaptive_param_noise_actor(normalized_obs0)
+        adaptive_actor_tf = adaptive_param_noise_actor(normalized_obs0, normalized_aux0)
         self.perturb_adaptive_policy_ops = get_perturbed_actor_updates(self.actor, adaptive_param_noise_actor, self.param_noise_stddev)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
@@ -279,12 +294,12 @@ class DDPG(object):
         self.stats_ops = ops
         self.stats_names = names
 
-    def pi(self, obs, apply_noise=True, compute_Q=True):
+    def pi(self, obs, aux, apply_noise=True, compute_Q=True):
         if self.param_noise is not None and apply_noise:
             actor_tf = self.perturbed_actor_tf
         else:
             actor_tf = self.actor_tf
-        feed_dict = {self.obs0: [obs]}
+        feed_dict = {self.obs0: [obs], self.aux0: [aux]}
         if compute_Q:
 
             # action, q = self.sess.run([actor_tf, self.critic_with_actor_tf], feed_dict=feed_dict)
@@ -301,15 +316,18 @@ class DDPG(object):
         action = np.clip(action, self.action_range[0], self.action_range[1])
         return action, q
 
-    def store_transition(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs):
+    def store_transition(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1):
         reward *= self.reward_scale
-        self.memory.append(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs)
+        self.memory.append(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
 
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
         if self.normalize_state:
             self.state_rms.update(np.array([state]))
+
+        if self.normalize_aux:
+            self.aux_rms.update(np.array([aux0]))
 
     def train(self):
         # Get a batch.
@@ -322,6 +340,7 @@ class DDPG(object):
                 self.goal: batch['goals'],
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32'),
+                self.aux1: batch['aux1']
             })
             self.ret_rms.update(target_Q.flatten())
             self.sess.run(self.renormalize_Q_outputs_op, feed_dict={
@@ -342,6 +361,7 @@ class DDPG(object):
             target_Q = self.sess.run(self.target_Q, feed_dict={
                 self.obs1: batch['obs1'],
                 self.state1: batch['states1'],
+                self.aux1: batch['aux1'],
                 self.goal: batch['goals'],
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32'),
@@ -352,6 +372,7 @@ class DDPG(object):
         actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, feed_dict={
             self.obs0: batch['obs0'],
             self.state0: batch['states0'],
+            self.aux0: batch['aux0'],
             self.goal: batch['goals'],
             self.actions: batch['actions'],
             self.critic_target: target_Q,
@@ -380,6 +401,7 @@ class DDPG(object):
             self.obs0: self.stats_sample['obs0'],
             self.actions: self.stats_sample['actions'],
             self.goal: self.stats_sample['goals'],
+            self.aux0: batch['aux0'],
             self.state0: self.stats_sample['states0'],
         })
 
@@ -403,6 +425,7 @@ class DDPG(object):
         })
         distance = self.sess.run(self.adaptive_policy_distance, feed_dict={
             self.obs0: batch['obs0'],
+            self.aux0: batch['aux0'],
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
 
