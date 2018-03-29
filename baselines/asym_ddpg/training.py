@@ -10,7 +10,7 @@ from baselines import logger
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
-
+import cv2
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,

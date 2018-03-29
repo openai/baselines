@@ -10,6 +10,7 @@ from baselines.common.mpi_adam import MpiAdam
 import baselines.common.tf_util as U
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from mpi4py import MPI
+import cv2
 
 def normalize(x, stats):
     if stats is None:
