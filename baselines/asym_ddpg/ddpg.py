@@ -401,7 +401,7 @@ class DDPG(object):
             self.obs0: self.stats_sample['obs0'],
             self.actions: self.stats_sample['actions'],
             self.goal: self.stats_sample['goals'],
-            self.aux0: batch['aux0'],
+            self.aux0: self.stats_sample['aux0'],
             self.state0: self.stats_sample['states0'],
         })
 
