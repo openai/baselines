@@ -61,14 +61,19 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 
 
 class DDPG(object):
-    def __init__(self, actor, critic, memory, observation_shape, action_shape, param_noise=None, action_noise=None,
-        gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True,
-        batch_size=128, observation_range=(-5., 5.), action_range=(-1., 1.), return_range=(-np.inf, np.inf),
+    def __init__(self, actor, critic, memory, observation_shape, action_shape, state_shape, param_noise=None, action_noise=None,
+        gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True,
+        batch_size=128, observation_range=(-5., 5.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
         critic_l2_reg=0., actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.):
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
         self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
+
+        self.goal = tf.placeholder(tf.float32, shape=(None,) + state_shape, name='goal')
+        self.state0 = tf.placeholder(tf.float32, shape=(None,) + state_shape, name='state0')
+        self.state1 = tf.placeholder(tf.float32, shape=(None,) + state_shape, name='state1')
+
         self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
         self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
         self.actions = tf.placeholder(tf.float32, shape=(None,) + action_shape, name='actions')
@@ -81,6 +86,7 @@ class DDPG(object):
         self.memory = memory
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
+        self.normalize_state = normalize_state
         self.action_noise = action_noise
         self.param_noise = param_noise
         self.action_range = action_range
@@ -89,6 +95,7 @@ class DDPG(object):
         self.critic = critic
         self.actor = actor
         self.actor_lr = actor_lr
+        self.state_range = state_range
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
         self.enable_popart = enable_popart
@@ -103,10 +110,28 @@ class DDPG(object):
                 self.obs_rms = RunningMeanStd(shape=observation_shape)
         else:
             self.obs_rms = None
+
+        if self.normalize_state:
+            with tf.variable_scope('state_rms'):
+                self.state_rms = RunningMeanStd(shape=state_shape)
+        else:
+            self.state_rms
+
+
         normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms),
             self.observation_range[0], self.observation_range[1])
         normalized_obs1 = tf.clip_by_value(normalize(self.obs1, self.obs_rms),
             self.observation_range[0], self.observation_range[1])
+
+        normalized_state0 = tf.clip_by_value(normalize(self.state0, self.state_rms),
+            self.state_range[0], self.state_range[1])
+        normalized_state1 = tf.clip_by_value(normalize(self.state1, self.state_rms),
+            self.state_range[0], self.state_range[1])
+
+        normalized_goal = tf.clip_by_value(normalize(self.goal, self.state_rms),
+            self.state_range[0], self.state_range[1])        
+
+        normalized_goal = self.goal
 
         # Return normalization.
         if self.normalize_returns:
@@ -125,11 +150,11 @@ class DDPG(object):
 
         # Create networks and core TF parts that are shared across setup parts.
         self.actor_tf = actor(normalized_obs0)
-        self.normalized_critic_tf = critic(normalized_obs0, self.actions)
+        self.normalized_critic_tf = critic(normalized_state0, normalized_goal, self.actions)
         self.critic_tf = denormalize(tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
-        self.normalized_critic_with_actor_tf = critic(normalized_obs0, self.actor_tf, reuse=True)
+        self.normalized_critic_with_actor_tf = critic(normalized_state0, normalized_goal, self.actor_tf, reuse=True)
         self.critic_with_actor_tf = denormalize(tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
-        Q_obs1 = denormalize(target_critic(normalized_obs1, target_actor(normalized_obs1)), self.ret_rms)
+        Q_obs1 = denormalize(target_critic(normalized_state1, normalized_goal, target_actor(normalized_obs1)), self.ret_rms)
         self.target_Q = self.rewards + (1. - self.terminals1) * gamma * Q_obs1
 
         # Set up parts.
@@ -178,6 +203,7 @@ class DDPG(object):
 
     def setup_critic_optimizer(self):
         logger.info('setting up critic optimizer')
+
         normalized_critic_target_tf = tf.clip_by_value(normalize(self.critic_target, self.ret_rms), self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
@@ -259,7 +285,10 @@ class DDPG(object):
             actor_tf = self.actor_tf
         feed_dict = {self.obs0: [obs]}
         if compute_Q:
-            action, q = self.sess.run([actor_tf, self.critic_with_actor_tf], feed_dict=feed_dict)
+
+            # action, q = self.sess.run([actor_tf, self.critic_with_actor_tf], feed_dict=feed_dict)
+            action, q = self.sess.run(actor_tf, feed_dict=feed_dict), 137.0
+
         else:
             action = self.sess.run(actor_tf, feed_dict=feed_dict)
             q = None
@@ -278,6 +307,9 @@ class DDPG(object):
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
+        if self.normalize_state:
+            self.state_rms.update(np.array([state]))
+
     def train(self):
         # Get a batch.
         batch = self.memory.sample(batch_size=self.batch_size)
@@ -285,6 +317,8 @@ class DDPG(object):
         if self.normalize_returns and self.enable_popart:
             old_mean, old_std, target_Q = self.sess.run([self.ret_rms.mean, self.ret_rms.std, self.target_Q], feed_dict={
                 self.obs1: batch['obs1'],
+                self.state1: batch['states1'],
+                self.goal: batch['goals'],
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32'),
             })
@@ -306,6 +340,8 @@ class DDPG(object):
         else:
             target_Q = self.sess.run(self.target_Q, feed_dict={
                 self.obs1: batch['obs1'],
+                self.state1: batch['states1'],
+                self.goal: batch['goals'],
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32'),
             })
@@ -314,6 +350,8 @@ class DDPG(object):
         ops = [self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss]
         actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, feed_dict={
             self.obs0: batch['obs0'],
+            self.state0: batch['states0'],
+            self.goal: batch['goals'],
             self.actions: batch['actions'],
             self.critic_target: target_Q,
         })
@@ -340,6 +378,8 @@ class DDPG(object):
         values = self.sess.run(self.stats_ops, feed_dict={
             self.obs0: self.stats_sample['obs0'],
             self.actions: self.stats_sample['actions'],
+            self.goal: self.stats_sample['goals'],
+            self.state0: self.stats_sample['states0'],
         })
 
         names = self.stats_names[:]

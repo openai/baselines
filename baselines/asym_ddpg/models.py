@@ -51,12 +51,12 @@ class Critic(Model):
         super(Critic, self).__init__(name=name)
         self.layer_norm = layer_norm
 
-    def __call__(self, obs, action, reuse=False):
+    def __call__(self, state, goal, action, reuse=False):
         with tf.variable_scope(self.name) as scope:
             if reuse:
                 scope.reuse_variables()
 
-            x = obs
+            x = tf.concat([state, goal, action], axis=-1)
             x = tf.layers.dense(x, 64)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)

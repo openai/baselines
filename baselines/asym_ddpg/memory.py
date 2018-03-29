@@ -82,9 +82,9 @@ class Memory(object):
             'rewards': array_min2d(reward_batch),
             'actions': array_min2d(action_batch),
             'terminals1': array_min2d(terminal1_batch),
-            'states': array_min2d(states_batch),
+            'states0': array_min2d(states_batch),
             'states1': array_min2d(states1_batch),
-            'goals_batch': array_min2d(goals_batch),
+            'goals': array_min2d(goals_batch),
             'goal_observations': array_min2d(goal_observations_batch)
         }
         return result
