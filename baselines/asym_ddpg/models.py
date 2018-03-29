@@ -29,20 +29,17 @@ class Actor(Model):
         with tf.variable_scope(self.name) as scope:
             if reuse:
                 scope.reuse_variables()
-            
-            for i in range(0, 3):
-                obs = tf.layers.conv2d(
-                    inputs=obs,
-                    filters=32,
-                    kernel_size=2,
-                )
             x = obs
+            x = tc.layers.conv2d(x, 32, kernel_size=(3,3), stride=2, normalizer_fn=tc.layers.layer_norm)
+            x = tc.layers.conv2d(x, 32, kernel_size=(3, 3), stride=2, normalizer_fn=tc.layers.layer_norm)
+            x = tc.layers.conv2d(x, 32, kernel_size=(3, 3), stride=2, normalizer_fn=tc.layers.layer_norm)
+            x = tc.layers.conv2d(x, 32, kernel_size=(3, 3), stride=2, normalizer_fn=tc.layers.layer_norm)            
             x = tf.layers.flatten(x)
 
-            x = tf.layers.dense(x, 200)
+            x = tf.layers.dense(x, 256)
             x = tf.nn.relu(x)
             
-            x = tf.layers.dense(x, 200)
+            x = tf.layers.dense(x, 256)
             x = tf.nn.relu(x)
 
             
