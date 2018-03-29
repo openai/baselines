@@ -73,6 +73,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
         for epoch in range(nb_epochs):
             for cycle in range(nb_epoch_cycles):
+                print ("Cycle: {}/{}".format(cycle, nb_epoch_cycles) +
+                       "["+ "-" * cycle + " " * (nb_epoch_cycles - cycle) + "]" 
+                 , end="\r")
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
                     # Predict next action.

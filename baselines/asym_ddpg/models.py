@@ -30,7 +30,7 @@ class Actor(Model):
             if reuse:
                 scope.reuse_variables()
             
-            for i in range(0, 4):
+            for i in range(0, 3):
                 obs = tf.layers.conv2d(
                     inputs=obs,
                     filters=32,
