@@ -15,7 +15,7 @@ PATH = "/tmp/model.ckpt"
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, normalize_aux, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory, load_from_file,
-    run_name, tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    run_name, tau=0.01, eval_env=None, demo_policy=None, num_demo_steps=0, demo_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -55,7 +55,6 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         agent.sync_optimizers()
         # sess.graph.finalize()
 
-
         if eval_env is not None:
             eval_obs = eval_env.reset()
         # TODO HACKERY
@@ -75,7 +74,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     print(total_r)
                 return
 
-
+        if demo_policy:
+            _initialize_memory_with_policy(agent, demo_policy, demo_env, num_demo_steps)
 
         agent.reset()
         obs = env.reset()
@@ -188,8 +188,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         eval_action, eval_q = agent.pi(eval_obs, aux, apply_noise=False, compute_Q=True)
                         eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         if render_eval:
-                            frame = env.render('rgb_array')
-                            rgb.write(np.array(frame[:,:,0:3]*255, dtype=np.uint8))
+                            rgb.write(np.array(eval_obs[:,:,0:3]*255, dtype=np.uint8))
                         eval_episode_reward += eval_r
 
                         eval_qs.append(eval_q)
@@ -261,3 +260,25 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             save_path = saver.save(sess, PATH)
             print("Model saved")
 
+
+def _initialize_memory_with_policy(agent, demo_policy, demo_env, num_demo_steps):
+    print("Start collecting demo transitions")
+    obs0 = demo_env.reset()
+    demo_policy.reset()
+    goal = demo_env.goalstate()
+    goal_obs = demo_env.goalobs()
+    for i in range(num_demo_steps):
+        aux0 = demo_env.get_aux()
+        state0 = demo_env.get_state()
+        action = demo_policy.choose_action(state0)
+        obs1, r, done, info = demo_env.step(action)
+        aux1 = demo_env.get_aux()
+        state1 = demo_env.get_state()
+        agent.store_transition(state0, obs0, action, r, state1, obs1, done, goal, goal_obs, aux0, aux1)
+        obs0 = obs1
+        if done:
+            obs0 = demo_env.reset()
+            demo_policy.reset()
+            goal = demo_env.goalstate()
+            goal_obs = demo_env.goalobs()
+    print("Collected {} demo transition.".format(num_demo_steps))

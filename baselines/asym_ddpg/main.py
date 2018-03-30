@@ -16,6 +16,7 @@ import gym
 import tensorflow as tf
 from mpi4py import MPI
 import micoenv
+import learning.demo_policies as demo
 
 def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     # Configure things.
@@ -82,8 +83,10 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     # Disable logging for rank != 0 to avoid noise.
     if rank == 0:
         start_time = time.time()
+
+    demo_env = gym.make(env_id)
     training.train(env=env, eval_env=eval_env, param_noise=param_noise,
-        action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
+        action_noise=action_noise, actor=actor, critic=critic, memory=memory, demo_policy=demo.Pusher(),demo_env=demo_env, **kwargs)
     env.close()
     if eval_env is not None:
         eval_env.close()
@@ -94,7 +97,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('--env-id', type=str, default='MicoEnv-reacher-dense-pixels-v1')
+    parser.add_argument('--env-id', type=str, default='MicoEnv-pusher-dense-pixels-v1')
     boolean_flag(parser, 'render-eval', default=True)
     boolean_flag(parser, 'layer-norm', default=True)
     boolean_flag(parser, 'render', default=False)
@@ -118,6 +121,7 @@ def parse_args():
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
     boolean_flag(parser, 'load-from-file',  default=False)
     parser.add_argument('--num-timesteps', type=int, default=None)
+    parser.add_argument('--num-demo-steps', type=int, default=2000)
     parser.add_argument('--run-name', type=str, default='')
     boolean_flag(parser, 'evaluation', default=True)
 
