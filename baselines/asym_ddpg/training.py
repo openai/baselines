@@ -39,6 +39,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     episode = 0
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
+    only_eval = False
     with U.single_threaded_session() as sess:
         # Prepare everything.
         agent.set_sess(sess)
@@ -49,15 +50,35 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             print("Model saved")
         else:
             saver.restore(sess, PATH)
-            print(tf.get_variable("v1", shape=[3]))
             print("Model restored")
+            only_eval = True
         agent.sync_optimizers()
-        sess.graph.finalize()
+        # sess.graph.finalize()
+
+
+        if eval_env is not None:
+            eval_obs = eval_env.reset()
+        # TODO HACKERY
+
+        if only_eval:
+                for i in range(20):
+                    done = False
+                    obs = env.reset()
+                    agent.reset()
+                    total_r = 0
+                    while not done:
+                        aux0 = env.get_aux()
+                        action, q = agent.pi(obs, aux0, apply_noise=True, compute_Q=True)
+                        obs, r, done, info = env.step(action)
+                        env.render()
+                        total_r += r
+                    print(total_r)
+                return
+
+
 
         agent.reset()
         obs = env.reset()
-        if eval_env is not None:
-            eval_obs = eval_env.reset()
         done = False
         episode_reward = 0.
         episode_step = 0
@@ -79,6 +100,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
         goal = env.goalstate()
         goal_obs = env.goalobs()
+        writer = tf.summary.FileWriter("/tmp/tensorflow/", graph=tf.get_default_graph())
 
 
         for epoch in range(nb_epochs):
