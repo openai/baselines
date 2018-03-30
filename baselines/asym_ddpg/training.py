@@ -274,7 +274,7 @@ def _initialize_memory_with_policy(agent, demo_policy, demo_env, num_demo_steps)
         obs1, r, done, info = demo_env.step(action)
         aux1 = demo_env.get_aux()
         state1 = demo_env.get_state()
-        agent.store_transition(state0, obs0, action, r, state1, obs1, done, goal, goal_obs, aux0, aux1)
+        agent.store_transition(state0, obs0, action, r, state1, obs1, done, goal, goal_obs, aux0, aux1, demo=True)
         obs0 = obs1
         if done:
             obs0 = demo_env.reset()
