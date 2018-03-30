@@ -68,7 +68,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     total_r = 0
                     while not done:
                         aux0 = env.get_aux()
-                        action, q = agent.pi(obs, aux0, apply_noise=True, compute_Q=True)
+                        action, q = agent.pi(obs, aux0, apply_noise=False, compute_Q=True)
                         obs, r, done, info = env.step(action)
                         env.render()
                         total_r += r
@@ -179,11 +179,16 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 eval_qs = []
                 if eval_env is not None and cycle == 0:
                     eval_episode_reward = 0.
+                    if render_eval:
+                        fname= '/tmp/jm6214/ddpg/eval-{}-{}.avi'.format(run_name, epoch + 1)
+                        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+                        rgb = cv2.VideoWriter(fname, fourcc, 30.0, (84, 84))
                     for t_rollout in range(nb_eval_steps):
                         eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
                         eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         if render_eval:
-                            eval_env.render()
+                            frame = env.render('rgb_array')
+                            rgb.write(np.array(frame[:,:,0:3]*255, dtype=np.uint8))
                         eval_episode_reward += eval_r
 
                         eval_qs.append(eval_q)
@@ -192,6 +197,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                             eval_episode_rewards.append(eval_episode_reward)
                             eval_episode_rewards_history.append(eval_episode_reward)
                             eval_episode_reward = 0.
+                    if render_eval:
+                        rgb.release()
+                        print("Saved eval video in: " + fname)
 
             mpi_size = MPI.COMM_WORLD.Get_size()
             # Log stats.
