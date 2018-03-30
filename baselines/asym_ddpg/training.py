@@ -15,7 +15,7 @@ PATH = "/tmp/model.ckpt"
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, normalize_aux, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory, load_from_file,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    run_name, tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -184,7 +184,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         fourcc = cv2.VideoWriter_fourcc(*"XVID")
                         rgb = cv2.VideoWriter(fname, fourcc, 30.0, (84, 84))
                     for t_rollout in range(nb_eval_steps):
-                        eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
+                        aux = eval_env.get_aux()
+                        eval_action, eval_q = agent.pi(eval_obs, aux, apply_noise=False, compute_Q=True)
                         eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         if render_eval:
                             frame = env.render('rgb_array')

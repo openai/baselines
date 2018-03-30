@@ -118,6 +118,7 @@ def parse_args():
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
     boolean_flag(parser, 'load-from-file',  default=False)
     parser.add_argument('--num-timesteps', type=int, default=None)
+    parser.add_argument('--run-name', type=str, default='')
     boolean_flag(parser, 'evaluation', default=True)
 
     args = parser.parse_args()
