@@ -382,12 +382,16 @@ class DDPG(object):
 
         return critic_loss, actor_loss
 
-    def initialize(self, sess):
+    def set_sess(self, sess):
         self.sess = sess
-        self.sess.run(tf.global_variables_initializer())
+
+    def sync_optimizers(self):
         self.actor_optimizer.sync()
         self.critic_optimizer.sync()
         self.sess.run(self.target_init_updates)
+
+    def initialize(self):
+        self.sess.run(tf.global_variables_initializer())
 
     def update_target_net(self):
         self.sess.run(self.target_soft_updates)

@@ -11,10 +11,10 @@ import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 import cv2
-
+PATH = "/tmp/model.ckpt"
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, normalize_aux, critic_l2_reg, actor_lr, critic_lr, action_noise,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
+    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory, load_from_file,
     tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
@@ -41,7 +41,17 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     episode_rewards_history = deque(maxlen=100)
     with U.single_threaded_session() as sess:
         # Prepare everything.
-        agent.initialize(sess)
+        agent.set_sess(sess)
+        if not load_from_file:
+            agent.initialize()
+            print("Model initialized")
+            save_path = saver.save(sess, PATH)
+            print("Model saved")
+        else:
+            saver.restore(sess, PATH)
+            print(tf.get_variable("v1", shape=[3]))
+            print("Model restored")
+        agent.sync_optimizers()
         sess.graph.finalize()
 
         agent.reset()
@@ -217,3 +227,6 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 if eval_env and hasattr(eval_env, 'get_state'):
                     with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
                         pickle.dump(eval_env.get_state(), f)
+            save_path = saver.save(sess, PATH)
+            print("Model saved")
+
