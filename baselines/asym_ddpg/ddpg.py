@@ -334,7 +334,7 @@ class DDPG(object):
 
     def train(self):
         # Get a batch.
-        rand = np.rand.uniform(0,1)
+        rand = np.random.uniform(0,1)
         if (rand < 0.2):
             batch = self.demo_memory.sample(batch_size=self.batch_size)
         else:

@@ -14,14 +14,14 @@ import cv2
 PATH = "/tmp/model.ckpt"
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, normalize_aux, critic_l2_reg, actor_lr, critic_lr, action_noise,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory, load_from_file,
+    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory, demo_memory, load_from_file,
     run_name, tau=0.01, eval_env=None, demo_policy=None, num_demo_steps=0, demo_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
     max_action = env.action_space.high
     logger.info('scaling actions by {} before executing in env'.format(max_action))
-    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape, env.state_space.shape, env.aux_space.shape,
+    agent = DDPG(actor, critic, memory,demo_memory, env.observation_space.shape, env.action_space.shape, env.state_space.shape, env.aux_space.shape,
         gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,normalize_aux=normalize_aux,
         batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
         actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
