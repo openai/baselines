@@ -1,4 +1,5 @@
 import numpy as np
+from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 
 def array_min2d(x):
     x = np.array(x)
@@ -36,7 +37,7 @@ class Memory(object):
         if self._next_idx == self._maxsize:
             self._next_idx = self._num_demonstrations
 
-    def _get_batches_for_idxes(self, idexes)
+    def _get_batches_for_idxes(self, idxes):
         batches = {storable_element: [] for storable_element in self.storable_elements}
         for i in idxes:
             entry = self._storage[i]
@@ -48,14 +49,14 @@ class Memory(object):
     def sample(self, batch_size):
         idxes = np.random.random_integers(low=0, high=self.nb_entries - 1, size=batch_size)
 
-        return _get_batches_for_idx(self, idxes)
+        return self._get_batches_for_idxes(idxes)
 
 
 
 class PrioritizedMemory(Memory):
-    def __init__(self, size, alpha, transition_small_epsilon=1e-6, demonstartion_epsilon=0.1):
+    def __init__(self, limit, alpha, transition_small_epsilon=1e-6, demonstartion_epsilon=0.1):
 
-        super(PrioritizedReplayBuffer, self).__init__(size)
+        super(PrioritizedMemory, self).__init__(limit)
         assert alpha > 0
         self._alpha = alpha
         self._transition_small_epsilon = transition_small_epsilon
@@ -73,7 +74,6 @@ class PrioritizedMemory(Memory):
         self._it_min = MinSegmentTree(it_capacity)
         self._max_priority = 1.0
 
-        self.number_of_times_used = [0] * size
 
     def append(self, *args, **kwargs):
         """See ReplayBuffer.store_effect"""
@@ -115,6 +115,7 @@ class PrioritizedMemory(Memory):
         weights = np.array(weights)
         encoded_sample = self._get_batches_for_idxes(idxes)
         encoded_sample['weights'] = array_min2d(weights)
+        encoded_sample['idxes'] = idxes
         return encoded_sample
 
     def update_priorities(self, idxes, td_errors, actor_losses=0.0):

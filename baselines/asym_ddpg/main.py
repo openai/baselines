@@ -9,7 +9,7 @@ from baselines.common.misc_util import (
 )
 import baselines.asym_ddpg.training as training
 from baselines.asym_ddpg.models import Actor, Critic
-from baselines.asym_ddpg.prioritized_memory import Memory
+from baselines.asym_ddpg.prioritized_memory import PrioritizedMemory
 from baselines.asym_ddpg.noise import *
 
 import gym
@@ -66,7 +66,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 
     #TODO:
 
-    memory = Memory(limit=int(1e4))
+    memory = PrioritizedMemory(limit=int(1e4), alpha=0.3)
     critic = Critic(layer_norm=layer_norm)
     actor = Actor(nb_actions, layer_norm=layer_norm)
 
