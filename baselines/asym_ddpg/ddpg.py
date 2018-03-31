@@ -66,7 +66,7 @@ class DDPG(object):
         gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True, normalize_aux=True,
         batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf), aux_range=(-10, 10),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
-        critic_l2_reg=0., actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.):
+        critic_l2_reg=1e-3, actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=1.0,lambda_1step=1.0, lambda_nstep=1.0):
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
         self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
@@ -79,6 +79,11 @@ class DDPG(object):
         self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
         self.actions = tf.placeholder(tf.float32, shape=(None,) + action_shape, name='actions')
         self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
+
+        self.nstep_steps = tf.placeholder(tf.float32, shape=(None, 1), name='nstep_reached')
+        self.nstep_critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='nstep_critic_target')
+
+
         self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
 
         self.aux0 = tf.placeholder(tf.float32, shape=(None,) + aux_shape, name='aux0')
@@ -110,6 +115,8 @@ class DDPG(object):
         self.batch_size = batch_size
         self.stats_sample = None
         self.critic_l2_reg = critic_l2_reg
+        self.lambda_nstep = lambda_nstep
+        self.lambda_1step = lambda_1step
 
         # Observation normalization.
         if self.normalize_observations:
@@ -171,7 +178,8 @@ class DDPG(object):
         self.normalized_critic_with_actor_tf = critic(normalized_state0, normalized_goal, self.actor_tf, normalized_aux0, reuse=True)
         self.critic_with_actor_tf = denormalize(tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
         Q_obs1 = denormalize(target_critic(normalized_state1, normalized_goal, target_actor(normalized_obs1, normalized_aux1), normalized_aux1), self.ret_rms)
-        self.target_Q = self.rewards + (1. - self.terminals1) * gamma * Q_obs1
+        self.target_Q = self.rewards + (1. - self.terminals1) * tf.pow(gamma, self.nstep_steps) * Q_obs1
+
         self.importance_weights = tf.placeholder(tf.float32, shape=(None, 1), name='importance_weights')
 
 
@@ -223,9 +231,18 @@ class DDPG(object):
         logger.info('setting up critic optimizer')
 
         normalized_critic_target_tf = tf.clip_by_value(normalize(self.critic_target, self.ret_rms), self.return_range[0], self.return_range[1])
-        self.td_error = tf.square(self.normalized_critic_tf - normalized_critic_target_tf)
-        td_loss = tf.reduce_mean(self.importance_weights * self.td_error)
-        self.critic_loss = tf.reduce_mean(td_loss)
+
+        normalized_nstep_critic_target_tf = tf.clip_by_value(normalize(self.nstep_critic_target, self.ret_rms), self.return_range[0], self.return_range[1])
+
+        td_error = tf.square(self.normalized_critic_tf - normalized_critic_target_tf)
+        self.step_1_td_loss = tf.reduce_mean(self.importance_weights * td_error) * self.lambda_1step
+
+        nstep_td_error = tf.square(self.normalized_critic_tf - normalized_nstep_critic_target_tf)
+        self.n_step_td_loss = tf.reduce_mean(self.importance_weights * nstep_td_error) * self.lambda_nstep
+
+        self.td_error = td_error + nstep_td_error
+        self.critic_loss = self.step_1_td_loss + self.n_step_td_loss
+
         if self.critic_l2_reg > 0.:
             critic_reg_vars = [var for var in self.critic.trainable_vars if 'kernel' in var.name and 'output' not in var.name]
             for var in critic_reg_vars:
@@ -323,7 +340,7 @@ class DDPG(object):
     def store_transition(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1, demo=False):
         reward *= self.reward_scale
         if demo:
-            self.memory.append_demo(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
+            self.memory.append_demonstration(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
         else:
             self.memory.append(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
         if self.normalize_observations:
@@ -337,8 +354,9 @@ class DDPG(object):
 
     def train(self):
         # Get a batch.
-        batch = self.memory.sample(batch_size=self.batch_size, beta=0.4)
+        batch, nstep_batch, percentage = self.memory.sample_rollout(batch_size=self.batch_size, nsteps=self.n_step, beta=self.beta, gamma=self.gamma)
         if self.normalize_returns and self.enable_popart:
+            raise Exception("Not implemented")
             old_mean, old_std, target_Q = self.sess.run([self.ret_rms.mean, self.ret_rms.std, self.target_Q], feed_dict={
                 self.obs1: batch['obs1'],
                 self.state1: batch['states1'],
@@ -363,12 +381,23 @@ class DDPG(object):
             # print(target_Q_new, target_Q, new_mean, new_std)
             # assert (np.abs(target_Q - target_Q_new) < 1e-3).all()
         else:
-            target_Q = self.sess.run(self.target_Q, feed_dict={
+            target_Q_1step = self.sess.run(self.target_Q, feed_dict={
                 self.obs1: batch['obs1'],
                 self.state1: batch['states1'],
                 self.aux1: batch['aux1'],
                 self.goal: batch['goals'],
                 self.rewards: batch['rewards'],
+                self.terminals1: batch['terminals1'].astype('float32'),
+                self.nstep_steps: np.ones((self.batch_size, 1)),
+            })
+
+            target_Q_nstep = self.sess.run(self.target_Q, feed_dict={
+                self.obs1: batch['obs1'],
+                self.state1: batch['states1'],
+                self.aux1: batch['aux1'],
+                self.goal: batch['goals'],
+                self.rewards: batch['rewards'],
+                self.nstep_steps: nstep_batch['step_reached'],
                 self.terminals1: batch['terminals1'].astype('float32'),
             })
 
@@ -381,6 +410,7 @@ class DDPG(object):
             self.goal: batch['goals'],
             self.actions: batch['actions'],
             self.critic_target: target_Q,
+            self.nstep_critic_target: target_Q_nstep,
             self.importance_weights: batch['weights'],
         })
         self.memory.update_priorities(batch['idxes'], td_errors)

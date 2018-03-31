@@ -63,6 +63,9 @@ class Memory(object):
     def demonstrationsDone(self):
         self._adding_demonstrations = False
 
+    def sample_rollout(self, batch_size, nsteps, beta, gamma):
+        raise Exception("Not implemented")
+
 
 
 class PrioritizedMemory(Memory):
@@ -131,6 +134,65 @@ class PrioritizedMemory(Memory):
         encoded_sample['weights'] = array_min2d(weights)
         encoded_sample['idxes'] = idxes
         return encoded_sample
+
+
+    def sample_rollout(self, batch_size, nsteps, beta, gamma):
+        idxes = self._sample_proportional(batch_size, pretrain)
+        demos = [i < self._num_demonstrations for i in idxes]
+        weights = []
+        p_min = self._it_min.min() / self._it_sum.sum()
+        max_weight = (p_min * len(self._storage)) ** (-beta)
+        for idx in idxes:
+            p_sample = self._it_sum[idx] / self._it_sum.sum()
+            weight = (p_sample * len(self._storage)) ** (-beta)
+            weights.append(weight / max_weight)
+
+        weights = np.array(weights)
+        encoded_sample_1step = self._get_batches_for_idxes(idxes)
+        encoded_sample_1step['weights'] = array_min2d(weights)
+        encoded_sample_1step['idxes'] = idxes
+        encoded_sample_1step['demo'] = array_min2d(demos)
+
+
+        n_step_batches = {storable_element: [] for storable_element in self.storable_elements}
+        n_step_batches["step_reached"] = []
+
+
+        for idx in idxes:
+            local_idxes = list(range(idx, min(idx + nsteps, len(self))))
+            transitions = self._get_batches_for_idxes(local_idxes)
+            summed_reward = 0
+            count = 0
+            terminal = 0.0
+            terminals = transitions['terminals1']
+            r = transitions['rewards']
+            for i in range(len(r)):
+                summed_reward += (gamma ** i) * r[i]
+                count = i
+                if terminals[i]:
+                    terminal = 1.0
+                    break
+            n_step_batches["obs0"].append(transitions["obs0"][0])
+            n_step_batches["obs0"].append(transitions["obs0"][0])
+            n_step_batches["step_reached"].append(count)
+            n_step_batches["obs1"].append(transitions["obs1"][count])
+            n_step_batches["terminals"].append(terminal)
+            n_step_batches["rewards"].append(summed_reward)
+            n_step_batches["states0"].append(transitions["states0"][0])
+            n_step_batches["states1"].append(transitions["states1"][count])
+            n_step_batches["aux0"].append(transitions["aux0"][0])
+            n_step_batches["aux1"].append(transitions["aux1"][count])
+            n_step_batches["goals"].append(transitions["goals"][0])
+            n_step_batches["goal_observations"].append(transitions["goal_observations"][0])
+            n_step_batches["actions"].append(transitions["actions"][0])
+        n_step_batches['weights'] = array_min2d(weights)
+        n_step_batches['idxes'] = idxes
+        n_step_batches['demo'] = array_min2d(demos)
+
+        return encoded_sample_1step, encoded_sample_nstep, num_demos
+
+
+
 
     def update_priorities(self, idxes, td_errors, actor_losses=0.0):
         priorities = (td_errors ** 2) + (actor_losses ** 2) + self._transition_small_epsilon
