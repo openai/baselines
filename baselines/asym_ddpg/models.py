@@ -33,7 +33,7 @@ class Actor(Model):
             x = tc.layers.conv2d(x, 32, kernel_size=(3,3), stride=2, normalizer_fn=tc.layers.layer_norm)
             x = tc.layers.conv2d(x, 32, kernel_size=(3, 3), stride=2, normalizer_fn=tc.layers.layer_norm)
             x = tc.layers.conv2d(x, 32, kernel_size=(3, 3), stride=2, normalizer_fn=tc.layers.layer_norm)
-            x = tc.layers.conv2d(x, 32, kernel_size=(3, 3), stride=2, normalizer_fn=tc.layers.layer_norm)            
+            x = tc.layers.conv2d(x, 32, kernel_size=(3, 3), stride=2, normalizer_fn=tc.layers.layer_norm)
             x = tf.layers.flatten(x)
             x = tf.concat([x, aux], axis=-1)
             x = tf.layers.dense(x, 256)
@@ -60,13 +60,13 @@ class Critic(Model):
 
             x = tf.concat([state, goal, action, aux], axis=-1)
 
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, 256)
             x = tf.nn.relu(x)
 
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, 256)
             x = tf.nn.relu(x)
 
-            x = tf.layers.dense(x, 64)
+            x = tf.layers.dense(x, 256)
             x = tf.nn.relu(x)
 
             x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))

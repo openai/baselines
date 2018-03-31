@@ -102,7 +102,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         goal = env.goalstate()
         goal_obs = env.goalobs()
         writer = tf.summary.FileWriter("/tmp/tensorflow/", graph=tf.get_default_graph())
-
+        agent.memory.demonstrationsDone()
 
         for epoch in range(nb_epochs):
             for cycle in range(nb_epoch_cycles):
@@ -285,4 +285,4 @@ def _initialize_memory_with_policy(agent, demo_policy, demo_env, num_demo_steps)
             demo_policy.reset()
             goal = demo_env.goalstate()
             goal_obs = demo_env.goalobs()
-    print("Collected {} demo transition.".format(num_demo_steps))
+    print("Collected {} demo transition.".format(agent.memory._num_demonstrations))

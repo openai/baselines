@@ -12,7 +12,7 @@ class Memory(object):
         self._storage = []
         self._maxsize = limit
         self._next_idx = 0
-        self._adding_demonstrations = False
+        self._adding_demonstrations = True
         self._num_demonstrations = 0
         self.storable_elements = ["states0", "obs0", "actions", "rewards", "states1", "obs1", "terminals1", "goals", "goal_observations", "aux0", "aux1"]
 
@@ -25,6 +25,8 @@ class Memory(object):
 
     def append(self, *args,  training=True):
         assert len(args) == len(self.storable_elements)
+        assert not _self._adding_demonstrations
+
         if not training:
             return
         entry = args
@@ -36,7 +38,14 @@ class Memory(object):
         self._next_idx = int(self._next_idx + 1)
         if self._next_idx == self._maxsize:
             self._next_idx = self._num_demonstrations
-
+    
+    def append_demonstartion(self, *args,  training=True):
+        assert len(args) == len(self.storable_elements)
+        assert _self._adding_demonstrations
+        if not training:
+            return
+        sellf().append(*args, **kwargs)
+        self._num_demonstrations += 1
     def _get_batches_for_idxes(self, idxes):
         batches = {storable_element: [] for storable_element in self.storable_elements}
         for i in idxes:
@@ -50,6 +59,9 @@ class Memory(object):
         idxes = np.random.random_integers(low=0, high=self.nb_entries - 1, size=batch_size)
 
         return self._get_batches_for_idxes(idxes)
+
+    def demonstrationsDone(self):
+        self._adding_demonstrations = False
 
 
 
@@ -78,6 +90,7 @@ class PrioritizedMemory(Memory):
     def append(self, *args, **kwargs):
         """See ReplayBuffer.store_effect"""
         idx = self._next_idx
+        assert not _self._adding_demonstrations
         super().append(*args, **kwargs)
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
@@ -85,7 +98,8 @@ class PrioritizedMemory(Memory):
     def append_demonstartion(self, *args, **kwargs):
         """See ReplayBuffer.store_effect"""
         idx = self._next_idx
-        super().add(*args, **kwargs)
+        super().append(*args, **kwargs)
+        assert _self._adding_demonstrations
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
         self._num_demonstrations += 1
