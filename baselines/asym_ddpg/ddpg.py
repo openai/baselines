@@ -66,7 +66,7 @@ class DDPG(object):
         gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True, normalize_aux=True,
         batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf), aux_range=(-10, 10),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
-        critic_l2_reg=1e-3, actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=1.0,lambda_1step=1.0, lambda_nstep=1.0):
+        critic_l2_reg=1e-3, actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=1.0,lambda_1step=1.0, lambda_nstep=1.0, nsteps=10):
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
         self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
@@ -117,6 +117,8 @@ class DDPG(object):
         self.critic_l2_reg = critic_l2_reg
         self.lambda_nstep = lambda_nstep
         self.lambda_1step = lambda_1step
+        self.nsteps = nsteps
+        self.beta = replay_beta
 
         # Observation normalization.
         if self.normalize_observations:
@@ -354,7 +356,7 @@ class DDPG(object):
 
     def train(self):
         # Get a batch.
-        batch, nstep_batch, percentage = self.memory.sample_rollout(batch_size=self.batch_size, nsteps=self.n_step, beta=self.beta, gamma=self.gamma)
+        batch, nstep_batch, percentage = self.memory.sample_rollout(batch_size=self.batch_size, nsteps=self.nsteps, beta=self.beta, gamma=self.gamma)
         if self.normalize_returns and self.enable_popart:
             raise Exception("Not implemented")
             old_mean, old_std, target_Q = self.sess.run([self.ret_rms.mean, self.ret_rms.std, self.target_Q], feed_dict={
@@ -409,7 +411,7 @@ class DDPG(object):
             self.aux0: batch['aux0'],
             self.goal: batch['goals'],
             self.actions: batch['actions'],
-            self.critic_target: target_Q,
+            self.critic_target: target_Q_1step,
             self.nstep_critic_target: target_Q_nstep,
             self.importance_weights: batch['weights'],
         })

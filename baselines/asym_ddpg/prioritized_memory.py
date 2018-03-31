@@ -103,7 +103,7 @@ class PrioritizedMemory(Memory):
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
 
-    def _sample_proportional(self, batch_size, pretrain=False):
+    def _sample_proportional(self, batch_size):
         res = []
         for _ in range(batch_size):
             while True:
@@ -133,7 +133,7 @@ class PrioritizedMemory(Memory):
 
 
     def sample_rollout(self, batch_size, nsteps, beta, gamma):
-        idxes = self._sample_proportional(batch_size, pretrain)
+        idxes = self._sample_proportional(batch_size)
         demos = [i < self._num_demonstrations for i in idxes]
         weights = []
         p_min = self._it_min.min() / self._it_sum.sum()
@@ -142,6 +142,7 @@ class PrioritizedMemory(Memory):
             p_sample = self._it_sum[idx] / self._it_sum.sum()
             weight = (p_sample * len(self._storage)) ** (-beta)
             weights.append(weight / max_weight)
+        num_demos = sum(demos)/batch_size
 
         weights = np.array(weights)
         encoded_sample_1step = self._get_batches_for_idxes(idxes)
@@ -172,7 +173,7 @@ class PrioritizedMemory(Memory):
             n_step_batches["obs0"].append(transitions["obs0"][0])
             n_step_batches["step_reached"].append(count)
             n_step_batches["obs1"].append(transitions["obs1"][count])
-            n_step_batches["terminals"].append(terminal)
+            n_step_batches["terminals1"].append(terminal)
             n_step_batches["rewards"].append(summed_reward)
             n_step_batches["states0"].append(transitions["states0"][0])
             n_step_batches["states1"].append(transitions["states1"][count])
@@ -181,11 +182,13 @@ class PrioritizedMemory(Memory):
             n_step_batches["goals"].append(transitions["goals"][0])
             n_step_batches["goal_observations"].append(transitions["goal_observations"][0])
             n_step_batches["actions"].append(transitions["actions"][0])
-        n_step_batches['weights'] = array_min2d(weights)
+        n_step_batches['weights'] = weights
+        n_step_batches['demo'] = demos
+        n_step_batches = {k: array_min2d(v) for k, v in n_step_batches.items()}
         n_step_batches['idxes'] = idxes
-        n_step_batches['demo'] = array_min2d(demos)
 
-        return encoded_sample_1step, encoded_sample_nstep, num_demos
+
+        return encoded_sample_1step, n_step_batches, num_demos
 
 
 
