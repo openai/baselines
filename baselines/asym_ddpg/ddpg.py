@@ -62,7 +62,7 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 
 
 class DDPG(object):
-    def __init__(self, actor, critic, memory, demo_memory, observation_shape, action_shape, state_shape, aux_shape, param_noise=None, action_noise=None,
+    def __init__(self, actor, critic, memory, observation_shape, action_shape, state_shape, aux_shape, param_noise=None, action_noise=None,
         gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True, normalize_aux=True,
         batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf), aux_range=(-10, 10),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
@@ -89,7 +89,6 @@ class DDPG(object):
         self.gamma = gamma
         self.tau = tau
         self.memory = memory
-        self.demo_memory = demo_memory
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.normalize_state = normalize_state
@@ -320,7 +319,7 @@ class DDPG(object):
     def store_transition(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1, demo=False):
         reward *= self.reward_scale
         if demo:
-            self.demo_memory.append(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
+            self.memory.append_demo(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
         else:
             self.memory.append(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
         if self.normalize_observations:
@@ -334,13 +333,7 @@ class DDPG(object):
 
     def train(self):
         # Get a batch.
-        rand = np.random.uniform(0,1)
-        if (rand < 0.2):
-            batch = self.demo_memory.sample(batch_size=self.batch_size)
-        else:
-            batch = self.memory.sample(batch_size=self.batch_size)
-
-
+        batch = self.memory.sample(batch_size=self.batch_size)
         if self.normalize_returns and self.enable_popart:
             old_mean, old_std, target_Q = self.sess.run([self.ret_rms.mean, self.ret_rms.std, self.target_Q], feed_dict={
                 self.obs1: batch['obs1'],

@@ -9,7 +9,7 @@ from baselines.common.misc_util import (
 )
 import baselines.asym_ddpg.training as training
 from baselines.asym_ddpg.models import Actor, Critic
-from baselines.asym_ddpg.memory import Memory
+from baselines.asym_ddpg.prioritized_memory import Memory
 from baselines.asym_ddpg.noise import *
 
 import gym
@@ -66,9 +66,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 
     #TODO:
 
-    print (env.observation_space.shape)
-    memory = Memory(limit=int(1e4), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape, state_shape=env.state_space.shape, aux_shape=env.aux_space.shape )
-    demo_memory = Memory(limit=int(1e4), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape, state_shape=env.state_space.shape, aux_shape=env.aux_space.shape )
+    memory = Memory(limit=int(1e4))
     critic = Critic(layer_norm=layer_norm)
     actor = Actor(nb_actions, layer_norm=layer_norm)
 
@@ -87,7 +85,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 
     demo_env = gym.make(env_id)
     training.train(env=env, eval_env=eval_env, param_noise=param_noise,
-        action_noise=action_noise, actor=actor, critic=critic, memory=memory,demo_memory=demo_memory, demo_policy=demo.Pusher(),demo_env=demo_env, **kwargs)
+        action_noise=action_noise, actor=actor, critic=critic, memory=memory, demo_policy=demo.Pusher(),demo_env=demo_env, **kwargs)
     env.close()
     if eval_env is not None:
         eval_env.close()
