@@ -11,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 import cv2
+from drive_util import uploadToDrive
 PATH = "/tmp/model.ckpt"
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, normalize_aux, critic_l2_reg, actor_lr, critic_lr, action_noise,
@@ -188,7 +189,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         eval_action, eval_q = agent.pi(eval_obs, aux, apply_noise=False, compute_Q=True)
                         eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         if render_eval:
-                            rgb.write(np.array(eval_obs[:,:,0:3]*255, dtype=np.uint8))
+                            frame = np.array(eval_obs[:,:,0:3].copy()*255, dtype=np.uint8)
+                            cv2.putText(frame,format(eval_r, '.2f'), (40,15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,0,0), 1)
+                            rgb.write(frame)
                         eval_episode_reward += eval_r
 
                         eval_qs.append(eval_q)
@@ -199,7 +202,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                             eval_episode_reward = 0.
                     if render_eval:
                         rgb.release()
-                        print("Saved eval video in: " + fname)
+                        uploadToDrive(run_name, "epoch_{}.avi".format(epoch+1), fname, delete=True)
+                        print("Uploaded video to drive.")
 
             mpi_size = MPI.COMM_WORLD.Get_size()
             # Log stats.
