@@ -323,7 +323,7 @@ class DDPG(object):
     def store_transition(self, state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1, demo=False):
         reward *= self.reward_scale
         if demo:
-            self.memory.append_demo(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
+            self.memory.append_demonstration(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
         else:
             self.memory.append(state, obs0, action, reward, state1, obs1, terminal1, goal, goalobs, aux0, aux1)
         if self.normalize_observations:
