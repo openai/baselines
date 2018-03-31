@@ -25,10 +25,8 @@ class Memory(object):
 
     def append(self, *args,  training=True):
         assert len(args) == len(self.storable_elements)
-        assert not _self._adding_demonstrations
-
         if not training:
-            return
+            return False
         entry = args
         if self._next_idx >= len(self._storage):
             self._storage.append(entry)
@@ -38,13 +36,12 @@ class Memory(object):
         self._next_idx = int(self._next_idx + 1)
         if self._next_idx == self._maxsize:
             self._next_idx = self._num_demonstrations
-    
-    def append_demonstartion(self, *args,  training=True):
+        return True 
+    def append_demonstration(self, *args,  **kwargs):
         assert len(args) == len(self.storable_elements)
-        assert _self._adding_demonstrations
-        if not training:
-            return
-        sellf().append(*args, **kwargs)
+        assert self._adding_demonstrations
+        if not self.append(*args, **kwargs):
+          return
         self._num_demonstrations += 1
     def _get_batches_for_idxes(self, idxes):
         batches = {storable_element: [] for storable_element in self.storable_elements}
@@ -93,19 +90,18 @@ class PrioritizedMemory(Memory):
     def append(self, *args, **kwargs):
         """See ReplayBuffer.store_effect"""
         idx = self._next_idx
-        assert not _self._adding_demonstrations
-        super().append(*args, **kwargs)
+        if not super().append(*args, **kwargs):
+          return
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
 
-    def append_demonstartion(self, *args, **kwargs):
+    def append_demonstration(self, *args, **kwargs):
         """See ReplayBuffer.store_effect"""
         idx = self._next_idx
-        super().append(*args, **kwargs)
-        assert _self._adding_demonstrations
+        if not super().append_demonstration(*args, **kwargs):
+          return
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
-        self._num_demonstrations += 1
 
     def _sample_proportional(self, batch_size, pretrain=False):
         res = []
