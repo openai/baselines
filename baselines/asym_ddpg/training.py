@@ -26,7 +26,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,normalize_aux=normalize_aux,
         batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
         actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
-        reward_scale=reward_scale)
+        reward_scale=reward_scale, run_name=run_name)
     logger.info('Using agent with the following configuration:')
     logger.info(str(agent.__dict__.items()))
 
@@ -146,6 +146,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
                     if done:
                         # Episode done.
+                        agent.save_reward(episode_reward, episodes)
                         epoch_episode_rewards.append(episode_reward)
                         episode_rewards_history.append(episode_reward)
                         epoch_episode_steps.append(episode_step)
@@ -178,6 +179,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 # Evaluate.
                 eval_episode_rewards = []
                 eval_qs = []
+                eval_episodes = 1
                 if eval_env is not None and cycle == 0:
                     eval_episode_reward = 0.
                     if render_eval:
@@ -199,6 +201,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                             eval_obs = eval_env.reset()
                             eval_episode_rewards.append(eval_episode_reward)
                             eval_episode_rewards_history.append(eval_episode_reward)
+                            agent.save_eval_reward(eval_episode_reward, eval_episodes)
+                            eval_episodes += 1
                             eval_episode_reward = 0.
                     if render_eval:
                         rgb.release()

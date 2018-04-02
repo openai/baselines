@@ -12,6 +12,9 @@ from baselines.common.mpi_running_mean_std import RunningMeanStd
 from mpi4py import MPI
 import cv2
 
+from pathlib import Path
+home = str(Path.home())
+
 def normalize(x, stats):
     if stats is None:
         return x
@@ -66,7 +69,7 @@ class DDPG(object):
         gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True, normalize_aux=True,
         batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf), aux_range=(-10, 10),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
-        critic_l2_reg=0., actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=0.4,lambda_1step=1.0, lambda_nstep=0.0, nsteps=10):
+        critic_l2_reg=0.001, actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=0.4,lambda_1step=1.0, lambda_nstep=0.0, nsteps=10, run_name="unnamed_run"):
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
         self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
@@ -119,6 +122,7 @@ class DDPG(object):
         self.lambda_1step = lambda_1step
         self.nsteps = nsteps
         self.beta = replay_beta
+        self.run_name = run_name
 
         # Observation normalization.
         if self.normalize_observations:
@@ -194,6 +198,7 @@ class DDPG(object):
             self.setup_popart()
         self.setup_stats()
         self.setup_target_network_updates()
+        self.setup_summaries()
 
     def setup_target_network_updates(self):
         actor_init_updates, actor_soft_updates = get_target_updates(self.actor.vars, self.target_actor.vars, self.tau)
@@ -281,6 +286,30 @@ class DDPG(object):
             assert b.get_shape()[-1] == 1
             self.renormalize_Q_outputs_op += [M.assign(M * self.old_std / new_std)]
             self.renormalize_Q_outputs_op += [b.assign((b * self.old_std + self.old_mean - new_mean) / new_std)]
+
+
+
+    def setup_summaries(self):
+        tf.summary.scalar("actor_loss", self.actor_loss)
+        tf.summary.scalar("critic_loss", self.critic_loss)
+        tf.summary.scalar("1step_loss", self.step_1_td_loss)
+        tf.summary.scalar("nstep_loss", self.n_step_td_loss)
+        self.scalar_summaries = tf.summary.merge_all()
+        # reward
+        self.r_plot_in = tf.placeholder(tf.float32, name='r_plot_in')
+        self.r_plot = tf.summary.scalar("returns", self.r_plot_in)
+        self.r_plot_in_eval = tf.placeholder(tf.float32, name='r_plot_in_eval')
+        self.r_plot_eval = tf.summary.scalar("returns_eval", self.r_plot_in_eval)
+        self.writer = tf.summary.FileWriter(home + '/fyp_summaries/'+ self.run_name, graph=tf.get_default_graph())
+
+
+    def save_reward(self, r, ep):
+        summary = self.sess.run(self.r_plot, feed_dict={self.r_plot_in: r})
+        self.writer.add_summary(summary, ep)
+
+    def save_eval_reward(self, r, ep):
+        summary = self.sess.run(self.r_plot_eval, feed_dict={self.r_plot_in_eval: r})
+        self.writer.add_summary(summary, ep)
 
     def setup_stats(self):
         ops = []
