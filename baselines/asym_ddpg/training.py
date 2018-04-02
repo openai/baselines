@@ -131,10 +131,12 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         iteration = 0
         while num_pretrain_steps > 0:
             # Adapt param noise, if necessary.
+            t+=1
             if len(memory) >= batch_size and t % param_noise_adaption_interval == 0:
                 distance = agent.adapt_param_noise()
             cl, al = agent.train(iteration, pretrain=True)
             iteration +=1
+
             agent.update_target_net()
             num_pretrain_steps -= 1
         eval_episodes = 1
