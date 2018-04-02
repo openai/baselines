@@ -41,6 +41,27 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
     only_eval = False
+    training_text_summary = {
+        "env_data": {
+            "env:": str(env),
+            "run_name": run_name,
+            "obs_shape":  env.observation_space.shape,
+            "action_shace":  env.action_space.shape,
+            "aux_shape":  env.aux_space.shape
+        },
+        "demo_data": {
+            "policy": demo_policy.__class__.__name__,
+            "number_of_steps": num_demo_steps,
+        },
+        "training_data": {
+            "nb_train_steps": nb_train_steps,
+            "nb_rollout_steps": nb_rollout_steps,
+            "num_pretrain_steps": num_pretrain_steps,
+            "nb_epochs": nb_epochs,
+            "nb_epoch_cycles": nb_epoch_cycles,
+        }
+    }
+
     with U.single_threaded_session() as sess:
         # Prepare everything.
         agent.set_sess(sess)
@@ -54,6 +75,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             print("Model restored")
             only_eval = True
         agent.sync_optimizers()
+        agent.write_summary(training_text_summary)
         # sess.graph.finalize()
 
         if eval_env is not None:

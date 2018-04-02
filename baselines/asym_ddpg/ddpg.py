@@ -556,3 +556,50 @@ class DDPG(object):
             self.sess.run(self.perturb_policy_ops, feed_dict={
                 self.param_noise_stddev: self.param_noise.current_stddev,
             })
+
+
+
+
+    def write_summary(self, summary):
+        agent_summary = {
+            "gamma" : self.gamma,
+            "tau" : self.tau,
+            "normalize_observations" : self.normalize_observations,
+            "normalize_returns" : self.normalize_returns,
+            "normalize_state" : self.normalize_state,
+            "normalize_aux" : self.normalize_aux,
+            "action_noise" : self.action_noise,
+            "param_noise" : self.param_noise,
+            "action_range" : self.action_range,
+            "return_range" : self.return_range,
+            "observation_range" : self.observation_range,
+            "actor_lr" : self.actor_lr,
+            "state_range" : self.state_range,
+            "critic_lr" : self.critic_lr,
+            "clip_norm" : self.clip_norm,
+            "enable_popart" : self.enable_popart,
+            "reward_scale" : self.reward_scale,
+            "batch_size" : self.batch_size,
+            "critic_l2_reg" : self.critic_l2_reg,
+            "lambda_nstep" : self.lambda_nstep,
+            "lambda_1step" : self.lambda_1step,
+            "nsteps" : self.nsteps,
+            "beta" : self.beta,
+            "run_name" : self.run_name,
+            "lambda_pretrain" : self.lambda_pretrain,
+        }
+        summary["agent_summary"] = agent_summary
+        md_string = self._markdownize_summary(summary)
+        summary_op = tf.summary.text("param_info", tf.convert_to_tensor(md_string))
+        text = self.sess.run(summary_op)
+        self.writer.add_summary(text)
+        self.writer.flush()
+        print(md_string)
+
+    def _markdownize_summary(self, data):
+        result = []
+        for section, params in data.items():
+            result.append("### " + section)
+            for param, value in params.items():
+                result.append("* {} : {}".format(str(param), str(value)))
+        return "\n".join(result)
