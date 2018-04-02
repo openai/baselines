@@ -70,6 +70,7 @@ class DDPG(object):
         batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf), aux_range=(-10, 10),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
         critic_l2_reg=0.001, actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=0.4,lambda_1step=1.0, lambda_nstep=0.0, nsteps=10, run_name="unnamed_run"):
+
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
         self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
@@ -247,8 +248,8 @@ class DDPG(object):
         nstep_td_error = tf.square(self.normalized_critic_tf - normalized_nstep_critic_target_tf)
         self.n_step_td_loss = tf.reduce_mean(self.importance_weights * nstep_td_error) * self.lambda_nstep
 
-        # self.td_error = td_error + nstep_td_error
-        self.td_error = td_error
+        self.td_error = td_error + nstep_td_error
+        #self.td_error = td_error
         self.critic_loss = self.step_1_td_loss + self.n_step_td_loss
 
         if self.critic_l2_reg > 0.:
