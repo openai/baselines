@@ -251,7 +251,8 @@ class DDPG(object):
         demo_better_than_critic = self.critic_tf < self.critic_with_actor_tf
         demo_better_than_critic = self.pretraining_tf * tf.cast(demo_better_than_critic, tf.float32)
 
-        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf) + (tf.reduce_sum(demo_better_than_critic * self.action_diffs) / (tf.reduce_sum(self.pretraining_tf) + 1e-6))
+        # self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf) + (tf.reduce_sum(demo_better_than_critic * self.action_diffs) / (tf.reduce_sum(self.pretraining_tf) + 1e-6))
+        self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
 
         self.number_of_demos_better = tf.reduce_sum(demo_better_than_critic)
 
