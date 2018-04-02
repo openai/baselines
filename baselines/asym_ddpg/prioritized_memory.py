@@ -94,15 +94,16 @@ class PrioritizedMemory(Memory):
           return
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
-
+        
     def append_demonstration(self, *args, **kwargs):
         """See ReplayBuffer.store_effect"""
         idx = self._next_idx
-        if not super().append_demonstration(*args, **kwargs):
+        if not super().append(*args, **kwargs):
           return
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
 
+        self._num_demonstrations += 1
     def _sample_proportional(self, batch_size):
         res = []
         for _ in range(batch_size):
@@ -165,9 +166,9 @@ class PrioritizedMemory(Memory):
             n_step_batches["goals"].append(transitions["goals"][0])
             n_step_batches["goal_observations"].append(transitions["goal_observations"][0])
             n_step_batches["actions"].append(transitions["actions"][0])
-        n_step_batches['weights'] = batches['weights']
         n_step_batches['demo'] = batches['demos']
         n_step_batches = {k: array_min2d(v) for k, v in n_step_batches.items()}
+        n_step_batches['weights'] = batches['weights']
         n_step_batches['idxes'] = idxes
         return batches, n_step_batches, sum(batches['demos'])/batch_size
 
