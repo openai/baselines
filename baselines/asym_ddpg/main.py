@@ -86,7 +86,7 @@ def run(env_id, seed, noise_type, layer_norm, evaluation,demo_policy, **kwargs):
     demo_env = gym.make(env_id)
     demo_policy_object = None
     if demo.policies[demo_policy]:
-        demo_policy_object = demo.policies[demo_policy]
+        demo_policy_object = demo.policies[demo_policy]()
     training.train(env=env, eval_env=eval_env, param_noise=param_noise,
         action_noise=action_noise, actor=actor, critic=critic, memory=memory, demo_policy=demo_policy_object, demo_env=demo_env, **kwargs)
     env.close()

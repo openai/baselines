@@ -129,32 +129,15 @@ class PrioritizedMemory(Memory):
         encoded_sample = self._get_batches_for_idxes(idxes)
         encoded_sample['weights'] = array_min2d(weights)
         encoded_sample['idxes'] = idxes
+        encoded_sample['demos'] = demos
         return encoded_sample
 
 
     def sample_rollout(self, batch_size, nsteps, beta, gamma):
-        idxes = self._sample_proportional(batch_size)
-        demos = [i < self._num_demonstrations for i in idxes]
-        weights = []
-        p_min = self._it_min.min() / self._it_sum.sum()
-        max_weight = (p_min * len(self._storage)) ** (-beta)
-        for idx in idxes:
-            p_sample = self._it_sum[idx] / self._it_sum.sum()
-            weight = (p_sample * len(self._storage)) ** (-beta)
-            weights.append(weight / max_weight)
-        num_demos = sum(demos)/batch_size
-
-        weights = np.array(weights)
-        encoded_sample_1step = self._get_batches_for_idxes(idxes)
-        encoded_sample_1step['weights'] = array_min2d(weights)
-        encoded_sample_1step['idxes'] = idxes
-        encoded_sample_1step['demo'] = array_min2d(demos)
-
-
+        batches = self.sample(batch_size, beta)
         n_step_batches = {storable_element: [] for storable_element in self.storable_elements}
         n_step_batches["step_reached"] = []
-
-
+        idxes = batches["idxes"]
         for idx in idxes:
             local_idxes = list(range(idx, min(idx + nsteps, len(self))))
             transitions = self._get_batches_for_idxes(local_idxes)
@@ -182,13 +165,11 @@ class PrioritizedMemory(Memory):
             n_step_batches["goals"].append(transitions["goals"][0])
             n_step_batches["goal_observations"].append(transitions["goal_observations"][0])
             n_step_batches["actions"].append(transitions["actions"][0])
-        n_step_batches['weights'] = weights
-        n_step_batches['demo'] = demos
+        n_step_batches['weights'] = batches['weights']
+        n_step_batches['demo'] = batches['demos']
         n_step_batches = {k: array_min2d(v) for k, v in n_step_batches.items()}
         n_step_batches['idxes'] = idxes
-
-
-        return encoded_sample_1step, n_step_batches, num_demos
+        return batches, n_step_batches, sum(batches['demos'])/batch_size
 
 
 
