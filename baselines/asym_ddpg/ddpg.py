@@ -385,7 +385,7 @@ class DDPG(object):
         if self.normalize_aux:
             self.aux_rms.update(np.array([aux0]))
 
-    def train(self):
+    def train(self, iteration):
         # Get a batch.
         batch, nstep_batch, percentage = self.memory.sample_rollout(batch_size=self.batch_size, nsteps=self.nsteps, beta=self.beta, gamma=self.gamma)
         if self.normalize_returns and self.enable_popart:
@@ -435,7 +435,7 @@ class DDPG(object):
             })
 
         # Get all gradients and perform a synced update.
-        ops = [self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss, self.td_error]
+        ops = [self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss, self.td_error, self.scalar_summaries]
         actor_grads, actor_loss, critic_grads, critic_loss, td_errors = self.sess.run(ops, feed_dict={
             self.obs0: batch['obs0'],
             self.state0: batch['states0'],
@@ -449,7 +449,7 @@ class DDPG(object):
         self.memory.update_priorities(batch['idxes'], td_errors)
         self.actor_optimizer.update(actor_grads, stepsize=self.actor_lr)
         self.critic_optimizer.update(critic_grads, stepsize=self.critic_lr)
-
+        self.writer.add_summary(scalar_summaries, iteration)
         return critic_loss, actor_loss
 
     def set_sess(self, sess):

@@ -103,7 +103,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         goal_obs = env.goalobs()
         writer = tf.summary.FileWriter("/tmp/tensorflow/", graph=tf.get_default_graph())
         agent.memory.demonstrationsDone()
-
+        iteration = 0
         for epoch in range(nb_epochs):
             for cycle in range(nb_epoch_cycles):
                 print ("Cycle: {}/{}".format(cycle, nb_epoch_cycles) +
@@ -170,8 +170,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     if memory.nb_entries >= batch_size and t_train % param_noise_adaption_interval == 0:
                         distance = agent.adapt_param_noise()
                         epoch_adaptive_distances.append(distance)
-
-                    cl, al = agent.train()
+                    cl, al = agent.train(iteration)
+                    iteration += 1
                     epoch_critic_losses.append(cl)
                     epoch_actor_losses.append(al)
                     agent.update_target_net()
