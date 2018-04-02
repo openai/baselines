@@ -69,7 +69,7 @@ class DDPG(object):
         gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True, normalize_state=True, normalize_aux=True,
         batch_size=128, observation_range=(0., 1.), action_range=(-1., 1.), state_range=(-4, 4), return_range=(-np.inf, np.inf), aux_range=(-10, 10),
         adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
-        critic_l2_reg=0.001, actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=0.4,lambda_1step=1.0, lambda_nstep=0.0, nsteps=10, run_name="unnamed_run", lambda_pretrain=0.0):
+        critic_l2_reg=0.001, actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., replay_beta=0.4,lambda_1step=1.0, lambda_nstep=1.0, nsteps=10, run_name="unnamed_run", lambda_pretrain=0.0):
 
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
@@ -472,9 +472,11 @@ class DDPG(object):
             })
 
         # Get all gradients and perform a synced update.
+
         ops = [self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss, self.td_error, self.scalar_summaries, self.pretrain_loss]
         actor_grads, actor_loss, critic_grads, critic_loss, td_errors, scalar_summaries, pretrain_loss = self.sess.run(ops, feed_dict={
             self.obs0: batch['obs0'],
+            self.importance_weights: batch['weights'],
             self.state0: batch['states0'],
             self.aux0: batch['aux0'],
             self.goal: batch['goals'],
