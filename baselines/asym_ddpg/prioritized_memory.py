@@ -98,13 +98,18 @@ class PrioritizedMemory(Memory):
     def append_demonstration(self, *args, **kwargs):
         """See ReplayBuffer.store_effect"""
         idx = self._next_idx
+
         if not super().append_demonstration(*args, **kwargs):
           return
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
 
-    def _sample_proportional(self, batch_size):
+    def _sample_proportional(self, batch_size, pretrain):
+
         res = []
+        if pretrain:
+            res = np.random.random_integers(low=0, high=self.nb_entries - 1, size=batch_size)
+            return res
         for _ in range(batch_size):
             while True:
                 mass = np.random.uniform(0,self._it_sum.sum(0, len(self._storage) - 1))
@@ -114,9 +119,9 @@ class PrioritizedMemory(Memory):
                     break
         return res
 
-    def sample(self, batch_size, beta):
+    def sample(self, batch_size, beta, pretrain=False):
         assert beta > 0
-        idxes = self._sample_proportional(batch_size)
+        idxes = self._sample_proportional(batch_size, pretrain)
         demos = [i < self._num_demonstrations for i in idxes]
         weights = []
         p_min = self._it_min.min() / self._it_sum.sum()
@@ -129,12 +134,12 @@ class PrioritizedMemory(Memory):
         encoded_sample = self._get_batches_for_idxes(idxes)
         encoded_sample['weights'] = array_min2d(weights)
         encoded_sample['idxes'] = idxes
-        encoded_sample['demos'] = demos
+        encoded_sample['demos'] = array_min2d(demos)
         return encoded_sample
 
 
-    def sample_rollout(self, batch_size, nsteps, beta, gamma):
-        batches = self.sample(batch_size, beta)
+    def sample_rollout(self, batch_size, nsteps, beta, gamma, pretrain=False):
+        batches = self.sample(batch_size, beta, pretrain)
         n_step_batches = {storable_element: [] for storable_element in self.storable_elements}
         n_step_batches["step_reached"] = []
         idxes = batches["idxes"]
@@ -165,10 +170,10 @@ class PrioritizedMemory(Memory):
             n_step_batches["goals"].append(transitions["goals"][0])
             n_step_batches["goal_observations"].append(transitions["goal_observations"][0])
             n_step_batches["actions"].append(transitions["actions"][0])
-        n_step_batches['weights'] = batches['weights']
-        n_step_batches['demo'] = batches['demos']
+        n_step_batches['demos'] = batches['demos']
         n_step_batches = {k: array_min2d(v) for k, v in n_step_batches.items()}
         n_step_batches['idxes'] = idxes
+        n_step_batches['weights'] = batches['weights']
         return batches, n_step_batches, sum(batches['demos'])/batch_size
 
 

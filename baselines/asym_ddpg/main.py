@@ -124,6 +124,7 @@ def parse_args():
     boolean_flag(parser, 'load-from-file',  default=False)
     parser.add_argument('--num-timesteps', type=int, default=None)
     parser.add_argument('--num-demo-steps', type=int, default=2000)
+    parser.add_argument('--num-pretrain-steps', type=int, default=2000)
     parser.add_argument('--run-name', type=str, default='')
     parser.add_argument('--demo-policy', type=str, default='None')
     boolean_flag(parser, 'evaluation', default=True)

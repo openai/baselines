@@ -16,7 +16,7 @@ PATH = "/tmp/model.ckpt"
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, normalize_aux, critic_l2_reg, actor_lr, critic_lr, action_noise,
     popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory, load_from_file,
-    run_name, tau=0.01, eval_env=None, demo_policy=None, num_demo_steps=0, demo_env=None, param_noise_adaption_interval=50):
+    run_name, tau=0.01, eval_env=None, demo_policy=None, num_demo_steps=0, demo_env=None, param_noise_adaption_interval=50, num_pretrain_steps=0):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -99,11 +99,24 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         epoch_episodes = 0
 
 
+
+
+
         goal = env.goalstate()
         goal_obs = env.goalobs()
-        writer = tf.summary.FileWriter("/tmp/tensorflow/", graph=tf.get_default_graph())
         agent.memory.demonstrationsDone()
+
         iteration = 0
+        while num_pretrain_steps > 0:
+            # Adapt param noise, if necessary.
+            if len(memory) >= batch_size and t % param_noise_adaption_interval == 0:
+                distance = agent.adapt_param_noise()
+            cl, al = agent.train(iteration, pretrain=True)
+            iteration +=1
+            agent.update_target_net()
+            num_pretrain_steps -= 1
+        eval_episodes = 1
+
         for epoch in range(nb_epochs):
             for cycle in range(nb_epoch_cycles):
                 print ("Cycle: {}/{}".format(cycle, nb_epoch_cycles) +
@@ -179,7 +192,6 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 # Evaluate.
                 eval_episode_rewards = []
                 eval_qs = []
-                eval_episodes = 1
                 if eval_env is not None and cycle == 0:
                     eval_episode_reward = 0.
                     if render_eval:
