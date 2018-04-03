@@ -7,7 +7,7 @@ from baselines.ppo2 import ppo2
 from baselines.ppo2.policies import CnnPolicy, LstmPolicy, LnLstmPolicy
 import multiprocessing
 import tensorflow as tf
-
+import micoenv
 
 def train(env_id, num_timesteps, seed, policy):
 

@@ -3,29 +3,30 @@ import time
 from collections import deque
 import pickle
 
-from baselines.ddpg.ddpg import DDPG
+from baselines.asym_ddpg.ddpg import DDPG
 import baselines.common.tf_util as U
 
 from baselines import logger
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
-
-
+import cv2
+from drive_util import uploadToDrive
+PATH = "/tmp/model.ckpt"
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
-    normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    normalize_returns, normalize_observations, normalize_aux, critic_l2_reg, actor_lr, critic_lr, action_noise,
+    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory, load_from_file,
+    run_name, tau=0.01, eval_env=None, demo_policy=None, num_demo_steps=0, demo_env=None, param_noise_adaption_interval=50, num_pretrain_steps=0):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
     max_action = env.action_space.high
     logger.info('scaling actions by {} before executing in env'.format(max_action))
-    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape,
-        gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,
+    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape, env.state_space.shape, env.aux_space.shape,
+        gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,normalize_aux=normalize_aux,
         batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
         actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
-        reward_scale=reward_scale)
+        reward_scale=reward_scale, run_name=run_name)
     logger.info('Using agent with the following configuration:')
     logger.info(str(agent.__dict__.items()))
 
@@ -39,15 +40,68 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     episode = 0
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
+    only_eval = False
+    training_text_summary = {
+        "env_data": {
+            "env:": str(env),
+            "run_name": run_name,
+            "obs_shape":  env.observation_space.shape,
+            "action_shace":  env.action_space.shape,
+            "aux_shape":  env.aux_space.shape
+        },
+        "demo_data": {
+            "policy": demo_policy.__class__.__name__,
+            "number_of_steps": num_demo_steps,
+        },
+        "training_data": {
+            "nb_train_steps": nb_train_steps,
+            "nb_rollout_steps": nb_rollout_steps,
+            "num_pretrain_steps": num_pretrain_steps,
+            "nb_epochs": nb_epochs,
+            "nb_epoch_cycles": nb_epoch_cycles,
+        }
+    }
+
     with U.single_threaded_session() as sess:
         # Prepare everything.
-        agent.initialize(sess)
-        sess.graph.finalize()
+        agent.set_sess(sess)
+        if not load_from_file:
+            agent.initialize()
+            print("Model initialized")
+            save_path = saver.save(sess, PATH)
+            print("Model saved")
+        else:
+            saver.restore(sess, PATH)
+            print("Model restored")
+            only_eval = True
+        agent.sync_optimizers()
+        agent.write_summary(training_text_summary)
+        # sess.graph.finalize()
+
+        if eval_env is not None:
+            eval_obs = eval_env.reset()
+        # TODO HACKERY
+
+        if only_eval:
+                for i in range(20):
+                    done = False
+                    obs = env.reset()
+                    agent.reset()
+                    total_r = 0
+                    while not done:
+                        aux0 = env.get_aux()
+                        action, q = agent.pi(obs, aux0, apply_noise=False, compute_Q=True)
+                        obs, r, done, info = env.step(action)
+                        env.render()
+                        total_r += r
+                    print(total_r)
+                return
+
+        if demo_policy:
+            _initialize_memory_with_policy(agent, demo_policy, demo_env, num_demo_steps)
 
         agent.reset()
         obs = env.reset()
-        if eval_env is not None:
-            eval_obs = eval_env.reset()
         done = False
         episode_reward = 0.
         episode_step = 0
@@ -65,12 +119,38 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         epoch_actions = []
         epoch_qs = []
         epoch_episodes = 0
+
+
+
+
+
+        goal = env.goalstate()
+        goal_obs = env.goalobs()
+        agent.memory.demonstrationsDone()
+
+        iteration = 0
+        while num_pretrain_steps > 0:
+            # Adapt param noise, if necessary.
+            t+=1
+            if len(memory) >= batch_size and t % param_noise_adaption_interval == 0:
+                distance = agent.adapt_param_noise()
+            cl, al = agent.train(iteration, pretrain=True)
+            iteration +=1
+
+            agent.update_target_net()
+            num_pretrain_steps -= 1
+        eval_episodes = 1
+
         for epoch in range(nb_epochs):
             for cycle in range(nb_epoch_cycles):
+                print ("Cycle: {}/{}".format(cycle, nb_epoch_cycles) +
+                       "["+ "-" * cycle + " " * (nb_epoch_cycles - cycle) + "]" 
+                 , end="\r")
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
                     # Predict next action.
-                    action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
+                    aux0 = env.get_aux()
+                    action, q = agent.pi(obs, aux0, apply_noise=True, compute_Q=True)
                     assert action.shape == env.action_space.shape
 
                     # Execute next action.
@@ -78,6 +158,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         print("a")
                         env.render()
                     assert max_action.shape == action.shape
+                    state =  env.get_state()
                     new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                     t += 1
                     if rank == 0 and render:
@@ -90,11 +171,19 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     # Book-keeping.
                     epoch_actions.append(action)
                     epoch_qs.append(q)
-                    agent.store_transition(obs, action, r, new_obs, done)
+
+
+                    state1 = env.get_state()
+                    aux1 = env.get_aux()
+
+
+
+                    agent.store_transition(state, obs, action, r, state1, new_obs, done, goal, goal_obs, aux0, aux1)
                     obs = new_obs
 
                     if done:
                         # Episode done.
+                        agent.save_reward(episode_reward, episodes)
                         epoch_episode_rewards.append(episode_reward)
                         episode_rewards_history.append(episode_reward)
                         epoch_episode_steps.append(episode_step)
@@ -106,6 +195,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         agent.reset()
                         obs = env.reset()
 
+                        goal = env.goalstate()
+                        goal_obs = env.goalobs()
+
                 # Train.
                 epoch_actor_losses = []
                 epoch_critic_losses = []
@@ -115,8 +207,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     if memory.nb_entries >= batch_size and t_train % param_noise_adaption_interval == 0:
                         distance = agent.adapt_param_noise()
                         epoch_adaptive_distances.append(distance)
-
-                    cl, al = agent.train()
+                    cl, al = agent.train(iteration)
+                    iteration += 1
                     epoch_critic_losses.append(cl)
                     epoch_actor_losses.append(al)
                     agent.update_target_net()
@@ -126,11 +218,18 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 eval_qs = []
                 if eval_env is not None and cycle == 0:
                     eval_episode_reward = 0.
+                    if render_eval:
+                        fname= '/tmp/jm6214/ddpg/eval-{}-{}.avi'.format(run_name, epoch + 1)
+                        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+                        rgb = cv2.VideoWriter(fname, fourcc, 30.0, (84, 84))
                     for t_rollout in range(nb_eval_steps):
-                        eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
+                        aux = eval_env.get_aux()
+                        eval_action, eval_q = agent.pi(eval_obs, aux, apply_noise=False, compute_Q=True)
                         eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         if render_eval:
-                            eval_env.render()
+                            frame = np.array(eval_obs[:,:,0:3].copy()*255, dtype=np.uint8)
+                            cv2.putText(frame,format(eval_r, '.2f'), (40,15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,0,0), 1)
+                            rgb.write(frame)
                         eval_episode_reward += eval_r
 
                         eval_qs.append(eval_q)
@@ -138,7 +237,13 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                             eval_obs = eval_env.reset()
                             eval_episode_rewards.append(eval_episode_reward)
                             eval_episode_rewards_history.append(eval_episode_reward)
+                            agent.save_eval_reward(eval_episode_reward, eval_episodes)
+                            eval_episodes += 1
                             eval_episode_reward = 0.
+                    if render_eval:
+                        rgb.release()
+                        uploadToDrive(run_name, "epoch_{}.avi".format(epoch+1), fname, delete=True)
+                        print("Uploaded video to drive.")
 
             mpi_size = MPI.COMM_WORLD.Get_size()
             # Log stats.
@@ -196,3 +301,28 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 if eval_env and hasattr(eval_env, 'get_state'):
                     with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
                         pickle.dump(eval_env.get_state(), f)
+            save_path = saver.save(sess, PATH)
+            print("Model saved")
+
+
+def _initialize_memory_with_policy(agent, demo_policy, demo_env, num_demo_steps):
+    print("Start collecting demo transitions")
+    obs0 = demo_env.reset()
+    demo_policy.reset()
+    goal = demo_env.goalstate()
+    goal_obs = demo_env.goalobs()
+    for i in range(num_demo_steps):
+        aux0 = demo_env.get_aux()
+        state0 = demo_env.get_state()
+        action = demo_policy.choose_action(state0)
+        obs1, r, done, info = demo_env.step(action)
+        aux1 = demo_env.get_aux()
+        state1 = demo_env.get_state()
+        agent.store_transition(state0, obs0, action, r, state1, obs1, done, goal, goal_obs, aux0, aux1, demo=True)
+        obs0 = obs1
+        if done:
+            obs0 = demo_env.reset()
+            demo_policy.reset()
+            goal = demo_env.goalstate()
+            goal_obs = demo_env.goalobs()
+    print("Collected {} demo transition.".format(agent.memory._num_demonstrations))

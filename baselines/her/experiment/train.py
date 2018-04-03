@@ -14,6 +14,8 @@ from baselines.her.rollout import RolloutWorker
 from baselines.her.util import mpi_fork
 
 
+import  micoenv
+
 def mpi_average(value):
     if value == []:
         value = [0.]
@@ -22,9 +24,16 @@ def mpi_average(value):
     return mpi_moments(np.array(value))[0]
 
 
+class DemoPolicy(object):
+    def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False,
+                    compute_Q=False):
+        grip_pos = o[0][:3]
+        return np.concatenate((g[0] - grip_pos, np.array([0.1]))) * 0.05
+
+
 def train(policy, rollout_worker, evaluator,
           n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
-          save_policies, **kwargs):
+          save_policies, demo_worker, **kwargs):
     rank = MPI.COMM_WORLD.Get_rank()
 
     latest_policy_path = os.path.join(logger.get_dir(), 'policy_latest.pkl')
@@ -32,7 +41,12 @@ def train(policy, rollout_worker, evaluator,
     periodic_policy_path = os.path.join(logger.get_dir(), 'policy_{}.pkl')
 
     logger.info("Training...")
+
     best_success_rate = -1
+    if demo_worker:
+        for i in range(10):
+            episode = demo_worker.generate_rollouts()
+            policy.store_episode(episode)
     for epoch in range(n_epochs):
         # train
         rollout_worker.clear_history()
@@ -150,6 +164,14 @@ def launch(
         'T': params['T'],
     }
 
+    demo_params = {
+        'exploit': True,
+        'use_target_net': params['test_with_polyak'],
+        'use_demo_states': False,
+        'compute_Q': False,
+        'T': params['T'],
+    }
+
     for name in ['T', 'rollout_batch_size', 'gamma', 'noise_eps', 'random_eps']:
         rollout_params[name] = params[name]
         eval_params[name] = params[name]
@@ -160,11 +182,13 @@ def launch(
     evaluator = RolloutWorker(params['make_env'], policy, dims, logger, **eval_params)
     evaluator.seed(rank_seed)
 
+    demo_worker = RolloutWorker(params['make_env'], DemoPolicy(), dims, logger, **demo_params)
+
     train(
         logdir=logdir, policy=policy, rollout_worker=rollout_worker,
         evaluator=evaluator, n_epochs=n_epochs, n_test_rollouts=params['n_test_rollouts'],
         n_cycles=params['n_cycles'], n_batches=params['n_batches'],
-        policy_save_interval=policy_save_interval, save_policies=save_policies)
+        policy_save_interval=policy_save_interval, save_policies=save_policies, demo_worker=demo_worker)
 
 
 @click.command()

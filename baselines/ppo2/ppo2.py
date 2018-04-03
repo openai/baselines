@@ -114,6 +114,7 @@ class Runner(object):
                 maybeepinfo = info.get('episode')
                 if maybeepinfo: epinfos.append(maybeepinfo)
             mb_rewards.append(rewards)
+        print(epinfos)
         #batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32)

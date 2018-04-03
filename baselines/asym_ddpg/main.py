@@ -7,17 +7,18 @@ from baselines.common.misc_util import (
     set_global_seeds,
     boolean_flag,
 )
-import baselines.ddpg.training as training
-from baselines.ddpg.models import Actor, Critic
-from baselines.ddpg.memory import Memory
-from baselines.ddpg.noise import *
+import baselines.asym_ddpg.training as training
+from baselines.asym_ddpg.models import Actor, Critic
+from baselines.asym_ddpg.prioritized_memory import PrioritizedMemory
+from baselines.asym_ddpg.noise import *
 
 import gym
 import tensorflow as tf
 from mpi4py import MPI
 import micoenv
+import learning.demo_policies as demo
 
-def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
+def run(env_id, seed, noise_type, layer_norm, evaluation,demo_policy, **kwargs):
     # Configure things.
     rank = MPI.COMM_WORLD.Get_rank()
     if rank != 0:
@@ -62,7 +63,10 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
             raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
 
     # Configure components.
-    memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
+
+    #TODO:
+
+    memory = PrioritizedMemory(limit=int(1e4), alpha=0.3)
     critic = Critic(layer_norm=layer_norm)
     actor = Actor(nb_actions, layer_norm=layer_norm)
 
@@ -78,8 +82,13 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     # Disable logging for rank != 0 to avoid noise.
     if rank == 0:
         start_time = time.time()
+
+    demo_env = gym.make(env_id)
+    demo_policy_object = None
+    if demo.policies[demo_policy]:
+        demo_policy_object = demo.policies[demo_policy]()
     training.train(env=env, eval_env=eval_env, param_noise=param_noise,
-        action_noise=action_noise, actor=actor, critic=critic, memory=memory, **kwargs)
+        action_noise=action_noise, actor=actor, critic=critic, memory=memory, demo_policy=demo_policy_object, demo_env=demo_env, **kwargs)
     env.close()
     if eval_env is not None:
         eval_env.close()
@@ -90,12 +99,13 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 def parse_args():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('--env-id', type=str, default='HalfCheetah-v1')
-    boolean_flag(parser, 'render-eval', default=False)
+    parser.add_argument('--env-id', type=str, default='MicoEnv-pusher-dense-pixels-v1')
+    boolean_flag(parser, 'render-eval', default=True)
     boolean_flag(parser, 'layer-norm', default=True)
     boolean_flag(parser, 'render', default=False)
     boolean_flag(parser, 'normalize-returns', default=False)
     boolean_flag(parser, 'normalize-observations', default=True)
+    boolean_flag(parser, 'normalize-aux', default=True)
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
     parser.add_argument('--critic-l2-reg', type=float, default=1e-2)
     parser.add_argument('--batch-size', type=int, default=64)  # per MPI worker
@@ -108,11 +118,17 @@ def parse_args():
     parser.add_argument('--nb-epochs', type=int, default=500)  # with default settings, perform 1M steps total
     parser.add_argument('--nb-epoch-cycles', type=int, default=20)
     parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
-    parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-eval-steps', type=int, default=400)  # per epoch cycle and MPI worker
+    parser.add_argument('--nb-rollout-steps', type=int, default=200)  # per epoch cycle and MPI worker
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')  # choices are adaptive-param_xx, ou_xx, normal_xx, none
+    boolean_flag(parser, 'load-from-file',  default=False)
     parser.add_argument('--num-timesteps', type=int, default=None)
-    boolean_flag(parser, 'evaluation', default=False)
+    parser.add_argument('--num-demo-steps', type=int, default=2000)
+    parser.add_argument('--num-pretrain-steps', type=int, default=2000)
+    parser.add_argument('--run-name', type=str, default='')
+    parser.add_argument('--demo-policy', type=str, default='None')
+    boolean_flag(parser, 'evaluation', default=True)
+
     args = parser.parse_args()
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters

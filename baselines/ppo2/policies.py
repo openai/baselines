@@ -100,9 +100,13 @@ class LstmPolicy(object):
 class CnnPolicy(object):
 
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False): #pylint: disable=W0613
-        nh, nw, nc = ob_space.shape
+        if len(ob_space.shape) == 3: 
+            nh, nw, nc = ob_space.shape
+        else:
+            nh, nw = ob_space.shape
+            nc = 1
         ob_shape = (nbatch, nh, nw, nc)
-        nact = ac_space.n
+        nact = 4
         X = tf.placeholder(tf.uint8, ob_shape) #obs
         with tf.variable_scope("model", reuse=reuse):
             h = nature_cnn(X)

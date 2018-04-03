@@ -7,7 +7,7 @@ def train(env_id, num_timesteps, seed):
     from baselines.common import set_global_seeds
     from baselines.common.vec_env.vec_normalize import VecNormalize
     from baselines.ppo2 import ppo2
-    from baselines.ppo2.policies import CnnPolicy
+    from baselines.ppo2.policies import MlpPolicy
     import gym
     import tensorflow as tf
     from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -24,9 +24,9 @@ def train(env_id, num_timesteps, seed):
     env = VecNormalize(env)
 
     set_global_seeds(seed)
-    policy = CnnPolicy
-    ppo2.learn(policy=policy, env=env, nsteps=32, nminibatches=32,
-        lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
+    policy = MlpPolicy
+    ppo2.learn(policy=policy, env=env, nsteps=96, nminibatches=32,
+        lam=0.95, gamma=0.99, noptepochs=10, log_interval=5,save_interval=10,
         ent_coef=0.0,
         lr=3e-4,
         cliprange=0.2,
@@ -34,9 +34,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
-    # args = mujoco_arg_parser().parse_args() 
+    args = mujoco_arg_parser().parse_args()
     logger.configure()
-    train("MicoEnv-reacher-dense-pixels-v1", num_timesteps=100000, seed=123)
+    train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 
 
 if __name__ == '__main__':
