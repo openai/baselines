@@ -154,6 +154,10 @@ def function(inputs, outputs, updates=None, givens=None):
     outputs: [tf.Variable] or tf.Variable
         list of outputs or a single output to be returned from function. Returned
         value will also have the same shape.
+    updates: [tf.Operation] or tf.Operation
+        list of update functions or single update function that will be run whenever
+        the function is called. It's return is ignored.
+        
     """
     if isinstance(outputs, list):
         return _Function(inputs, outputs, updates, givens=givens)
