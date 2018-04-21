@@ -68,10 +68,9 @@ class SegmentTree(object):
             result of reducing self.operation over the specified range of array elements.
         """
         if end is None:
-            end = self._capacity
+            end = self._capacity - 1
         if end < 0:
             end += self._capacity
-        end -= 1
         return self._reduce_helper(start, end, 1, 0, self._capacity - 1)
 
     def __setitem__(self, idx, val):
