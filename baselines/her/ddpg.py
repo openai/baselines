@@ -174,7 +174,7 @@ class DDPG(object):
         # Avoid feed_dict here for performance!
         critic_loss, actor_loss, Q_grad, pi_grad = self.sess.run([
             self.Q_loss_tf,
-            self.main.Q_pi_tf,
+            self.pi_loss_tf,
             self.Q_grad_tf,
             self.pi_grad_tf
         ])
