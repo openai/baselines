@@ -9,22 +9,32 @@ These algorithms will make it easier for the research community to replicate, re
 ## Prerequisites 
 Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows
 ### Ubuntu 
-    ```bash
-    sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev
-    ```
+    
+```bash
+sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev
+```
     
 ### Mac OS X
 Installation of system packages on Mac requires Homebrew [brew.sh](https://brew.sh). With Homebrew, run the follwing:
-    ```bash
-    sudo brew install cmake openmpi
-    ```
+```bash
+sudo brew install cmake openmpi
+```
     
 ## Virtual environment
 From the general python package sanity perspective, it is a good idea to use virtual environments (virtualenvs) to make sure packages from different projects do not interfere with each other. You can install virtualenv (which is itself a pip package) via
-    ```bash
-    pip install virtualenv
-    ```
-Virtualenvs are essentially folders that have copies of python executable and all python packages. To create a virtualenv called venv with python3, one runs `virtualenv /path/to/venv --python=python3`. To activate a virtualenv: `. /path/to/venv/bin/activate`. More throrough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/) 
+```bash
+pip install virtualenv
+```
+Virtualenvs are essentially folders that have copies of python executable and all python packages.
+To create a virtualenv called venv with python3, one runs `
+```bash
+virtualenv /path/to/venv --python=python3
+```
+To activate a virtualenv: 
+```
+. /path/to/venv/bin/activate
+```
+More throrough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/) 
 
 
 ## Installation
