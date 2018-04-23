@@ -6,13 +6,51 @@ OpenAI Baselines is a set of high-quality implementations of reinforcement learn
 
 These algorithms will make it easier for the research community to replicate, refine, and identify new ideas, and will create good baselines to build research on top of. Our DQN implementation and its variants are roughly on par with the scores in published papers. We expect they will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. 
 
-You can install it by typing:
+## Prerequisites 
+Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows
+### Ubuntu 
+    ```bash
+    sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev
+    ```
+    
+### Mac OS X
+Installation of system packages on Mac requires Homebrew [brew.sh](https://brew.sh). With Homebrew, run the follwing:
+    ```bash
+    sudo brew install cmake openmpi
+    ```
+    
+## Virtual environment
+From the general python package sanity perspective, it is a good idea to use virtual environments (virtualenvs) to make sure packages from different projects do not interfere with each other. You can install virtualenv (which is itself a pip package) via
+    ```bash
+    pip install virtualenv
+    ```
+Virtualenvs are essentially folders that have copies of python executable and all python packages. To create a virtualenv called venv with python3, one runs `virtualenv /path/to/venv --python=python3`. To activate a virtualenv: `. /path/to/venv/bin/activate`. More throrough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/) 
 
+
+## Installation
+Clone the repo and cd into it:
 ```bash
 git clone https://github.com/openai/baselines.git
 cd baselines
+```
+If using virtualenv, create a new virtualenv and activate it
+```bash
+    virtualenv venv --python=python3
+    . env/bin/activate
+```
+Install baselines package
+```bash
 pip install -e .
 ```
+
+## Testing the installation
+All unit tests in baselines can be run using pytest runner:
+```
+pip install pytest
+pytest
+```
+
+## Subpackages
 
 - [A2C](baselines/a2c)
 - [ACER](baselines/acer)
