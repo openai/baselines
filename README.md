@@ -26,7 +26,7 @@ From the general python package sanity perspective, it is a good idea to use vir
 pip install virtualenv
 ```
 Virtualenvs are essentially folders that have copies of python executable and all python packages.
-To create a virtualenv called venv with python3, one runs `
+To create a virtualenv called venv with python3, one runs 
 ```bash
 virtualenv /path/to/venv --python=python3
 ```
