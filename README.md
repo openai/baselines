@@ -34,7 +34,7 @@ To activate a virtualenv:
 ```
 . /path/to/venv/bin/activate
 ```
-More throrough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/) 
+More thorough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/) 
 
 
 ## Installation
@@ -45,7 +45,7 @@ cd baselines
 ```
 If using virtualenv, create a new virtualenv and activate it
 ```bash
-    virtualenv venv --python=python3
+    virtualenv env --python=python3
     . env/bin/activate
 ```
 Install baselines package
