@@ -17,7 +17,7 @@ sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zli
 ### Mac OS X
 Installation of system packages on Mac requires [Homebrew](https://brew.sh). With Homebrew installed, run the follwing:
 ```bash
-sudo brew install cmake openmpi
+brew install cmake openmpi
 ```
     
 ## Virtual environment
