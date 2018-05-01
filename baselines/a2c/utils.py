@@ -39,7 +39,7 @@ def ortho_init(scale=1.0):
         return (scale * q[:shape[0], :shape[1]]).astype(np.float32)
     return _ortho_init
 
-def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC'):
+def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
     if data_format == 'NHWC':
         channel_ax = 3
         strides = [1, stride, stride, 1]
@@ -50,12 +50,14 @@ def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='
         bshape = [1, nf, 1, 1]
     else:
         raise NotImplementedError
+    bias_var_shape = [nf] if one_dim_bias else [1, nf, 1, 1]
     nin = x.get_shape()[channel_ax].value
     wshape = [rf, rf, nin, nf]
     with tf.variable_scope(scope):
         w = tf.get_variable("w", wshape, initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", [1, nf, 1, 1], initializer=tf.constant_initializer(0.0))
-        if data_format == 'NHWC': b = tf.reshape(b, bshape)
+        b = tf.get_variable("b", bias_var_shape, initializer=tf.constant_initializer(0.0))
+        if not one_dim_bias and data_format == 'NHWC':
+            b = tf.reshape(b, bshape)
         return b + tf.nn.conv2d(x, w, strides=strides, padding=pad, data_format=data_format)
 
 def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):

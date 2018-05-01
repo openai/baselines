@@ -1,16 +1,12 @@
-import os
 import os.path as osp
-import gym
 import time
 import joblib
-import logging
 import numpy as np
 import tensorflow as tf
 from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
-from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
-from baselines.common.atari_wrappers import wrap_deepmind
+from baselines.common.runners import AbstractEnvRunner
 from baselines.common import tf_util
 
 from baselines.a2c.utils import discount_with_dones
@@ -24,7 +20,6 @@ class Model(object):
             alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
 
         sess = tf_util.make_session()
-        nact = ac_space.n
         nbatch = nenvs*nsteps
 
         A = tf.placeholder(tf.int32, [nbatch])
@@ -75,7 +70,7 @@ class Model(object):
             restores = []
             for p, loaded_p in zip(params, loaded_params):
                 restores.append(p.assign(loaded_p))
-            ps = sess.run(restores)
+            sess.run(restores)
 
         self.train = train
         self.train_model = train_model
@@ -87,21 +82,11 @@ class Model(object):
         self.load = load
         tf.global_variables_initializer().run(session=sess)
 
-class Runner(object):
+class Runner(AbstractEnvRunner):
 
     def __init__(self, env, model, nsteps=5, gamma=0.99):
-        self.env = env
-        self.model = model
-        nh, nw, nc = env.observation_space.shape
-        nenv = env.num_envs
-        self.batch_ob_shape = (nenv*nsteps, nh, nw, nc)
-        self.obs = np.zeros((nenv, nh, nw, nc), dtype=np.uint8)
-        self.nc = nc
-        obs = env.reset()
+        super().__init__(env=env, model=model, nsteps=nsteps)
         self.gamma = gamma
-        self.nsteps = nsteps
-        self.states = model.initial_state
-        self.dones = [False for _ in range(nenv)]
 
     def run(self):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]

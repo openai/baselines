@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import baselines.common.tf_util as U
+from baselines.a2c.utils import fc
 from tensorflow.python.ops import math_ops
 
 class Pd(object):
@@ -31,6 +32,8 @@ class PdType(object):
         raise NotImplementedError
     def pdfromflat(self, flat):
         return self.pdclass()(flat)
+    def pdfromlatent(self, latent_vector):
+        raise NotImplementedError
     def param_shape(self):
         raise NotImplementedError
     def sample_shape(self):
@@ -48,6 +51,10 @@ class CategoricalPdType(PdType):
         self.ncat = ncat
     def pdclass(self):
         return CategoricalPd
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        pdparam = fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
+        return self.pdfromflat(pdparam), pdparam
+
     def param_shape(self):
         return [self.ncat]
     def sample_shape(self):
@@ -75,6 +82,13 @@ class DiagGaussianPdType(PdType):
         self.size = size
     def pdclass(self):
         return DiagGaussianPd
+
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        mean = fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
+        logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
+        pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
+        return self.pdfromflat(pdparam), mean
+
     def param_shape(self):
         return [2*self.size]
     def sample_shape(self):

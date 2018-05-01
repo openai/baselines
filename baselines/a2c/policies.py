@@ -3,15 +3,16 @@ import tensorflow as tf
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
 from baselines.common.distributions import make_pdtype
 
-def nature_cnn(unscaled_images):
+def nature_cnn(unscaled_images, **conv_kwargs):
     """
     CNN from Nature paper.
     """
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
     activ = tf.nn.relu
-    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2)))
-    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2)))
-    h3 = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2)))
+    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
+                   **conv_kwargs))
+    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
+    h3 = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **conv_kwargs))
     h3 = conv_to_fc(h3)
     return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2)))
 
@@ -20,21 +21,18 @@ class LnLstmPolicy(object):
         nenv = nbatch // nsteps
         nh, nw, nc = ob_space.shape
         ob_shape = (nbatch, nh, nw, nc)
-        nact = ac_space.n
         X = tf.placeholder(tf.uint8, ob_shape) #obs
         M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
         S = tf.placeholder(tf.float32, [nenv, nlstm*2]) #states
+        self.pdtype = make_pdtype(ac_space)
         with tf.variable_scope("model", reuse=reuse):
             h = nature_cnn(X)
             xs = batch_to_seq(h, nenv, nsteps)
             ms = batch_to_seq(M, nenv, nsteps)
             h5, snew = lnlstm(xs, ms, S, 'lstm1', nh=nlstm)
             h5 = seq_to_batch(h5)
-            pi = fc(h5, 'pi', nact)
             vf = fc(h5, 'v', 1)
-
-        self.pdtype = make_pdtype(ac_space)
-        self.pd = self.pdtype.pdfromflat(pi)
+            self.pd, self.pi = self.pdtype.pdfromlatent(h5)
 
         v0 = vf[:, 0]
         a0 = self.pd.sample()
@@ -50,7 +48,6 @@ class LnLstmPolicy(object):
         self.X = X
         self.M = M
         self.S = S
-        self.pi = pi
         self.vf = vf
         self.step = step
         self.value = value
@@ -62,7 +59,7 @@ class LstmPolicy(object):
 
         nh, nw, nc = ob_space.shape
         ob_shape = (nbatch, nh, nw, nc)
-        nact = ac_space.n
+        self.pdtype = make_pdtype(ac_space)
         X = tf.placeholder(tf.uint8, ob_shape) #obs
         M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
         S = tf.placeholder(tf.float32, [nenv, nlstm*2]) #states
@@ -72,11 +69,8 @@ class LstmPolicy(object):
             ms = batch_to_seq(M, nenv, nsteps)
             h5, snew = lstm(xs, ms, S, 'lstm1', nh=nlstm)
             h5 = seq_to_batch(h5)
-            pi = fc(h5, 'pi', nact)
             vf = fc(h5, 'v', 1)
-
-        self.pdtype = make_pdtype(ac_space)
-        self.pd = self.pdtype.pdfromflat(pi)
+            self.pd, self.pi = self.pdtype.pdfromlatent(h5)
 
         v0 = vf[:, 0]
         a0 = self.pd.sample()
@@ -92,25 +86,21 @@ class LstmPolicy(object):
         self.X = X
         self.M = M
         self.S = S
-        self.pi = pi
         self.vf = vf
         self.step = step
         self.value = value
 
 class CnnPolicy(object):
 
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False): #pylint: disable=W0613
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False, **conv_kwargs): #pylint: disable=W0613
         nh, nw, nc = ob_space.shape
         ob_shape = (nbatch, nh, nw, nc)
-        nact = ac_space.n
+        self.pdtype = make_pdtype(ac_space)
         X = tf.placeholder(tf.uint8, ob_shape) #obs
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(X)
-            pi = fc(h, 'pi', nact, init_scale=0.01)
+            h = nature_cnn(X, **conv_kwargs)
             vf = fc(h, 'v', 1)[:,0]
-
-        self.pdtype = make_pdtype(ac_space)
-        self.pd = self.pdtype.pdfromflat(pi)
+            self.pd, self.pi = self.pdtype.pdfromlatent(h, init_scale=0.01)
 
         a0 = self.pd.sample()
         neglogp0 = self.pd.neglogp(a0)
@@ -124,7 +114,6 @@ class CnnPolicy(object):
             return sess.run(vf, {X:ob})
 
         self.X = X
-        self.pi = pi
         self.vf = vf
         self.step = step
         self.value = value
@@ -132,23 +121,19 @@ class CnnPolicy(object):
 class MlpPolicy(object):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False): #pylint: disable=W0613
         ob_shape = (nbatch,) + ob_space.shape
-        actdim = ac_space.shape[0]
+        self.pdtype = make_pdtype(ac_space)
         X = tf.placeholder(tf.float32, ob_shape, name='Ob') #obs
         with tf.variable_scope("model", reuse=reuse):
             activ = tf.tanh
-            h1 = activ(fc(X, 'pi_fc1', nh=64, init_scale=np.sqrt(2)))
-            h2 = activ(fc(h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2)))
-            pi = fc(h2, 'pi', actdim, init_scale=0.01)
-            h1 = activ(fc(X, 'vf_fc1', nh=64, init_scale=np.sqrt(2)))
-            h2 = activ(fc(h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2)))
-            vf = fc(h2, 'vf', 1)[:,0]
-            logstd = tf.get_variable(name="logstd", shape=[1, actdim],
-                initializer=tf.zeros_initializer())
+            flatten = tf.layers.flatten
+            pi_h1 = activ(fc(flatten(X), 'pi_fc1', nh=64, init_scale=np.sqrt(2)))
+            pi_h2 = activ(fc(pi_h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2)))
+            vf_h1 = activ(fc(flatten(X), 'vf_fc1', nh=64, init_scale=np.sqrt(2)))
+            vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2)))
+            vf = fc(vf_h2, 'vf', 1)[:,0]
 
-        pdparam = tf.concat([pi, pi * 0.0 + logstd], axis=1)
+            self.pd, self.pi = self.pdtype.pdfromlatent(pi_h2, init_scale=0.01)
 
-        self.pdtype = make_pdtype(ac_space)
-        self.pd = self.pdtype.pdfromflat(pdparam)
 
         a0 = self.pd.sample()
         neglogp0 = self.pd.neglogp(a0)
@@ -162,7 +147,6 @@ class MlpPolicy(object):
             return sess.run(vf, {X:ob})
 
         self.X = X
-        self.pi = pi
         self.vf = vf
         self.step = step
         self.value = value

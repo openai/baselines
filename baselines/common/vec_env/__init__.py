@@ -80,6 +80,13 @@ class VecEnv(ABC):
     def render(self):
         logger.warn('Render not defined for %s'%self)
 
+    @property
+    def unwrapped(self):
+        if isinstance(self, VecEnvWrapper):
+            return self.venv.unwrapped
+        else:
+            return self
+
 class VecEnvWrapper(VecEnv):
     def __init__(self, venv, observation_space=None, action_space=None):
         self.venv = venv

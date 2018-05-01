@@ -33,7 +33,6 @@ def test_multikwargs():
             initialize()
             assert lin(2) == 6
             assert lin(2, 2) == 10
-            expt_caught = False
 
 
 if __name__ == '__main__':
