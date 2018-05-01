@@ -5,6 +5,7 @@ import tensorflow as tf
 from baselines import logger
 
 from baselines.common import set_global_seeds
+from baselines.common.runners import AbstractEnvRunner
 
 from baselines.a2c.utils import batch_to_seq, seq_to_batch
 from baselines.a2c.utils import Scheduler, make_path, find_trainable_variables
@@ -12,6 +13,8 @@ from baselines.a2c.utils import cat_entropy_softmax
 from baselines.a2c.utils import EpisodeStats
 from baselines.a2c.utils import get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 from baselines.acer.buffer import Buffer
+
+import os.path as osp
 
 # remove last step
 def strip(var, nenvs, nsteps, flat = False):
@@ -209,11 +212,10 @@ class Model(object):
         self.initial_state = step_model.initial_state
         tf.global_variables_initializer().run(session=sess)
 
-class Runner(object):
+class Runner(AbstractEnvRunner):
     def __init__(self, env, model, nsteps, nstack):
-        self.env = env
+        super().__init__(env=env, model=model, nsteps=nsteps)
         self.nstack = nstack
-        self.model = model
         nh, nw, nc = env.observation_space.shape
         self.nc = nc  # nc = 1 for atari, but just in case
         self.nenv = nenv = env.num_envs
@@ -223,9 +225,6 @@ class Runner(object):
         self.obs = np.zeros((nenv, nh, nw, nc * nstack), dtype=np.uint8)
         obs = env.reset()
         self.update_obs(obs)
-        self.nsteps = nsteps
-        self.states = model.initial_state
-        self.dones = [False for _ in range(nenv)]
 
     def update_obs(self, obs, dones=None):
         if dones is not None:

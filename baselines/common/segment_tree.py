@@ -12,10 +12,9 @@ class SegmentTree(object):
 
             a) setting item's value is slightly slower.
                It is O(lg capacity) instead of O(1).
-            b) user has access to an efficient `reduce`
-               operation which reduces `operation` over
-               a contiguous subsequence of items in the
-               array.
+            b) user has access to an efficient ( O(log segment size) )
+               `reduce` operation which reduces `operation` over
+               a contiguous subsequence of items in the array.
 
         Paramters
         ---------
@@ -23,8 +22,8 @@ class SegmentTree(object):
             Total size of the array - must be a power of two.
         operation: lambda obj, obj -> obj
             and operation for combining elements (eg. sum, max)
-            must for a mathematical group together with the set of
-            possible values for array elements.
+            must form a mathematical group together with the set of
+            possible values for array elements (i.e. be associative)
         neutral_element: obj
             neutral element for the operation above. eg. float('-inf')
             for max and 0 for sum.
