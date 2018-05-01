@@ -3,8 +3,9 @@ python:
     - "3.6"
 
 install:
-    - pip install pytest
+    - pip install pytest flake8
     - pip install -e . 
 
 script:
+    - flake8 --select=F
     - pytest
