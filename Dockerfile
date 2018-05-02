@@ -15,5 +15,6 @@ RUN \
     pip install pytest
 
 ENV PATH=$VENV/bin:$PATH
+WORKDIR $CODE_DIR/baselines
 
 CMD /bin/bash
