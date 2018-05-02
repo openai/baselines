@@ -8,7 +8,8 @@ import datetime
 import tempfile
 from collections import defaultdict
 
-LOG_OUTPUT_FORMATS = ['stdout', 'log', 'csv']
+LOG_OUTPUT_FORMATS     = ['stdout', 'log', 'csv']
+LOG_OUTPUT_FORMATS_MPI = ['log']
 # Also valid: json, tensorboard
 
 DEBUG = 10
@@ -355,10 +356,21 @@ def configure(dir=None, format_strs=None):
     assert isinstance(dir, str)
     os.makedirs(dir, exist_ok=True)
 
+    log_suffix = ''
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.Get_rank()
+    if rank > 0:
+        log_suffix = "-rank%03i" % rank
+
     if format_strs is None:
-        strs = os.getenv('OPENAI_LOG_FORMAT')
-        format_strs = strs.split(',') if strs else LOG_OUTPUT_FORMATS
-    output_formats = [make_output_format(f, dir) for f in format_strs]
+        strs, strs_mpi = os.getenv('OPENAI_LOG_FORMAT'), os.getenv('OPENAI_LOG_FORMAT_MPI')
+        format_strs = strs_mpi if rank>0 else strs
+        if format_strs is not None:
+            format_strs = format_strs.split(',')
+        else:
+            format_strs = LOG_OUTPUT_FORMATS_MPI if rank>0 else LOG_OUTPUT_FORMATS
+
+    output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
     log('Logging to %s'%dir)
