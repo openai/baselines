@@ -1,0 +1,14 @@
+language: python
+python:
+    - "3.6"
+
+services:
+    - docker
+
+install:
+    - pip install flake8
+    - docker build . -t baselines-test
+
+script:
+    - flake8 --select=F baselines/common
+    - docker run baselines-test pytest
