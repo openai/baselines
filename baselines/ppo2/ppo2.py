@@ -236,6 +236,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             print('Saving to', savepath)
             model.save(savepath)
     env.close()
+    return model
 
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)

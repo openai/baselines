@@ -1,7 +1,4 @@
-from copy import deepcopy
 import numpy as np
-import json
-import os
 import gym
 
 from baselines import logger
@@ -10,7 +7,7 @@ from baselines.her.her import make_sample_her_transitions
 
 
 DEFAULT_ENV_PARAMS = {
-    'FetchReach-v0': {
+    'FetchReach-v1': {
         'n_cycles': 10,
     },
 }
@@ -51,6 +48,8 @@ DEFAULT_PARAMS = {
 
 
 CACHED_ENVS = {}
+
+
 def cached_make_env(make_env):
     """
     Only creates a new environment from the provided function if one has not yet already been
@@ -68,6 +67,7 @@ def prepare_params(kwargs):
     ddpg_params = dict()
 
     env_name = kwargs['env_name']
+
     def make_env():
         return gym.make(env_name)
     kwargs['make_env'] = make_env
@@ -75,7 +75,7 @@ def prepare_params(kwargs):
     assert hasattr(tmp_env, '_max_episode_steps')
     kwargs['T'] = tmp_env._max_episode_steps
     tmp_env.reset()
-    kwargs['max_u'] = np.array(kwargs['max_u']) if type(kwargs['max_u']) == list else kwargs['max_u']
+    kwargs['max_u'] = np.array(kwargs['max_u']) if isinstance(kwargs['max_u'], list) else kwargs['max_u']
     kwargs['gamma'] = 1. - 1. / kwargs['T']
     if 'lr' in kwargs:
         kwargs['pi_lr'] = kwargs['lr']
@@ -83,7 +83,7 @@ def prepare_params(kwargs):
         del kwargs['lr']
     for name in ['buffer_size', 'hidden', 'layers',
                  'network_class',
-                 'polyak', 
+                 'polyak',
                  'batch_size', 'Q_lr', 'pi_lr',
                  'norm_eps', 'norm_clip', 'max_u',
                  'action_l2', 'clip_obs', 'scope', 'relative_goals']:
@@ -103,6 +103,7 @@ def log_params(params, logger=logger):
 def configure_her(params):
     env = cached_make_env(params['make_env'])
     env.reset()
+
     def reward_fun(ag_2, g, info):  # vectorized
         return env.compute_reward(achieved_goal=ag_2, desired_goal=g, info=info)
 

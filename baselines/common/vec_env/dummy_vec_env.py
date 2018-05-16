@@ -50,6 +50,9 @@ class DummyVecEnv(VecEnv):
     def close(self):
         return
 
+    def render(self):
+        return [e.render() for e in self.envs]
+
     def _save_obs(self, e, obs):
         for k in self.keys:
             if k is None:

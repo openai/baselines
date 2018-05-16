@@ -58,12 +58,12 @@ def nn(input, layers_sizes, reuse=None, flatten=False, name=""):
     """Creates a simple neural network
     """
     for i, size in enumerate(layers_sizes):
-        activation = tf.nn.relu if i < len(layers_sizes)-1 else None
+        activation = tf.nn.relu if i < len(layers_sizes) - 1 else None
         input = tf.layers.dense(inputs=input,
                                 units=size,
                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                 reuse=reuse,
-                                name=name+'_'+str(i))
+                                name=name + '_' + str(i))
         if activation:
             input = activation(input)
     if flatten:
@@ -85,7 +85,7 @@ def install_mpi_excepthook():
     sys.excepthook = new_hook
 
 
-def mpi_fork(n):
+def mpi_fork(n, extra_mpi_args=[]):
     """Re-launches the current script with workers
     Returns "parent" for original parent, "child" for MPI children
     """
@@ -99,14 +99,10 @@ def mpi_fork(n):
             IN_MPI="1"
         )
         # "-bind-to core" is crucial for good performance
-        args = [
-            "mpirun",
-            "-np",
-            str(n),
-            "-bind-to",
-            "core",
-            sys.executable
-        ]
+        args = ["mpirun", "-np", str(n)] + \
+            extra_mpi_args + \
+            [sys.executable]
+
         args += sys.argv
         subprocess.check_call(args, env=env)
         return "parent"
@@ -140,5 +136,5 @@ def reshape_for_broadcasting(source, target):
     before broadcasting it with MPI.
     """
     dim = len(target.get_shape())
-    shape = ([1] * (dim-1)) + [-1]
+    shape = ([1] * (dim - 1)) + [-1]
     return tf.reshape(tf.cast(source, target.dtype), shape)
