@@ -13,6 +13,8 @@ import baselines.her.experiment.config as config
 from baselines.her.rollout import RolloutWorker
 from baselines.her.util import mpi_fork
 
+from subprocess import CalledProcessError
+
 
 def mpi_average(value):
     if value == []:
@@ -81,12 +83,17 @@ def train(policy, rollout_worker, evaluator,
 
 
 def launch(
-    env_name, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
+    env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
     override_params={}, save_policies=True
 ):
     # Fork for multi-CPU MPI implementation.
     if num_cpu > 1:
-        whoami = mpi_fork(num_cpu)
+        try:
+            whoami = mpi_fork(num_cpu, ['--bind-to', 'core'])
+        except CalledProcessError:
+            # fancy version of mpi call failed, try simple version
+            whoami = mpi_fork(num_cpu)
+
         if whoami == 'parent':
             sys.exit(0)
         import baselines.common.tf_util as U
@@ -109,10 +116,10 @@ def launch(
 
     # Prepare params.
     params = config.DEFAULT_PARAMS
-    params['env_name'] = env_name
+    params['env_name'] = env
     params['replay_strategy'] = replay_strategy
-    if env_name in config.DEFAULT_ENV_PARAMS:
-        params.update(config.DEFAULT_ENV_PARAMS[env_name])  # merge env-specific parameters in
+    if env in config.DEFAULT_ENV_PARAMS:
+        params.update(config.DEFAULT_ENV_PARAMS[env])  # merge env-specific parameters in
     params.update(**override_params)  # makes it possible to override any parameter
     with open(os.path.join(logger.get_dir(), 'params.json'), 'w') as f:
         json.dump(params, f)
@@ -126,7 +133,7 @@ def launch(
             'You are running HER with just a single MPI worker. This will work, but the ' +
             'experiments that we report in Plappert et al. (2018, https://arxiv.org/abs/1802.09464) ' +
             'were obtained with --num_cpu 19. This makes a significant difference and if you ' +
-            'are looking to reproduce those results, be aware of this. Please also refer to ' + 
+            'are looking to reproduce those results, be aware of this. Please also refer to ' +
             'https://github.com/openai/baselines/issues/314 for further details.')
         logger.warn('****************')
         logger.warn()
@@ -168,7 +175,7 @@ def launch(
 
 
 @click.command()
-@click.option('--env_name', type=str, default='FetchReach-v0', help='the name of the OpenAI Gym environment that you want to train on')
+@click.option('--env', type=str, default='FetchReach-v1', help='the name of the OpenAI Gym environment that you want to train on')
 @click.option('--logdir', type=str, default=None, help='the path to where logs and policy pickles should go. If not specified, creates a folder in /tmp/')
 @click.option('--n_epochs', type=int, default=50, help='the number of training epochs to run')
 @click.option('--num_cpu', type=int, default=1, help='the number of CPU cores to use (using MPI)')

@@ -9,6 +9,8 @@ _atariexpl7 = ['Freeway', 'Gravitar', 'MontezumaRevenge', 'Pitfall', 'PrivateEye
 _BENCHMARKS = []
 
 remove_version_re = re.compile(r'-v\d+$')
+
+
 def register_benchmark(benchmark):
     for b in _BENCHMARKS:
         if b['name'] == benchmark['name']:
@@ -136,5 +138,13 @@ register_benchmark({
     'name': 'Atari50_10M',
     'description': '47 Atari games from Mnih et al. (2013), with pixel observations, 10M timesteps',
     'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atari50]
+})
+
+# HER DDPG
+
+register_benchmark({
+    'name': 'HerDdpg',
+    'description': 'Smoke-test only benchmark of HER',
+    'tasks': [{'trials': 1, 'env_id': 'FetchReach-v1'}]
 })
 

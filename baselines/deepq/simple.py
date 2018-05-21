@@ -6,13 +6,15 @@ import zipfile
 import cloudpickle
 import numpy as np
 
-import gym
 import baselines.common.tf_util as U
+from baselines.common.tf_util import load_state, save_state
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
+from baselines.common.input import observation_input
+
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines.deepq.utils import BatchInput, load_state, save_state
+from baselines.deepq.utils import ObservationInput
 
 
 class ActWrapper(object):
@@ -88,6 +90,7 @@ def learn(env,
           batch_size=32,
           print_freq=100,
           checkpoint_freq=10000,
+          checkpoint_path=None,
           learning_starts=1000,
           gamma=1.0,
           target_network_update_freq=500,
@@ -170,9 +173,9 @@ def learn(env,
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
-    observation_space_shape = env.observation_space.shape
+
     def make_obs_ph(name):
-        return BatchInput(observation_space_shape, name=name)
+        return ObservationInput(env.observation_space, name=name)
 
     act, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
@@ -216,9 +219,17 @@ def learn(env,
     saved_mean_reward = None
     obs = env.reset()
     reset = True
+
     with tempfile.TemporaryDirectory() as td:
-        model_saved = False
+        td = checkpoint_path or td
+
         model_file = os.path.join(td, "model")
+        model_saved = False
+        if tf.train.latest_checkpoint(td) is not None:
+            load_state(model_file)
+            logger.log('Loaded model from {}'.format(model_file))
+            model_saved = True
+
         for t in range(max_timesteps):
             if callback is not None:
                 if callback(locals(), globals()):

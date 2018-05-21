@@ -1,23 +1,11 @@
-import os
+from baselines.common.input import observation_input
 
 import tensorflow as tf
 
 # ================================================================
-# Saving variables
-# ================================================================
-
-def load_state(fname):
-    saver = tf.train.Saver()
-    saver.restore(tf.get_default_session(), fname)
-
-def save_state(fname):
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
-    saver = tf.train.Saver()
-    saver.save(tf.get_default_session(), fname)
-
-# ================================================================
 # Placeholders
 # ================================================================
+
 
 class TfInput(object):
     def __init__(self, name="(unnamed)"):
@@ -50,20 +38,6 @@ class PlaceholderTfInput(TfInput):
     def make_feed_dict(self, data):
         return {self._placeholder: data}
 
-class BatchInput(PlaceholderTfInput):
-    def __init__(self, shape, dtype=tf.float32, name=None):
-        """Creates a placeholder for a batch of tensors of a given shape and dtype
-
-        Parameters
-        ----------
-        shape: [int]
-            shape of a single elemenet of the batch
-        dtype: tf.dtype
-            number representation used for tensor contents
-        name: str
-            name of the underlying placeholder
-        """
-        super().__init__(tf.placeholder(dtype, [None] + list(shape), name=name))
 
 class Uint8Input(PlaceholderTfInput):
     def __init__(self, shape, name=None):
@@ -86,3 +60,24 @@ class Uint8Input(PlaceholderTfInput):
 
     def get(self):
         return self._output
+
+
+class ObservationInput(PlaceholderTfInput):
+    def __init__(self, observation_space, name=None):
+        """Creates an input placeholder tailored to a specific observation space
+        
+        Parameters
+        ----------
+
+        observation_space: 
+                observation space of the environment. Should be one of the gym.spaces types
+        name: str 
+                tensorflow name of the underlying placeholder
+        """
+        inpt, self.processed_inpt = observation_input(observation_space, name=name)
+        super().__init__(inpt)
+
+    def get(self):
+        return self.processed_inpt
+    
+    
