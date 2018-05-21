@@ -130,7 +130,7 @@ class Runner(AbstractEnvRunner):
         mb_masks = mb_masks.flatten()
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
 
-def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
+def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100, save_interval=None, load_snapshot=None, save_timesteps=None):
     tf.reset_default_graph()
     set_global_seeds(seed)
 
@@ -139,22 +139,61 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     ac_space = env.action_space
     model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+    if load_snapshot:
+        model.load(load_snapshot)
+        logger.log("Loading snapshot: {}".format(load_snapshot))
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 
     nbatch = nenvs*nsteps
+    # automatically adjust save_timesteps, save more often
+    save_timesteps = save_timesteps//nbatch*nbatch
+    assert save_timesteps == None or save_timesteps%nbatch == 0, "Save timesteps of {} must align with batch size of {}".format(save_timesteps, nbatch)
     tstart = time.time()
     for update in range(1, total_timesteps//nbatch+1):
+        ustart = time.time()
+        timesteps = update*nbatch
         obs, states, rewards, masks, actions, values = runner.run()
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
         nseconds = time.time()-tstart
-        fps = int((update*nbatch)/nseconds)
         if update % log_interval == 0 or update == 1:
+            useconds = time.time()-ustart
+            fps = int((nbatch)/useconds)
             ev = explained_variance(values, rewards)
             logger.record_tabular("nupdates", update)
-            logger.record_tabular("total_timesteps", update*nbatch)
+            logger.record_tabular("total_timesteps", timesteps)
             logger.record_tabular("fps", fps)
-            logger.record_tabular("policy_entropy", float(policy_entropy))
-            logger.record_tabular("value_loss", float(value_loss))
-            logger.record_tabular("explained_variance", float(ev))
+            logger.record_tabular("policy_entropy", round(float(policy_entropy),6))
+            logger.record_tabular("value_loss", round(float(value_loss),6))
+            logger.record_tabular("explained_variance", round(float(ev),6))
+            logger.record_tabular("t", round(nseconds,6))
             logger.dump_tabular()
+
+        if save_timesteps and (timesteps%save_timesteps == 0 or timesteps == 1) and logger.get_dir():
+            savepath = osp.join(logger.get_dir(), 'snapshot_{0:09d}.pkl'.format(timesteps))
+            logger.log("Saving snapshot: {}".format(savepath))
+            model.save(savepath)
+
+    env.close()
+
+def eval_policy(policy, env, seed, step_condition, nsteps=5, num_episodes=20, episode_timesteps=int(60*60*5), vf_coef=0.5, ent_coef=0.01, epsilon=0, alpha=0.99, gamma=0, load_snapshot=None, return_runner=False):
+    tf.reset_default_graph()
+    set_global_seeds(seed)
+
+    nenvs = env.num_envs
+    ob_space = env.observation_space
+    ac_space = env.action_space
+    num_procs = len(env.remotes) # HACK
+    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
+        alpha=alpha, epsilon=epsilon)
+    if load_snapshot:
+        model.load(load_snapshot)
+        logger.log("Loading Snapshot: {}".format(load_snapshot))
+    runner = Runner(env, model, nsteps=nsteps, nstack=nstack, gamma=gamma)
+    if return_runner:
+        # miss doing env.close()
+        return runner
+    nbatch = nenvs*nsteps
+    tstart = time.time()
+    while step_condition():
+        obs, states, rewards, masks, actions, values = runner.run()
     env.close()
