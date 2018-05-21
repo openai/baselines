@@ -1,3 +1,5 @@
+from baselines.common.input import observation_input
+
 import tensorflow as tf
 
 # ================================================================
@@ -37,22 +39,6 @@ class PlaceholderTfInput(TfInput):
         return {self._placeholder: data}
 
 
-class BatchInput(PlaceholderTfInput):
-    def __init__(self, shape, dtype=tf.float32, name=None):
-        """Creates a placeholder for a batch of tensors of a given shape and dtype
-
-        Parameters
-        ----------
-        shape: [int]
-            shape of a single elemenet of the batch
-        dtype: tf.dtype
-            number representation used for tensor contents
-        name: str
-            name of the underlying placeholder
-        """
-        super().__init__(tf.placeholder(dtype, [None] + list(shape), name=name))
-
-
 class Uint8Input(PlaceholderTfInput):
     def __init__(self, shape, name=None):
         """Takes input in uint8 format which is cast to float32 and divided by 255
@@ -74,3 +60,24 @@ class Uint8Input(PlaceholderTfInput):
 
     def get(self):
         return self._output
+
+
+class ObservationInput(PlaceholderTfInput):
+    def __init__(self, observation_space, name=None):
+        """Creates an input placeholder tailored to a specific observation space
+        
+        Parameters
+        ----------
+
+        observation_space: 
+                observation space of the environment. Should be one of the gym.spaces types
+        name: str 
+                tensorflow name of the underlying placeholder
+        """
+        inpt, self.processed_inpt = observation_input(observation_space, name=name)
+        super().__init__(inpt)
+
+    def get(self):
+        return self.processed_inpt
+    
+    

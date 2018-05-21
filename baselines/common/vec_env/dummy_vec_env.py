@@ -11,18 +11,18 @@ class DummyVecEnv(VecEnv):
         shapes, dtypes = {}, {}
         self.keys = []
         obs_space = env.observation_space
+
         if isinstance(obs_space, spaces.Dict):
             assert isinstance(obs_space.spaces, OrderedDict)
-            for key, box in obs_space.spaces.items():
-                assert isinstance(box, spaces.Box)
-                shapes[key] = box.shape
-                dtypes[key] = box.dtype
-                self.keys.append(key)
+            subspaces = obs_space.spaces
         else:
-            box = obs_space
-            assert isinstance(box, spaces.Box)
-            self.keys = [None]
-            shapes, dtypes = { None: box.shape }, { None: box.dtype }
+            subspaces = {None: obs_space}
+
+        for key, box in subspaces.items():
+            shapes[key] = box.shape
+            dtypes[key] = box.dtype
+            self.keys.append(key)
+        
         self.buf_obs = { k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys }
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)

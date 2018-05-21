@@ -10,9 +10,11 @@ import baselines.common.tf_util as U
 from baselines.common.tf_util import load_state, save_state
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
+from baselines.common.input import observation_input
+
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines.deepq.utils import BatchInput
+from baselines.deepq.utils import ObservationInput
 
 
 class ActWrapper(object):
@@ -171,10 +173,9 @@ def learn(env,
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
-    observation_space_shape = env.observation_space.shape
 
     def make_obs_ph(name):
-        return BatchInput(observation_space_shape, name=name)
+        return ObservationInput(env.observation_space, name=name)
 
     act, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
