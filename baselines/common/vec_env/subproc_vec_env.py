@@ -1,6 +1,7 @@
 import numpy as np
 from multiprocessing import Process, Pipe
 from baselines.common.vec_env import VecEnv, CloudpickleWrapper
+from baselines.common.tile_images import tile_images
 
 
 def worker(remote, parent_remote, env_fn_wrapper):
@@ -16,9 +17,8 @@ def worker(remote, parent_remote, env_fn_wrapper):
         elif cmd == 'reset':
             ob = env.reset()
             remote.send(ob)
-        elif cmd == 'reset_task':
-            ob = env.reset_task()
-            remote.send(ob)
+        elif cmd == 'render':
+            remote.send(env.render(mode='rgb_array'))
         elif cmd == 'close':
             remote.close()
             break
@@ -81,3 +81,17 @@ class SubprocVecEnv(VecEnv):
         for p in self.ps:
             p.join()
         self.closed = True
+
+    def render(self, mode='human'):
+        for pipe in self.remotes:
+            pipe.send(('render', None))
+        imgs = [pipe.recv() for pipe in self.remotes]
+        bigimg = tile_images(imgs)
+        if mode == 'human':
+            import cv2
+            cv2.imshow('vecenv', bigimg[:,:,::-1])
+            cv2.waitKey(1)
+        elif mode == 'rgb_array':
+            return bigimg
+        else:
+            raise NotImplementedError

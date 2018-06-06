@@ -77,7 +77,7 @@ class VecEnv(ABC):
         self.step_async(actions)
         return self.step_wait()
 
-    def render(self):
+    def render(self, mode='human'):
         logger.warn('Render not defined for %s'%self)
 
     @property
