@@ -55,7 +55,6 @@ def make_session(num_cpu=None, make_default=False, graph=None):
     tf_config = tf.ConfigProto(
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
-    tf_config.gpu_options.allocator_type = 'BFC'
     if make_default:
         return tf.InteractiveSession(config=tf_config, graph=graph)
     else:
