@@ -6,6 +6,7 @@ import time
 from glob import glob
 import csv
 import os.path as osp
+import os
 import json
 import numpy as np
 
@@ -25,6 +26,7 @@ class Monitor(Wrapper):
                     filename = osp.join(filename, Monitor.EXT)
                 else:
                     filename = filename + "." + Monitor.EXT
+            os.makedirs(osp.dirname(filename), exist_ok=True)
             self.f = open(filename, "wt")
             self.f.write('#%s\n'%json.dumps({"t_start": self.tstart, 'env_id' : env.spec and env.spec.id}))
             self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't')+reset_keywords+info_keywords)
