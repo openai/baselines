@@ -15,7 +15,7 @@ def mpi_fork(n, bind_to_core=False):
         )
         args = ["mpirun", "-np", str(n)]
         if bind_to_core:
-            args += ["-bind-to", "core"]
+            args += ["-bind-to-core"]
         args += [sys.executable] + sys.argv
         subprocess.check_call(args, env=env)
         return "parent"
