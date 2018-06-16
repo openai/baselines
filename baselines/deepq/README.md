@@ -19,7 +19,7 @@ Be sure to check out the source code of [both](experiments/train_cartpole.py) [f
 
 ## If you wish to apply DQN to solve a problem.
 
-Check out our simple agent trained with one stop shop `deepq.learn` function. 
+Check out our simple agent trained with one stop shop `deepq.learn` function.
 
 - [baselines/deepq/experiments/train_cartpole.py](experiments/train_cartpole.py) - train a Cartpole agent.
 - [baselines/deepq/experiments/train_pong.py](experiments/train_pong.py) - train a Pong agent using convolutional neural networks.
@@ -33,20 +33,3 @@ In particular notice that once `deepq.learn` finishes training it returns `act` 
 
 - [baselines/deepq/experiments/custom_cartpole.py](experiments/custom_cartpole.py) - Cartpole training with more fine grained control over the internals of DQN algorithm.
 - [baselines/deepq/experiments/atari/train.py](experiments/atari/train.py) - more robust setup for training at scale.
-
-
-##### Download a pretrained Atari agent
-
-For some research projects it is sometimes useful to have an already trained agent handy. There's a variety of models to choose from. You can list them all by running:
-
-```bash
-python -m baselines.deepq.experiments.atari.download_model
-```
-
-Once you pick a model, you can download it and visualize the learned policy. Be sure to pass `--dueling` flag to visualization script when using dueling models.
-
-```bash
-python -m baselines.deepq.experiments.atari.download_model --blob model-atari-duel-pong-1 --model-dir /tmp/models
-python -m baselines.deepq.experiments.atari.enjoy --model-dir /tmp/models/model-atari-duel-pong-1 --env Pong --dueling
-
-```
