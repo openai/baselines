@@ -56,7 +56,7 @@ class Mujoco_Dset(object):
             for l, x_i in zip(episode_length, x):
                 y[start_idx:(start_idx+l)] = x_i
                 start_idx += l
-                return y
+            return y
         self.obs = np.array(flatten(obs))
         self.acs = np.array(flatten(acs))
         self.rets = traj_data['ep_rets'][:traj_limitation]
