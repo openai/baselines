@@ -109,8 +109,8 @@ class VecEnvWrapper(VecEnv):
     def close(self):
         return self.venv.close()
 
-    def render(self):
-        self.venv.render()
+    def render(self, mode='human'):
+        return self.venv.render(mode=mode)
 
 class CloudpickleWrapper(object):
     """
