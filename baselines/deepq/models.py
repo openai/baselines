@@ -14,19 +14,23 @@ def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
         return q_out
 
 
-def mlp(hiddens=[], layer_norm=False):
+def mlp(hiddens=None, layer_norm=False):
     """This model takes as input an observation and returns values of all actions.
 
     Parameters
     ----------
     hiddens: [int]
         list of sizes of hidden layers
+    layer_norm: bool
+        if true, use layer normalization
 
     Returns
     -------
     q_func: function
         q_function for DQN algorithm.
     """
+    if hiddens is None:
+        hiddens = []
     return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
 
 
@@ -80,6 +84,8 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
     dueling: bool
         if true double the output MLP to compute a baseline
         for action scores
+    layer_norm: bool
+        if true, use layer normalization
 
     Returns
     -------

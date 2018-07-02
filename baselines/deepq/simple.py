@@ -6,12 +6,10 @@ import zipfile
 import cloudpickle
 import numpy as np
 
-import baselines.common.tf_util as U
+from baselines.common import tf_util
 from baselines.common.tf_util import load_state, save_state
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
-from baselines.common.input import observation_input
-
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
@@ -139,6 +137,8 @@ def learn(env,
         how often to save the model. This is so that the best version is restored
         at the end of the training. If you do not wish to restore the best version at
         the end of the training set this variable to None.
+    checkpoint_path: str
+        replacement path used if you need to log to somewhere else than a temporary directory.
     learning_starts: int
         how many steps of the model to collect transitions for before learning starts
     gamma: float
@@ -156,6 +156,8 @@ def learn(env,
         to 1.0. If set to None equals to max_timesteps.
     prioritized_replay_eps: float
         epsilon to add to the TD errors when updating priorities.
+    param_noise: bool
+        Whether or not to apply noise to the parameters of the policy.
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
@@ -173,9 +175,10 @@ def learn(env,
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
+    observation_space_shape = env.observation_space.shape
 
     def make_obs_ph(name):
-        return ObservationInput(env.observation_space, name=name)
+        return ObservationInput(observation_space_shape, name=name)
 
     act, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
@@ -212,7 +215,7 @@ def learn(env,
                                  final_p=exploration_final_eps)
 
     # Initialize the parameters and copy them to the target network.
-    U.initialize()
+    tf_util.initialize()
     update_target()
 
     episode_rewards = [0.0]
@@ -245,7 +248,8 @@ def learn(env,
                 # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
                 # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
                 # for detailed explanation.
-                update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
+                update_param_noise_threshold = -np.log(1. - exploration.value(t) +
+                                                       exploration.value(t) / float(env.action_space.n))
                 kwargs['reset'] = reset
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
@@ -280,7 +284,7 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+            mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)

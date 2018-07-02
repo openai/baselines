@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
-import baselines.common.tf_util as U
+import baselines.common.tf_util as tf_utils
 
 from baselines import logger
 from baselines import deepq
@@ -23,7 +23,7 @@ def model(inpt, num_actions, scope, reuse=False):
 
 
 if __name__ == '__main__':
-    with U.make_session(8):
+    with tf_utils.make_session(8):
         # Create the environment
         env = gym.make("CartPole-v0")
         # Create all the functions necessary to train the model
@@ -40,7 +40,7 @@ if __name__ == '__main__':
         exploration = LinearSchedule(schedule_timesteps=10000, initial_p=1.0, final_p=0.02)
 
         # Initialize the parameters and copy them to the target network.
-        U.initialize()
+        tf_utils.initialize()
         update_target()
 
         episode_rewards = [0.0]
@@ -74,6 +74,6 @@ if __name__ == '__main__':
             if done and len(episode_rewards) % 10 == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", len(episode_rewards))
-                logger.record_tabular("mean episode reward", round(np.mean(episode_rewards[-101:-1]), 1))
+                logger.record_tabular("mean episode reward", round(float(np.mean(episode_rewards[-101:-1]), 1)))
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()

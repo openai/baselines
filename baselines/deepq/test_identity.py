@@ -29,14 +29,14 @@ def test_identity():
 
         tf.set_random_seed(0)
 
-        N_TRIALS = 1000
+        n_trials = 1000
         sum_rew = 0
         obs = env.reset()
-        for i in range(N_TRIALS):
+        for i in range(n_trials):
             obs, rew, done, _ = env.step(act([obs]))
             sum_rew += rew
 
-        assert sum_rew > 0.9 * N_TRIALS
+        assert sum_rew > 0.9 * n_trials
 
 
 if __name__ == '__main__':
