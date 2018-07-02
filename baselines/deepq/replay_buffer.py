@@ -1,5 +1,6 @@
-import numpy as np
 import random
+
+import numpy as np
 
 from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 

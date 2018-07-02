@@ -1,6 +1,6 @@
-from baselines.common.input import observation_input
-
 import tensorflow as tf
+
+from baselines.common.input import observation_input
 
 # ================================================================
 # Placeholders

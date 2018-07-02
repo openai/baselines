@@ -6,11 +6,10 @@ import zipfile
 import cloudpickle
 import numpy as np
 
+from baselines import logger, deepq
 from baselines.common import tf_util
 from baselines.common.tf_util import load_state, save_state
-from baselines import logger
 from baselines.common.schedules import LinearSchedule
-from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
 

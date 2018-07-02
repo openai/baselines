@@ -1,8 +1,10 @@
 import numpy as np
 import tensorflow as tf
+
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_input
+
 
 def nature_cnn(unscaled_images, **conv_kwargs):
     """
@@ -17,130 +19,179 @@ def nature_cnn(unscaled_images, **conv_kwargs):
     h3 = conv_to_fc(h3)
     return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2)))
 
-class LnLstmPolicy(object):
+
+class A2CPolicy(object):
+    """
+    Policy object for A2C
+
+    Parameters
+    ----------
+    sess: TensorFlow session
+        The current TensorFlow session
+    ob_space: tuple
+        The observation space of the environment
+    ac_space: tuple
+        The action space of the environment
+    nbatch: int
+        The number of batch to run
+    nsteps: int
+        The number of steps to run
+    nlstm: int
+        The number of LSTM cells (for reccurent policies)
+    reuse: bool
+        If the policy is reusable or not
+    """
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
-        nenv = nbatch // nsteps
-        X, processed_x = observation_input(ob_space, nbatch)
-        M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
-        S = tf.placeholder(tf.float32, [nenv, nlstm*2]) #states
+        self.nenv = nbatch // nsteps
+        self.obs_ph, self.processed_x = observation_input(ob_space, nbatch)
+        self.masks_ph = tf.placeholder(tf.float32, [nbatch])  # mask (done t-1)
+        self.states_ph = tf.placeholder(tf.float32, [self.nenv, nlstm * 2])  # states
         self.pdtype = make_pdtype(ac_space)
+        self.sess = sess
+        self.reuse = reuse
+
+    def step(self, obs, state, mask):
+        """
+        Returns the policy for a single step
+
+        Parameters
+        ----------
+        obs: [float] or [int]
+            The current observation of the environment
+        state: [float]
+            The last states (used in reccurent policies)
+        mask: [float]
+            The last masks (used in reccurent policies)
+
+        Returns
+        -------
+        action: [float]
+            The returned action
+        value: [float]
+            The associated value of the action
+        states: [float]
+            The updated states
+        neglogp0: [float]
+        """
+        raise NotImplementedError()
+
+    def value(self, obs, state, mask):
+        """
+        Returns the value for a single step
+
+        Parameters
+        ----------
+        obs: [float] or [int]
+            The current observation of the environment
+        state: [float]
+            The last states (used in reccurent policies)
+        mask: [float]
+            The last masks (used in reccurent policies)
+
+        Returns
+        -------
+        value: [float]
+            The associated value of the action
+        """
+        raise NotImplementedError()
+
+
+class LnLstmPolicy(A2CPolicy):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **conv_kwargs):
+        super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(processed_x)
-            xs = batch_to_seq(h, nenv, nsteps)
-            ms = batch_to_seq(M, nenv, nsteps)
-            h5, snew = lnlstm(xs, ms, S, 'lstm1', nh=nlstm)
+            h = nature_cnn(self.processed_x, **conv_kwargs)
+            xs = batch_to_seq(h, self.nenv, nsteps)
+            ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
+            h5, self.snew = lnlstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
             h5 = seq_to_batch(h5)
             vf = fc(h5, 'v', 1)
             self.pd, self.pi = self.pdtype.pdfromlatent(h5)
 
-        v0 = vf[:, 0]
-        a0 = self.pd.sample()
-        neglogp0 = self.pd.neglogp(a0)
-        self.initial_state = np.zeros((nenv, nlstm*2), dtype=np.float32)
-
-        def step(ob, state, mask):
-            return sess.run([a0, v0, snew, neglogp0], {X:ob, S:state, M:mask})
-
-        def value(ob, state, mask):
-            return sess.run(v0, {X:ob, S:state, M:mask})
-
-        self.X = X
-        self.M = M
-        self.S = S
+        self.v0 = vf[:, 0]
+        self.a0 = self.pd.sample()
+        self.neglogp0 = self.pd.neglogp(self.a0)
+        self.initial_state = np.zeros((self.nenv, nlstm * 2), dtype=np.float32)
         self.vf = vf
-        self.step = step
-        self.value = value
 
-class LstmPolicy(object):
+    def step(self, obs, state, mask):
+        return self.sess.run([self.a0, self.v0, self.snew, self.neglogp0],
+                             {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
-        nenv = nbatch // nsteps
-        self.pdtype = make_pdtype(ac_space)
-        X, processed_x = observation_input(ob_space, nbatch)
+    def value(self, obs, state, mask):
+        return self.sess.run(self.v0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
-        M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
-        S = tf.placeholder(tf.float32, [nenv, nlstm*2]) #states
+
+class LstmPolicy(A2CPolicy):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **conv_kwargs):
+        super(LstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(X)
-            xs = batch_to_seq(h, nenv, nsteps)
-            ms = batch_to_seq(M, nenv, nsteps)
-            h5, snew = lstm(xs, ms, S, 'lstm1', nh=nlstm)
+            h = nature_cnn(self.obs_ph, **conv_kwargs)
+            xs = batch_to_seq(h, self.nenv, nsteps)
+            ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
+            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
             h5 = seq_to_batch(h5)
             vf = fc(h5, 'v', 1)
             self.pd, self.pi = self.pdtype.pdfromlatent(h5)
 
-        v0 = vf[:, 0]
-        a0 = self.pd.sample()
-        neglogp0 = self.pd.neglogp(a0)
-        self.initial_state = np.zeros((nenv, nlstm*2), dtype=np.float32)
-
-        def step(ob, state, mask):
-            return sess.run([a0, v0, snew, neglogp0], {X:ob, S:state, M:mask})
-
-        def value(ob, state, mask):
-            return sess.run(v0, {X:ob, S:state, M:mask})
-
-        self.X = X
-        self.M = M
-        self.S = S
+        self.v0 = vf[:, 0]
+        self.a0 = self.pd.sample()
+        self.neglogp0 = self.pd.neglogp(self.a0)
+        self.initial_state = np.zeros((self.nenv, nlstm * 2), dtype=np.float32)
         self.vf = vf
-        self.step = step
-        self.value = value
 
-class CnnPolicy(object):
+    def step(self, obs, state, mask):
+        return self.sess.run([self.a0, self.v0, self.snew, self.neglogp0],
+                             {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False, **conv_kwargs): #pylint: disable=W0613
-        self.pdtype = make_pdtype(ac_space)
-        X, processed_x = observation_input(ob_space, nbatch)
+    def value(self, obs, state, mask):
+        return self.sess.run(self.v0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+
+
+class CnnPolicy(A2CPolicy):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **conv_kwargs):
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(processed_x, **conv_kwargs)
-            vf = fc(h, 'v', 1)[:,0]
+            h = nature_cnn(self.processed_x, **conv_kwargs)
+            vf = fc(h, 'v', 1)[:, 0]
             self.pd, self.pi = self.pdtype.pdfromlatent(h, init_scale=0.01)
 
-        a0 = self.pd.sample()
-        neglogp0 = self.pd.neglogp(a0)
+        self.a0 = self.pd.sample()
+        self.neglogp0 = self.pd.neglogp(self.a0)
         self.initial_state = None
-
-        def step(ob, *_args, **_kwargs):
-            a, v, neglogp = sess.run([a0, vf, neglogp0], {X:ob})
-            return a, v, self.initial_state, neglogp
-
-        def value(ob, *_args, **_kwargs):
-            return sess.run(vf, {X:ob})
-
-        self.X = X
         self.vf = vf
-        self.step = step
-        self.value = value
 
-class MlpPolicy(object):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False): #pylint: disable=W0613
-        self.pdtype = make_pdtype(ac_space)
+    def step(self, obs, state, mask):
+        a, v, neglogp = self.sess.run([self.a0, self.vf, self.neglogp0], {self.obs_ph: obs})
+        return a, v, self.initial_state, neglogp
+
+    def value(self, obs, state, mask):
+        return self.sess.run(self.vf, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+
+
+class MlpPolicy(A2CPolicy):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            X, processed_x = observation_input(ob_space, nbatch)
             activ = tf.tanh
-            processed_x = tf.layers.flatten(processed_x)
+            processed_x = tf.layers.flatten(self.processed_x)
             pi_h1 = activ(fc(processed_x, 'pi_fc1', nh=64, init_scale=np.sqrt(2)))
             pi_h2 = activ(fc(pi_h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2)))
             vf_h1 = activ(fc(processed_x, 'vf_fc1', nh=64, init_scale=np.sqrt(2)))
             vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2)))
-            vf = fc(vf_h2, 'vf', 1)[:,0]
+            vf = fc(vf_h2, 'vf', 1)[:, 0]
 
             self.pd, self.pi = self.pdtype.pdfromlatent(pi_h2, init_scale=0.01)
 
-
-        a0 = self.pd.sample()
-        neglogp0 = self.pd.neglogp(a0)
+        self.a0 = self.pd.sample()
+        self.neglogp0 = self.pd.neglogp(self.a0)
         self.initial_state = None
-
-        def step(ob, *_args, **_kwargs):
-            a, v, neglogp = sess.run([a0, vf, neglogp0], {X:ob})
-            return a, v, self.initial_state, neglogp
-
-        def value(ob, *_args, **_kwargs):
-            return sess.run(vf, {X:ob})
-
-        self.X = X
         self.vf = vf
-        self.step = step
-        self.value = value
+
+    def step(self, obs, state, mask):
+        a, v, neglogp = self.sess.run([self.a0, self.vf, self.neglogp0], {self.obs_ph: obs})
+        return a, v, self.initial_state, neglogp
+
+    def value(self, obs, state, mask):
+        return self.sess.run(self.vf, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+

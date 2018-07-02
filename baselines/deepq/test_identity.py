@@ -1,5 +1,6 @@
-import tensorflow as tf
 import random
+
+import tensorflow as tf
 
 from baselines import deepq
 from baselines.common.identity_env import IdentityEnv

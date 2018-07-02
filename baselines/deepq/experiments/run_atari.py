@@ -1,8 +1,7 @@
-from baselines import deepq
-from baselines.common import set_global_seeds
-from baselines import bench
 import argparse
-from baselines import logger
+
+from baselines import deepq, bench, logger
+from baselines.common import set_global_seeds
 from baselines.common.atari_wrappers import make_atari
 
 

@@ -1,13 +1,12 @@
 import gym
 import itertools
+
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 import baselines.common.tf_util as tf_utils
-
-from baselines import logger
-from baselines import deepq
+from baselines import logger, deepq
 from baselines.deepq.replay_buffer import ReplayBuffer
 from baselines.deepq.utils import ObservationInput
 from baselines.common.schedules import LinearSchedule
