@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Buffer(object):
     # gets obs, actions, rewards, mu's, (states, masks), dones
     def __init__(self, env, nsteps, nstack, size=50000):
@@ -8,7 +9,8 @@ class Buffer(object):
         self.nh, self.nw, self.nc = env.observation_space.shape
         self.nstack = nstack
         self.nbatch = self.nenv * self.nsteps
-        self.size = size // (self.nsteps)  # Each loc contains nenv * nsteps frames, thus total buffer is nenv * size frames
+        # Each loc contains nenv * nsteps frames, thus total buffer is nenv * size frames
+        self.size = size // self.nsteps
 
         # Memory
         self.enc_obs = None
@@ -92,12 +94,11 @@ class Buffer(object):
         idx = np.random.randint(0, self.num_in_buffer, nenv)
         envx = np.arange(nenv)
 
-        take = lambda x: self.take(x, idx, envx)  # for i in range(nenv)], axis = 0)
-        dones = take(self.dones)
-        enc_obs = take(self.enc_obs)
+        dones = self.take(self.dones, idx, envx)
+        enc_obs = self.take(self.enc_obs, idx, envx)
         obs = self.decode(enc_obs, dones)
-        actions = take(self.actions)
-        rewards = take(self.rewards)
-        mus = take(self.mus)
-        masks = take(self.masks)
+        actions = self.take(self.actions, idx, envx)
+        rewards = self.take(self.rewards, idx, envx)
+        mus = self.take(self.mus, idx, envx)
+        masks = self.take(self.masks, idx, envx)
         return obs, actions, rewards, mus, dones, masks
