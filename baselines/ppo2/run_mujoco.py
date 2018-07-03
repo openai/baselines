@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 import numpy as np
+import gym
+import tensorflow as tf
+
 from baselines.common.cmd_util import mujoco_arg_parser
 from baselines import bench, logger
+from baselines.common import set_global_seeds
+from baselines.common.vec_env.vec_normalize import VecNormalize
+from baselines.ppo2 import ppo2
+from baselines.a2c.policies import MlpPolicy
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
 
 def train(env_id, num_timesteps, seed):
-    from baselines.common import set_global_seeds
-    from baselines.common.vec_env.vec_normalize import VecNormalize
-    from baselines.ppo2 import ppo2
-    from baselines.ppo2.policies import MlpPolicy
-    import gym
-    import tensorflow as tf
-    from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
     ncpu = 1
     config = tf.ConfigProto(allow_soft_placement=True,
                             intra_op_parallelism_threads=ncpu,
@@ -19,9 +20,9 @@ def train(env_id, num_timesteps, seed):
     tf.Session(config=config).__enter__()
 
     def make_env():
-        env = gym.make(env_id)
-        env = bench.Monitor(env, logger.get_dir(), allow_early_resets=True)
-        return env
+        env_out = gym.make(env_id)
+        env_out = bench.Monitor(env_out, logger.get_dir(), allow_early_resets=True)
+        return env_out
 
     env = DummyVecEnv([make_env])
     env = VecNormalize(env)
@@ -49,7 +50,7 @@ def main():
         obs[:] = env.reset()
         while True:
             actions = model.step(obs)[0]
-            obs[:]  = env.step(actions)[0]
+            obs[:] = env.step(actions)[0]
             env.render()
 
 

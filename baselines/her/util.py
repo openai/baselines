@@ -91,6 +91,7 @@ def mpi_fork(n, extra_mpi_args=None):
     """
     if extra_mpi_args is None:
         extra_mpi_args = []
+
     if n <= 1:
         return "child"
     if os.getenv("IN_MPI") is None:

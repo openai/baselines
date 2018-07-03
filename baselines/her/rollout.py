@@ -75,7 +75,8 @@ class RolloutWorker:
 
         # generate episodes
         obs, achieved_goals, acts, goals, successes = [], [], [], [], []
-        info_values = [np.empty((self.T, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
+        info_values = [np.empty((self.T, self.rollout_batch_size, self.dims['info_' + key]), np.float32)
+                       for key in self.info_keys]
         Qs = []
         for t in range(self.T):
             policy_output = self.policy.get_actions(

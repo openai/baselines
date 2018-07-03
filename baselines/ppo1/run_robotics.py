@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 from mpi4py import MPI
-from baselines.common import set_global_seeds
-from baselines import logger
-from baselines.common.cmd_util import make_robotics_env, robotics_arg_parser
 import mujoco_py
+
+from baselines.common import set_global_seeds
+from baselines.common.cmd_util import make_robotics_env, robotics_arg_parser
 
 
 def train(env_id, num_timesteps, seed):
@@ -17,17 +17,16 @@ def train(env_id, num_timesteps, seed):
     workerseed = seed + 10000 * rank
     set_global_seeds(workerseed)
     env = make_robotics_env(env_id, workerseed, rank=rank)
+
     def policy_fn(name, ob_space, ac_space):
-        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-            hid_size=256, num_hid_layers=3)
+        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=256, num_hid_layers=3)
 
     pposgd_simple.learn(env, policy_fn,
-            max_timesteps=num_timesteps,
-            timesteps_per_actorbatch=2048,
-            clip_param=0.2, entcoeff=0.0,
-            optim_epochs=5, optim_stepsize=3e-4, optim_batchsize=256,
-            gamma=0.99, lam=0.95, schedule='linear',
-        )
+                        max_timesteps=num_timesteps,
+                        timesteps_per_actorbatch=2048,
+                        clip_param=0.2, entcoeff=0.0,
+                        optim_epochs=5, optim_stepsize=3e-4, optim_batchsize=256,
+                        gamma=0.99, lam=0.95, schedule='linear')
     env.close()
 
 
