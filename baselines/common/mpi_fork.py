@@ -1,10 +1,14 @@
-import os, subprocess, sys
+import os
+import subprocess
+import sys
+
 
 def mpi_fork(n, bind_to_core=False):
-    """Re-launches the current script with workers
+    """
+    Re-launches the current script with workers
     Returns "parent" for original parent, "child" for MPI children
     """
-    if n<=1: 
+    if n <= 1:
         return "child"
     if os.getenv("IN_MPI") is None:
         env = os.environ.copy()

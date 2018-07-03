@@ -1,15 +1,16 @@
 import gym
-import numpy as np
 import os
 import pickle
 import random
 import tempfile
 import zipfile
 
+import numpy as np
+
 
 def zipsame(*seqs):
-    L = len(seqs[0])
-    assert all(len(seq) == L for seq in seqs[1:])
+    length = len(seqs[0])
+    assert all(len(seq) == length for seq in seqs[1:])
     return zip(*seqs)
 
 
@@ -152,7 +153,8 @@ class RunningAvg(object):
         """Get the current estimate"""
         return self._value
 
-def boolean_flag(parser, name, default=False, help=None):
+
+def boolean_flag(parser, name, default=False, help_msg=None):
     """Add a boolean flag to argparse parser.
 
     Parameters
@@ -163,11 +165,11 @@ def boolean_flag(parser, name, default=False, help=None):
         --<name> will enable the flag, while --no-<name> will disable it
     default: bool or None
         default value of the flag
-    help: str
+    help_msg: str
         help string for the flag
     """
     dest = name.replace('-', '_')
-    parser.add_argument("--" + name, action="store_true", default=default, dest=dest, help=help)
+    parser.add_argument("--" + name, action="store_true", default=default, dest=dest, help=help_msg)
     parser.add_argument("--no-" + name, action="store_false", dest=dest)
 
 

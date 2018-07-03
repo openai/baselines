@@ -22,7 +22,9 @@ setup(name='stable_baselines',
           'tensorflow>=1.4.0',
           'click',
           'opencv-python',
-          'numpy'
+          'numpy',
+          'pandas',
+          'pytest'
       ],
       description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms ',
       author='OpenAI',

@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+
 from baselines import logger
+
 
 class AlreadySteppingError(Exception):
     """
@@ -10,6 +12,7 @@ class AlreadySteppingError(Exception):
         msg = 'already running an async step'
         Exception.__init__(self, msg)
 
+
 class NotSteppingError(Exception):
     """
     Raised when an asynchronous step is not running but
@@ -18,6 +21,7 @@ class NotSteppingError(Exception):
     def __init__(self):
         msg = 'not running an async step'
         Exception.__init__(self, msg)
+
 
 class VecEnv(ABC):
     """
@@ -78,7 +82,7 @@ class VecEnv(ABC):
         return self.step_wait()
 
     def render(self, mode='human'):
-        logger.warn('Render not defined for %s'%self)
+        logger.warn('Render not defined for %s' % self)
 
     @property
     def unwrapped(self):
@@ -87,13 +91,12 @@ class VecEnv(ABC):
         else:
             return self
 
+
 class VecEnvWrapper(VecEnv):
     def __init__(self, venv, observation_space=None, action_space=None):
         self.venv = venv
-        VecEnv.__init__(self, 
-            num_envs=venv.num_envs,
-            observation_space=observation_space or venv.observation_space, 
-            action_space=action_space or venv.action_space)
+        VecEnv.__init__(self, num_envs=venv.num_envs, observation_space=observation_space or venv.observation_space,
+                        action_space=action_space or venv.action_space)
 
     def step_async(self, actions):
         self.venv.step_async(actions)
@@ -109,8 +112,9 @@ class VecEnvWrapper(VecEnv):
     def close(self):
         return self.venv.close()
 
-    def render(self):
+    def render(self, mode='human'):
         self.venv.render()
+
 
 class CloudpickleWrapper(object):
     """
@@ -118,9 +122,11 @@ class CloudpickleWrapper(object):
     """
     def __init__(self, x):
         self.x = x
+
     def __getstate__(self):
         import cloudpickle
         return cloudpickle.dumps(self.x)
+
     def __setstate__(self, ob):
         import pickle
         self.x = pickle.loads(ob)

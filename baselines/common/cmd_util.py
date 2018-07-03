@@ -3,21 +3,26 @@ Helpers for scripts like run_atari.py.
 """
 
 import os
+
 from mpi4py import MPI
 import gym
 from gym.wrappers import FlattenDictWrapper
+
 from baselines import logger
 from baselines.bench import Monitor
 from baselines.common import set_global_seeds
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
+
 def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
     """
     Create a wrapped, monitored SubprocVecEnv for Atari.
     """
-    if wrapper_kwargs is None: wrapper_kwargs = {}
-    def make_env(rank): # pylint: disable=C0111
+    if wrapper_kwargs is None:
+        wrapper_kwargs = {}
+
+    def make_env(rank):
         def _thunk():
             env = make_atari(env_id)
             env.seed(seed + rank)
@@ -26,6 +31,7 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
         return _thunk
     set_global_seeds(seed)
     return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)])
+
 
 def make_mujoco_env(env_id, seed):
     """
@@ -37,6 +43,7 @@ def make_mujoco_env(env_id, seed):
     env = Monitor(env, os.path.join(logger.get_dir(), str(rank)))
     env.seed(seed)
     return env
+
 
 def make_robotics_env(env_id, seed, rank=0):
     """
@@ -51,12 +58,14 @@ def make_robotics_env(env_id, seed, rank=0):
     env.seed(seed)
     return env
 
+
 def arg_parser():
     """
     Create an empty argparse.ArgumentParser.
     """
     import argparse
     return argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
 
 def atari_arg_parser():
     """
@@ -68,6 +77,7 @@ def atari_arg_parser():
     parser.add_argument('--num-timesteps', type=int, default=int(10e6))
     return parser
 
+
 def mujoco_arg_parser():
     """
     Create an argparse.ArgumentParser for run_mujoco.py.
@@ -78,6 +88,7 @@ def mujoco_arg_parser():
     parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     parser.add_argument('--play', default=False, action='store_true')
     return parser
+
 
 def robotics_arg_parser():
     """

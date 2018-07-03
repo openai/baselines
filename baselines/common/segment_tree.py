@@ -112,7 +112,7 @@ class SumSegmentTree(SegmentTree):
 
         Parameters
         ----------
-        perfixsum: float
+        prefixsum: float
             upperbound on the sum of array prefix
 
         Returns

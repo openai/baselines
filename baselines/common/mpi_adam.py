@@ -1,7 +1,8 @@
 from mpi4py import MPI
-import baselines.common.tf_util as U
+import baselines.common.tf_util as tf_utils
 import tensorflow as tf
 import numpy as np
+
 
 class MpiAdam(object):
     def __init__(self, var_list, *, beta1=0.9, beta2=0.999, epsilon=1e-08, scale_grad_by_procs=True, comm=None):
@@ -10,12 +11,12 @@ class MpiAdam(object):
         self.beta2 = beta2
         self.epsilon = epsilon
         self.scale_grad_by_procs = scale_grad_by_procs
-        size = sum(U.numel(v) for v in var_list)
+        size = sum(tf_utils.numel(v) for v in var_list)
         self.m = np.zeros(size, 'float32')
         self.v = np.zeros(size, 'float32')
         self.t = 0
-        self.setfromflat = U.SetFromFlat(var_list)
-        self.getflat = U.GetFlat(var_list)
+        self.setfromflat = tf_utils.SetFromFlat(var_list)
+        self.getflat = tf_utils.GetFlat(var_list)
         self.comm = MPI.COMM_WORLD if comm is None else comm
 
     def update(self, localg, stepsize):
@@ -40,7 +41,7 @@ class MpiAdam(object):
         self.setfromflat(theta)
 
     def check_synced(self):
-        if self.comm.Get_rank() == 0: # this is root
+        if self.comm.Get_rank() == 0:  # this is root
             theta = self.getflat()
             self.comm.Bcast(theta, root=0)
         else:
@@ -49,31 +50,32 @@ class MpiAdam(object):
             self.comm.Bcast(thetaroot, root=0)
             assert (thetaroot == thetalocal).all(), (thetaroot, thetalocal)
 
-@U.in_session
-def test_MpiAdam():
+
+@tf_utils.in_session
+def test_mpi_adam():
     np.random.seed(0)
     tf.set_random_seed(0)
 
     a = tf.Variable(np.random.randn(3).astype('float32'))
-    b = tf.Variable(np.random.randn(2,5).astype('float32'))
+    b = tf.Variable(np.random.randn(2, 5).astype('float32'))
     loss = tf.reduce_sum(tf.square(a)) + tf.reduce_sum(tf.sin(b))
 
     stepsize = 1e-2
     update_op = tf.train.AdamOptimizer(stepsize).minimize(loss)
-    do_update = U.function([], loss, updates=[update_op])
+    do_update = tf_utils.function([], loss, updates=[update_op])
 
     tf.get_default_session().run(tf.global_variables_initializer())
     for i in range(10):
-        print(i,do_update())
+        print(i, do_update())
 
     tf.set_random_seed(0)
     tf.get_default_session().run(tf.global_variables_initializer())
 
-    var_list = [a,b]
-    lossandgrad = U.function([], [loss, U.flatgrad(loss, var_list)], updates=[update_op])
+    var_list = [a, b]
+    lossandgrad = tf_utils.function([], [loss, tf_utils.flatgrad(loss, var_list)], updates=[update_op])
     adam = MpiAdam(var_list)
 
     for i in range(10):
-        l,g = lossandgrad()
+        l, g = lossandgrad()
         adam.update(g, stepsize)
-        print(i,l)
+        print(i, l)

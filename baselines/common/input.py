@@ -1,8 +1,9 @@
 import tensorflow as tf
 from gym.spaces import Discrete, Box
 
+
 def observation_input(ob_space, batch_size=None, name='Ob'):
-    '''
+    """
     Build observation input with encoding depending on the 
     observation space type
     Params:
@@ -12,9 +13,9 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
     name: tensorflow variable name for input placeholder
 
     returns: tuple (input_placeholder, processed_input_tensor)
-    '''
+    """
     if isinstance(ob_space, Discrete):
-        input_x  = tf.placeholder(shape=(batch_size,), dtype=tf.int32, name=name)
+        input_x = tf.placeholder(shape=(batch_size,), dtype=tf.int32, name=name)
         processed_x = tf.to_float(tf.one_hot(input_x, ob_space.n))
         return input_x, processed_x
 
@@ -26,5 +27,3 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
 
     else:
         raise NotImplementedError
-
- 

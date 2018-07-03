@@ -1,6 +1,6 @@
 import re
-import os.path as osp
 import os
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 _atari7 = ['BeamRider', 'Breakout', 'Enduro', 'Pong', 'Qbert', 'Seaquest', 'SpaceInvaders']
@@ -53,25 +53,29 @@ _ATARI_SUFFIX = 'NoFrameskip-v4'
 register_benchmark({
     'name': 'Atari50M',
     'description': '7 Atari games from Mnih et al. (2013), with pixel observations, 50M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(50e6)} for _game in _atari7]
+    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(50e6)}
+              for _game in _atari7]
 })
 
 register_benchmark({
     'name': 'Atari10M',
     'description': '7 Atari games from Mnih et al. (2013), with pixel observations, 10M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atari7]
+    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)}
+              for _game in _atari7]
 })
 
 register_benchmark({
     'name': 'Atari1Hr',
     'description': '7 Atari games from Mnih et al. (2013), with pixel observations, 1 hour of walltime',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_seconds': 60 * 60} for _game in _atari7]
+    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_seconds': 60 * 60}
+              for _game in _atari7]
 })
 
 register_benchmark({
     'name': 'AtariExploration10M',
     'description': '7 Atari games emphasizing exploration, with pixel observations, 10M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atariexpl7]
+    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)}
+              for _game in _atariexpl7]
 })
 
 
@@ -137,7 +141,8 @@ _atari50 = [  # actually 47
 register_benchmark({
     'name': 'Atari50_10M',
     'description': '47 Atari games from Mnih et al. (2013), with pixel observations, 10M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atari50]
+    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)}
+              for _game in _atari50]
 })
 
 # HER DDPG

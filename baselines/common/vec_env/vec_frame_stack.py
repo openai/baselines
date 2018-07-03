@@ -1,6 +1,8 @@
-from baselines.common.vec_env import VecEnvWrapper
 import numpy as np
 from gym import spaces
+
+from baselines.common.vec_env import VecEnvWrapper
+
 
 class VecFrameStack(VecEnvWrapper):
     """
@@ -18,7 +20,7 @@ class VecFrameStack(VecEnvWrapper):
 
     def step_wait(self):
         obs, rews, news, infos = self.venv.step_wait()
-        self.stackedobs = np.roll(self.stackedobs, shift=-1, axis=-1)
+        self.stackedobs = np.roll(self.stackedobs, shift=-obs.shape[-1], axis=-1)
         for (i, new) in enumerate(news):
             if new:
                 self.stackedobs[i] = 0

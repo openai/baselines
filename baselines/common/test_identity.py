@@ -1,8 +1,9 @@
+import random
+
 import pytest
 import tensorflow as tf
-import random
 import numpy as np
-from gym.spaces import np_random
+from gym.spaces.prng import np_random
 
 from baselines.a2c import a2c
 from baselines.ppo2 import ppo2
@@ -20,10 +21,10 @@ learn_func_list = [
 @pytest.mark.slow
 @pytest.mark.parametrize("learn_func", learn_func_list)
 def test_identity(learn_func):
-    '''
+    """
     Test if the algorithm (with a given policy) 
     can learn an identity transformation (i.e. return observation as an action)
-    '''
+    """
     np.random.seed(0)
     np_random.seed(0)
     random.seed(0)
@@ -34,11 +35,11 @@ def test_identity(learn_func):
         tf.set_random_seed(0)
         model = learn_func(env)
 
-        N_TRIALS = 1000
+        n_trials = 1000
         sum_rew = 0
         obs = env.reset()
-        for i in range(N_TRIALS):
+        for i in range(n_trials):
             obs, rew, done, _ = env.step(model.step(obs)[0])
             sum_rew += rew
 
-        assert sum_rew > 0.9 * N_TRIALS
+        assert sum_rew > 0.9 * n_trials

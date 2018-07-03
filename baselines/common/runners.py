@@ -1,6 +1,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 
+
 class AbstractEnvRunner(ABC):
     def __init__(self, *, env, model, nsteps):
         self.env = env

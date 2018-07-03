@@ -1,7 +1,10 @@
+from collections import OrderedDict
+
 import numpy as np
 from gym import spaces
-from collections import OrderedDict
+
 from . import VecEnv
+
 
 class DummyVecEnv(VecEnv):
     def __init__(self, env_fns):
@@ -23,9 +26,9 @@ class DummyVecEnv(VecEnv):
             dtypes[key] = box.dtype
             self.keys.append(key)
         
-        self.buf_obs = { k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys }
+        self.buf_obs = {k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys}
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
-        self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
+        self.buf_rews = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
         self.actions = None
 
@@ -61,7 +64,7 @@ class DummyVecEnv(VecEnv):
                 self.buf_obs[k][e] = obs[k]
 
     def _obs_from_buf(self):
-        if self.keys==[None]:
+        if self.keys == [None]:
             return self.buf_obs[None]
         else:
             return self.buf_obs

@@ -3,19 +3,14 @@ from gym.spaces import Discrete
 
 
 class IdentityEnv(Env):
-    def __init__(
-            self,
-            dim,
-            ep_length=100,
-    ):
-
+    def __init__(self, dim, ep_length=100):
         self.action_space = Discrete(dim)
+        self.ep_length = ep_length
         self.reset()
 
     def reset(self):
         self._choose_next_state()
         self.observation_space = self.action_space
-
         return self.state
 
     def step(self, actions):
@@ -28,3 +23,6 @@ class IdentityEnv(Env):
 
     def _get_reward(self, actions):
         return 1 if self.state == actions else 0
+
+    def render(self, mode='human'):
+        pass
