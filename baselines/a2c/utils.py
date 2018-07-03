@@ -27,7 +27,7 @@ def mse(pred, target):
 
 
 def ortho_init(scale=1.0):
-    def _ortho_init(shape, _dtype, _partition_info=None):
+    def _ortho_init(shape, dtype, partition_info=None):
         # lasagne ortho init for tf
         shape = tuple(shape)
         if len(shape) == 2:

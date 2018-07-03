@@ -12,7 +12,9 @@ RUN \
     cd $CODE_DIR && \
     pip install --upgrade pip && \
     pip install -e baselines && \
-    pip install pytest
+    pip install pytest && \
+    pip install pytest-cov && \
+    pip install codacy-coverage
 
 ENV PATH=$VENV/bin:$PATH
 WORKDIR $CODE_DIR/baselines

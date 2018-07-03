@@ -11,4 +11,6 @@ install:
 
 script:
     - flake8 --select=F baselines/common
-    - docker run baselines-test pytest
+    - docker run baselines-test pytest --cov-report term --cov=.
+    - docker run baselines-test coverage xml
+    - docker run baselines-test python-codacy-coverage -r coverage.xml

@@ -1,4 +1,4 @@
-<img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/openai/baselines.svg?branch=master)](https://travis-ci.org/openai/baselines)
+<img src="data/logo.jpg" width=25% align="right" /> [![Build Status](https://travis-ci.org/hill-a/stable-baselines.svg?branch=master)](https://travis-ci.org/hill-a/stable-baselines) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/hill-a/stable-baselines?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hill-a/stable-baselines&amp;utm_campaign=Badge_Grade)
 
 # Baselines
 

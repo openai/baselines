@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
     assert reduce_dim is not None
 
@@ -52,25 +53,28 @@ def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
     assert False, 'something went wrong'
 
 
-def clipoutNeg(vec, threshold=1e-6):
+def clipout_neg(vec, threshold=1e-6):
     mask = tf.cast(vec > threshold, tf.float32)
     return mask * vec
 
 
-def detectMinVal(input_mat, var, threshold=1e-6, name='', debug=False):
+def detect_min_val(input_mat, var, threshold=1e-6, name='', debug=False):
     eigen_min = tf.reduce_min(input_mat)
     eigen_max = tf.reduce_max(input_mat)
     eigen_ratio = eigen_max / eigen_min
-    input_mat_clipped = clipoutNeg(input_mat, threshold)
+    input_mat_clipped = clipout_neg(input_mat, threshold)
 
     if debug:
-        input_mat_clipped = tf.cond(tf.logical_or(tf.greater(eigen_ratio, 0.), tf.less(eigen_ratio, -500)), lambda: input_mat_clipped, lambda: tf.Print(
-            input_mat_clipped, [tf.convert_to_tensor('screwed ratio ' + name + ' eigen values!!!'), tf.convert_to_tensor(var.name), eigen_min, eigen_max, eigen_ratio]))
+        input_mat_clipped = tf.cond(tf.logical_or(tf.greater(eigen_ratio, 0.), tf.less(eigen_ratio, -500)),
+                                    lambda: input_mat_clipped, lambda: tf.Print(
+                input_mat_clipped,
+                [tf.convert_to_tensor('screwed ratio ' + name + ' eigen values!!!'), tf.convert_to_tensor(var.name),
+                 eigen_min, eigen_max, eigen_ratio]))
 
     return input_mat_clipped
 
 
-def factorReshape(Q, e, grad, facIndx=0, ftype='act'):
+def factor_reshape(Q, e, grad, facIndx=0, ftype='act'):
     grad_shape = grad.get_shape()
     if ftype == 'act':
         assert e.get_shape()[0] == grad_shape[facIndx]

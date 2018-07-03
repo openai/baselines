@@ -6,7 +6,7 @@ if sys.version_info.major != 3:
           'Python {}. The installation will likely fail.'.format(sys.version_info.major))
 
 
-setup(name='baselines',
+setup(name='stable_baselines',
       packages=[package for package in find_packages()
                 if package.startswith('baselines')],
       install_requires=[
@@ -21,9 +21,10 @@ setup(name='baselines',
           'cloudpickle',
           'tensorflow>=1.4.0',
           'click',
-          'opencv-python', 'numpy'
+          'opencv-python',
+          'numpy'
       ],
-      description='OpenAI baselines: high quality implementations of reinforcement learning algorithms',
+      description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms ',
       author='OpenAI',
       url='https://github.com/openai/baselines',
       author_email='gym@openai.com',
