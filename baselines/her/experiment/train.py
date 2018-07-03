@@ -1,5 +1,6 @@
 import os
 import sys
+from subprocess import CalledProcessError
 
 import click
 import numpy as np
@@ -7,17 +8,15 @@ import json
 from mpi4py import MPI
 
 from baselines import logger
-from baselines.common import set_global_seeds
+from baselines.common import set_global_seeds, tf_util
 from baselines.common.mpi_moments import mpi_moments
 import baselines.her.experiment.config as config
 from baselines.her.rollout import RolloutWorker
 from baselines.her.util import mpi_fork
 
-from subprocess import CalledProcessError
-
 
 def mpi_average(value):
-    if value == []:
+    if len(value) == 0:
         value = [0.]
     if not isinstance(value, list):
         value = [value]
@@ -66,7 +65,8 @@ def train(policy, rollout_worker, evaluator,
         success_rate = mpi_average(evaluator.current_success_rate())
         if rank == 0 and success_rate >= best_success_rate and save_policies:
             best_success_rate = success_rate
-            logger.info('New best success rate: {}. Saving policy to {} ...'.format(best_success_rate, best_policy_path))
+            logger.info('New best success rate: {}. Saving policy to {} ...'
+                        .format(best_success_rate, best_policy_path))
             evaluator.save_policy(best_policy_path)
             evaluator.save_policy(latest_policy_path)
         if rank == 0 and policy_save_interval > 0 and epoch % policy_save_interval == 0 and save_policies:
@@ -82,10 +82,11 @@ def train(policy, rollout_worker, evaluator,
             assert local_uniform[0] != root_uniform[0]
 
 
-def launch(
-    env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
-    override_params={}, save_policies=True
-):
+def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
+           override_params=None, save_policies=True):
+
+    if override_params is None:
+        override_params = {}
     # Fork for multi-CPU MPI implementation.
     if num_cpu > 1:
         try:
@@ -96,8 +97,7 @@ def launch(
 
         if whoami == 'parent':
             sys.exit(0)
-        import baselines.common.tf_util as U
-        U.single_threaded_session().__enter__()
+        tf_util.single_threaded_session().__enter__()
     rank = MPI.COMM_WORLD.Get_rank()
 
     # Configure logging
@@ -175,13 +175,19 @@ def launch(
 
 
 @click.command()
-@click.option('--env', type=str, default='FetchReach-v1', help='the name of the OpenAI Gym environment that you want to train on')
-@click.option('--logdir', type=str, default=None, help='the path to where logs and policy pickles should go. If not specified, creates a folder in /tmp/')
+@click.option('--env', type=str, default='FetchReach-v1',
+              help='the name of the OpenAI Gym environment that you want to train on')
+@click.option('--logdir', type=str, default=None,
+              help='the path to where logs and policy pickles should go. If not specified, creates a folder in /tmp/')
 @click.option('--n_epochs', type=int, default=50, help='the number of training epochs to run')
 @click.option('--num_cpu', type=int, default=1, help='the number of CPU cores to use (using MPI)')
-@click.option('--seed', type=int, default=0, help='the random seed used to seed both the environment and the training code')
-@click.option('--policy_save_interval', type=int, default=5, help='the interval with which policy pickles are saved. If set to 0, only the best and latest policy will be pickled.')
-@click.option('--replay_strategy', type=click.Choice(['future', 'none']), default='future', help='the HER replay strategy to be used. "future" uses HER, "none" disables HER.')
+@click.option('--seed', type=int, default=0,
+              help='the random seed used to seed both the environment and the training code')
+@click.option('--policy_save_interval', type=int, default=5,
+              help='the interval with which policy pickles are saved. '
+                   'If set to 0, only the best and latest policy will be pickled.')
+@click.option('--replay_strategy', type=click.Choice(['future', 'none']), default='future',
+              help='the HER replay strategy to be used. "future" uses HER, "none" disables HER.')
 @click.option('--clip_return', type=int, default=1, help='whether or not returns should be clipped')
 def main(**kwargs):
     launch(**kwargs)

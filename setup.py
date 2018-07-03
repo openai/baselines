@@ -25,7 +25,9 @@ setup(name='stable_baselines',
           'numpy',
           'pandas',
           'pytest',
-          'matplotlib'
+          'matplotlib',
+          'seaborn',
+          'glob2'
       ],
       description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms ',
       author='OpenAI',

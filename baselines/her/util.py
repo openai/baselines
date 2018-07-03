@@ -8,7 +8,7 @@ import functools
 import tensorflow as tf
 import numpy as np
 
-from baselines.common import tf_util as U
+from baselines.common import tf_util
 
 
 def store_args(method):
@@ -50,7 +50,7 @@ def import_function(spec):
 def flatten_grads(var_list, grads):
     """Flattens a variables and their gradients.
     """
-    return tf.concat([tf.reshape(grad, [U.numel(v)])
+    return tf.concat([tf.reshape(grad, [tf_util.numel(v)])
                       for (v, grad) in zip(var_list, grads)], 0)
 
 
@@ -85,10 +85,12 @@ def install_mpi_excepthook():
     sys.excepthook = new_hook
 
 
-def mpi_fork(n, extra_mpi_args=[]):
+def mpi_fork(n, extra_mpi_args=None):
     """Re-launches the current script with workers
     Returns "parent" for original parent, "child" for MPI children
     """
+    if extra_mpi_args is None:
+        extra_mpi_args = []
     if n <= 1:
         return "child"
     if os.getenv("IN_MPI") is None:

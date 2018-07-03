@@ -1,6 +1,7 @@
 import click
-import numpy as np
 import pickle
+
+import numpy as np
 
 from baselines import logger
 from baselines.common import set_global_seeds

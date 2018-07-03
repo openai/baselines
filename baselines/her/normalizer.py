@@ -81,7 +81,8 @@ class Normalizer:
         std = reshape_for_broadcasting(self.std,  v)
         return mean + v * std
 
-    def _mpi_average(self, x):
+    @classmethod
+    def _mpi_average(cls, x):
         buf = np.zeros_like(x)
         MPI.COMM_WORLD.Allreduce(x, buf, op=MPI.SUM)
         buf /= MPI.COMM_WORLD.Get_size()
