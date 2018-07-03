@@ -9,7 +9,7 @@ from baselines.a2c import a2c
 from baselines.ppo2 import ppo2
 from baselines.common.identity_env import IdentityEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.ppo2.policies import MlpPolicy
+from baselines.a2c.policies import MlpPolicy
 
 
 learn_func_list = [
