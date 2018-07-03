@@ -3,43 +3,39 @@ import time
 from collections import deque
 import pickle
 
-from baselines.ddpg.ddpg import DDPG
-import baselines.common.tf_util as U
-
-from baselines import logger
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 
+from baselines.ddpg.ddpg import DDPG
+import baselines.common.tf_util as tf_util
+from baselines import logger
+
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
-    normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+          normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
+          popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
+          tau=0.01, eval_env=None, param_noise_adaption_interval=50):
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
     max_action = env.action_space.high
     logger.info('scaling actions by {} before executing in env'.format(max_action))
-    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape,
-        gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,
-        batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
-        actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
-        reward_scale=reward_scale)
+    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape, gamma=gamma, tau=tau,
+                 normalize_returns=normalize_returns, normalize_observations=normalize_observations,
+                 batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
+                 actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
+                 reward_scale=reward_scale)
     logger.info('Using agent with the following configuration:')
     logger.info(str(agent.__dict__.items()))
 
     # Set up logging stuff only for a single worker.
     if rank == 0:
-        saver = tf.train.Saver()
-    else:
-        saver = None
+        tf.train.Saver()
 
-    step = 0
-    episode = 0
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
-    with U.single_threaded_session() as sess:
+    with tf_util.single_threaded_session() as sess:
         # Prepare everything.
         agent.initialize(sess)
         sess.graph.finalize()
@@ -48,20 +44,15 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         obs = env.reset()
         if eval_env is not None:
             eval_obs = eval_env.reset()
-        done = False
         episode_reward = 0.
         episode_step = 0
         episodes = 0
         t = 0
 
-        epoch = 0
         start_time = time.time()
 
         epoch_episode_rewards = []
         epoch_episode_steps = []
-        epoch_episode_eval_rewards = []
-        epoch_episode_eval_steps = []
-        epoch_start_time = time.time()
         epoch_actions = []
         epoch_qs = []
         epoch_episodes = 0
@@ -77,7 +68,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     if rank == 0 and render:
                         env.render()
                     assert max_action.shape == action.shape
-                    new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    new_obs, r, done, info = env.step(max_action * action)
                     t += 1
                     if rank == 0 and render:
                         env.render()
@@ -125,7 +117,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     eval_episode_reward = 0.
                     for t_rollout in range(nb_eval_steps):
                         eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
-                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                        # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)
                         if render_eval:
                             eval_env.render()
                         eval_episode_reward += eval_r
@@ -162,6 +155,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
                 combined_stats['eval/Q'] = eval_qs
                 combined_stats['eval/episodes'] = len(eval_episode_rewards)
+
             def as_scalar(x):
                 if isinstance(x, np.ndarray):
                     assert x.size == 1
@@ -169,9 +163,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 elif np.isscalar(x):
                     return x
                 else:
-                    raise ValueError('expected scalar, got %s'%x)
+                    raise ValueError('expected scalar, got %s' % x)
             combined_stats_sums = MPI.COMM_WORLD.allreduce(np.array([as_scalar(x) for x in combined_stats.values()]))
-            combined_stats = {k : v / mpi_size for (k,v) in zip(combined_stats.keys(), combined_stats_sums)}
+            combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
 
             # Total statistics.
             combined_stats['total/epochs'] = epoch + 1
