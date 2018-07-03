@@ -1,22 +1,21 @@
-'''
+"""
 Disclaimer: this code is highly based on trpo_mpi at @openai/baselines and @openai/imitation
-'''
+"""
 
 import argparse
-import os.path as osp
+import os
 import logging
+
 from mpi4py import MPI
 from tqdm import tqdm
-
 import numpy as np
 import gym
 
 from baselines.gail import mlp_policy
-from baselines.common import set_global_seeds, tf_util as U
+from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
-from baselines import bench
-from baselines import logger
-from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
+from baselines import bench, logger
+from baselines.gail.dataset.mujocodset import MujocoDset
 from baselines.gail.adversary import TransitionClassifier
 
 
@@ -69,7 +68,7 @@ def get_task_name(args):
 
 
 def main(args):
-    U.make_session(num_cpu=1).__enter__()
+    tf_util.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
     env = gym.make(args.env_id)
 
@@ -77,15 +76,15 @@ def main(args):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
     env = bench.Monitor(env, logger.get_dir() and
-                        osp.join(logger.get_dir(), "monitor.json"))
+                        os.path.join(logger.get_dir(), "monitor.json"))
     env.seed(args.seed)
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
-    args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = osp.join(args.log_dir, task_name)
+    args.checkpoint_dir = os.path.join(args.checkpoint_dir, task_name)
+    args.log_dir = os.path.join(args.log_dir, task_name)
 
     if args.task == 'train':
-        dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+        dataset = MujocoDset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
         reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
         train(env,
               args.seed,
@@ -162,10 +161,10 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_func("pi", ob_space, ac_space, reuse=reuse)
-    U.initialize()
+    tf_util.initialize()
     # Prepare for rollouts
     # ----------------------------------------
-    U.load_state(load_model_path)
+    tf_util.load_state(load_model_path)
 
     obs_list = []
     acs_list = []
@@ -197,7 +196,7 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
 def traj_1_generator(pi, env, horizon, stochastic):
 
     t = 0
-    ac = env.action_space.sample()  # not used, just so we have the datatype
+    env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
 
     ob = env.reset()

@@ -1,23 +1,22 @@
-'''
+"""
 Disclaimer: The trpo part highly rely on trpo_mpi at @openai/baselines
-'''
+"""
 
 import time
 import os
 from contextlib import contextmanager
-from mpi4py import MPI
 from collections import deque
 
+from mpi4py import MPI
 import tensorflow as tf
 import numpy as np
 
-import baselines.common.tf_util as U
-from baselines.common import explained_variance, zipsame, dataset, fmt_row
+import baselines.common.tf_util as tf_util
+from baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize
 from baselines import logger
-from baselines.common import colorize
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import cg
-from baselines.gail.statistics import stats
+from baselines.gail.statistics import Stats
 
 
 def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
@@ -26,8 +25,6 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
     t = 0
     ac = env.action_space.sample()
     new = True
-    rew = 0.0
-    true_rew = 0.0
     ob = env.reset()
 
     cur_ep_ret = 0
@@ -91,11 +88,11 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
 def add_vtarg_and_adv(seg, gamma, lam):
     new = np.append(seg["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
     vpred = np.append(seg["vpred"], seg["nextvpred"])
-    T = len(seg["rew"])
-    seg["adv"] = gaelam = np.empty(T, 'float32')
+    new_len = len(seg["rew"])
+    seg["adv"] = gaelam = np.empty(new_len, 'float32')
     rew = seg["rew"]
     lastgaelam = 0
-    for t in reversed(range(T)):
+    for t in reversed(range(new_len)):
         nonterminal = 1-new[t+1]
         delta = rew[t] + gamma * vpred[t+1] * nonterminal - vpred[t]
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
@@ -120,12 +117,12 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_func("pi", ob_space, ac_space, reuse=(pretrained_weight != None))
+    pi = policy_func("pi", ob_space, ac_space, reuse=(pretrained_weight is not None))
     oldpi = policy_func("oldpi", ob_space, ac_space)
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-    ob = U.get_placeholder_cached(name="ob")
+    ob = tf_util.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
 
     kloldnew = oldpi.pd.kl(pi.pd)
@@ -152,26 +149,26 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
     d_adam = MpiAdam(reward_giver.get_trainable_variables())
     vfadam = MpiAdam(vf_var_list)
 
-    get_flat = U.GetFlat(var_list)
-    set_from_flat = U.SetFromFlat(var_list)
+    get_flat = tf_util.GetFlat(var_list)
+    set_from_flat = tf_util.SetFromFlat(var_list)
     klgrads = tf.gradients(dist, var_list)
     flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
     shapes = [var.get_shape().as_list() for var in var_list]
     start = 0
     tangents = []
     for shape in shapes:
-        sz = U.intprod(shape)
+        sz = tf_util.intprod(shape)
         tangents.append(tf.reshape(flat_tangent[start:start+sz], shape))
         start += sz
     gvp = tf.add_n([tf.reduce_sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
-    fvp = U.flatgrad(gvp, var_list)
+    fvp = tf_util.flatgrad(gvp, var_list)
 
-    assign_old_eq_new = U.function([], [], updates=[tf.assign(oldv, newv)
-                                                    for (oldv, newv) in zipsame(oldpi.get_variables(), pi.get_variables())])
-    compute_losses = U.function([ob, ac, atarg], losses)
-    compute_lossandgrad = U.function([ob, ac, atarg], losses + [U.flatgrad(optimgain, var_list)])
-    compute_fvp = U.function([flat_tangent, ob, ac, atarg], fvp)
-    compute_vflossandgrad = U.function([ob, ret], U.flatgrad(vferr, vf_var_list))
+    assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
+                                                          zipsame(oldpi.get_variables(), pi.get_variables())])
+    compute_losses = tf_util.function([ob, ac, atarg], losses)
+    compute_lossandgrad = tf_util.function([ob, ac, atarg], losses + [tf_util.flatgrad(optimgain, var_list)])
+    compute_fvp = tf_util.function([flat_tangent, ob, ac, atarg], fvp)
+    compute_vflossandgrad = tf_util.function([ob, ret], tf_util.flatgrad(vferr, vf_var_list))
 
     @contextmanager
     def timed(msg):
@@ -190,7 +187,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
         out /= nworkers
         return out
 
-    U.initialize()
+    tf_util.initialize()
     th_init = get_flat()
     MPI.COMM_WORLD.Bcast(th_init, root=0)
     set_from_flat(th_init)
@@ -213,15 +210,16 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0]) == 1
 
-    g_loss_stats = stats(loss_names)
-    d_loss_stats = stats(reward_giver.loss_name)
-    ep_stats = stats(["True_rewards", "Rewards", "Episode_length"])
+    g_loss_stats = Stats(loss_names)
+    d_loss_stats = Stats(reward_giver.loss_name)
+    ep_stats = Stats(["True_rewards", "Rewards", "Episode_length"])
     # if provide pretrained weight
     if pretrained_weight is not None:
-        U.load_state(pretrained_weight, var_list=pi.get_variables())
+        tf_util.load_state(pretrained_weight, var_list=pi.get_variables())
 
     while True:
-        if callback: callback(locals(), globals())
+        if callback:
+            callback(locals(), globals())
         if max_timesteps and timesteps_so_far >= max_timesteps:
             break
         elif max_episodes and episodes_so_far >= max_episodes:
@@ -251,7 +249,8 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
             vpredbefore = seg["vpred"]  # predicted value function before udpate
             atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
-            if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob)  # update running mean/std for policy
+            if hasattr(pi, "ob_rms"):
+                pi.ob_rms.update(ob)  # update running mean/std for policy
 
             args = seg["ob"], seg["ac"], atarg
             fvpargs = [arr[::5] for arr in args]
@@ -321,7 +320,8 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
                                                       batch_size=batch_size):
             ob_expert, ac_expert = expert_dataset.get_next_batch(len(ob_batch))
             # update running mean/std for reward_giver
-            if hasattr(reward_giver, "obs_rms"): reward_giver.obs_rms.update(np.concatenate((ob_batch, ob_expert), 0))
+            if hasattr(reward_giver, "obs_rms"):
+                reward_giver.obs_rms.update(np.concatenate((ob_batch, ob_expert), 0))
             *newlosses, g = reward_giver.lossandgrad(ob_batch, ac_batch, ob_expert, ac_expert)
             d_adam.update(allmean(g), d_stepsize)
             d_losses.append(newlosses)

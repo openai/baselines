@@ -24,7 +24,8 @@ setup(name='stable_baselines',
           'opencv-python',
           'numpy',
           'pandas',
-          'pytest'
+          'pytest',
+          'matplotlib'
       ],
       description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms ',
       author='OpenAI',

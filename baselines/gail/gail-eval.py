@@ -1,22 +1,21 @@
-'''
+"""
 This code is used to evalaute the imitators trained with different number of trajectories
 and plot the results in the same figure for easy comparison.
-'''
+"""
 
 import argparse
 import os
 import glob
-import gym
 
+import gym
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-from baselines.gail import run_mujoco
-from baselines.gail import mlp_policy
-from baselines.common import set_global_seeds, tf_util as U
+from baselines.gail import run_mujoco, mlp_policy
+from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
-from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
+from baselines.gail.dataset.mujocodset import MujocoDset
 
 
 plt.style.use('ggplot')
@@ -26,7 +25,7 @@ CONFIG = {
 
 
 def load_dataset(expert_path):
-    dataset = Mujoco_Dset(expert_path=expert_path)
+    dataset = MujocoDset(expert_path=expert_path)
     return dataset
 
 
@@ -128,7 +127,7 @@ def plot(env_name, bc_log, gail_log, stochastic):
 
 
 def main(args):
-    U.make_session(num_cpu=1).__enter__()
+    tf_util.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
     print('Evaluating {}'.format(args.env))
     bc_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,

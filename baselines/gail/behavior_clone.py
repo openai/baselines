@@ -1,24 +1,22 @@
-'''
+"""
 The code is used to train BC imitator, or pretrained GAIL imitator
-'''
-
+"""
+import os
 import argparse
 import tempfile
-import os.path as osp
-import gym
 import logging
-from tqdm import tqdm
 
+from tqdm import tqdm
+import gym
 import tensorflow as tf
 
 from baselines.gail import mlp_policy
-from baselines import bench
-from baselines import logger
-from baselines.common import set_global_seeds, tf_util as U
+from baselines import logger, bench
+from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
 from baselines.common.mpi_adam import MpiAdam
 from baselines.gail.run_mujoco import runner
-from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
+from baselines.gail.dataset.mujocodset import MujocoDset
 
 
 def argsparser():
@@ -39,25 +37,23 @@ def argsparser():
     return parser.parse_args()
 
 
-def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
-          adam_epsilon=1e-5, optim_stepsize=3e-4,
-          ckpt_dir=None, log_dir=None, task_name=None,
-          verbose=False):
+def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_epsilon=1e-5, optim_stepsize=3e-4,
+          ckpt_dir=None, log_dir=None, task_name=None, verbose=False):
 
     val_per_iter = int(max_iters/10)
     ob_space = env.observation_space
     ac_space = env.action_space
     pi = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
     # placeholder
-    ob = U.get_placeholder_cached(name="ob")
+    ob = tf_util.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
-    stochastic = U.get_placeholder_cached(name="stochastic")
+    stochastic = tf_util.get_placeholder_cached(name="stochastic")
     loss = tf.reduce_mean(tf.square(ac-pi.ac))
     var_list = pi.get_trainable_variables()
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
-    lossandgrad = U.function([ob, ac, stochastic], [loss]+[U.flatgrad(loss, var_list)])
+    lossandgrad = tf_util.function([ob, ac, stochastic], [loss] + [tf_util.flatgrad(loss, var_list)])
 
-    U.initialize()
+    tf_util.initialize()
     adam.sync()
     logger.log("Pretraining with Behavior Cloning...")
     for iter_so_far in tqdm(range(int(max_iters))):
@@ -72,8 +68,8 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4,
     if ckpt_dir is None:
         savedir_fname = tempfile.TemporaryDirectory().name
     else:
-        savedir_fname = osp.join(ckpt_dir, task_name)
-    U.save_state(savedir_fname, var_list=pi.get_variables())
+        savedir_fname = os.path.join(ckpt_dir, task_name)
+    tf_util.save_state(savedir_fname, var_list=pi.get_variables())
     return savedir_fname
 
 
@@ -86,7 +82,7 @@ def get_task_name(args):
 
 
 def main(args):
-    U.make_session(num_cpu=1).__enter__()
+    tf_util.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
     env = gym.make(args.env_id)
 
@@ -94,13 +90,13 @@ def main(args):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
     env = bench.Monitor(env, logger.get_dir() and
-                        osp.join(logger.get_dir(), "monitor.json"))
+                        os.path.join(logger.get_dir(), "monitor.json"))
     env.seed(args.seed)
     gym.logger.setLevel(logging.WARN)
     task_name = get_task_name(args)
-    args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = osp.join(args.log_dir, task_name)
-    dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+    args.checkpoint_dir = os.path.join(args.checkpoint_dir, task_name)
+    args.log_dir = os.path.join(args.log_dir, task_name)
+    dataset = MujocoDset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
     savedir_fname = learn(env,
                           policy_fn,
                           dataset,
@@ -109,14 +105,14 @@ def main(args):
                           log_dir=args.log_dir,
                           task_name=task_name,
                           verbose=True)
-    avg_len, avg_ret = runner(env,
-                              policy_fn,
-                              savedir_fname,
-                              timesteps_per_batch=1024,
-                              number_trajs=10,
-                              stochastic_policy=args.stochastic_policy,
-                              save=args.save_sample,
-                              reuse=True)
+    runner(env,
+           policy_fn,
+           savedir_fname,
+           timesteps_per_batch=1024,
+           number_trajs=10,
+           stochastic_policy=args.stochastic_policy,
+           save=args.save_sample,
+           reuse=True)
 
 
 if __name__ == '__main__':

@@ -1,12 +1,14 @@
-'''
+"""
 Data structure of the input .npz:
 the data is save in python dictionary format with keys: 'acs', 'ep_rets', 'rews', 'obs'
 the values of each item is a list storing the expert trajectory sequentially
 a transition can be: (data['obs'][t], data['acs'][t], data['obs'][t+1]) and get reward data['rews'][t]
-'''
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
 
 from baselines import logger
-import numpy as np
 
 
 class Dset(object):
@@ -39,7 +41,7 @@ class Dset(object):
         return inputs, labels
 
 
-class Mujoco_Dset(object):
+class MujocoDset(object):
     def __init__(self, expert_path, train_fraction=0.7, traj_limitation=-1, randomize=True):
         traj_data = np.load(expert_path)
         if traj_limitation < 0:
@@ -95,16 +97,16 @@ class Mujoco_Dset(object):
             raise NotImplementedError
 
     def plot(self):
-        import matplotlib.pyplot as plt
         plt.hist(self.rets)
         plt.savefig("histogram_rets.png")
         plt.close()
 
 
 def test(expert_path, traj_limitation, plot):
-    dset = Mujoco_Dset(expert_path, traj_limitation=traj_limitation)
+    dset = MujocoDset(expert_path, traj_limitation=traj_limitation)
     if plot:
         dset.plot()
+
 
 if __name__ == '__main__':
     import argparse

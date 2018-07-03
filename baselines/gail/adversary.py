@@ -1,21 +1,27 @@
-'''
+"""
 Reference: https://github.com/openai/imitation
 I follow the architecture from the official repository
-'''
+"""
 import tensorflow as tf
 import numpy as np
 
 from baselines.common.mpi_running_mean_std import RunningMeanStd
-from baselines.common import tf_util as U
+from baselines.common import tf_util as tf_util
+
 
 def logsigmoid(a):
-    '''Equivalent to tf.log(tf.sigmoid(a))'''
+    """
+    Equivalent to tf.log(tf.sigmoid(a))
+    """
     return -tf.nn.softplus(-a)
 
-""" Reference: https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51"""
+
+# Reference:
+# https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51
 def logit_bernoulli_entropy(logits):
     ent = (1.-tf.nn.sigmoid(logits))*logits - logsigmoid(logits)
     return ent
+
 
 class TransitionClassifier(object):
     def __init__(self, env, hidden_size, entcoeff=0.001, lr_rate=1e-3, scope="adversary"):
@@ -35,7 +41,8 @@ class TransitionClassifier(object):
         # Build regression loss
         # let x = logits, z = targets.
         # z * -log(sigmoid(x)) + (1 - z) * -log(1 - sigmoid(x))
-        generator_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=generator_logits, labels=tf.zeros_like(generator_logits))
+        generator_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=generator_logits,
+                                                                 labels=tf.zeros_like(generator_logits))
         generator_loss = tf.reduce_mean(generator_loss)
         expert_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=expert_logits, labels=tf.ones_like(expert_logits))
         expert_loss = tf.reduce_mean(expert_loss)
@@ -50,8 +57,9 @@ class TransitionClassifier(object):
         # Build Reward for policy
         self.reward_op = -tf.log(1-tf.nn.sigmoid(generator_logits)+1e-8)
         var_list = self.get_trainable_variables()
-        self.lossandgrad = U.function([self.generator_obs_ph, self.generator_acs_ph, self.expert_obs_ph, self.expert_acs_ph],
-                                      self.losses + [U.flatgrad(self.total_loss, var_list)])
+        self.lossandgrad = tf_util.function(
+            [self.generator_obs_ph, self.generator_acs_ph, self.expert_obs_ph, self.expert_acs_ph],
+            self.losses + [tf_util.flatgrad(self.total_loss, var_list)])
 
     def build_ph(self):
         self.generator_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name="observations_ph")
