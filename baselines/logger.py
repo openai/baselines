@@ -1,7 +1,6 @@
 import os
 import sys
 import shutil
-import os.path as osp
 import json
 import time
 import datetime
@@ -15,13 +14,16 @@ ERROR = 40
 
 DISABLED = 50
 
+
 class KVWriter(object):
     def writekvs(self, kvs):
         raise NotImplementedError
 
+
 class SeqWriter(object):
     def writeseq(self, seq):
         raise NotImplementedError
+
 
 class HumanOutputFormat(KVWriter, SeqWriter):
     def __init__(self, filename_or_file):
@@ -29,7 +31,7 @@ class HumanOutputFormat(KVWriter, SeqWriter):
             self.file = open(filename_or_file, 'wt')
             self.own_file = True
         else:
-            assert hasattr(filename_or_file, 'read'), 'expected file or str, got %s'%filename_or_file
+            assert hasattr(filename_or_file, 'read'), 'expected file or str, got %s' % filename_or_file
             self.file = filename_or_file
             self.own_file = False
 
@@ -67,14 +69,15 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         # Flush the output to the file
         self.file.flush()
 
-    def _truncate(self, s):
+    @classmethod
+    def _truncate(cls, s):
         return s[:20] + '...' if len(s) > 23 else s
 
     def writeseq(self, seq):
         seq = list(seq)
         for (i, elem) in enumerate(seq):
             self.file.write(elem)
-            if i < len(seq) - 1: # add space unless this is the last one
+            if i < len(seq) - 1:  # add space unless this is the last one
                 self.file.write(' ')
         self.file.write('\n')
         self.file.flush()
@@ -82,6 +85,7 @@ class HumanOutputFormat(KVWriter, SeqWriter):
     def close(self):
         if self.own_file:
             self.file.close()
+
 
 class JSONOutputFormat(KVWriter):
     def __init__(self, filename):
@@ -97,6 +101,7 @@ class JSONOutputFormat(KVWriter):
 
     def close(self):
         self.file.close()
+
 
 class CSVOutputFormat(KVWriter):
     def __init__(self, filename):
@@ -143,7 +148,7 @@ class TensorBoardOutputFormat(KVWriter):
         self.dir = dir
         self.step = 1
         prefix = 'events'
-        path = osp.join(osp.abspath(dir), prefix)
+        path = os.path.join(os.path.abspath(dir), prefix)
         import tensorflow as tf
         from tensorflow.python import pywrap_tensorflow
         from tensorflow.core.util import event_pb2
@@ -159,7 +164,7 @@ class TensorBoardOutputFormat(KVWriter):
             return self.tf.Summary.Value(**kwargs)
         summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
         event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
-        event.step = self.step # is there any reason why you'd want to specify the step?
+        event.step = self.step  # is there any reason why you'd want to specify the step?
         self.writer.WriteEvent(event)
         self.writer.Flush()
         self.step += 1
@@ -169,20 +174,22 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer.Close()
             self.writer = None
 
+
 def make_output_format(format, ev_dir, log_suffix=''):
     os.makedirs(ev_dir, exist_ok=True)
     if format == 'stdout':
         return HumanOutputFormat(sys.stdout)
     elif format == 'log':
-        return HumanOutputFormat(osp.join(ev_dir, 'log%s.txt' % log_suffix))
+        return HumanOutputFormat(os.path.join(ev_dir, 'log%s.txt' % log_suffix))
     elif format == 'json':
-        return JSONOutputFormat(osp.join(ev_dir, 'progress%s.json' % log_suffix))
+        return JSONOutputFormat(os.path.join(ev_dir, 'progress%s.json' % log_suffix))
     elif format == 'csv':
-        return CSVOutputFormat(osp.join(ev_dir, 'progress%s.csv' % log_suffix))
+        return CSVOutputFormat(os.path.join(ev_dir, 'progress%s.csv' % log_suffix))
     elif format == 'tensorboard':
-        return TensorBoardOutputFormat(osp.join(ev_dir, 'tb%s' % log_suffix))
+        return TensorBoardOutputFormat(os.path.join(ev_dir, 'tb%s' % log_suffix))
     else:
         raise ValueError('Unknown format specified: %s' % (format,))
+
 
 # ================================================================
 # API
@@ -196,11 +203,13 @@ def logkv(key, val):
     """
     Logger.CURRENT.logkv(key, val)
 
+
 def logkv_mean(key, val):
     """
     The same as logkv(), but if called many times, values averaged.
     """
     Logger.CURRENT.logkv_mean(key, val)
+
 
 def logkvs(d):
     """
@@ -208,6 +217,7 @@ def logkvs(d):
     """
     for (k, v) in d.items():
         logkv(k, v)
+
 
 def dumpkvs():
     """
@@ -217,6 +227,7 @@ def dumpkvs():
                 the level argument here, don't print to stdout.
     """
     Logger.CURRENT.dumpkvs()
+
 
 def getkvs():
     return Logger.CURRENT.name2val
@@ -228,14 +239,18 @@ def log(*args, level=INFO):
     """
     Logger.CURRENT.log(*args, level=level)
 
+
 def debug(*args):
     log(*args, level=DEBUG)
+
 
 def info(*args):
     log(*args, level=INFO)
 
+
 def warn(*args):
     log(*args, level=WARN)
+
 
 def error(*args):
     log(*args, level=ERROR)
@@ -247,6 +262,7 @@ def set_level(level):
     """
     Logger.CURRENT.set_level(level)
 
+
 def get_dir():
     """
     Get directory that log files are being written to.
@@ -254,8 +270,10 @@ def get_dir():
     """
     return Logger.CURRENT.get_dir()
 
+
 record_tabular = logkv
 dump_tabular = dumpkvs
+
 
 class ProfileKV:
     """
@@ -265,10 +283,13 @@ class ProfileKV:
     """
     def __init__(self, n):
         self.n = "wait_" + n
+
     def __enter__(self):
         self.t1 = time.time()
+
     def __exit__(self ,type, value, traceback):
         Logger.CURRENT.name2val[self.n] += time.time() - self.t1
+
 
 def profile(n):
     """
@@ -289,8 +310,9 @@ def profile(n):
 # ================================================================
 
 class Logger(object):
-    DEFAULT = None  # A logger with no output files. (See right below class definition)
-                    # So that you can still log to the terminal without setting up any output files
+    # A logger with no output files. (See right below class definition)
+    #  So that you can still log to the terminal without setting up any output files
+    DEFAULT = None
     CURRENT = None  # Current logger being used by the free functions above
 
     def __init__(self, dir, output_formats):
@@ -314,7 +336,8 @@ class Logger(object):
         self.name2cnt[key] = cnt + 1
 
     def dumpkvs(self):
-        if self.level == DISABLED: return
+        if self.level == DISABLED:
+            return
         for fmt in self.output_formats:
             if isinstance(fmt, KVWriter):
                 fmt.writekvs(self.name2val)
@@ -344,14 +367,15 @@ class Logger(object):
             if isinstance(fmt, SeqWriter):
                 fmt.writeseq(map(str, args))
 
+
 Logger.DEFAULT = Logger.CURRENT = Logger(dir=None, output_formats=[HumanOutputFormat(sys.stdout)])
+
 
 def configure(dir=None, format_strs=None):
     if dir is None:
         dir = os.getenv('OPENAI_LOGDIR')
     if dir is None:
-        dir = osp.join(tempfile.gettempdir(),
-            datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
+        dir = os.path.join(tempfile.gettempdir(), datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
     assert isinstance(dir, str)
     os.makedirs(dir, exist_ok=True)
 
@@ -370,7 +394,8 @@ def configure(dir=None, format_strs=None):
     output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
-    log('Logging to %s'%dir)
+    log('Logging to %s' % dir)
+
 
 def reset():
     if Logger.CURRENT is not Logger.DEFAULT:
@@ -378,17 +403,21 @@ def reset():
         Logger.CURRENT = Logger.DEFAULT
         log('Reset logger')
 
+
 class scoped_configure(object):
     def __init__(self, dir=None, format_strs=None):
         self.dir = dir
         self.format_strs = format_strs
         self.prevlogger = None
+
     def __enter__(self):
         self.prevlogger = Logger.CURRENT
         configure(dir=self.dir, format_strs=self.format_strs)
+
     def __exit__(self, *args):
         Logger.CURRENT.close()
         Logger.CURRENT = self.prevlogger
+
 
 # ================================================================
 
@@ -433,9 +462,11 @@ def read_json(fname):
             ds.append(json.loads(line))
     return pandas.DataFrame(ds)
 
+
 def read_csv(fname):
     import pandas
     return pandas.read_csv(fname, index_col=None, comment='#')
+
 
 def read_tb(path):
     """
@@ -447,12 +478,12 @@ def read_tb(path):
     from glob import glob
     from collections import defaultdict
     import tensorflow as tf
-    if osp.isdir(path):
-        fnames = glob(osp.join(path, "events.*"))
-    elif osp.basename(path).startswith("events."):
+    if os.path.isdir(path):
+        fnames = glob(os.path.join(path, "events.*"))
+    elif os.path.basename(path).startswith("events."):
         fnames = [path]
     else:
-        raise NotImplementedError("Expected tensorboard file or directory containing them. Got %s"%path)
+        raise NotImplementedError("Expected tensorboard file or directory containing them. Got %s" % path)
     tag2pairs = defaultdict(list)
     maxstep = 0
     for fname in fnames:
@@ -465,11 +496,12 @@ def read_tb(path):
     data = np.empty((maxstep, len(tag2pairs)))
     data[:] = np.nan
     tags = sorted(tag2pairs.keys())
-    for (colidx,tag) in enumerate(tags):
+    for (colidx, tag) in enumerate(tags):
         pairs = tag2pairs[tag]
         for (step, value) in pairs:
             data[step-1, colidx] = value
     return pandas.DataFrame(data, columns=tags)
+
 
 if __name__ == "__main__":
     _demo()

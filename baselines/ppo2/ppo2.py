@@ -131,7 +131,7 @@ class Runner(AbstractEnvRunner):
             delta = mb_rewards[t] + self.gamma * nextvalues * nextnonterminal - mb_values[t]
             mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
         mb_returns = mb_advs + mb_values
-        return *map(sf01, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states, epinfos
+        return (*map(sf01, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states, epinfos)
 
 
 # obs, returns, masks, actions, values, neglogpacs, states = runner.run()
@@ -203,9 +203,8 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                     mblossvals.append(model.train(lrnow, cliprangenow, *slices))
-        else: # recurrent version
+        else:  # recurrent version
             assert nenvs % nminibatches == 0
-            envsperbatch = nenvs // nminibatches
             envinds = np.arange(nenvs)
             flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
             envsperbatch = nbatch_train // nsteps
