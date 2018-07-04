@@ -1,4 +1,4 @@
-<img src="data/logo.jpg" width=25% align="right" /> [![Build Status](https://travis-ci.org/hill-a/stable-baselines.svg?branch=master)](https://travis-ci.org/hill-a/stable-baselines) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/hill-a/stable-baselines?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hill-a/stable-baselines&amp;utm_campaign=Badge_Grade)
+<img src="data/logo.jpg" width=25% align="right" /> [![Build Status](https://travis-ci.org/hill-a/stable-baselines.svg?branch=master)](https://travis-ci.org/hill-a/stable-baselines) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/hill-a/stable-baselines?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hill-a/stable-baselines&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/hill-a/stable-baselines?utm_source=github.com&utm_medium=referral&utm_content=hill-a/stable-baselines&utm_campaign=Badge_Coverage)
 
 # Baselines
 

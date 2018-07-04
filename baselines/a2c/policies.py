@@ -6,16 +6,15 @@ from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_input
 
 
-def nature_cnn(unscaled_images, **conv_kwargs):
+def nature_cnn(unscaled_images):
     """
     CNN from Nature paper.
     """
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
     activ = tf.nn.relu
-    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2),
-                   **conv_kwargs))
-    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
-    h3 = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **conv_kwargs))
+    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2)))
+    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2)))
+    h3 = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2)))
     h3 = conv_to_fc(h3)
     return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2)))
 
@@ -97,10 +96,10 @@ class A2CPolicy(object):
 
 
 class LnLstmPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **conv_kwargs):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
         super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.processed_x, **conv_kwargs)
+            h = nature_cnn(self.processed_x)
             xs = batch_to_seq(h, self.nenv, nsteps)
             ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
             h5, self.snew = lnlstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
@@ -123,10 +122,10 @@ class LnLstmPolicy(A2CPolicy):
 
 
 class LstmPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **conv_kwargs):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
         super(LstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.obs_ph, **conv_kwargs)
+            h = nature_cnn(self.obs_ph)
             xs = batch_to_seq(h, self.nenv, nsteps)
             ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
             h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
@@ -149,10 +148,10 @@ class LstmPolicy(A2CPolicy):
 
 
 class CnnPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **conv_kwargs):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
         super(CnnPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.processed_x, **conv_kwargs)
+            h = nature_cnn(self.processed_x)
             vf = fc(h, 'v', 1)[:, 0]
             self.pd, self.pi = self.pdtype.pdfromlatent(h, init_scale=0.01)
 

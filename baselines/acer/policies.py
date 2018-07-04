@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from baselines.ppo2.policies import nature_cnn
+from baselines.a2c.policies import nature_cnn
 from baselines.a2c.utils import fc, batch_to_seq, seq_to_batch, lstm, sample
 
 
