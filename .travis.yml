@@ -14,4 +14,4 @@ install:
 
 script:
     - flake8 --select=F baselines/common
-    - docker run --env CODACY_PROJECT_TOKEN=$CODACY_PROJECT_TOKEN baselines-test  sh -c 'pytest --cov-report term --cov-report xml --cov=. && python-codacy-coverage -r coverage.xml --token=$CODACY_PROJECT_TOKEN'
+    - docker run --env CODACY_PROJECT_TOKEN=$CODACY_PROJECT_TOKEN baselines-test sh -c 'pytest --cov-report term --cov-report xml --cov=. && python-codacy-coverage -r coverage.xml --token=$CODACY_PROJECT_TOKEN'
