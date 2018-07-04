@@ -161,12 +161,12 @@ class CnnPolicy(A2CPolicy):
         self.initial_state = None
         self.vf = vf
 
-    def step(self, obs, state, mask):
+    def step(self, obs, *args, **kwargs):
         a, v, neglogp = self.sess.run([self.a0, self.vf, self.neglogp0], {self.obs_ph: obs})
         return a, v, self.initial_state, neglogp
 
-    def value(self, obs, state, mask):
-        return self.sess.run(self.vf, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+    def value(self, obs, *args, **kwargs):
+        return self.sess.run(self.vf, {self.obs_ph: obs})
 
 
 class MlpPolicy(A2CPolicy):
@@ -188,10 +188,10 @@ class MlpPolicy(A2CPolicy):
         self.initial_state = None
         self.vf = vf
 
-    def step(self, obs, state, mask):
+    def step(self, obs, *args, **kwargs):
         a, v, neglogp = self.sess.run([self.a0, self.vf, self.neglogp0], {self.obs_ph: obs})
         return a, v, self.initial_state, neglogp
 
-    def value(self, obs, state, mask):
-        return self.sess.run(self.vf, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+    def value(self, obs, *args, **kwargs):
+        return self.sess.run(self.vf, {self.obs_ph: obs})
 
