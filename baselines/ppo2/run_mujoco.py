@@ -17,24 +17,24 @@ def train(env_id, num_timesteps, seed):
     config = tf.ConfigProto(allow_soft_placement=True,
                             intra_op_parallelism_threads=ncpu,
                             inter_op_parallelism_threads=ncpu)
-    tf.Session(config=config).__enter__()
 
-    def make_env():
-        env_out = gym.make(env_id)
-        env_out = bench.Monitor(env_out, logger.get_dir(), allow_early_resets=True)
-        return env_out
+    with tf.Session(config=config):
+        def make_env():
+            env_out = gym.make(env_id)
+            env_out = bench.Monitor(env_out, logger.get_dir(), allow_early_resets=True)
+            return env_out
 
-    env = DummyVecEnv([make_env])
-    env = VecNormalize(env)
+        env = DummyVecEnv([make_env])
+        env = VecNormalize(env)
 
-    set_global_seeds(seed)
-    policy = MlpPolicy
-    model = ppo2.learn(policy=policy, env=env, nsteps=2048, nminibatches=32,
-                       lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
-                       ent_coef=0.0,
-                       lr=3e-4,
-                       cliprange=0.2,
-                       total_timesteps=num_timesteps)
+        set_global_seeds(seed)
+        policy = MlpPolicy
+        model = ppo2.learn(policy=policy, env=env, nsteps=2048, nminibatches=32,
+                           lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
+                           ent_coef=0.0,
+                           lr=3e-4,
+                           cliprange=0.2,
+                           total_timesteps=num_timesteps)
 
     return model, env
 

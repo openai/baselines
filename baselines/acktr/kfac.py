@@ -118,10 +118,12 @@ class KfacOptimizer:
                                      if 'gradientsSampled' in _i.name if 'Shape' not in _i.name]
                     if len(b_inputs_list) > 0:
                         b_tensor = b_inputs_list[0]
-                        b_tensor_shape = fprop_op.outputs[0].get_shape()
-                        if len(b_tensor.get_shape()) > 0 and b_tensor.get_shape()[0].value is None:
-                            b_tensor.set_shape(b_tensor_shape)
-                        b_tensors.append(b_tensor)
+                        # only if tensor shape is defined, usually this will prevent tensor like Sum:0 to be used.
+                        if b_tensor.get_shape():
+                            b_tensor_shape = fprop_op.outputs[0].get_shape()
+                            if len(b_tensor.get_shape()) > 0 and b_tensor.get_shape()[0].value is None:
+                                b_tensor.set_shape(b_tensor_shape)
+                            b_tensors.append(b_tensor)
                     fprop_op_name = op_types.append('UNK-' + fprop_op.op_def.name)
 
             return {'opName': fprop_op_name, 'op': fprop_op, 'fpropFactors': f_tensors, 'bpropFactors': b_tensors}
@@ -540,16 +542,11 @@ class KfacOptimizer:
         # TO-DO: figure out why this op has delays (possibly moving
         # eigenvectors around?)
         with tf.device('/cpu:0'):
-            # stats = [copyStats(self.fStats), copyStats(self.bStats)]
-            # stats = [self.fStats, self.bStats]
-
             stats_eigen = self.stats_eigen
             computed_eigen = {}
             eigen_reverse_lookup = {}
             update_ops = []
             # sync copied stats
-            # with tf.control_dependencies(removeNone(stats[0]) +
-            # removeNone(stats[1])):
             with tf.control_dependencies([]):
                 for stats_var in stats_eigen:
                     if stats_var not in computed_eigen:
@@ -793,8 +790,8 @@ class KfacOptimizer:
             factor_ops_dummy = self.compute_stats_eigen()
 
             # define a queue for the list of factor loading tensors
-            queue = tf.FIFOQueue(1, [item.dtype for item in factor_ops_dummy], shapes=[
-                item.get_shape() for item in factor_ops_dummy])
+            queue = tf.FIFOQueue(1, [item.dtype for item in factor_ops_dummy],
+                                 shapes=[item.get_shape() for item in factor_ops_dummy])
             enqueue_op = tf.cond(
                 tf.logical_and(tf.equal(tf.mod(self.stats_step, self._kfac_update), tf.convert_to_tensor(
                     0)), tf.greater_equal(self.stats_step, self._stats_accum_iter)),
@@ -877,8 +874,7 @@ class KfacOptimizer:
         return tf.group(*update_ops), qr
 
     def apply_gradients(self, grads):
-        cold_optim = tf.train.MomentumOptimizer(
-            self._cold_lr, self._momentum)
+        cold_optim = tf.train.MomentumOptimizer(self._cold_lr, self._momentum)
 
         def cold_sgd_start():
             sgd_grads, sgd_var = zip(*grads)

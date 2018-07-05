@@ -20,10 +20,6 @@ NUM_CPU = 16
 
 
 def clear_tf_session():
-    sess = tf.get_default_session()
-    while sess is not None:
-        sess.close()
-        sess = tf.get_default_session()
     tf.reset_default_graph()
 
 

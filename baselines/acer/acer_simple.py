@@ -199,12 +199,15 @@ class Model(object):
 
         def train(obs, actions, rewards, dones, mus, states, masks, steps):
             cur_lr = lr.value_steps(steps)
-            td_map = {train_model.obs_ph: obs, polyak_model.obs_ph: obs, action_ph: actions, reward_ph: rewards, done_ph: dones, mu_ph: mus, learning_rate_ph: cur_lr}
-            if len(states) == 0:
+            td_map = {train_model.obs_ph: obs, polyak_model.obs_ph: obs, action_ph: actions, reward_ph: rewards,
+                      done_ph: dones, mu_ph: mus, learning_rate_ph: cur_lr}
+
+            if len(states) != 0:
                 td_map[train_model.states_ph] = states
                 td_map[train_model.masks_ph] = masks
                 td_map[polyak_model.states_ph] = states
                 td_map[polyak_model.masks_ph] = masks
+
             return names_ops, sess.run(run_ops, td_map)[1:]  # strip off _train
 
         def save(save_path):

@@ -6,17 +6,17 @@ from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_input
 
 
-def nature_cnn(unscaled_images):
+def nature_cnn(unscaled_images, **kwargs):
     """
     CNN from Nature paper.
     """
     scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
     activ = tf.nn.relu
-    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2)))
-    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2)))
-    h3 = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2)))
+    h = activ(conv(scaled_images, 'c1', nf=32, rf=8, stride=4, init_scale=np.sqrt(2), **kwargs))
+    h2 = activ(conv(h, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2), **kwargs))
+    h3 = activ(conv(h2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **kwargs))
     h3 = conv_to_fc(h3)
-    return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2)))
+    return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2), **kwargs))
 
 
 class A2CPolicy(object):
@@ -96,10 +96,10 @@ class A2CPolicy(object):
 
 
 class LnLstmPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
         super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.processed_x)
+            h = nature_cnn(self.processed_x, **kwargs)
             xs = batch_to_seq(h, self.nenv, nsteps)
             ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
             h5, self.snew = lnlstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
@@ -122,10 +122,10 @@ class LnLstmPolicy(A2CPolicy):
 
 
 class LstmPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
         super(LstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.obs_ph)
+            h = nature_cnn(self.obs_ph, **kwargs)
             xs = batch_to_seq(h, self.nenv, nsteps)
             ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
             h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
@@ -148,10 +148,10 @@ class LstmPolicy(A2CPolicy):
 
 
 class CnnPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
         super(CnnPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.processed_x)
+            h = nature_cnn(self.processed_x, **kwargs)
             vf = fc(h, 'v', 1)[:, 0]
             self.pd, self.pi = self.pdtype.pdfromlatent(h, init_scale=0.01)
 
@@ -169,15 +169,15 @@ class CnnPolicy(A2CPolicy):
 
 
 class MlpPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
         super(MlpPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
             activ = tf.tanh
             processed_x = tf.layers.flatten(self.processed_x)
-            pi_h1 = activ(fc(processed_x, 'pi_fc1', nh=64, init_scale=np.sqrt(2)))
-            pi_h2 = activ(fc(pi_h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2)))
-            vf_h1 = activ(fc(processed_x, 'vf_fc1', nh=64, init_scale=np.sqrt(2)))
-            vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2)))
+            pi_h1 = activ(fc(processed_x, 'pi_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
+            pi_h2 = activ(fc(pi_h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
+            vf_h1 = activ(fc(processed_x, 'vf_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
+            vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
             vf = fc(vf_h2, 'vf', 1)[:, 0]
 
             self.pd, self.pi = self.pdtype.pdfromlatent(pi_h2, init_scale=0.01)

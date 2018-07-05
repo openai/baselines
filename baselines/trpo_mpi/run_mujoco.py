@@ -10,24 +10,23 @@ import baselines.common.tf_util as tf_util
 
 
 def train(env_id, num_timesteps, seed):
-    sess = tf_util.single_threaded_session()
-    sess.__enter__()
 
-    rank = MPI.COMM_WORLD.Get_rank()
-    if rank == 0:
-        logger.configure()
-    else:
-        logger.configure(format_strs=[])
-        logger.set_level(logger.DISABLED)
-    workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
+    with tf_util.single_threaded_session():
+        rank = MPI.COMM_WORLD.Get_rank()
+        if rank == 0:
+            logger.configure()
+        else:
+            logger.configure(format_strs=[])
+            logger.set_level(logger.DISABLED)
+        workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
 
-    def policy_fn(name, ob_space, ac_space):
-        return MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=32, num_hid_layers=2)
+        def policy_fn(name, ob_space, ac_space):
+            return MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=32, num_hid_layers=2)
 
-    env = make_mujoco_env(env_id, workerseed)
-    trpo_mpi.learn(env, policy_fn, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, cg_damping=0.1,
-                   max_timesteps=num_timesteps, gamma=0.99, lam=0.98, vf_iters=5, vf_stepsize=1e-3)
-    env.close()
+        env = make_mujoco_env(env_id, workerseed)
+        trpo_mpi.learn(env, policy_fn, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, cg_damping=0.1,
+                       max_timesteps=num_timesteps, gamma=0.99, lam=0.98, vf_iters=5, vf_stepsize=1e-3)
+        env.close()
 
 
 def main():

@@ -56,6 +56,7 @@ class Model(object):
                                                     stats_decay=0.99, async=1, cold_iter=10,
                                                     max_grad_norm=max_grad_norm)
 
+            optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads, params)))
         self.q_runner = q_runner
         self.lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
@@ -65,10 +66,10 @@ class Model(object):
             for step in range(len(obs)):
                 cur_lr = self.lr.value()
 
-            td_map = {train_model.X: obs, action_ph: actions, advs_ph: advs, rewards_ph: rewards, pg_lr_ph: cur_lr}
+            td_map = {train_model.obs_ph: obs, action_ph: actions, advs_ph: advs, rewards_ph: rewards, pg_lr_ph: cur_lr}
             if states is not None:
-                td_map[train_model.S] = states
-                td_map[train_model.M] = masks
+                td_map[train_model.states_ph] = states
+                td_map[train_model.masks_ph] = masks
 
             policy_loss, value_loss, policy_entropy, _ = sess.run(
                 [pg_loss, vf_loss, entropy, train_op],

@@ -59,7 +59,7 @@ class Model(object):
                       old_vpred_ph: values}
             if states is not None:
                 td_map[train_model.states_ph] = states
-                td_map[train_model.maskes_ph] = masks
+                td_map[train_model.masks_ph] = masks
             return sess.run([pg_loss, vf_loss, entropy, approxkl, clipfrac, _train], td_map)[:-1]
 
         self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
