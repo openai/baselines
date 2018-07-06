@@ -2,6 +2,7 @@
 *.pyc
 *.pkl
 *.py~
+*.bak
 .pytest_cache
 .DS_Store
 .idea

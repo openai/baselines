@@ -127,18 +127,18 @@ def plot(env_name, bc_log, gail_log, stochastic):
 
 
 def main(args):
-    tf_util.make_session(num_cpu=1).__enter__()
-    set_global_seeds(args.seed)
-    print('Evaluating {}'.format(args.env))
-    bc_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
-                          args.stochastic_policy, False, 'BC')
-    print('Evaluation for {}'.format(args.env))
-    print(bc_log)
-    gail_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
-                            args.stochastic_policy, True, 'gail')
-    print('Evaluation for {}'.format(args.env))
-    print(gail_log)
-    plot(args.env, bc_log, gail_log, args.stochastic_policy)
+    with tf_util.make_session(num_cpu=1):
+        set_global_seeds(args.seed)
+        print('Evaluating {}'.format(args.env))
+        bc_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
+                              args.stochastic_policy, False, 'BC')
+        print('Evaluation for {}'.format(args.env))
+        print(bc_log)
+        gail_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
+                                args.stochastic_policy, True, 'gail')
+        print('Evaluation for {}'.format(args.env))
+        print(gail_log)
+        plot(args.env, bc_log, gail_log, args.stochastic_policy)
 
 
 if __name__ == '__main__':

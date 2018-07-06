@@ -330,7 +330,6 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
           trust_region=True, alpha=0.99, delta=1):
     print("Running Acer Simple")
     print(locals())
-    tf.reset_default_graph()
     set_global_seeds(seed)
 
     nenvs = env.num_envs

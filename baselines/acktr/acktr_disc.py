@@ -102,7 +102,6 @@ class Model(object):
 def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
           ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
           kfac_clip=0.001, save_interval=None, lrschedule='linear'):
-    tf.reset_default_graph()
     set_global_seeds(seed)
 
     nenvs = env.num_envs

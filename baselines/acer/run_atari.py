@@ -14,7 +14,7 @@ def train(env_id, num_timesteps, seed, policy, lrschedule, num_cpu):
     else:
         print("Policy {} not implemented".format(policy))
         return
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lrschedule=lrschedule)
+    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lrschedule=lrschedule, buffer_size=5000)
     env.close()
 
 

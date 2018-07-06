@@ -8,7 +8,7 @@ from baselines.common.identity_env import IdentityEnv
 
 def test_identity():
 
-    with tf.Graph().as_default():
+    with tf.Graph().as_default(), tf.Session().as_default():
         env = IdentityEnv(10)
         random.seed(0)
 
@@ -16,28 +16,30 @@ def test_identity():
 
         param_noise = False
         model = deepq.models.mlp([32])
-        act = deepq.learn(
-            env,
-            q_func=model,
-            lr=1e-3,
-            max_timesteps=10000,
-            buffer_size=50000,
-            exploration_fraction=0.1,
-            exploration_final_eps=0.02,
-            print_freq=10,
-            param_noise=param_noise,
-        )
 
-        tf.set_random_seed(0)
+        with tf.Session():
+            act = deepq.learn(
+                env,
+                q_func=model,
+                lr=1e-3,
+                max_timesteps=10000,
+                buffer_size=50000,
+                exploration_fraction=0.1,
+                exploration_final_eps=0.02,
+                print_freq=10,
+                param_noise=param_noise,
+            )
 
-        n_trials = 1000
-        sum_rew = 0
-        obs = env.reset()
-        for i in range(n_trials):
-            obs, rew, done, _ = env.step(act([obs]))
-            sum_rew += rew
+            tf.set_random_seed(0)
 
-        assert sum_rew > 0.9 * n_trials
+            n_trials = 1000
+            sum_rew = 0
+            obs = env.reset()
+            for i in range(n_trials):
+                obs, rew, done, _ = env.step(act([obs]))
+                sum_rew += rew
+
+            assert sum_rew > 0.9 * n_trials
 
 
 if __name__ == '__main__':

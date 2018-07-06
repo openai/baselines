@@ -82,37 +82,37 @@ def get_task_name(args):
 
 
 def main(args):
-    tf_util.make_session(num_cpu=1).__enter__()
-    set_global_seeds(args.seed)
-    env = gym.make(args.env_id)
+    with tf_util.make_session(num_cpu=1):
+        set_global_seeds(args.seed)
+        env = gym.make(args.env_id)
 
-    def policy_fn(name, ob_space, ac_space, reuse=False):
-        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
-                                    reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
-    env = bench.Monitor(env, logger.get_dir() and
-                        os.path.join(logger.get_dir(), "monitor.json"))
-    env.seed(args.seed)
-    gym.logger.setLevel(logging.WARN)
-    task_name = get_task_name(args)
-    args.checkpoint_dir = os.path.join(args.checkpoint_dir, task_name)
-    args.log_dir = os.path.join(args.log_dir, task_name)
-    dataset = MujocoDset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
-    savedir_fname = learn(env,
-                          policy_fn,
-                          dataset,
-                          max_iters=args.BC_max_iter,
-                          ckpt_dir=args.checkpoint_dir,
-                          log_dir=args.log_dir,
-                          task_name=task_name,
-                          verbose=True)
-    runner(env,
-           policy_fn,
-           savedir_fname,
-           timesteps_per_batch=1024,
-           number_trajs=10,
-           stochastic_policy=args.stochastic_policy,
-           save=args.save_sample,
-           reuse=True)
+        def policy_fn(name, ob_space, ac_space, reuse=False):
+            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
+                                        reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
+        env = bench.Monitor(env, logger.get_dir() and
+                            os.path.join(logger.get_dir(), "monitor.json"))
+        env.seed(args.seed)
+        gym.logger.setLevel(logging.WARN)
+        task_name = get_task_name(args)
+        args.checkpoint_dir = os.path.join(args.checkpoint_dir, task_name)
+        args.log_dir = os.path.join(args.log_dir, task_name)
+        dataset = MujocoDset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
+        savedir_fname = learn(env,
+                              policy_fn,
+                              dataset,
+                              max_iters=args.BC_max_iter,
+                              ckpt_dir=args.checkpoint_dir,
+                              log_dir=args.log_dir,
+                              task_name=task_name,
+                              verbose=True)
+        runner(env,
+               policy_fn,
+               savedir_fname,
+               timesteps_per_batch=1024,
+               number_trajs=10,
+               stochastic_policy=args.stochastic_policy,
+               save=args.save_sample,
+               reuse=True)
 
 
 if __name__ == '__main__':
