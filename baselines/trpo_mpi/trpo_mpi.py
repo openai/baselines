@@ -96,12 +96,13 @@ def learn(env, policy_fn, *,
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
     np.set_printoptions(precision=3)
+    sess = tf_util.single_threaded_session()
     # Setup losses and stuff
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_fn("pi", ob_space, ac_space)
-    oldpi = policy_fn("oldpi", ob_space, ac_space)
+    pi = policy_fn("pi", ob_space, ac_space, sess=sess)
+    oldpi = policy_fn("oldpi", ob_space, ac_space, sess=sess)
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
@@ -128,10 +129,10 @@ def learn(env, policy_fn, *,
     all_var_list = pi.get_trainable_variables()
     var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("pol")]
     vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
-    vfadam = MpiAdam(vf_var_list)
+    vfadam = MpiAdam(vf_var_list, sess=sess)
 
-    get_flat = tf_util.GetFlat(var_list)
-    set_from_flat = tf_util.SetFromFlat(var_list)
+    get_flat = tf_util.GetFlat(var_list, sess=sess)
+    set_from_flat = tf_util.SetFromFlat(var_list, sess=sess)
     klgrads = tf.gradients(dist, var_list)
     flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
     shapes = [var.get_shape().as_list() for var in var_list]
@@ -168,7 +169,7 @@ def learn(env, policy_fn, *,
         out /= nworkers
         return out
 
-    tf_util.initialize()
+    tf_util.initialize(sess=sess)
     th_init = get_flat()
     MPI.COMM_WORLD.Bcast(th_init, root=0)
     set_from_flat(th_init)
@@ -217,11 +218,11 @@ def learn(env, policy_fn, *,
         fvpargs = [arr[::5] for arr in args]
 
         def fisher_vector_product(p):
-            return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
+            return allmean(compute_fvp(p, *fvpargs, sess=sess)) + cg_damping * p
 
-        assign_old_eq_new()  # set old parameter values to new parameter values
+        assign_old_eq_new(sess=sess)  # set old parameter values to new parameter values
         with timed("computegrad"):
-            *lossbefore, g = compute_lossandgrad(*args)
+            *lossbefore, g = compute_lossandgrad(*args, sess=sess)
         lossbefore = allmean(np.array(lossbefore))
         g = allmean(g)
         if np.allclose(g, 0):
@@ -241,7 +242,7 @@ def learn(env, policy_fn, *,
             for _ in range(10):
                 thnew = thbefore + fullstep * stepsize
                 set_from_flat(thnew)
-                meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args)))
+                meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
                 improve = surr - surrbefore
                 logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
                 if not np.isfinite(meanlosses).all():
@@ -269,7 +270,7 @@ def learn(env, policy_fn, *,
             for _ in range(vf_iters):
                 for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                                                          include_final_partial_batch=False, batch_size=64):
-                    g = allmean(compute_vflossandgrad(mbob, mbret))
+                    g = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
                     vfadam.update(g, vf_stepsize)
 
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))

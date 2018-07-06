@@ -5,7 +5,8 @@ import numpy as np
 
 
 class MpiAdam(object):
-    def __init__(self, var_list, *, beta1=0.9, beta2=0.999, epsilon=1e-08, scale_grad_by_procs=True, comm=None):
+    def __init__(self, var_list, *, beta1=0.9, beta2=0.999, epsilon=1e-08, scale_grad_by_procs=True, comm=None,
+                 sess=None):
         self.var_list = var_list
         self.beta1 = beta1
         self.beta2 = beta2
@@ -15,8 +16,8 @@ class MpiAdam(object):
         self.m = np.zeros(size, 'float32')
         self.v = np.zeros(size, 'float32')
         self.t = 0
-        self.setfromflat = tf_utils.SetFromFlat(var_list)
-        self.getflat = tf_utils.GetFlat(var_list)
+        self.setfromflat = tf_utils.SetFromFlat(var_list, sess=sess)
+        self.getflat = tf_utils.GetFlat(var_list, sess=sess)
         self.comm = MPI.COMM_WORLD if comm is None else comm
 
     def update(self, localg, stepsize):

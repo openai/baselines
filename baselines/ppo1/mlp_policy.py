@@ -9,10 +9,12 @@ from baselines.common.distributions import make_pdtype
 class MlpPolicy(object):
     recurrent = False
 
-    def __init__(self, name, *args, **kwargs):
-        with tf.variable_scope(name):
-            self._init(*args, **kwargs)
-            self.scope = tf.get_variable_scope().name
+    def __init__(self, name, *args, sess=None, reuse=False, **kwargs):
+        self.reuse = reuse
+        self.name = name
+        self._init(*args, **kwargs)
+        self.scope = tf.get_variable_scope().name
+        self.sess = sess
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
         assert isinstance(ob_space, gym.spaces.Box)
@@ -22,10 +24,10 @@ class MlpPolicy(object):
 
         ob = tf_util.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
 
-        with tf.variable_scope("obfilter"):
+        with tf.variable_scope(self.name + "/obfilter", reuse=self.reuse):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
 
-        with tf.variable_scope('vf'):
+        with tf.variable_scope(self.name + '/vf', reuse=self.reuse):
             obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
             last_out = obz
             for i in range(num_hid_layers):
@@ -34,7 +36,7 @@ class MlpPolicy(object):
             self.vpred = tf.layers.dense(last_out, 1, name='final',
                                          kernel_initializer=tf_util.normc_initializer(1.0))[:, 0]
 
-        with tf.variable_scope('pol'):
+        with tf.variable_scope(self.name + '/pol', reuse=self.reuse):
             last_out = obz
             for i in range(num_hid_layers):
                 last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name='fc%i' % (i+1),
@@ -59,7 +61,7 @@ class MlpPolicy(object):
         self._act = tf_util.function([stochastic, ob], [ac, self.vpred])
 
     def act(self, stochastic, ob):
-        ac1, vpred1 = self._act(stochastic, ob[None])
+        ac1, vpred1 = self._act(stochastic, ob[None], sess=self.sess)
         return ac1[0], vpred1[0]
 
     def get_variables(self):

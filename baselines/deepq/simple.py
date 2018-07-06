@@ -15,29 +15,33 @@ from baselines.deepq.utils import ObservationInput
 
 
 class ActWrapper(object):
-    def __init__(self, act, act_params):
+    def __init__(self, act, act_params, sess=None):
         self._act = act
         self._act_params = act_params
+        if sess is None:
+            self.sess = tf_util.make_session()
+        else:
+            self.sess = sess
 
     @staticmethod
     def load(path):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         act = deepq.build_act(**act_params)
-        sess = tf.Session()
-        sess.__enter__()
+        sess = tf_util.make_session()
         with tempfile.TemporaryDirectory() as td:
             arc_path = os.path.join(td, "packed.zip")
             with open(arc_path, "wb") as f:
                 f.write(model_data)
 
             zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
-            load_state(os.path.join(td, "model"))
+            load_state(os.path.join(td, "model"), sess)
 
-        return ActWrapper(act, act_params)
+        return ActWrapper(act, act_params, sess=sess)
 
     def __call__(self, *args, **kwargs):
-        return self._act(*args, **kwargs)
+        with self.sess.as_default():
+            return self._act(*args, **kwargs)
 
     def save(self, path=None):
         """Save model to a pickle located at `path`"""
@@ -45,7 +49,7 @@ class ActWrapper(object):
             path = os.path.join(logger.get_dir(), "model.pkl")
 
         with tempfile.TemporaryDirectory() as td:
-            save_state(os.path.join(td, "model"))
+            save_state(os.path.join(td, "model"), self.sess)
             arc_name = os.path.join(td, "packed.zip")
             with zipfile.ZipFile(arc_name, 'w') as zipf:
                 for root, dirs, files in os.walk(td):
@@ -211,8 +215,8 @@ def learn(env,
                                  final_p=exploration_final_eps)
 
     # Initialize the parameters and copy them to the target network.
-    tf_util.initialize()
-    update_target()
+    tf_util.initialize(act.sess)
+    update_target(sess=act.sess)
 
     episode_rewards = [0.0]
     saved_mean_reward = None
@@ -225,7 +229,7 @@ def learn(env,
         model_file = os.path.join(td, "model")
         model_saved = False
         if tf.train.latest_checkpoint(td) is not None:
-            load_state(model_file)
+            load_state(model_file, act.sess)
             logger.log('Loaded model from {}'.format(model_file))
             model_saved = True
 
@@ -271,14 +275,14 @@ def learn(env,
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
-                td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights, sess=act.sess)
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
-                update_target()
+                update_target(sess=act.sess)
 
             mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
             num_episodes = len(episode_rewards)
@@ -295,12 +299,12 @@ def learn(env,
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
                                    saved_mean_reward, mean_100ep_reward))
-                    save_state(model_file)
+                    save_state(model_file, act.sess)
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
-            load_state(model_file)
+            load_state(model_file, act.sess)
 
     return act

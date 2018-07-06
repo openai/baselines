@@ -96,8 +96,9 @@ def learn(env, policy_fn, *,
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_fn("pi", ob_space, ac_space)  # Construct network for new policy
-    oldpi = policy_fn("oldpi", ob_space, ac_space)  # Network for old policy
+    sess = tf_util.single_threaded_session()
+    pi = policy_fn("pi", ob_space, ac_space, sess=sess)  # Construct network for new policy
+    oldpi = policy_fn("oldpi", ob_space, ac_space, sess=sess)  # Network for old policy
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
@@ -125,14 +126,14 @@ def learn(env, policy_fn, *,
 
     var_list = pi.get_trainable_variables()
     lossandgrad = tf_util.function([ob, ac, atarg, ret, lrmult], losses + [tf_util.flatgrad(total_loss, var_list)])
-    adam = MpiAdam(var_list, epsilon=adam_epsilon)
+    adam = MpiAdam(var_list, epsilon=adam_epsilon, sess=sess)
 
     assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv)
                                                           for (oldv, newv) in
                                                           zipsame(oldpi.get_variables(), pi.get_variables())])
     compute_losses = tf_util.function([ob, ac, atarg, ret, lrmult], losses)
 
-    tf_util.initialize()
+    tf_util.initialize(sess=sess)
     adam.sync()
 
     # Prepare for rollouts
@@ -183,14 +184,15 @@ def learn(env, policy_fn, *,
         if hasattr(pi, "ob_rms"):
             pi.ob_rms.update(ob)  # update running mean/std for policy
 
-        assign_old_eq_new()  # set old parameter values to new parameter values
+        assign_old_eq_new(sess=sess)  # set old parameter values to new parameter values
         logger.log("Optimizing...")
         logger.log(fmt_row(13, loss_names))
         # Here we do a bunch of optimization epochs over the data
         for _ in range(optim_epochs):
             losses = []  # list of tuples, each of which gives the loss for a minibatch
             for batch in d.iterate_once(optim_batchsize):
-                *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+                *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult,
+                                            sess=sess)
                 adam.update(g, optim_stepsize * cur_lrmult)
                 losses.append(newlosses)
             logger.log(fmt_row(13, np.mean(losses, axis=0)))
@@ -198,7 +200,7 @@ def learn(env, policy_fn, *,
         logger.log("Evaluating losses...")
         losses = []
         for batch in d.iterate_once(optim_batchsize):
-            newlosses = compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult)
+            newlosses = compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult, sess=sess)
             losses.append(newlosses)
         meanlosses, _, _ = mpi_moments(losses, axis=0)
         logger.log(fmt_row(13, meanlosses))

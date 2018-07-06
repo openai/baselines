@@ -20,8 +20,8 @@ def train(env_id, num_timesteps, seed):
             logger.set_level(logger.DISABLED)
         workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
 
-        def policy_fn(name, ob_space, ac_space):
-            return MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=32, num_hid_layers=2)
+        def policy_fn(name, ob_space, ac_space, sess=None):
+            return MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=32, num_hid_layers=2, sess=sess)
 
         env = make_mujoco_env(env_id, workerseed)
         trpo_mpi.learn(env, policy_fn, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, cg_damping=0.1,

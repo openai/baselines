@@ -2,6 +2,8 @@ import os
 import time
 import joblib
 from collections import deque
+import sys
+import multiprocessing
 
 import numpy as np
 import tensorflow as tf
@@ -14,7 +16,17 @@ from baselines.common.runners import AbstractEnvRunner
 class Model(object):
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
                  nsteps, ent_coef, vf_coef, max_grad_norm):
-        sess = tf.get_default_session()
+
+        ncpu = multiprocessing.cpu_count()
+        if sys.platform == 'darwin':
+            ncpu //= 2
+
+        config = tf.ConfigProto(allow_soft_placement=True,
+                                intra_op_parallelism_threads=ncpu,
+                                inter_op_parallelism_threads=ncpu)
+        config.gpu_options.allow_growth = True  # pylint: disable=E1101
+
+        sess = tf.Session(config=config)
 
         act_model = policy(sess, ob_space, ac_space, nbatch_act, 1, reuse=False)
         train_model = policy(sess, ob_space, ac_space, nbatch_train, nsteps, reuse=True)

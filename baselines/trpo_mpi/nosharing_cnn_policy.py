@@ -8,10 +8,12 @@ from baselines.common.distributions import make_pdtype
 class CnnPolicy(object):
     recurrent = False
 
-    def __init__(self, name, ob_space, ac_space):
-        with tf.variable_scope(name):
-            self._init(ob_space, ac_space)
-            self.scope = tf.get_variable_scope().name
+    def __init__(self, name, ob_space, ac_space, sess=None, reuse=False):
+        self.sess = sess
+        self.reuse = reuse
+        self.name = name
+        self._init(ob_space, ac_space)
+        self.scope = tf.get_variable_scope().name
 
     def _init(self, ob_space, ac_space):
         assert isinstance(ob_space, gym.spaces.Box)
@@ -23,7 +25,7 @@ class CnnPolicy(object):
 
         obscaled = ob / 255.0
 
-        with tf.variable_scope("pol"):
+        with tf.variable_scope(self.name + "/pol", reuse=self.reuse):
             x = obscaled
             x = tf.nn.relu(tf_utils.conv2d(x, 8, "l1", [8, 8], [4, 4], pad="VALID"))
             x = tf.nn.relu(tf_utils.conv2d(x, 16, "l2", [4, 4], [2, 2], pad="VALID"))
@@ -32,7 +34,7 @@ class CnnPolicy(object):
             logits = tf.layers.dense(x, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_utils.normc_initializer(0.01))
             self.pd = pdtype.pdfromflat(logits)
-        with tf.variable_scope("vf"):
+        with tf.variable_scope(self.name + "/vf", reuse=self.reuse):
             x = obscaled
             x = tf.nn.relu(tf_utils.conv2d(x, 8, "l1", [8, 8], [4, 4], pad="VALID"))
             x = tf.nn.relu(tf_utils.conv2d(x, 16, "l2", [4, 4], [2, 2], pad="VALID"))
@@ -49,7 +51,7 @@ class CnnPolicy(object):
         self._act = tf_utils.function([stochastic, ob], [ac, self.vpred])
 
     def act(self, stochastic, ob):
-        ac1, vpred1 = self._act(stochastic, ob[None])
+        ac1, vpred1 = self._act(stochastic, ob[None], sess=self.sess)
         return ac1[0], vpred1[0]
 
     def get_variables(self):

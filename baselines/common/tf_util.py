@@ -82,10 +82,12 @@ def in_session(f):
 ALREADY_INITIALIZED = set()
 
 
-def initialize():
+def initialize(sess=None):
     """Initialize all the uninitialized variables in the global scope."""
+    if sess is None:
+        sess = tf.get_default_session()
     new_variables = set(tf.global_variables()) - ALREADY_INITIALIZED
-    tf.get_default_session().run(tf.variables_initializer(new_variables))
+    sess.run(tf.variables_initializer(new_variables))
     ALREADY_INITIALIZED.update(new_variables)
 
 
@@ -194,8 +196,10 @@ class _Function(object):
         else:
             feed_dict[inpt] = value
 
-    def __call__(self, *args):
+    def __call__(self, *args, sess=None):
         assert len(args) <= len(self.inputs), "Too many arguments provided"
+        if sess is None:
+            sess = tf.get_default_session()
         feed_dict = {}
         # Update the args
         for inpt, value in zip(self.inputs, args):
@@ -203,7 +207,7 @@ class _Function(object):
         # Update feed dict with givens.
         for inpt in self.givens:
             feed_dict[inpt] = feed_dict.get(inpt, self.givens[inpt])
-        results = tf.get_default_session().run(self.outputs_update, feed_dict=feed_dict)[:-1]
+        results = sess.run(self.outputs_update, feed_dict=feed_dict)[:-1]
         return results
 
 
@@ -237,7 +241,7 @@ def flatgrad(loss, var_list, clip_norm=None):
 
 
 class SetFromFlat(object):
-    def __init__(self, var_list, dtype=tf.float32):
+    def __init__(self, var_list, dtype=tf.float32, sess=None):
         shapes = list(map(var_shape, var_list))
         total_size = np.sum([intprod(shape) for shape in shapes])
 
@@ -249,17 +253,26 @@ class SetFromFlat(object):
             assigns.append(tf.assign(v, tf.reshape(theta[start:start + size], shape)))
             start += size
         self.op = tf.group(*assigns)
+        self.sess = sess
 
     def __call__(self, theta):
-        tf.get_default_session().run(self.op, feed_dict={self.theta: theta})
+        if self.sess is None:
+            return tf.get_default_session().run(self.op, feed_dict={self.theta: theta})
+        else:
+            return self.sess.run(self.op, feed_dict={self.theta: theta})
+
 
 
 class GetFlat(object):
-    def __init__(self, var_list):
+    def __init__(self, var_list, sess=None):
         self.op = tf.concat(axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list])
+        self.sess = sess
 
     def __call__(self):
-        return tf.get_default_session().run(self.op)
+        if self.sess is None:
+            return tf.get_default_session().run(self.op)
+        else:
+            return self.sess.run(self.op)
 
 
 _PLACEHOLDER_CACHE = {}  # name -> (placeholder, dtype, shape)
@@ -317,12 +330,16 @@ def get_available_gpus():
 # Saving variables
 # ================================================================
 
-def load_state(fname):
+def load_state(fname, sess=None):
+    if sess is None:
+        sess = tf.get_default_session()
     saver = tf.train.Saver()
-    saver.restore(tf.get_default_session(), fname)
+    saver.restore(sess, fname)
 
 
-def save_state(fname):
+def save_state(fname, sess=None):
+    if sess is None:
+        sess = tf.get_default_session()
     os.makedirs(os.path.dirname(fname), exist_ok=True)
     saver = tf.train.Saver()
-    saver.save(tf.get_default_session(), fname)
+    saver.save(sess, fname)

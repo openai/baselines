@@ -12,28 +12,27 @@ from baselines import logger
 def train(num_timesteps, seed, model_path=None):
     env_id = 'Humanoid-v2'
 
-    with tf_util.make_session(num_cpu=1):
-        def policy_fn(name, ob_space, ac_space):
-            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2)
-        env = make_mujoco_env(env_id, seed)
+    def policy_fn(name, ob_space, ac_space):
+        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2)
+    env = make_mujoco_env(env_id, seed)
 
-        # parameters below were the best found in a simple random search
-        # these are good enough to make humanoid walk, but whether those are
-        # an absolute best or not is not certain
-        env = RewScale(env, 0.1)
-        pi = pposgd_simple.learn(env, policy_fn,
-                                 max_timesteps=num_timesteps,
-                                 timesteps_per_actorbatch=2048,
-                                 clip_param=0.2, entcoeff=0.0,
-                                 optim_epochs=10,
-                                 optim_stepsize=3e-4,
-                                 optim_batchsize=64,
-                                 gamma=0.99,
-                                 lam=0.95,
-                                 schedule='linear')
-        env.close()
-        if model_path:
-            tf_util.save_state(model_path)
+    # parameters below were the best found in a simple random search
+    # these are good enough to make humanoid walk, but whether those are
+    # an absolute best or not is not certain
+    env = RewScale(env, 0.1)
+    pi = pposgd_simple.learn(env, policy_fn,
+                             max_timesteps=num_timesteps,
+                             timesteps_per_actorbatch=2048,
+                             clip_param=0.2, entcoeff=0.0,
+                             optim_epochs=10,
+                             optim_stepsize=3e-4,
+                             optim_batchsize=64,
+                             gamma=0.99,
+                             lam=0.95,
+                             schedule='linear')
+    env.close()
+    if model_path:
+        tf_util.save_state(model_path)
         
     return pi
 
