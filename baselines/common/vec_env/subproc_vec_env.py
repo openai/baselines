@@ -29,7 +29,7 @@ def worker(remote, parent_remote, env_fn_wrapper):
 
 
 class SubprocVecEnv(VecEnv):
-    def __init__(self, env_fns, spaces=None):
+    def __init__(self, env_fns, spaces=None, worker=worker):
         """
         envs: list of gym environments to run in subprocesses
         """
