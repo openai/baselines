@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+
 from baselines import logger
 import baselines.common as common
 from baselines.common import tf_util

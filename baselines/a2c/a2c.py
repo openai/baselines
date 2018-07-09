@@ -6,19 +6,32 @@ import numpy as np
 import tensorflow as tf
 
 from baselines import logger
-from baselines.common import set_global_seeds, explained_variance
+from baselines.common import set_global_seeds, explained_variance, tf_util
 from baselines.common.runners import AbstractEnvRunner
-from baselines.common import tf_util
-from baselines.a2c.utils import discount_with_dones
-from baselines.a2c.utils import Scheduler, make_path, find_trainable_variables
-from baselines.a2c.utils import cat_entropy, mse
+from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_trainable_variables, calc_entropy, mse
 
 
 class Model(object):
-
     def __init__(self, policy, ob_space, ac_space, nenvs, nsteps,
                  ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
                  alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
+        """
+        The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
+        :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+        :param ob_space: (Gym Space) Observation space
+        :param ac_space: (Gym Space) Action space
+        :param nenvs: (int) The number of environments
+        :param nsteps: (int) The number of steps to run for each environment
+        :param ent_coef: (float) Entropy coefficient for the loss caculation
+        :param vf_coef: (float) Value function coefficient for the loss calculation
+        :param max_grad_norm: (float) The maximum value for the gradiant clipping
+        :param lr: (float) The learning rate
+        :param alpha: (float) RMS prop optimizer decay
+        :param epsilon: (float) RMS prop optimizer epsilon
+        :param total_timesteps: (int) The total number of samples
+        :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
+        """
 
         sess = tf_util.make_session()
         nbatch = nenvs * nsteps
@@ -33,8 +46,8 @@ class Model(object):
 
         neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=actions_ph)
         pg_loss = tf.reduce_mean(advs_ph * neglogpac)
-        vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), rewards_ph))
-        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
+        vf_loss = mse(tf.squeeze(train_model.vf), rewards_ph)
+        entropy = tf.reduce_mean(calc_entropy(train_model.pi))
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
         params = find_trainable_variables("model")
@@ -88,10 +101,22 @@ class Model(object):
 class Runner(AbstractEnvRunner):
 
     def __init__(self, env, model, nsteps=5, gamma=0.99):
+        """
+        A runner to learn the policy of an environment for a model
+        :param env: (Gym environment) The environment to learn from
+        :param model: (Model) The model to learn
+        :param nsteps: (int) The number of steps to run for each environment
+        :param gamma: (float) Discount factor
+        """
         super().__init__(env=env, model=model, nsteps=nsteps)
         self.gamma = gamma
 
     def run(self):
+        """
+        Run a step leaning of the model
+        :return: ([float], [float], [float], [bool], [float], [float])
+                 observations, states, rewards, maskes, actions, values
+        """
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [], [], [], [], []
         mb_states = self.states
         for _ in range(self.nsteps):
@@ -136,6 +161,26 @@ class Runner(AbstractEnvRunner):
 
 def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5,
           lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
+    """
+    Return a trained A2C model.
+    :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment) The environment to learn from
+    :param seed: (int) The initial seed for training
+    :param nsteps: (int) The number of steps to run for each environment
+    :param total_timesteps: (int) The total number of samples
+    :param vf_coef: (float) Value function coefficient for the loss calculation
+    :param ent_coef: (float) Entropy coefficient for the loss caculation
+    :param max_grad_norm: (float) The maximum value for the gradiant clipping
+    :param lr: (float) The learning rate
+    :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    :param epsilon: (float) RMS prop optimizer epsilon
+    :param alpha: (float) RMS prop optimizer decay
+    :param gamma: (float) Discount factor
+    :param log_interval: (int) The number of timesteps before logging.
+    :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :return: (Model) A2C model
+    """
     set_global_seeds(seed)
 
     nenvs = env.num_envs

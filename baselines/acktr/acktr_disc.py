@@ -7,7 +7,7 @@ import tensorflow as tf
 from baselines import logger
 from baselines.common import set_global_seeds, explained_variance
 from baselines.a2c.a2c import Runner
-from baselines.a2c.utils import Scheduler, find_trainable_variables, cat_entropy, mse
+from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
 from baselines.acktr import kfac
 
 
@@ -34,9 +34,9 @@ class Model(object):
 
         # training loss
         pg_loss = tf.reduce_mean(advs_ph * logpac)
-        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
+        entropy = tf.reduce_mean(calc_entropy(train_model.pi))
         pg_loss = pg_loss - ent_coef * entropy
-        vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), rewards_ph))
+        vf_loss = mse(tf.squeeze(train_model.vf), rewards_ph)
         train_loss = pg_loss + vf_coef * vf_loss
 
         # Fisher loss construction

@@ -10,7 +10,7 @@ from baselines.common import set_global_seeds
 from baselines.common.runners import AbstractEnvRunner
 from baselines.acer.buffer import Buffer
 from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, make_path, find_trainable_variables, \
-    cat_entropy_softmax, EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
+    calc_entropy_softmax, EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 
 
 # remove last step
@@ -114,7 +114,7 @@ class Model(object):
 
         # Calculate losses
         # Entropy
-        entropy = tf.reduce_mean(cat_entropy_softmax(f))
+        entropy = tf.reduce_mean(calc_entropy_softmax(f))
 
         # Policy Graident loss, with truncated importance sampling & bias correction
         v = strip(v, nenvs, nsteps, True)
