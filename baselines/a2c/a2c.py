@@ -99,7 +99,6 @@ class Model(object):
 
 
 class Runner(AbstractEnvRunner):
-
     def __init__(self, env, model, nsteps=5, gamma=0.99):
         """
         A runner to learn the policy of an environment for a model
@@ -178,7 +177,6 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     :param alpha: (float) RMS prop optimizer decay
     :param gamma: (float) Discount factor
     :param log_interval: (int) The number of timesteps before logging.
-    :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :return: (Model) A2C model
     """
     set_global_seeds(seed)

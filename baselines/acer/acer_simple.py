@@ -13,25 +13,31 @@ from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, make_path
     calc_entropy_softmax, EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 
 
-# remove last step
 def strip(var, nenvs, nsteps, flat=False):
+    """
+    Removes the last step in the batch
+    :param var: (TensorFlow Tensor) The input Tensor
+    :param nenvs: (int) The number of environments
+    :param nsteps: (int) The number of steps to run for each environment
+    :param flat: (bool) If the input Tensor is flat
+    :return: (TensorFlow Tensor) the input tensor, without the last step in the batch
+    """
     out_vars = batch_to_seq(var, nenvs, nsteps + 1, flat)
     return seq_to_batch(out_vars[:-1], flat)
 
 
 def q_retrace(rewards, dones, q_i, v, rho_i, nenvs, nsteps, gamma):
     """
-    Calculates q_retrace targets
-
-    :param rewards: Rewards
-    :param dones: Dones
-    :param q_i: Q values for actions taken
-    :param v: V values
-    :param rho_i: Importance weight for each action
-    :param nenvs: Number of environments
-    :param nsteps: Number of steps
-    :param gamma: Discount
-    :return: Q_retrace values
+    Calculates the target Q-retrace
+    :param rewards: ([TensorFlow Tensor]) The rewards
+    :param dones: ([TensorFlow Tensor])
+    :param q_i: ([TensorFlow Tensor]) The Q values for actions taken
+    :param v: ([TensorFlow Tensor]) The output of the value functions
+    :param rho_i: ([TensorFlow Tensor]) The importance weight for each action
+    :param nenvs: (int) The number of environments
+    :param nsteps: (int) The number of steps to run for each environment
+    :param gamma: (float) The discount value
+    :return: ([TensorFlow Tensor]) the target Q-retrace
     """
     rho_bar = batch_to_seq(tf.minimum(1.0, rho_i), nenvs, nsteps, True)  # list of len steps, shape [nenvs]
     rs = batch_to_seq(rewards, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
@@ -51,16 +57,33 @@ def q_retrace(rewards, dones, q_i, v, rho_i, nenvs, nsteps, gamma):
     return qret
 
 
-# For ACER with PPO clipping instead of trust region
-# def clip(ratio, eps_clip):
-#     # assume 0 <= eps_clip <= 1
-#     return tf.minimum(1 + eps_clip, tf.maximum(1 - eps_clip, ratio))
-
 class Model(object):
-    def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, nstack, num_procs,
-                 ent_coef, q_coef, gamma, max_grad_norm, lr,
-                 rprop_alpha, rprop_epsilon, total_timesteps, lrschedule,
-                 c, trust_region, alpha, delta):
+    def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, nstack, num_procs, ent_coef, q_coef, gamma,
+                 max_grad_norm, lr, rprop_alpha, rprop_epsilon, total_timesteps, lrschedule, c, trust_region, alpha,
+                 delta):
+        """
+        The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
+        :param policy: (AcerPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+        :param ob_space: (Gym Space) The observation space
+        :param ac_space: (Gym Space) The action space
+        :param nenvs: (int) The number of environments
+        :param nsteps: (int) The number of steps to run for each environment
+        :param nstack: (int) The number of stacked frames
+        :param num_procs: (int) The number of threads for TensorFlow operations
+        :param ent_coef: (float) The weight for the entropic loss
+        :param q_coef: (float) The weight for the loss on the Q value
+        :param gamma: (float) The discount value
+        :param max_grad_norm: (float) The clipping value for the maximum gradiant
+        :param lr: (float) The initial learning rate for the RMS prop optimizer
+        :param rprop_alpha: (float) RMS prop optimizer decay rate
+        :param rprop_epsilon: (float) RMS prop optimizer epsilon
+        :param total_timesteps: (int) The total number of timesteps for training the model
+        :param lrschedule: (str) The scheduler for a dynamic learning rate
+        :param c: (float) The correction term for the weights
+        :param trust_region: (bool) Enable Trust region policy optimization loss
+        :param alpha: (float) The decay rate for the Exponential moving average of the parameters
+        :param delta: (float) trust region delta value
+        """
         config = tf.ConfigProto(allow_soft_placement=True,
                                 intra_op_parallelism_threads=num_procs,
                                 inter_op_parallelism_threads=num_procs)
@@ -226,6 +249,13 @@ class Model(object):
 
 class Runner(AbstractEnvRunner):
     def __init__(self, env, model, nsteps, nstack):
+        """
+        A runner to learn the policy of an environment for a model
+        :param env: (Gym environment) The environment to learn from
+        :param model: (Model) The model to learn
+        :param nsteps: (int) The number of steps to run for each environment
+        :param nstack: (int) The number of stacked frames
+        """
         super().__init__(env=env, model=model, nsteps=nsteps)
         self.nstack = nstack
         nh, nw, nc = env.observation_space.shape
@@ -239,12 +269,22 @@ class Runner(AbstractEnvRunner):
         self.update_obs(obs)
 
     def update_obs(self, obs, dones=None):
+        """
+        Update the observation for rolling observation with stacking
+        :param obs: ([int] or [float]) The input observation
+        :param dones: ([bool])
+        """
         if dones is not None:
             self.obs *= (1 - dones.astype(np.uint8))[:, None, None, None]
         self.obs = np.roll(self.obs, shift=-self.nc, axis=3)
         self.obs[:, :, :, -self.nc:] = obs[:, :, :, :]
 
     def run(self):
+        """
+        Run a step leaning of the model
+        :return: ([float], [float], [float], [float], [float], [bool], [float])
+                 encoded observation, observations, actions, rewards, mus, dones, masks
+        """
         enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.nsteps):
@@ -282,6 +322,13 @@ class Runner(AbstractEnvRunner):
 
 class Acer:
     def __init__(self, runner, model, buffer, log_interval):
+        """
+        Wrapper for the ACER model object
+        :param runner: (AbstractEnvRunner) The runner to learn the policy of an environment for a model
+        :param model: (Model) The model to learn
+        :param buffer: (Buffer) The observation buffer
+        :param log_interval: (int) The number of timesteps before logging.
+        """
         self.runner = runner
         self.model = model
         self.buffer = buffer
@@ -291,6 +338,10 @@ class Acer:
         self.steps = None
 
     def call(self, on_policy):
+        """
+        Call a step with ACER
+        :param on_policy: (bool) To step on policy and not on buffer
+        """
         runner, model, buffer, steps = self.runner, self.model, self.buffer, self.steps
         if on_policy:
             enc_obs, obs, actions, rewards, mus, dones, masks = runner.run()
@@ -328,6 +379,33 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
           max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
           trust_region=True, alpha=0.99, delta=1):
+    """
+    Traines an ACER model.
+    :param policy: (ACERPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment) The environment to learn from
+    :param seed: (int) The initial seed for training
+    :param nsteps: (int) The number of steps to run for each environment
+    :param nstack: (int) The number of stacked frames
+    :param total_timesteps: (int) The total number of samples
+    :param q_coef: (float) Q function coefficient for the loss calculation
+    :param ent_coef: (float) Entropy coefficient for the loss caculation
+    :param max_grad_norm: (float) The maximum value for the gradiant clipping
+    :param lr: (float) The learning rate
+    :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    :param rprop_epsilon: (float) RMS prop optimizer epsilon
+    :param rprop_alpha: (float) RMS prop optimizer decay
+    :param gamma: (float) Discount factor
+    :param log_interval: (int) The number of timesteps before logging.
+    :param buffer_size: (int) The buffer size in number of steps
+    :param replay_ratio: (float) The number of replay learning per on policy learning on average,
+                                 using a poisson distribution
+    :param replay_start: (int) The minimum number of steps in the buffer, before learning replay
+    :param c: (float) The correction term for the weights
+    :param trust_region: (bool) Enable Trust region policy optimization loss
+    :param alpha: (float) The decay rate for the Exponential moving average of the parameters
+    :param delta: (float) trust region delta value
+    """
     print("Running Acer Simple")
     print(locals())
     set_global_seeds(seed)

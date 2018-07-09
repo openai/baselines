@@ -8,8 +8,8 @@ class AcerPolicy(object):
     """
     Policy object for Acer
     :param sess: (TensorFlow session) The current TensorFlow session
-    :param ob_space: (tuple) The observation space of the environment
-    :param ac_space: (tuple) The action space of the environment
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
     :param nenv: (int) The number of environments
     :param nsteps: (int) The number of steps to run
     :param nstack: (int) The number of frames stacked
