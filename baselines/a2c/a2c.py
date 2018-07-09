@@ -112,9 +112,9 @@ class Runner(AbstractEnvRunner):
 
     def run(self):
         """
-        Run a step leaning of the model
+        Run a learning step of the model
         :return: ([float], [float], [float], [bool], [float], [float])
-                 observations, states, rewards, maskes, actions, values
+                 observations, states, rewards, masks, actions, values
         """
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [], [], [], [], []
         mb_states = self.states

@@ -16,6 +16,19 @@ from baselines.common.runners import AbstractEnvRunner
 class Model(object):
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
                  nsteps, ent_coef, vf_coef, max_grad_norm):
+        """
+        The PPO (Proximal Policy Optimization) model class https://arxiv.org/abs/1707.06347.
+        It shares policies with A2C.
+        :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+        :param ob_space: (Gym Space) Observation space
+        :param ac_space: (Gym Space) Action space
+        :param nbatch_act: (int) Minibatch size during test ?
+        :param nbatch_train: (int) Minibatch size during training
+        :param nsteps: (int) The number of steps to run for each environment
+        :param ent_coef: (float) Entropy coefficient for the loss caculation
+        :param vf_coef: (float) Value function coefficient for the loss calculation
+        :param max_grad_norm: (float) The maximum value for the gradiant clipping
+        """
 
         ncpu = multiprocessing.cpu_count()
         if sys.platform == 'darwin':
@@ -64,6 +77,18 @@ class Model(object):
         _train = trainer.apply_gradients(grads)
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
+            """
+            :param lr: (float) learning rate
+            :param cliprange: (float) Clipping factor
+            :param obs: (numpy array)
+            :param returns: (numpy array)
+            :param masks: (numpy array)
+            :param actions: (numpy array)
+            :param values: (numpy array)
+            :param neglogpacs: (numpy array)
+            :param states: (numpy array) For recurrent policies
+            :return: policy gradient loss, value function loss, policy entropy,  approximation of kl divergence, _train (?)
+            """
             advs = returns - values
             advs = (advs - advs.mean()) / (advs.std() + 1e-8)
             td_map = {train_model.obs_ph: obs, action_ph: actions, advs_ph: advs, rewards_ph: returns,
@@ -101,11 +126,23 @@ class Model(object):
 
 class Runner(AbstractEnvRunner):
     def __init__(self, *, env, model, nsteps, gamma, lam):
+        """
+        A runner to learn the policy of an environment for a model
+        :param env: (Gym environment) The environment to learn from
+        :param model: (Model) The model to learn
+        :param nsteps: (int) The number of steps to run for each environment
+        :param gamma: (float) Discount factor
+        :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
+        """
         super().__init__(env=env, model=model, nsteps=nsteps)
         self.lam = lam
         self.gamma = gamma
 
     def run(self):
+        """
+        Run a learning step of the model
+        :return: observations, rewards, masks, actions, values, negative log probabilities, states, infos
+        """
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
         mb_states = self.states
         epinfos = []
@@ -143,19 +180,27 @@ class Runner(AbstractEnvRunner):
             delta = mb_rewards[t] + self.gamma * nextvalues * nextnonterminal - mb_values[t]
             mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
         mb_returns = mb_advs + mb_values
-        return (*map(sf01, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states, epinfos)
+        return (*map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states, epinfos)
 
 
 # obs, returns, masks, actions, values, neglogpacs, states = runner.run()
-def sf01(arr):
+def swap_and_flatten(arr):
     """
     swap and then flatten axes 0 and 1
+    :param arr: (numpy array)
+    :return: (numpy array)
     """
     s = arr.shape
     return arr.swapaxes(0, 1).reshape(s[0] * s[1], *s[2:])
 
 
 def constfn(val):
+    """
+    Create a function that returns a constant
+    It is useful for learning rate schedule (to avoid code duplication)
+    :param val: (float)
+    :return: (function)
+    """
     def f(_):
         return val
     return f
@@ -163,7 +208,26 @@ def constfn(val):
 
 def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
           log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2, save_interval=0, load_path=None):
-
+    """
+    Return a trained PPO2 model.
+    :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment) The environment to learn from
+    :param nsteps: (int) The number of steps to run for each environment
+    :param total_timesteps: (int) The total number of samples
+    :param ent_coef: (float) Entropy coefficient for the loss caculation
+    :param lr: (float or callable) The learning rate, it can a function
+    :param vf_coef: (float) Value function coefficient for the loss calculation
+    :param max_grad_norm: (float) The maximum value for the gradiant clipping
+    :param gamma: (float) Discount factor
+    :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
+    :param nminibatches: (int) Number of minibatches ?
+    :param noptepochs: (int) Number of epoch when optimizing the surrogate
+    :param cliprange: (float) Clipping parameter
+    :param log_interval: (int) The number of timesteps before logging.
+    :param save_interval: (int) The number of timesteps before saving.
+    :param load_path: (str) Path to a trained ppo2 model, set to None, it will learn from scratch
+    :return: (Model) PPO2 model
+    """
     if isinstance(lr, float):
         lr = constfn(lr)
     else:
@@ -257,4 +321,10 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
 
 
 def safemean(xs):
+    """
+    Compute the mean of an array if there is at least one element.
+    For empty array, return zero. It is used for logging only.
+    :param xs: (numpy array)
+    :return: (float)
+    """
     return np.nan if len(xs) == 0 else np.mean(xs)
