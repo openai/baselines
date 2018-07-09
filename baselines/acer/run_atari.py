@@ -6,6 +6,16 @@ from baselines.common.cmd_util import make_atari_env, atari_arg_parser
 
 
 def train(env_id, num_timesteps, seed, policy, lrschedule, num_cpu):
+    """
+    train an ACER model on atari
+    :param env_id: (str) Environment ID
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    :param num_cpu: (int) The number of cpu to train on
+    """
     env = make_atari_env(env_id, num_cpu, seed)
     if policy == 'cnn':
         policy_fn = AcerCnnPolicy
@@ -19,6 +29,9 @@ def train(env_id, num_timesteps, seed, policy, lrschedule, num_cpu):
 
 
 def main():
+    """
+    Runs the test
+    """
     parser = atari_arg_parser()
     parser.add_argument('--policy', choices=['cnn', 'lstm', 'lnlstm'], default='cnn', help='Policy architecture')
     parser.add_argument('--lrschedule', choices=['constant', 'linear'], default='constant',

@@ -106,7 +106,7 @@ class Buffer(object):
 
     def take(self, x, idx, envx):
         """
-        Reads frames from a list and index for the asked environment ids
+        Reads a frame from a list and index for the asked environment ids
         :param x: ([float]) the list that is read
         :param idx: ([int]) the idx that are read
         :param envx: ([int]) the idx for the environments
@@ -119,6 +119,11 @@ class Buffer(object):
         return out
 
     def get(self):
+        """
+        randomly read a frame from the buffer
+        :return: ([float], [float], [float], [float], [bool], [float])
+                 observations, actions, rewards, mus, dones, maskes
+        """
         # returns
         # obs [nenv, (nsteps + 1), nh, nw, nstack*nc]
         # actions, rewards, dones [nenv, nsteps]
