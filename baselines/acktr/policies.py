@@ -7,6 +7,11 @@ import baselines.common.tf_util as tf_util
 
 class GaussianMlpPolicy(object):
     def __init__(self, ob_dim, ac_dim):
+        """
+        Create a gaussian MLP policy
+        :param ob_dim: (int) Observation dimention
+        :param ac_dim: (int) action dimention
+        """
         # Here we'll construct a bunch of expressions, which will be used in two places:
         # (1) When sampling actions
         # (2) When computing loss functions, for the policy update
@@ -57,5 +62,10 @@ class GaussianMlpPolicy(object):
         tf_util.initialize()  # Initialize uninitialized TF variables
 
     def act(self, ob):
+        """
+        get the action from an observation
+        :param ob: ([float]) observation
+        :return: ([float], [float], [float]) action, action_proba, logp
+        """
         ac, ac_dist, logp = self._act(ob[None])
         return ac[0], ac_dist[0], logp[0]

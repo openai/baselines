@@ -10,6 +10,12 @@ from baselines.acktr.value_functions import NeuralNetValueFunction
 
 
 def train(env_id, num_timesteps, seed):
+    """
+    train an ACKTR model on atari
+    :param env_id: (str) Environment ID
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    """
     env = make_mujoco_env(env_id, seed)
 
     with tf.Session(config=tf.ConfigProto()):
@@ -27,6 +33,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
+    """
+    Runs the test
+    """
     args = mujoco_arg_parser().parse_args()
     logger.configure()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)

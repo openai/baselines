@@ -9,12 +9,34 @@ from baselines.acktr.kfac_utils import detect_min_val, factor_reshape, gmatmul
 KFAC_OPS = ['MatMul', 'Conv2D', 'BiasAdd']
 KFAC_DEBUG = False
 
-
+# TODO: fix missing/inacurate comments
 class KfacOptimizer:
     def __init__(self, learning_rate=0.01, momentum=0.9, clip_kl=0.01, kfac_update=2, stats_accum_iter=60,
                  full_stats_init=False, cold_iter=100, cold_lr=None, async=False, async_stats=False, epsilon=1e-2,
                  stats_decay=0.95, blockdiag_bias=False, channel_fac=False, factored_damping=False, approx_t2=False,
                  use_float64=False, weight_decay_dict=None, max_grad_norm=0.5):
+        """
+        Kfac Optimizer for ACKTR models
+        :param learning_rate: (float) The learning rate
+        :param momentum: (float) The momentum value for the TensorFlow momentum optimizer
+        :param clip_kl: (float) gradiant clipping for Kullback leiber
+        :param kfac_update: (int) update kfac after kfac_update steps
+        :param stats_accum_iter: (int) how may steps to accumulate stats
+        :param full_stats_init: (bool) whether or not to fully initalize stats
+        :param cold_iter: (int) Cold start learning rate for how many steps
+        :param cold_lr: (float) Cold start learning rate
+        :param async: (bool) Use async eigen decomposition
+        :param async_stats: (bool) Asynchronous stats update
+        :param epsilon: (float) epsilon value for small numbers
+        :param stats_decay: (float) the stats decay rate
+        :param blockdiag_bias: (bool)
+        :param channel_fac: (bool) factorization along the channels
+        :param factored_damping: (bool) use factored damping
+        :param approx_t2: (bool) approximate T2 act and grad fisher
+        :param use_float64: (bool) use 64-bit float
+        :param weight_decay_dict: (dict) custom weight decay coeff for a given gradiant
+        :param max_grad_norm: (float) The maximum value for the gradiant clipping
+        """
         self.max_grad_norm = max_grad_norm
         self._lr = learning_rate
         self._momentum = momentum
@@ -60,13 +82,19 @@ class KfacOptimizer:
         self.stats_eigen = {}
 
     def get_factors(self, g, varlist):
+        """
+        get factors to update
+        :param g: ([TensorFlow Tensor]) The gradients
+        :param varlist: ([TensorFlow Tensor]) The parameters
+        :return: ([TensorFlow Tensor]) The factors to update
+        """
         default_graph = tf.get_default_graph()
         factor_tensors = {}
         fprop_tensors = []
         bprop_tensors = []
         op_types = []
 
-        def search_factors(gradient, graph):
+        def _search_factors(gradient, graph):
             # hard coded search stratergy
             bprop_op = gradient.op
             bprop_op_name = bprop_op.name
@@ -79,7 +107,7 @@ class KfacOptimizer:
             if 'AddN' in bprop_op_name:
                 factors = []
                 for grad in gradient.op.inputs:
-                    factors.append(search_factors(grad, graph))
+                    factors.append(_search_factors(grad, graph))
                 op_names = [_item['opName'] for _item in factors]
                 # TO-DO: need to check all the attribute of the ops as well
                 print(gradient.name)
@@ -131,7 +159,7 @@ class KfacOptimizer:
         for t, param in zip(g, varlist):
             if KFAC_DEBUG:
                 print(('get factor for ' + param.name))
-            found_factors = search_factors(t, default_graph)
+            found_factors = _search_factors(t, default_graph)
             factor_tensors[param] = found_factors
 
         ########
@@ -185,6 +213,12 @@ class KfacOptimizer:
         return factor_tensors
 
     def get_stats(self, factors, varlist):
+        """
+        return the stats values from the factors to update and the parameters
+        :param factors: ([TensorFlow Tensor]) The factors to update
+        :param varlist: ([TensorFlow Tensor]) The parameters
+        :return: ([TensorFlow Tensor]) The stats values
+        """
         if len(self.stats) == 0:
             # initialize stats variables on CPU because eigen decomp is
             # computed on CPU
@@ -286,6 +320,12 @@ class KfacOptimizer:
         return self.stats
 
     def compute_and_apply_stats(self, loss_sampled, var_list=None):
+        """
+        compute and apply stats
+        :param loss_sampled: ([TensorFlow Tensor]) the loss function output
+        :param var_list: ([TensorFlow Tensor]) The parameters
+        :return: (function) apply stats
+        """
         varlist = var_list
         if varlist is None:
             varlist = tf.trainable_variables()
@@ -294,6 +334,12 @@ class KfacOptimizer:
         return self.apply_stats(stats)
 
     def compute_stats(self, loss_sampled, var_list=None):
+        """
+        compute the stats values
+        :param loss_sampled: ([TensorFlow Tensor]) the loss function output
+        :param var_list: ([TensorFlow Tensor]) The parameters
+        :return: ([TensorFlow Tensor]) stats updates
+        """
         varlist = var_list
         if varlist is None:
             varlist = tf.trainable_variables()
@@ -434,10 +480,13 @@ class KfacOptimizer:
         return stats_updates
 
     def apply_stats(self, stats_updates):
-        """ compute stats and update/apply the new stats to the running average
+        """
+        compute stats and update/apply the new stats to the running average
+        :param stats_updates: ([TensorFlow Tensor]) The stats updates
+        :return: (function) update stats operation
         """
 
-        def update_accum_stats():
+        def _update_accum_stats():
             if self._full_stats_init:
                 return tf.cond(tf.greater(self.sgd_step, self._cold_iter), lambda: tf.group(
                     *self._apply_stats(stats_updates, accumulate=True, accumulate_coeff=1. / self._stats_accum_iter)),
@@ -446,7 +495,7 @@ class KfacOptimizer:
                 return tf.group(
                     *self._apply_stats(stats_updates, accumulate=True, accumulate_coeff=1. / self._stats_accum_iter))
 
-        def update_running_avg_stats(stats_updates, fac_iter=1):
+        def _update_running_avg_stats(stats_updates, fac_iter=1):
             # return tf.cond(tf.greater_equal(self.factor_step,
             # tf.convert_to_tensor(fac_iter)), lambda:
             # tf.group(*self._apply_stats(stats_list, varlist)), tf.no_op)
@@ -469,7 +518,7 @@ class KfacOptimizer:
         else:
             # synchronous stats update
             update_stats_op = tf.cond(tf.greater_equal(self.stats_step, self._stats_accum_iter),
-                                      lambda: update_running_avg_stats(stats_updates), update_accum_stats)
+                                      lambda: _update_running_avg_stats(stats_updates), _update_accum_stats)
         self._update_stats_op = update_stats_op
         return update_stats_op
 
@@ -510,6 +559,11 @@ class KfacOptimizer:
         return [stats_step_op, ]
 
     def get_stats_eigen(self, stats=None):
+        """
+        Return the eigen values from the stats
+        :param stats: ([TensorFlow Tensor]) The stats
+        :return: ([TensorFlow Tensor]) The stats eigen values
+        """
         if len(self.stats_eigen) == 0:
             stats_eigen = {}
             if stats is None:
@@ -538,7 +592,10 @@ class KfacOptimizer:
         return self.stats_eigen
 
     def compute_stats_eigen(self):
-        """ compute the eigen decomp using copied var stats to avoid concurrent read/write from other queue """
+        """
+        compute the eigen decomp using copied var stats to avoid concurrent read/write from other queue
+        :return: ([TensorFlow Tensor]) update operations
+        """
         # TO-DO: figure out why this op has delays (possibly moving
         # eigenvectors around?)
         with tf.device('/cpu:0'):
@@ -554,8 +611,8 @@ class KfacOptimizer:
                         e = eigens[0]
                         Q = eigens[1]
                         if self._use_float64:
-                            e = tf.cast(e, tf.float32)
-                            Q = tf.cast(Q, tf.float32)
+                            e = tf.cast(e, tf.float64)
+                            Q = tf.cast(Q, tf.float64)
                         update_ops.append(e)
                         update_ops.append(Q)
                         computed_eigen[stats_var] = {'e': e, 'Q': Q}
@@ -574,6 +631,11 @@ class KfacOptimizer:
         return update_ops
 
     def apply_stats_eigen(self, eigen_list):
+        """
+        apply the update using the eigen values of the stats
+        :param eigen_list: ([TensorFlow Tensor]) The list of eigen values of the stats
+        :return: ([TensorFlow Tensor]) update operations
+        """
         update_ops = []
         print(('updating %d eigenvalue/vectors' % len(eigen_list)))
         for i, (tensor, mark) in enumerate(zip(eigen_list, self.eigen_update_list)):
@@ -590,6 +652,12 @@ class KfacOptimizer:
         return update_ops
 
     def get_kfac_precond_updates(self, gradlist, varlist):
+        """
+        return the KFAC updates
+        :param gradlist: ([TensorFlow Tensor]) The gradiants
+        :param varlist: ([TensorFlow Tensor]) The parameters
+        :return: ([TensorFlow Tensor]) the update list
+        """
         vg = 0.
 
         assert len(self.stats) > 0
@@ -769,6 +837,12 @@ class KfacOptimizer:
 
     @classmethod
     def compute_gradients(cls, loss, var_list=None):
+        """
+        compute the gradiants from the loss and the parameters
+        :param loss: ([TensorFlow Tensor]) The loss
+        :param var_list: ([TensorFlow Tensor]) The parameters
+        :return: ([TensorFlow Tensor]) the gradiant
+        """
         varlist = var_list
         if varlist is None:
             varlist = tf.trainable_variables()
@@ -777,6 +851,11 @@ class KfacOptimizer:
         return [(a, b) for a, b in zip(g, varlist)]
 
     def apply_gradients_kfac(self, grads):
+        """
+        apply the kfac gradiant
+        :param grads: ([TensorFlow Tensor]) the gradiant
+        :return: ([function], QueueRunner) Update functions, queue operation runner
+        """
         g, varlist = list(zip(*grads))
 
         if len(self.stats_eigen) == 0:
@@ -874,9 +953,14 @@ class KfacOptimizer:
         return tf.group(*update_ops), qr
 
     def apply_gradients(self, grads):
+        """
+        apply the gradiant
+        :param grads: ([TensorFlow Tensor]) the gradiant
+        :return: (function, QueueRunner) train operation, queue operation runner
+        """
         cold_optim = tf.train.MomentumOptimizer(self._cold_lr, self._momentum)
 
-        def cold_sgd_start():
+        def _cold_sgd_start():
             sgd_grads, sgd_var = zip(*grads)
 
             if self.max_grad_norm is not None:
@@ -894,12 +978,19 @@ class KfacOptimizer:
 
         kfac_optim_op, qr = self.apply_gradients_kfac(grads)
 
-        def warm_kfac_start():
+        def _warm_kfac_start():
             return kfac_optim_op
 
-        return tf.cond(tf.greater(self.sgd_step, self._cold_iter), warm_kfac_start, cold_sgd_start), qr
+        return tf.cond(tf.greater(self.sgd_step, self._cold_iter), _warm_kfac_start, _cold_sgd_start), qr
 
     def minimize(self, loss, loss_sampled, var_list=None):
+        """
+        minimize the gradiant loss
+        :param loss: ([TensorFlow Tensor]) The loss
+        :param loss_sampled: ([TensorFlow Tensor]) the loss function output
+        :param var_list: ([TensorFlow Tensor]) The parameters
+        :return: (function, q_runner) train operation, queue operation runner
+        """
         grads = self.compute_gradients(loss, var_list=var_list)
         self.compute_and_apply_stats(loss_sampled, var_list=var_list)
         return self.apply_gradients(grads)

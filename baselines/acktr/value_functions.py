@@ -10,6 +10,11 @@ from baselines.acktr.utils import dense
 
 class NeuralNetValueFunction(object):
     def __init__(self, ob_dim, ac_dim):
+        """
+        Create an MLP policy for a value function
+        :param ob_dim: (int) Observation dimention
+        :param ac_dim: (int) action dimention
+        """
         obs_ph = tf.placeholder(tf.float32, shape=[None, ob_dim * 2 + ac_dim * 2 + 2])  # batch of observations
         vtarg_n = tf.placeholder(tf.float32, shape=[None], name='vtarg')
         wd_dict = {}
@@ -39,16 +44,31 @@ class NeuralNetValueFunction(object):
 
     @classmethod
     def _preproc(cls, path):
-        length = pathlength(path)
+        """
+        preprocess path
+        :param path: ({TensorFlow Tensor}) the history of the network
+        :return: ([TensorFlow Tensor]) processed input
+        """
+        length = path["reward"].shape[0]
         al = np.arange(length).reshape(-1, 1) / 10.0
         act = path["action_dist"].astype('float32')
         X = np.concatenate([path['observation'], act, al, np.ones((length, 1))], axis=1)
         return X
 
     def predict(self, path):
+        """
+        predict value from history
+        :param path: ({TensorFlow Tensor}) the history of the network
+        :return: ([TensorFlow Tensor]) value function output
+        """
         return self._predict(self._preproc(path))
 
     def fit(self, paths, targvals):
+        """
+        fit paths to target values
+        :param paths: ({TensorFlow Tensor}) the history of the network
+        :param targvals: ([TensorFlow Tensor]) the expected value
+        """
         X = np.concatenate([self._preproc(p) for p in paths])
         y = np.concatenate(targvals)
         logger.record_tabular("EVBefore", common.explained_variance(self._predict(X), y))
@@ -57,5 +77,3 @@ class NeuralNetValueFunction(object):
         logger.record_tabular("EVAfter", common.explained_variance(self._predict(X), y))
 
 
-def pathlength(path):
-    return path["reward"].shape[0]

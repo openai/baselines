@@ -1,3 +1,7 @@
+"""
+Discreate acktr
+"""
+
 import os
 import time
 import joblib
@@ -15,6 +19,25 @@ class Model(object):
     def __init__(self, policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=32, nsteps=20,
                  ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
                  kfac_clip=0.001, lrschedule='linear'):
+        """
+        The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
+        :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
+        :param ob_space: (Gym Space) The observation space
+        :param ac_space: (Gym Space) The action space
+        :param nenvs: (int) The number of environments
+        :param total_timesteps: (int) The total number of timesteps for training the model
+        :param nprocs: (int) The number of threads for TensorFlow operations
+        :param nsteps: (int) The number of steps to run for each environment
+        :param ent_coef: (float) The weight for the entropic loss
+        :param vf_coef: (float) The weight for the loss on the value function
+        :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
+        :param lr: (float) The initial learning rate for the RMS prop optimizer
+        :param max_grad_norm: (float) The clipping value for the maximum gradiant
+        :param kfac_clip: (float) gradiant clipping for Kullback leiber
+        :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
+        """
+
         config = tf.ConfigProto(allow_soft_placement=True,
                                 intra_op_parallelism_threads=nprocs,
                                 inter_op_parallelism_threads=nprocs)
@@ -102,6 +125,26 @@ class Model(object):
 def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
           ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
           kfac_clip=0.001, save_interval=None, lrschedule='linear'):
+    """
+    Traines an ACKTR model.
+    :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment) The environment to learn from
+    :param seed: (int) The initial seed for training
+    :param total_timesteps: (int) The total number of samples
+    :param gamma: (float) Discount factor
+    :param log_interval: (int) The number of timesteps before logging.
+    :param nprocs: (int) The number of threads for TensorFlow operations
+    :param nsteps: (int) The number of steps to run for each environment
+    :param ent_coef: (float) The weight for the entropic loss
+    :param vf_coef: (float) The weight for the loss on the value function
+    :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
+    :param lr: (float) The learning rate
+    :param max_grad_norm: (float) The maximum value for the gradiant clipping
+    :param kfac_clip: (float) gradiant clipping for Kullback leiber
+    :param save_interval: (int) The number of timesteps before saving.
+    :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    """
     set_global_seeds(seed)
 
     nenvs = env.num_envs

@@ -2,6 +2,15 @@ import tensorflow as tf
 
 
 def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
+    """
+    Do a matrix multiplication with tensor 'a' and 'b', even when their shape do not match
+    :param a: (TensorFlow Tensor)
+    :param b: (TensorFlow Tensor)
+    :param transpose_a: (bool) If 'a' needs transposing
+    :param transpose_b: (bool) If 'b' needs transposing
+    :param reduce_dim: (int) the multiplication over the dim
+    :return: (TensorFlow Tensor) a * b
+    """
     assert reduce_dim is not None
 
     # weird batch matmul
@@ -54,11 +63,26 @@ def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
 
 
 def clipout_neg(vec, threshold=1e-6):
+    """
+    clip to 0 if input lower than threshold value
+    :param vec: (TensorFlow Tensor)
+    :param threshold: (float) the cutoff threshold
+    :return: (TensorFlow Tensor) clipped input
+    """
     mask = tf.cast(vec > threshold, tf.float32)
     return mask * vec
 
 
 def detect_min_val(input_mat, var, threshold=1e-6, name='', debug=False):
+    """
+    If debug is not set, will run clipout_neg. Else, will clip and print out odd eigen values
+    :param input_mat: (TensorFlow Tensor)
+    :param var: (TensorFlow Tensor) variable
+    :param threshold: (float) the cutoff threshold
+    :param name: (str) the name of the variable
+    :param debug: (bool) debug function
+    :return: (TensorFlow Tensor) clipped tensor
+    """
     eigen_min = tf.reduce_min(input_mat)
     eigen_max = tf.reduce_max(input_mat)
     eigen_ratio = eigen_max / eigen_min
@@ -68,13 +92,22 @@ def detect_min_val(input_mat, var, threshold=1e-6, name='', debug=False):
         input_mat_clipped = tf.cond(tf.logical_or(tf.greater(eigen_ratio, 0.), tf.less(eigen_ratio, -500)),
                                     lambda: input_mat_clipped, lambda: tf.Print(
                 input_mat_clipped,
-                [tf.convert_to_tensor('screwed ratio ' + name + ' eigen values!!!'), tf.convert_to_tensor(var.name),
+                [tf.convert_to_tensor('odd ratio ' + name + ' eigen values!!!'), tf.convert_to_tensor(var.name),
                  eigen_min, eigen_max, eigen_ratio]))
 
     return input_mat_clipped
 
 
 def factor_reshape(Q, e, grad, facIndx=0, ftype='act'):
+    """
+    factor and reshape input eigen values
+    :param Q: ([TensorFlow Tensor]) eigen value
+    :param e: ([TensorFlow Tensor]) eigen value
+    :param grad: ([TensorFlow Tensor]) gradiant
+    :param facIndx: (int) index that should be factored
+    :param ftype: (str) function type to factor and reshape
+    :return: ([TensorFlow Tensor], [TensorFlow Tensor]) factored and reshaped Q and e
+    """
     grad_shape = grad.get_shape()
     if ftype == 'act':
         assert e.get_shape()[0] == grad_shape[facIndx]

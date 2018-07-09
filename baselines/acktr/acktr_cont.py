@@ -1,3 +1,7 @@
+"""
+Continuous acktr
+"""
+
 import numpy as np
 import tensorflow as tf
 
@@ -8,13 +12,15 @@ from baselines.acktr import kfac
 from baselines.common.filters import ZFilter
 
 
-def pathlength(path):
-    return path["reward"].shape[0]  # Loss function that we'll differentiate to get the policy gradient
-
-
 def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
     """
     Simulate the env and policy for max_pathlength steps
+    :param env: (Gym environment) The environment to learn from
+    :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
+    :param max_pathlength: (int) The maximum length for an episode
+    :param animate: (bool) if render env
+    :param obfilter: (Filter) the observation filter
+    :return: (dict) observation, terminated, reward, action, action_dist, logp
     """
     ob = env.reset()
     prev_ob = np.float32(np.zeros(ob.shape))
@@ -53,6 +59,19 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
 
 def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
           animate=False, callback=None, desired_kl=0.002):
+    """
+    Learns a Kfac model
+    :param env: (Gym environment) The environment to learn from
+    :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
+    :param vf: (Object) The value function model to use (MLP, CNN, LSTM, ...)
+    :param gamma: (float) The discount value
+    :param lam: (float) the tradeoff between exploration and exploitation
+    :param timesteps_per_batch: (int) the number of timesteps for each batch
+    :param num_timesteps: (int) the total number of timesteps to run
+    :param animate: (bool) if render env
+    :param callback: (function) called every step, used for logging and saving
+    :param desired_kl: (float) the Kullback leibler weight for the loss
+    """
     obfilter = ZFilter(env.observation_space.shape)
 
     max_pathlength = env.spec.timestep_limit
@@ -91,9 +110,8 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             path = rollout(env, policy, max_pathlength, animate=(len(paths) == 0 and (i % 10 == 0) and animate),
                            obfilter=obfilter)
             paths.append(path)
-            n = pathlength(path)
-            timesteps_this_batch += n
-            timesteps_so_far += n
+            timesteps_this_batch += path["reward"].shape[0]
+            timesteps_so_far += path["reward"].shape[0]
             if timesteps_this_batch > timesteps_per_batch:
                 break
 
@@ -137,7 +155,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
 
         logger.record_tabular("EpRewMean", np.mean([path["reward"].sum() for path in paths]))
         logger.record_tabular("EpRewSEM", np.std([path["reward"].sum() / np.sqrt(len(paths)) for path in paths]))
-        logger.record_tabular("EpLenMean", np.mean([pathlength(path) for path in paths]))
+        logger.record_tabular("EpLenMean", np.mean([path["reward"].shape[0] for path in paths]))
         logger.record_tabular("KL", kl)
         if callback:
             callback()
