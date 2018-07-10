@@ -76,6 +76,7 @@ def in_session(f):
     def newfunc(*args, **kwargs):
         with tf.Session():
             f(*args, **kwargs)
+
     return newfunc
 
 
@@ -100,6 +101,7 @@ def normc_initializer(std=1.0, axis=0):
         out = np.random.randn(*shape).astype(np.float32)
         out *= std / np.sqrt(np.square(out).sum(axis=axis, keepdims=True))
         return tf.constant(out)
+
     return _initializer
 
 
@@ -128,7 +130,7 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
             tf.summary.image(summary_tag,
                              tf.transpose(tf.reshape(w, [filter_size[0], filter_size[1], -1, 1]),
                                           [2, 0, 1, 3]),
-                             max_images=10)
+                             max_outputs=10)
 
         return tf.nn.conv2d(x, w, stride_shape, pad) + b
 
@@ -262,7 +264,6 @@ class SetFromFlat(object):
             return self.sess.run(self.op, feed_dict={self.theta: theta})
 
 
-
 class GetFlat(object):
     def __init__(self, var_list, sess=None):
         self.op = tf.concat(axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list])
@@ -312,15 +313,15 @@ def display_var_info(vars):
         count_params += v_params
         if "/b:" in name or "/biases" in name:
             continue  # Wx+b, bias is not interesting to look at => count params, but not print
-        logger.info("   %s%s %i params %s" % (name, " "*(55-len(name)), v_params, str(v.shape)))
+        logger.info("   %s%s %i params %s" % (name, " " * (55 - len(name)), v_params, str(v.shape)))
 
-    logger.info("Total model parameters: %0.2f million" % (count_params*1e-6))
+    logger.info("Total model parameters: %0.2f million" % (count_params * 1e-6))
 
 
 def get_available_gpus():
     # recipe from here:
     # https://stackoverflow.com/questions/38559755/how-to-get-current-available-gpus-in-tensorflow?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
- 
+
     from tensorflow.python.client import device_lib
     local_device_protos = device_lib.list_local_devices()
     return [x.name for x in local_device_protos if x.device_type == 'GPU']

@@ -26,7 +26,7 @@ def rolling_window(a, window):
 def window_func(x, y, window, func):
     yw = rolling_window(y, window)
     yw_func = func(yw, axis=-1)
-    return x[window-1:], yw_func
+    return x[window - 1:], yw_func
 
 
 def ts2xy(ts, xaxis):
@@ -45,7 +45,7 @@ def ts2xy(ts, xaxis):
 
 
 def plot_curves(xy_list, xaxis, title):
-    plt.figure(figsize=(8,2))
+    plt.figure(figsize=(8, 2))
     maxx = max(xy[0][-1] for xy in xy_list)
     minx = 0
     for (i, (x, y)) in enumerate(xy_list):
@@ -62,12 +62,13 @@ def plot_curves(xy_list, xaxis, title):
 
 def plot_results(dirs, num_timesteps, xaxis, task_name):
     tslist = []
-    for dir in dirs:
-        ts = load_results(dir)
+    for folder in dirs:
+        ts = load_results(folder)
         ts = ts[ts.l.cumsum() <= num_timesteps]
         tslist.append(ts)
     xy_list = [ts2xy(ts, xaxis) for ts in tslist]
     plot_curves(xy_list, xaxis, task_name)
+
 
 # Example usage in jupyter-notebook
 # from baselines import log_viewer
@@ -85,7 +86,7 @@ def main():
     parser.add_argument('--xaxis', help='Varible on X-axis', default=X_TIMESTEPS)
     parser.add_argument('--task_name', help='Title of plot', default='Breakout')
     args = parser.parse_args()
-    args.dirs = [os.path.abspath(dir) for dir in args.dirs]
+    args.dirs = [os.path.abspath(folder) for folder in args.dirs]
     plot_results(args.dirs, args.num_timesteps, args.xaxis, args.task_name)
     plt.show()
 
