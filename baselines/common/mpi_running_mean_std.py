@@ -6,8 +6,13 @@ import baselines.common.tf_util as tf_util
 
 
 class RunningMeanStd(object):
-    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
     def __init__(self, epsilon=1e-2, shape=()):
+        """
+        calulates the running mean and std of a data stream
+        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+        :param epsilon: (float) helps with arithmetic issues
+        :param shape: (tuple) the shape of the data stream's output
+        """
         self._sum = tf.get_variable(
             dtype=tf.float64,
             shape=shape,
@@ -37,6 +42,10 @@ class RunningMeanStd(object):
                                                        tf.assign_add(self._count, newcount)])
 
     def update(self, x):
+        """
+        update the running mean and std
+        :param x: (numpy Number) the data
+        """
         x = x.astype('float64')
         n = int(np.prod(self.shape))
         totalvec = np.zeros(n * 2 + 1, 'float64')
@@ -48,6 +57,9 @@ class RunningMeanStd(object):
 
 @tf_util.in_session
 def test_runningmeanstd():
+    """
+    test the running mean std
+    """
     for (x1, x2, x3) in [
          (np.random.randn(3), np.random.randn(4), np.random.randn(5)),
          (np.random.randn(3, 2), np.random.randn(4, 2), np.random.randn(5, 2))]:
@@ -66,6 +78,9 @@ def test_runningmeanstd():
 
 @tf_util.in_session
 def test_dist():
+    """
+    test the running mean std
+    """
     np.random.seed(0)
     p1, p2, p3 = (np.random.randn(3, 1), np.random.randn(4, 1), np.random.randn(5, 1))
     q1, q2, q3 = (np.random.randn(6, 1), np.random.randn(7, 1), np.random.randn(8, 1))

@@ -7,6 +7,10 @@ def mpi_fork(n, bind_to_core=False):
     """
     Re-launches the current script with workers
     Returns "parent" for original parent, "child" for MPI children
+
+    :param n: (int) the rank
+    :param bind_to_core: (bool) enables binding to core
+    :return: (str) the correct type of thread name
     """
     if n <= 1:
         return "child"

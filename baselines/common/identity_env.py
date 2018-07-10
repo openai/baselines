@@ -4,6 +4,11 @@ from gym.spaces import Discrete
 
 class IdentityEnv(Env):
     def __init__(self, dim, ep_length=100):
+        """
+        Identity environment for testing purposes
+        :param dim: (int) the size of the dimentions you want to learn
+        :param ep_length: (int) the length of each episodes in timesteps
+        """
         self.action_space = Discrete(dim)
         self.ep_length = ep_length
         self.reset()
