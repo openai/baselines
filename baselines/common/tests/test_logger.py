@@ -7,6 +7,7 @@ from baselines.logger import make_output_format, read_tb, read_csv, read_json
 KEY_VALUES = {'test': 1, 'b': -3.14, '8': 9.9}
 LOG_DIR = '/tmp/openai_baselines/'
 
+
 def assert_eq(left, right):
     assert left == right, '{} != {}'.format(left, right)
 
@@ -31,6 +32,7 @@ def test_make_output(_format):
         read_csv(LOG_DIR + 'progress.csv')
     elif _format == 'json':
         read_json(LOG_DIR + 'progress.json')
+    writer.close()
 
 
 def test_make_output_fail():

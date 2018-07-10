@@ -16,8 +16,8 @@ class RunningStat(object):
             self._M[...] = x
         else:
             old_m = self._M.copy()
-            self._M[...] = old_m + (x - old_m)/self._n
-            self._S[...] = self._S + (x - old_m)*(x - self._M)
+            self._M[...] = old_m + (x - old_m) / self._n
+            self._S[...] = self._S + (x - old_m) * (x - self._M)
 
     @property
     def n(self):
@@ -29,7 +29,7 @@ class RunningStat(object):
 
     @property
     def var(self):
-        return self._S/(self._n - 1) if self._n > 1 else np.square(self._M)
+        return self._S / (self._n - 1) if self._n > 1 else np.square(self._M)
 
     @property
     def std(self):
@@ -41,7 +41,7 @@ class RunningStat(object):
 
 
 def test_running_stat():
-    for shp in ((), (3,), (3,4)):
+    for shp in ((), (3,), (3, 4)):
         li = []
         rs = RunningStat(shp)
         for _ in range(5):

@@ -143,12 +143,13 @@ class TensorBoardOutputFormat(KVWriter):
     """
     Dumps key/value pairs into TensorBoard's numeric format.
     """
-    def __init__(self, dir):
-        os.makedirs(dir, exist_ok=True)
-        self.dir = dir
+
+    def __init__(self, folder):
+        os.makedirs(folder, exist_ok=True)
+        self.dir = folder
         self.step = 1
         prefix = 'events'
-        path = os.path.join(os.path.abspath(dir), prefix)
+        path = os.path.join(os.path.abspath(folder), prefix)
         import tensorflow as tf
         from tensorflow.python import pywrap_tensorflow
         from tensorflow.core.util import event_pb2
@@ -162,6 +163,7 @@ class TensorBoardOutputFormat(KVWriter):
         def summary_val(k, v):
             kwargs = {'tag': k, 'simple_value': float(v)}
             return self.tf.Summary.Value(**kwargs)
+
         summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
         event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
         event.step = self.step  # is there any reason why you'd want to specify the step?
@@ -175,20 +177,20 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer = None
 
 
-def make_output_format(format, ev_dir, log_suffix=''):
+def make_output_format(_format, ev_dir, log_suffix=''):
     os.makedirs(ev_dir, exist_ok=True)
-    if format == 'stdout':
+    if _format == 'stdout':
         return HumanOutputFormat(sys.stdout)
-    elif format == 'log':
+    elif _format == 'log':
         return HumanOutputFormat(os.path.join(ev_dir, 'log%s.txt' % log_suffix))
-    elif format == 'json':
+    elif _format == 'json':
         return JSONOutputFormat(os.path.join(ev_dir, 'progress%s.json' % log_suffix))
-    elif format == 'csv':
+    elif _format == 'csv':
         return CSVOutputFormat(os.path.join(ev_dir, 'progress%s.csv' % log_suffix))
-    elif format == 'tensorboard':
+    elif _format == 'tensorboard':
         return TensorBoardOutputFormat(os.path.join(ev_dir, 'tb%s' % log_suffix))
     else:
-        raise ValueError('Unknown format specified: %s' % (format,))
+        raise ValueError('Unknown format specified: %s' % (_format,))
 
 
 # ================================================================
@@ -281,13 +283,14 @@ class ProfileKV:
     with logger.ProfileKV("interesting_scope"):
         code
     """
+
     def __init__(self, n):
         self.n = "wait_" + n
 
     def __enter__(self):
         self.t1 = time.time()
 
-    def __exit__(self ,type, value, traceback):
+    def __exit__(self, _type, value, traceback):
         Logger.CURRENT.name2val[self.n] += time.time() - self.t1
 
 
@@ -297,11 +300,14 @@ def profile(n):
     @profile("my_func")
     def my_func(): code
     """
+
     def decorator_with_name(func):
         def func_wrapper(*args, **kwargs):
             with ProfileKV(n):
                 return func(*args, **kwargs)
+
         return func_wrapper
+
     return decorator_with_name
 
 
@@ -315,11 +321,11 @@ class Logger(object):
     DEFAULT = None
     CURRENT = None  # Current logger being used by the free functions above
 
-    def __init__(self, dir, output_formats):
+    def __init__(self, folder, output_formats):
         self.name2val = defaultdict(float)  # values this iteration
         self.name2cnt = defaultdict(int)
         self.level = INFO
-        self.dir = dir
+        self.dir = folder
         self.output_formats = output_formats
 
     # Logging API, forwarded
@@ -332,7 +338,7 @@ class Logger(object):
             self.name2val[key] = None
             return
         oldval, cnt = self.name2val[key], self.name2cnt[key]
-        self.name2val[key] = oldval*cnt/(cnt+1) + val/(cnt+1)
+        self.name2val[key] = oldval * cnt / (cnt + 1) + val / (cnt + 1)
         self.name2cnt[key] = cnt + 1
 
     def dumpkvs(self):
@@ -368,16 +374,16 @@ class Logger(object):
                 fmt.writeseq(map(str, args))
 
 
-Logger.DEFAULT = Logger.CURRENT = Logger(dir=None, output_formats=[HumanOutputFormat(sys.stdout)])
+Logger.DEFAULT = Logger.CURRENT = Logger(folder=None, output_formats=[HumanOutputFormat(sys.stdout)])
 
 
-def configure(dir=None, format_strs=None):
-    if dir is None:
-        dir = os.getenv('OPENAI_LOGDIR')
-    if dir is None:
-        dir = os.path.join(tempfile.gettempdir(), datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
-    assert isinstance(dir, str)
-    os.makedirs(dir, exist_ok=True)
+def configure(folder=None, format_strs=None):
+    if folder is None:
+        folder = os.getenv('OPENAI_LOGDIR')
+    if folder is None:
+        folder = os.path.join(tempfile.gettempdir(), datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
+    assert isinstance(folder, str)
+    os.makedirs(folder, exist_ok=True)
 
     log_suffix = ''
     from mpi4py import MPI
@@ -391,10 +397,10 @@ def configure(dir=None, format_strs=None):
         else:
             format_strs = os.getenv('OPENAI_LOG_FORMAT_MPI', 'log').split(',')
     format_strs = filter(None, format_strs)
-    output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
+    output_formats = [make_output_format(f, folder, log_suffix) for f in format_strs]
 
-    Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
-    log('Logging to %s' % dir)
+    Logger.CURRENT = Logger(folder=folder, output_formats=output_formats)
+    log('Logging to %s' % folder)
 
 
 def reset():
@@ -405,14 +411,19 @@ def reset():
 
 
 class scoped_configure(object):
-    def __init__(self, dir=None, format_strs=None):
-        self.dir = dir
+    def __init__(self, folder=None, format_strs=None):
+        """
+        Class for using context manager while logging
+        :param folder: (str)
+        :param format_strs: ([str])
+        """
+        self.dir = folder
         self.format_strs = format_strs
         self.prevlogger = None
 
     def __enter__(self):
         self.prevlogger = Logger.CURRENT
-        configure(dir=self.dir, format_strs=self.format_strs)
+        configure(folder=self.dir, format_strs=self.format_strs)
 
     def __exit__(self, *args):
         Logger.CURRENT.close()
@@ -426,10 +437,10 @@ def _demo():
     debug("shouldn't appear")
     set_level(DEBUG)
     debug("should appear")
-    dir = "/tmp/testlogging"
-    if os.path.exists(dir):
-        shutil.rmtree(dir)
-    configure(dir=dir)
+    folder = "/tmp/testlogging"
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    configure(folder=folder)
     logkv("a", 3)
     logkv("b", 2.5)
     dumpkvs()
@@ -441,13 +452,19 @@ def _demo():
     logkv_mean("b", -44.4)
     logkv("a", 5.5)
     dumpkvs()
-    info("^^^ should see b = 33.3")
+    with scoped_configure(None, None):
+        info("^^^ should see b = 33.3")
 
-    logkv("b", -2.5)
-    dumpkvs()
+    with scoped_configure("/tmp/test-logger/", ["json"]):
+        logkv("b", -2.5)
+        dumpkvs()
 
+    reset()
     logkv("a", "longasslongasslongasslongasslongasslongassvalue")
     dumpkvs()
+    warn("hey")
+    error("oh")
+    logkvs({"test": 1})
 
 
 # ================================================================
@@ -499,7 +516,7 @@ def read_tb(path):
     for (colidx, tag) in enumerate(tags):
         pairs = tag2pairs[tag]
         for (step, value) in pairs:
-            data[step-1, colidx] = value
+            data[step - 1, colidx] = value
     return pandas.DataFrame(data, columns=tags)
 
 
