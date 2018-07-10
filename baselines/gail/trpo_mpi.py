@@ -21,6 +21,7 @@ from baselines.gail.statistics import Stats
 
 def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail=False):
     """
+    Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
     :param pi: (Policy Object)
     :param env: (Gym Env)
     :param horizon: (int)
@@ -33,16 +34,16 @@ def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail
 
     # Initialize state variables
     t = 0
-    ac = env.action_space.sample()
+    ac = env.action_space.sample() # not used, just so we have the datatype
     new = True
     ob = env.reset()
 
-    cur_ep_ret = 0
-    cur_ep_len = 0
+    cur_ep_ret = 0  # return in current episode
+    cur_ep_len = 0  # len of current episode
     cur_ep_true_ret = 0
     ep_true_rets = []
-    ep_rets = []
-    ep_lens = []
+    ep_rets = []  # returns of completed episodes in this segment
+    ep_lens = []  # Episode lengths
 
     # Initialize history arrays
     obs = np.array([ob for _ in range(horizon)])
@@ -101,8 +102,7 @@ def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail
 
 def add_vtarg_and_adv(seg, gamma, lam):
     """
-    Update Value target and advantage
-    using GAE
+    Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
     :param seg: (dict)
     :param gamma: (float) Discount factor
     :param lam: (float) GAE factor
