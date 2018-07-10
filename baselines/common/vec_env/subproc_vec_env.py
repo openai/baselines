@@ -10,24 +10,27 @@ def _worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
     env = env_fn_wrapper.x()
     while True:
-        cmd, data = remote.recv()
-        if cmd == 'step':
-            ob, reward, done, info = env.step(data)
-            if done:
+        try:
+            cmd, data = remote.recv()
+            if cmd == 'step':
+                ob, reward, done, info = env.step(data)
+                if done:
+                    ob = env.reset()
+                remote.send((ob, reward, done, info))
+            elif cmd == 'reset':
                 ob = env.reset()
-            remote.send((ob, reward, done, info))
-        elif cmd == 'reset':
-            ob = env.reset()
-            remote.send(ob)
-        elif cmd == 'render':
-            remote.send(env.render(mode='rgb_array'))
-        elif cmd == 'close':
-            remote.close()
+                remote.send(ob)
+            elif cmd == 'render':
+                remote.send(env.render(mode='rgb_array'))
+            elif cmd == 'close':
+                remote.close()
+                break
+            elif cmd == 'get_spaces':
+                remote.send((env.observation_space, env.action_space))
+            else:
+                raise NotImplementedError
+        except EOFError:
             break
-        elif cmd == 'get_spaces':
-            remote.send((env.observation_space, env.action_space))
-        else:
-            raise NotImplementedError
 
 
 class SubprocVecEnv(VecEnv):

@@ -1,3 +1,5 @@
+import subprocess
+
 from mpi4py import MPI
 import numpy as np
 
@@ -5,6 +7,14 @@ from baselines.common import zipsame
 
 
 def mpi_mean(x, axis=0, comm=None, keepdims=False):
+    """
+    calculates the mean of an array, using MPI
+    :param x: (numpy Number)
+    :param axis: (int or tuple or list) the axis to run the means over
+    :param comm: (MPI Communicators) if None, MPI.COMM_WORLD
+    :param keepdims: (bool) keep the other dimentions intact
+    :return: (numpy Number or Number) the result of the sum
+    """
     x = np.asarray(x)
     assert x.ndim > 0
     if comm is None:
@@ -20,6 +30,14 @@ def mpi_mean(x, axis=0, comm=None, keepdims=False):
 
 
 def mpi_moments(x, axis=0, comm=None, keepdims=False):
+    """
+    calculates the mean and std of an array, using MPI
+    :param x: (numpy Number)
+    :param axis: (int or tuple or list) the axis to run the moments over
+    :param comm: (MPI Communicators) if None, MPI.COMM_WORLD
+    :param keepdims: (bool) keep the other dimentions intact
+    :return: (numpy Number or Number) the result of the moments
+    """
     x = np.asarray(x)
     assert x.ndim > 0
     mean, count = mpi_mean(x, axis=axis, comm=comm, keepdims=True)
@@ -35,7 +53,9 @@ def mpi_moments(x, axis=0, comm=None, keepdims=False):
 
 
 def test_runningmeanstd():
-    import subprocess
+    """
+    test running mean std function
+    """
     subprocess.check_call(['mpirun', '-np', '3', 'python', '-c',
                            'from baselines.common.mpi_moments import _helper_runningmeanstd; _helper_runningmeanstd()'])
 
