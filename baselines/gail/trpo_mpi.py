@@ -19,7 +19,17 @@ from baselines.common.cg import conjugate_gradient
 from baselines.gail.statistics import Stats
 
 
-def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
+def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail=False):
+    """
+    :param pi: (Policy Object)
+    :param env: (Gym Env)
+    :param horizon: (int)
+    :param stochastic: (bool)
+    :param reward_giver: For GAIL
+    :param gail: (bool) Whether we are using this generator for standard trpo or with gail
+    """
+    # Check when using GAIL
+    assert not (gail and reward_giver is None), "You must pass a reward giver when using GAIL"
 
     # Initialize state variables
     t = 0
@@ -66,8 +76,12 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
         acs[i] = ac
         prevacs[i] = prevac
 
-        rew = reward_giver.get_reward(ob, ac)
-        ob, true_rew, new, _ = env.step(ac)
+        if gail:
+            rew = reward_giver.get_reward(ob, ac)
+            ob, true_rew, new, _ = env.step(ac)
+        else:
+            ob, rew, new, _ = env.step(ac)
+            true_rew = rew
         rews[i] = rew
         true_rews[i] = true_rew
 
@@ -86,15 +100,23 @@ def traj_segment_generator(pi, env, reward_giver, horizon, stochastic):
 
 
 def add_vtarg_and_adv(seg, gamma, lam):
-    new = np.append(seg["new"], 0)  # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    """
+    Update Value target and advantage
+    using GAE
+    :param seg: (dict)
+    :param gamma: (float) Discount factor
+    :param lam: (float) GAE factor
+    """
+    # last element is only used for last vtarg, but we already zeroed it if last new = 1
+    new = np.append(seg["new"], 0)
     vpred = np.append(seg["vpred"], seg["nextvpred"])
-    new_len = len(seg["rew"])
-    seg["adv"] = gaelam = np.empty(new_len, 'float32')
+    rew_len = len(seg["rew"])
+    seg["adv"] = gaelam = np.empty(rew_len, 'float32')
     rew = seg["rew"]
     lastgaelam = 0
-    for t in reversed(range(new_len)):
-        nonterminal = 1-new[t+1]
-        delta = rew[t] + gamma * vpred[t+1] * nonterminal - vpred[t]
+    for t in reversed(range(rew_len)):
+        nonterminal = 1 - new[t + 1]
+        delta = rew[t] + gamma * vpred[t + 1] * nonterminal - vpred[t]
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
@@ -198,7 +220,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, reward_giver, timesteps_per_batch, stochastic=True)
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_batch, stochastic=True, reward_giver=reward_giver, gail=True)
 
     episodes_so_far = 0
     timesteps_so_far = 0
@@ -215,6 +237,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
     ep_stats = Stats(["True_rewards", "Rewards", "Episode_length"])
     # if provide pretrained weight
     if pretrained_weight is not None:
+        # Incorrect call argument...
         tf_util.load_state(pretrained_weight, var_list=pi.get_variables())
 
     while True:
@@ -351,4 +374,9 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
 
 
 def flatten_lists(listoflists):
+    """
+    Flatten a python list of list
+    :param listoflists: (list(list))
+    :return: (list)
+    """
     return [el for list_ in listoflists for el in list_]
