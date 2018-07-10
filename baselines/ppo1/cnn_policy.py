@@ -2,7 +2,7 @@ import tensorflow as tf
 import gym
 
 import baselines.common.tf_util as tf_util
-from baselines.common.distributions import make_pdtype
+from baselines.common.distributions import make_proba_dist_type
 
 
 class CnnPolicy(object):
@@ -18,7 +18,7 @@ class CnnPolicy(object):
     def _init(self, ob_space, ac_space, kind):
         assert isinstance(ob_space, gym.spaces.Box)
 
-        self.pdtype = pdtype = make_pdtype(ac_space)
+        self.pdtype = pdtype = make_proba_dist_type(ac_space)
         sequence_length = None
 
         ob = tf_util.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
@@ -42,7 +42,7 @@ class CnnPolicy(object):
             logits = tf.layers.dense(x, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_util.normc_initializer(0.01))
 
-            self.pd = pdtype.pdfromflat(logits)
+            self.pd = pdtype.probability_distribution_from_flat(logits)
             self.vpred = tf.layers.dense(x, 1, name='value', kernel_initializer=tf_util.normc_initializer(1.0))[:, 0]
 
         self.state_in = []

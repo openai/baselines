@@ -10,7 +10,7 @@ from baselines.common import explained_variance, zipsame, dataset, colorize
 from baselines import logger
 import baselines.common.tf_util as tf_util
 from baselines.common.mpi_adam import MpiAdam
-from baselines.common.cg import cg
+from baselines.common.cg import conjugate_gradient
 
 
 def traj_segment_generator(pi, env, horizon, stochastic):
@@ -229,7 +229,7 @@ def learn(env, policy_fn, *,
             logger.log("Got zero gradient. not updating")
         else:
             with timed("cg"):
-                stepdir = cg(fisher_vector_product, g, cg_iters=cg_iters, verbose=rank == 0)
+                stepdir = conjugate_gradient(fisher_vector_product, g, cg_iters=cg_iters, verbose=rank == 0)
             assert np.isfinite(stepdir).all()
             shs = .5 * stepdir.dot(fisher_vector_product(stepdir))
             lm = np.sqrt(shs / max_kl)

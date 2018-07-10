@@ -18,6 +18,12 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
     """
     Create a wrapped, monitored SubprocVecEnv for Atari.
+    :param env_id: (str) the environment ID
+    :param num_env: (int) the number of environment you wish to have in subprocesses
+    :param seed: (int) the inital seed for RNG
+    :param wrapper_kwargs: (dict) the parameters for wrap_deepmind function
+    :param start_index: (int) start rank index
+    :return: (Gym Environment) The atari environment
     """
     if wrapper_kwargs is None:
         wrapper_kwargs = {}
@@ -36,6 +42,9 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
 def make_mujoco_env(env_id, seed):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
+    :param env_id: (str) the environment ID
+    :param seed: (int) the inital seed for RNG
+    :return: (Gym Environment) The mujoco environment
     """
     rank = MPI.COMM_WORLD.Get_rank()
     set_global_seeds(seed + 10000 * rank)
@@ -48,6 +57,10 @@ def make_mujoco_env(env_id, seed):
 def make_robotics_env(env_id, seed, rank=0):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
+    :param env_id: (str) the environment ID
+    :param seed: (int) the inital seed for RNG
+    :param rank: (int) the rank of the environment (for logging)
+    :return: (Gym Environment) The robotic environment
     """
     set_global_seeds(seed)
     env = gym.make(env_id)
@@ -62,6 +75,7 @@ def make_robotics_env(env_id, seed, rank=0):
 def arg_parser():
     """
     Create an empty argparse.ArgumentParser.
+    :return: (ArgumentParser)
     """
     import argparse
     return argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -70,17 +84,19 @@ def arg_parser():
 def atari_arg_parser():
     """
     Create an argparse.ArgumentParser for run_atari.py.
+    :return: (ArgumentParser) parser {'--env': 'BreakoutNoFrameskip-v4', '--seed': 0, '--num-timesteps': int(1e7)}
     """
     parser = arg_parser()
     parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--num-timesteps', type=int, default=int(10e6))
+    parser.add_argument('--num-timesteps', type=int, default=int(1e7))
     return parser
 
 
 def mujoco_arg_parser():
     """
     Create an argparse.ArgumentParser for run_mujoco.py.
+    :return:  (ArgumentParser) parser {'--env': 'Reacher-v2', '--seed': 0, '--num-timesteps': int(1e6), '--play': False}
     """
     parser = arg_parser()
     parser.add_argument('--env', help='environment ID', type=str, default='Reacher-v2')
@@ -93,6 +109,7 @@ def mujoco_arg_parser():
 def robotics_arg_parser():
     """
     Create an argparse.ArgumentParser for run_mujoco.py.
+    :return: (ArgumentParser) parser {'--env': 'FetchReach-v0', '--seed': 0, '--num-timesteps': int(1e6)}
     """
     parser = arg_parser()
     parser.add_argument('--env', help='environment ID', type=str, default='FetchReach-v0')

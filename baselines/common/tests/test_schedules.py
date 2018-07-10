@@ -4,6 +4,9 @@ from baselines.common.schedules import ConstantSchedule, PiecewiseSchedule
 
 
 def test_piecewise_schedule():
+    """
+
+    """
     ps = PiecewiseSchedule([(-5, 100), (5, 200), (10, 50), (100, 50), (200, -50)], outside_value=500)
 
     assert np.isclose(ps.value(-10), 500)
@@ -21,6 +24,9 @@ def test_piecewise_schedule():
 
 
 def test_constant_schedule():
+    """
+
+    """
     cs = ConstantSchedule(5)
     for i in range(-100, 100):
         assert np.isclose(cs.value(i), 5)

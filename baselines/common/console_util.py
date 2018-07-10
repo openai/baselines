@@ -1,8 +1,5 @@
 from __future__ import print_function
 
-from contextlib import contextmanager
-import time
-
 import numpy as np
 
 
@@ -12,13 +9,26 @@ import numpy as np
 
 
 def fmt_row(width, row, header=False):
+    """
+    fits a list of items to at least a certain length
+    :param width: (int) the minimum width of the string
+    :param row: ([Any]) a list of object you wish to get the string representation
+    :param header: (bool) whether or not to return the string as a header
+    :return: (str) the string representation of all the elements in 'row', of length >= 'width'
+    """
     out = " | ".join(fmt_item(x, width) for x in row)
     if header:
-        out = out + "\n" + "-"*len(out)
+        out = out + "\n" + "-" * len(out)
     return out
 
 
 def fmt_item(x, l):
+    """
+    fits items to a given string length
+    :param x: (Any) the item you wish to get the string representation
+    :param l: (int) the minimum width of the string
+    :return: (str) the string representation of 'x' of length >= 'l'
+    """
     if isinstance(x, np.ndarray):
         assert x.ndim == 0
         x = x.item()
@@ -30,7 +40,7 @@ def fmt_item(x, l):
             rep = "%7.5f" % x
     else:
         rep = str(x)
-    return " "*(l - len(rep)) + rep
+    return " " * (l - len(rep)) + rep
 
 
 color2num = dict(
@@ -47,6 +57,14 @@ color2num = dict(
 
 
 def colorize(string, color, bold=False, highlight=False):
+    """
+    Colorize, bold and/or highlight a string for terminal print
+    :param string: (str) input string
+    :param color: (str) the color, the lookup table is the dict at console_util.color2num
+    :param bold: (bool) if the string should be bold or not
+    :param highlight: (bool) if the string should be highlighted or not
+    :return: (str) the stylized output string
+    """
     attr = []
     num = color2num[color]
     if highlight:
@@ -55,17 +73,3 @@ def colorize(string, color, bold=False, highlight=False):
     if bold:
         attr.append('1')
     return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
-
-
-MESSAGE_DEPTH = 0
-
-
-@contextmanager
-def timed(msg):
-    global MESSAGE_DEPTH
-    print(colorize('\t'*MESSAGE_DEPTH + '=: ' + msg, color='magenta'))
-    tstart = time.time()
-    MESSAGE_DEPTH += 1
-    yield
-    MESSAGE_DEPTH -= 1
-    print(colorize('\t'*MESSAGE_DEPTH + "done in %.3f seconds" % (time.time() - tstart), color='magenta'))

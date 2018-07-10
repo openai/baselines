@@ -1,77 +1,158 @@
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
 import numpy as np
+from gym import spaces
 
 import baselines.common.tf_util as tf_util
 from baselines.a2c.utils import fc
 
 
-class Pd(object):
+class ProbabilityDistribution(object):
     """
     A particular probability distribution
     """
     def flatparam(self):
+        """
+        Return the direct probabilities
+        :return: ([float]) the probabilites
+        """
         raise NotImplementedError
 
     def mode(self):
+        """
+        Returns the index of the highest probability
+        :return: (int) the max index of the probabilites
+        """
         raise NotImplementedError
 
     def neglogp(self, x):
+        """
+        returns the of the negative log likelihood
+        :param x: (str) the labels of each index
+        :return: ([float]) The negative log likelihood of the distribution
+        """
         # Usually it's easier to define the negative logprob
         raise NotImplementedError
 
     def kl(self, other):
+        """
+        Calculates the Kullback-Leiber divergence from the given probabilty distribution
+        :param other: ([float]) the distibution to compare with
+        :return: (float) the KL divergence of the two distributions
+        """
         raise NotImplementedError
 
     def entropy(self):
+        """
+        Returns shannon's entropy of the probability
+        :return: (float) the entropy
+        """
         raise NotImplementedError
 
     def sample(self):
+        """
+        Sample an index from the probabilty distribution
+        :return: (int) the sampled index
+        """
         raise NotImplementedError
 
     def logp(self, x):
+        """
+
+        :param x:
+        :return:
+        """
         return - self.neglogp(x)
 
 
-class PdType(object):
+class ProbabilityDistributionType(object):
     """
     Parametrized family of probability distributions
     """
-    def pdclass(self):
+    def probability_distribution_class(self):
+        """
+        returns the ProbabilityDistribution class of this type
+        :return: (Type ProbabilityDistribution) the probability distribution class associated
+        """
         raise NotImplementedError
 
-    def pdfromflat(self, flat):
-        return self.pdclass()(flat)
+    def probability_distribution_from_flat(self, flat):
+        """
+        returns the probability distribution from flat probabilities
+        :param flat: ([float]) the flat probabilities
+        :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
+        """
+        return self.probability_distribution_class()(flat)
 
-    def pdfromlatent(self, latent_vector):
+    def probability_distribution_from_latent(self, latent_vector):
+        """
+        returns the probability distribution from latent values
+        :param latent_vector: ([float]) the latent values
+        :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
+        """
         raise NotImplementedError
 
     def param_shape(self):
+        """
+        returns the shape of the input parameters
+        :return: ([int]) the shape
+        """
         raise NotImplementedError
 
     def sample_shape(self):
+        """
+        returns the shape of the sampling
+        :return: ([int]) the shape
+        """
         raise NotImplementedError
 
     def sample_dtype(self):
+        """
+        returns the type of the sampling
+        :return: (type) the type
+        """
         raise NotImplementedError
 
     def param_placeholder(self, prepend_shape, name=None):
+        """
+        returns the TensorFlow placeholder for the input parameters
+        :param prepend_shape: ([int]) the prepend shape
+        :param name: (str) the placeholder name
+        :return: (TensorFlow Tensor) the placeholder
+        """
         return tf.placeholder(dtype=tf.float32, shape=prepend_shape+self.param_shape(), name=name)
 
     def sample_placeholder(self, prepend_shape, name=None):
+        """
+        returns the TensorFlow placeholder for the sampling
+        :param prepend_shape: ([int]) the prepend shape
+        :param name: (str) the placeholder name
+        :return: (TensorFlow Tensor) the placeholder
+        """
         return tf.placeholder(dtype=self.sample_dtype(), shape=prepend_shape+self.sample_shape(), name=name)
 
 
-class CategoricalPdType(PdType):
+class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, ncat):
+        """
+        The probability distribution type for categorical input
+        :param ncat: (int) the number of categories
+        """
         self.ncat = ncat
 
-    def pdclass(self):
-        return CategoricalPd
+    def probability_distribution_class(self):
+        return CategoricalProbabilityDistribution
 
-    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+    def probability_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        """
+        returns the probability distribution from latent values
+        :param latent_vector: ([float]) the latent values
+        :param init_scale: (float) the inital scale of the distribution
+        :param init_bias: (float) the inital bias of the distribution
+        :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
+        """
         pdparam = fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
-        return self.pdfromflat(pdparam), pdparam
+        return self.probability_distribution_from_flat(pdparam), pdparam
 
     def param_shape(self):
         return [self.ncat]
@@ -83,17 +164,21 @@ class CategoricalPdType(PdType):
         return tf.int32
 
 
-class MultiCategoricalPdType(PdType):
+class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, nvec):
+        """
+        The probability distribution type for multiple categorical input
+        :param ncat: (int) the number of vectors
+        """
         self.ncats = nvec
 
-    def pdclass(self):
-        return MultiCategoricalPd
+    def probability_distribution_class(self):
+        return MultiCategoricalProbabilityDistribution
 
-    def pdfromflat(self, flat):
-        return MultiCategoricalPd(self.ncats, flat)
+    def probability_distribution_from_flat(self, flat):
+        return MultiCategoricalProbabilityDistribution(self.ncats, flat)
 
-    def pdfromlatent(self, latent_vector):
+    def probability_distribution_from_latent(self, latent_vector):
         raise NotImplementedError
 
     def param_shape(self):
@@ -106,18 +191,29 @@ class MultiCategoricalPdType(PdType):
         return tf.int32
 
 
-class DiagGaussianPdType(PdType):
+class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, size):
+        """
+        The probability distribution type for multivariate gaussian input
+        :param size: (int) the number of dimentions of the multivariate gaussian
+        """
         self.size = size
 
-    def pdclass(self):
-        return DiagGaussianPd
+    def probability_distribution_class(self):
+        return DiagGaussianProbabilityDistribution
 
-    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+    def probability_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        """
+        returns the probability distribution from latent values
+        :param latent_vector: ([float]) the latent values
+        :param init_scale: (float) the inital scale of the distribution
+        :param init_bias: (float) the inital bias of the distribution
+        :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
+        """
         mean = fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
-        return self.pdfromflat(pdparam), mean
+        return self.probability_distribution_from_flat(pdparam), mean
 
     def param_shape(self):
         return [2*self.size]
@@ -129,14 +225,18 @@ class DiagGaussianPdType(PdType):
         return tf.float32
 
 
-class BernoulliPdType(PdType):
+class BernoulliProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, size):
+        """
+        The probability distribution type for bernoulli input
+        :param size: (int) the number of dimentions of the bernoulli distribution
+        """
         self.size = size
 
-    def pdclass(self):
-        return BernoulliPd
+    def probability_distribution_class(self):
+        return BernoulliProbabilityDistribution
 
-    def pdfromlatent(self, latent_vector):
+    def probability_distribution_from_latent(self, latent_vector):
         raise NotImplementedError
 
     def param_shape(self):
@@ -149,8 +249,12 @@ class BernoulliPdType(PdType):
         return tf.int32
 
 
-class CategoricalPd(Pd):
+class CategoricalProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, logits):
+        """
+        Probability distributions from categorical input
+        :param logits: ([float]) the categorical logits input
+        """
         self.logits = logits
 
     def flatparam(self):
@@ -160,7 +264,7 @@ class CategoricalPd(Pd):
         return tf.argmax(self.logits, axis=-1)
 
     def neglogp(self, x):
-        # return tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=x)
+        # return tf.nn. (logits=self.logits, labels=x)
         # Note: we can't use sparse_softmax_cross_entropy_with_logits because
         #       the implementation does not allow second-order derivatives...
         one_hot_actions = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
@@ -191,13 +295,23 @@ class CategoricalPd(Pd):
 
     @classmethod
     def fromflat(cls, flat):
+        """
+        Create an instance of this from new logits values
+        :param flat: ([float]) the categorical logits input
+        :return: (ProbabilityDistribution) the instance from the given categorical input
+        """
         return cls(flat)
 
 
-class MultiCategoricalPd(Pd):
+class MultiCategoricalProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, nvec, flat):
+        """
+        Probability distributions from multicategorical input
+        :param nvec: (int) the number of categorical inputs
+        :param flat: ([float]) the categorical logits input
+        """
         self.flat = flat
-        self.categoricals = list(map(CategoricalPd, tf.split(flat, nvec, axis=-1)))
+        self.categoricals = list(map(CategoricalProbabilityDistribution, tf.split(flat, nvec, axis=-1)))
 
     def flatparam(self):
         return self.flat
@@ -219,11 +333,20 @@ class MultiCategoricalPd(Pd):
 
     @classmethod
     def fromflat(cls, flat):
+        """
+        Create an instance of this from new logits values
+        :param flat: ([float]) the multi categorical logits input
+        :return: (ProbabilityDistribution) the instance from the given multi categorical input
+        """
         raise NotImplementedError
 
 
-class DiagGaussianPd(Pd):
+class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, flat):
+        """
+        Probability distributions from multivariate gaussian input
+        :param flat: ([float]) the multivariate gaussian input data
+        """
         self.flat = flat
         mean, logstd = tf.split(axis=len(flat.shape)-1, num_or_size_splits=2, value=flat)
         self.mean = mean
@@ -242,7 +365,7 @@ class DiagGaussianPd(Pd):
                + tf.reduce_sum(self.logstd, axis=-1)
 
     def kl(self, other):
-        assert isinstance(other, DiagGaussianPd)
+        assert isinstance(other, DiagGaussianProbabilityDistribution)
         return tf.reduce_sum(other.logstd - self.logstd + (tf.square(self.std) + tf.square(self.mean - other.mean)) /
                              (2.0 * tf.square(other.std)) - 0.5, axis=-1)
 
@@ -254,11 +377,20 @@ class DiagGaussianPd(Pd):
 
     @classmethod
     def fromflat(cls, flat):
+        """
+        Create an instance of this from new multivariate gaussian input
+        :param flat: ([float]) the multivariate gaussian input data
+        :return: (ProbabilityDistribution) the instance from the given multivariate gaussian input data
+        """
         return cls(flat)
 
 
-class BernoulliPd(Pd):
+class BernoulliProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, logits):
+        """
+        Probability distributions from bernoulli input
+        :param logits: ([float]) the bernoulli input data
+        """
         self.logits = logits
         self.ps = tf.sigmoid(logits)
 
@@ -274,7 +406,7 @@ class BernoulliPd(Pd):
 
     def kl(self, other):
         return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=other.logits, labels=self.ps), axis=-1) - \
-               tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.ps), axis=-1)
+            tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.ps), axis=-1)
 
     def entropy(self):
         return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.ps), axis=-1)
@@ -285,25 +417,40 @@ class BernoulliPd(Pd):
 
     @classmethod
     def fromflat(cls, flat):
+        """
+        Create an instance of this from new bernoulli input
+        :param flat: ([float]) the bernoulli input data
+        :return: (ProbabilityDistribution) the instance from the given bernoulli input data
+        """
         return cls(flat)
 
 
-def make_pdtype(ac_space):
-    from gym import spaces
+def make_proba_dist_type(ac_space):
+    """
+    return an instance of ProbabilityDistributionType for the correct type of action space
+    :param ac_space: (Gym Space) the input action space
+    :return: (ProbabilityDistributionType) the approriate instance of a ProbabilityDistributionType
+    """
     if isinstance(ac_space, spaces.Box):
         assert len(ac_space.shape) == 1
-        return DiagGaussianPdType(ac_space.shape[0])
+        return DiagGaussianProbabilityDistributionType(ac_space.shape[0])
     elif isinstance(ac_space, spaces.Discrete):
-        return CategoricalPdType(ac_space.n)
+        return CategoricalProbabilityDistributionType(ac_space.n)
     elif isinstance(ac_space, spaces.MultiDiscrete):
-        return MultiCategoricalPdType(ac_space.nvec)
+        return MultiCategoricalProbabilityDistributionType(ac_space.nvec)
     elif isinstance(ac_space, spaces.MultiBinary):
-        return BernoulliPdType(ac_space.n)
+        return BernoulliProbabilityDistributionType(ac_space.n)
     else:
         raise NotImplementedError
 
 
 def shape_el(v, i):
+    """
+    get the shape of a TensorFlow Tensor element
+    :param v: (TensorFlow Tensor) the input tensor
+    :param i: (int) the element
+    :return: ([int]) the shape
+    """
     maybe = v.get_shape()[i]
     if maybe is not None:
         return maybe
@@ -313,33 +460,41 @@ def shape_el(v, i):
 
 @tf_util.in_session
 def test_probtypes():
+    """
+    test probability distribution types
+    """
     np.random.seed(0)
 
     pdparam_diag_gauss = np.array([-.2, .3, .4, -.5, .1, -.5, .1, 0.8])
-    diag_gauss = DiagGaussianPdType(pdparam_diag_gauss.size // 2)
+    diag_gauss = DiagGaussianProbabilityDistributionType(pdparam_diag_gauss.size // 2)
     validate_probtype(diag_gauss, pdparam_diag_gauss)
 
     pdparam_categorical = np.array([-.2, .3, .5])
-    categorical = CategoricalPdType(pdparam_categorical.size)
+    categorical = CategoricalProbabilityDistributionType(pdparam_categorical.size)
     validate_probtype(categorical, pdparam_categorical)
 
     nvec = [1, 2, 3]
     pdparam_multicategorical = np.array([-.2, .3, .5, .1, 1, -.1])
-    multicategorical = MultiCategoricalPdType(nvec)
+    multicategorical = MultiCategoricalProbabilityDistributionType(nvec)
     validate_probtype(multicategorical, pdparam_multicategorical)
 
     pdparam_bernoulli = np.array([-.2, .3, .5])
-    bernoulli = BernoulliPdType(pdparam_bernoulli.size)
+    bernoulli = BernoulliProbabilityDistributionType(pdparam_bernoulli.size)
     validate_probtype(bernoulli, pdparam_bernoulli)
 
 
 def validate_probtype(probtype, pdparam):
+    """
+    validate probability distribution types
+    :param probtype: (ProbabilityDistributionType) the type to validate
+    :param pdparam: ([float]) the flat probabilities to test
+    """
     number_samples = 100000
     # Check to see if mean negative log likelihood == differential entropy
     mval = np.repeat(pdparam[None, :], number_samples, axis=0)
     mval_ph = probtype.param_placeholder([number_samples])
     xval_ph = probtype.sample_placeholder([number_samples])
-    pd = probtype.pdfromflat(mval_ph)
+    pd = probtype.probability_distribution_from_flat(mval_ph)
     calcloglik = tf_util.function([xval_ph, mval_ph], pd.logp(xval_ph))
     calcent = tf_util.function([mval_ph], pd.entropy())
     xval = tf.get_default_session().run(pd.sample(), feed_dict={mval_ph: mval})
@@ -351,7 +506,7 @@ def validate_probtype(probtype, pdparam):
 
     # Check to see if kldiv[p,q] = - ent[p] - E_p[log q]
     mval2_ph = probtype.param_placeholder([number_samples])
-    pd2 = probtype.pdfromflat(mval2_ph)
+    pd2 = probtype.probability_distribution_from_flat(mval2_ph)
     q = pdparam + np.random.randn(pdparam.size) * 0.1
     mval2 = np.repeat(q[None, :], number_samples, axis=0)
     calckl = tf_util.function([mval_ph, mval2_ph], pd.kl(pd2))

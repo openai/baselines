@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
+import pickle
 
+import cloudpickle
 from baselines import logger
 
 
@@ -24,10 +26,13 @@ class NotSteppingError(Exception):
 
 
 class VecEnv(ABC):
-    """
-    An abstract asynchronous, vectorized environment.
-    """
     def __init__(self, num_envs, observation_space, action_space):
+        """
+        An abstract asynchronous, vectorized environment.
+        :param num_envs: (int) the number of environments
+        :param observation_space: (Gym Space) the observation space
+        :param action_space: (Gym Space) the action space
+        """
         self.num_envs = num_envs
         self.observation_space = observation_space
         self.action_space = action_space
@@ -41,6 +46,7 @@ class VecEnv(ABC):
         If step_async is still doing work, that work will
         be cancelled and step_wait() should not be called
         until step_async() is invoked again.
+        :return: ([int] or [float]) observation
         """
         pass
 
@@ -60,28 +66,31 @@ class VecEnv(ABC):
     def step_wait(self):
         """
         Wait for the step taken with step_async().
-
-        Returns (obs, rews, dones, infos):
-         - obs: an array of observations, or a tuple of
-                arrays of observations.
-         - rews: an array of rewards
-         - dones: an array of "episode done" booleans
-         - infos: a sequence of info objects
+        :return: ([int] or [float], [float], [bool], dict) observation, reward, done, information
         """
         pass
 
     @abstractmethod
     def close(self):
         """
-        Clean up the environments' resources.
+        Clean up the environment's resources.
         """
         pass
 
     def step(self, actions):
+        """
+        Step the environments with the given action
+        :param actions: ([int] or [float]) the action
+        :return: ([int] or [float], [float], [bool], dict) observation, reward, done, information
+        """
         self.step_async(actions)
         return self.step_wait()
 
     def render(self, mode='human'):
+        """
+        Gym environment rendering
+        :param mode: (str) the rendering type
+        """
         logger.warn('Render not defined for %s' % self)
 
     @property
@@ -117,16 +126,15 @@ class VecEnvWrapper(VecEnv):
 
 
 class CloudpickleWrapper(object):
-    """
-    Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)
-    """
     def __init__(self, x):
+        """
+        Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)
+        :param x: (Any) the variable you wish to wrap for pickling with cloudpickle
+        """
         self.x = x
 
     def __getstate__(self):
-        import cloudpickle
         return cloudpickle.dumps(self.x)
 
     def __setstate__(self, ob):
-        import pickle
         self.x = pickle.loads(ob)

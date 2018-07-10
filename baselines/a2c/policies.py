@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
-from baselines.common.distributions import make_pdtype
+from baselines.common.distributions import make_proba_dist_type
 from baselines.common.input import observation_input
 
 
@@ -38,7 +38,7 @@ class A2CPolicy(object):
         self.obs_ph, self.processed_x = observation_input(ob_space, nbatch)
         self.masks_ph = tf.placeholder(tf.float32, [nbatch])  # mask (done t-1)
         self.states_ph = tf.placeholder(tf.float32, [self.nenv, nlstm * 2])  # states
-        self.pdtype = make_pdtype(ac_space)
+        self.pdtype = make_proba_dist_type(ac_space)
         self.sess = sess
         self.reuse = reuse
 
@@ -73,7 +73,7 @@ class LnLstmPolicy(A2CPolicy):
             h5, self.snew = lnlstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
             h5 = seq_to_batch(h5)
             vf = fc(h5, 'v', 1)
-            self.pd, self.pi = self.pdtype.pdfromlatent(h5)
+            self.pd, self.pi = self.pdtype.probability_distribution_from_latent(h5)
 
         self.v0 = vf[:, 0]
         self.a0 = self.pd.sample()
@@ -99,7 +99,7 @@ class LstmPolicy(A2CPolicy):
             h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
             h5 = seq_to_batch(h5)
             vf = fc(h5, 'v', 1)
-            self.pd, self.pi = self.pdtype.pdfromlatent(h5)
+            self.pd, self.pi = self.pdtype.probability_distribution_from_latent(h5)
 
         self.v0 = vf[:, 0]
         self.a0 = self.pd.sample()
@@ -121,7 +121,7 @@ class CnnPolicy(A2CPolicy):
         with tf.variable_scope("model", reuse=reuse):
             h = nature_cnn(self.processed_x, **kwargs)
             vf = fc(h, 'v', 1)[:, 0]
-            self.pd, self.pi = self.pdtype.pdfromlatent(h, init_scale=0.01)
+            self.pd, self.pi = self.pdtype.probability_distribution_from_latent(h, init_scale=0.01)
 
         self.a0 = self.pd.sample()
         self.neglogp0 = self.pd.neglogp(self.a0)
@@ -148,7 +148,7 @@ class MlpPolicy(A2CPolicy):
             vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
             vf = fc(vf_h2, 'vf', 1)[:, 0]
 
-            self.pd, self.pi = self.pdtype.pdfromlatent(pi_h2, init_scale=0.01)
+            self.pd, self.pi = self.pdtype.probability_distribution_from_latent(pi_h2, init_scale=0.01)
 
         self.a0 = self.pd.sample()
         self.neglogp0 = self.pd.neglogp(self.a0)

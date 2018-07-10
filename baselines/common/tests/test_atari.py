@@ -20,6 +20,9 @@ NUM_CPU = 4
 
 
 def clear_tf_session():
+    """
+    clears the Tensorflow session, this is needed for sequential testing of the baselines
+    """
     tf.reset_default_graph()
     # FIXME: remove these in the hole code base, as they cause issues when running many baselines in a row.
     tf_util._PLACEHOLDER_CACHE = {}
@@ -29,6 +32,10 @@ def clear_tf_session():
 @pytest.mark.slow
 @pytest.mark.parametrize("policy", ['cnn', 'lstm', 'lnlstm'])
 def test_a2c(policy):
+    """
+    test A2C on atari
+    :param policy: (str) the policy to test for A2C
+    """
     clear_tf_session()
     a2c_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
                     policy=policy, lrschedule='constant', num_env=NUM_CPU)
@@ -37,6 +44,10 @@ def test_a2c(policy):
 @pytest.mark.slow
 @pytest.mark.parametrize("policy", ['cnn', 'lstm'])
 def test_acer(policy):
+    """
+    test ACER on atari
+    :param policy: (str) the policy to test for ACER
+    """
     clear_tf_session()
     acer_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
                      policy=policy, lrschedule='constant', num_cpu=NUM_CPU)
@@ -44,12 +55,18 @@ def test_acer(policy):
 
 @pytest.mark.slow
 def test_acktr():
+    """
+    test ACKTR on atari
+    """
     clear_tf_session()
     acktr_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED, num_cpu=NUM_CPU)
 
 
 @pytest.mark.slow
 def test_deepq():
+    """
+    test DeepQ on atari
+    """
     clear_tf_session()
     logger.configure()
     set_global_seeds(SEED)
@@ -68,6 +85,9 @@ def test_deepq():
 
 @pytest.mark.slow
 def test_ppo1():
+    """
+    test PPO1 on atari
+    """
     clear_tf_session()
     ppo1_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED)
 
@@ -75,11 +95,18 @@ def test_ppo1():
 @pytest.mark.slow
 @pytest.mark.parametrize("policy", ['cnn', 'lstm', 'lnlstm', 'mlp'])
 def test_ppo2(policy):
+    """
+    test PPO2 on atari
+    :param policy: (str) the policy to test for PPO2
+    """
     clear_tf_session()
     ppo2_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED, policy=policy)
 
 
 @pytest.mark.slow
 def test_trpo():
+    """
+    test TRPO on atari
+    """
     clear_tf_session()
     trpo_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED)

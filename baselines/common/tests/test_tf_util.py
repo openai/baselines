@@ -5,6 +5,9 @@ from baselines.common.tf_util import function, initialize, single_threaded_sessi
 
 
 def test_function():
+    """
+    test the function function in tf_util
+    """
     with tf.Graph().as_default():
         x = tf.placeholder(tf.int32, (), name="x")
         y = tf.placeholder(tf.int32, (), name="y")
@@ -19,6 +22,9 @@ def test_function():
 
 
 def test_multikwargs():
+    """
+    test the function function in tf_util
+    """
     with tf.Graph().as_default():
         x = tf.placeholder(tf.int32, (), name="x")
         with tf.variable_scope("other"):

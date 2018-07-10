@@ -4,6 +4,9 @@ from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 
 
 def test_tree_set():
+    """
+    test Segment Tree data structure
+    """
     tree = SumSegmentTree(4)
 
     tree[2] = 1.0
@@ -18,6 +21,9 @@ def test_tree_set():
 
 
 def test_tree_set_overlap():
+    """
+    test Segment Tree data structure
+    """
     tree = SumSegmentTree(4)
 
     tree[2] = 1.0
@@ -31,6 +37,9 @@ def test_tree_set_overlap():
 
 
 def test_prefixsum_idx():
+    """
+    test Segment Tree data structure
+    """
     tree = SumSegmentTree(4)
 
     tree[2] = 1.0
@@ -45,6 +54,9 @@ def test_prefixsum_idx():
 
 
 def test_prefixsum_idx2():
+    """
+    test Segment Tree data structure
+    """
     tree = SumSegmentTree(4)
 
     tree[0] = 0.5
@@ -61,6 +73,9 @@ def test_prefixsum_idx2():
 
 
 def test_max_interval_tree():
+    """
+    test Segment Tree data structure
+    """
     tree = MinSegmentTree(4)
 
     tree[0] = 1.0

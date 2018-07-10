@@ -6,7 +6,7 @@ from baselines.common.vec_env import VecEnv, CloudpickleWrapper
 from baselines.common.tile_images import tile_images
 
 
-def worker(remote, parent_remote, env_fn_wrapper):
+def _worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
     env = env_fn_wrapper.x()
     while True:
@@ -31,15 +31,16 @@ def worker(remote, parent_remote, env_fn_wrapper):
 
 
 class SubprocVecEnv(VecEnv):
-    def __init__(self, env_fns, spaces=None):
+    def __init__(self, env_fns):
         """
-        envs: list of gym environments to run in subprocesses
+        Creates a multiprocess vectorized wrapper for multiple environments
+        :param env_fns: ([Gym Environment]) Environments to run in subprocesses
         """
         self.waiting = False
         self.closed = False
         nenvs = len(env_fns)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
-        self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
+        self.ps = [Process(target=_worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                    for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for p in self.ps:
             p.daemon = True  # if the main process crashes, we should not cause things to hang
@@ -67,16 +68,11 @@ class SubprocVecEnv(VecEnv):
             remote.send(('reset', None))
         return np.stack([remote.recv() for remote in self.remotes])
 
-    def reset_task(self):
-        for remote in self.remotes:
-            remote.send(('reset_task', None))
-        return np.stack([remote.recv() for remote in self.remotes])
-
     def close(self):
         if self.closed:
             return
         if self.waiting:
-            for remote in self.remotes:            
+            for remote in self.remotes:
                 remote.recv()
         for remote in self.remotes:
             remote.send(('close', None))

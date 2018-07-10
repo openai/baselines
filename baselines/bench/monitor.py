@@ -17,6 +17,14 @@ class Monitor(Wrapper):
     f = None
 
     def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), info_keywords=()):
+        """
+        A monitor wrapper for Gym environments, it is used to know the episode reward, length, time and other data.
+        :param env: (Gym environment) The environment
+        :param filename: (str) the location to save a log file, can be None for no log
+        :param allow_early_resets: (bool) allows the reset of the environment before it is done
+        :param reset_keywords: (tuple) extra keywords for the reset call, if extra parameters are needed at reset
+        :param info_keywords: (tuple) extra information to log, from the information return of environment.step
+        """
         Wrapper.__init__(self, env=env)
         self.tstart = time.time()
         if filename is None:
@@ -46,6 +54,11 @@ class Monitor(Wrapper):
         self.current_reset_info = {}  # extra info about the current episode, that was passed in during reset()
 
     def reset(self, **kwargs):
+        """
+        Calls the Gym environment reset. Can only be called if the environment is over, or if allow_early_resets is True
+        :param kwargs: Extra keywords saved for the next episode. only if defined by reset_keywords
+        :return: ([int] or [float]) the first observation of the environment
+        """
         if not self.allow_early_resets and not self.needs_reset:
             raise RuntimeError("Tried to reset an environment before done. If you want to allow early resets, "
                                "wrap your env with Monitor(env, path, allow_early_resets=True)")
@@ -59,6 +72,11 @@ class Monitor(Wrapper):
         return self.env.reset(**kwargs)
 
     def step(self, action):
+        """
+        Step the environment with the given action
+        :param action: ([int] or [float]) the action
+        :return: ([int] or [float], [float], [bool], dict) observation, reward, done, information
+        """
         if self.needs_reset:
             raise RuntimeError("Tried to step environment that needs reset")
         ob, rew, done, info = self.env.step(action)
@@ -82,32 +100,63 @@ class Monitor(Wrapper):
         return ob, rew, done, info
 
     def close(self):
+        """
+        Closes the environment
+        """
         if self.f is not None:
             self.f.close()
 
     def get_total_steps(self):
+        """
+        Returns the total number of timesteps
+        :return: (int)
+        """
         return self.total_steps
 
     def get_episode_rewards(self):
+        """
+        Returns the rewards of all the episodes
+        :return: ([float])
+        """
         return self.episode_rewards
 
     def get_episode_lengths(self):
+        """
+        Returns the number of timesteps of all the episodes
+        :return: ([int])
+        """
         return self.episode_lengths
 
     def get_episode_times(self):
+        """
+        Returns the runtime in seconds of all the episodes
+        :return: ([float])
+        """
         return self.episode_times
 
 
 class LoadMonitorResultsError(Exception):
+    """
+    Raised when loading the monitor log fails.
+    """
     pass
 
 
 def get_monitor_files(path):
+    """
+    get all the monitor files in the given path
+    :param path: (str) the logging folder
+    :return: ([str]) the log files
+    """
     return glob(os.path.join(path, "*" + Monitor.EXT))
 
 
 def load_results(path):
-    import pandas
+    """
+    Load results from a given file
+    :param path: (str) the path to the log file
+    :return: (Pandas DataFrame) the logged data
+    """
     monitor_files = (
             glob(os.path.join(path, "*monitor.json")) +
             glob(os.path.join(path, "*monitor.csv")))  # get both csv and (old) json files
@@ -145,6 +194,9 @@ def load_results(path):
 
 
 def test_monitor():
+    """
+    test the monitor wrapper
+    """
     env = gym.make("CartPole-v1")
     env.seed(0)
     mon_file = "/tmp/baselines-test-%s.monitor.csv" % uuid.uuid4()

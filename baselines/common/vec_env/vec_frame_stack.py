@@ -5,10 +5,12 @@ from baselines.common.vec_env import VecEnvWrapper
 
 
 class VecFrameStack(VecEnvWrapper):
-    """
-    Vectorized environment base class
-    """
     def __init__(self, venv, nstack):
+        """
+        Vectorized environment base class
+        :param venv: ([Gym Environment]) the list of environments to vectorize and normalize
+        :param nstack:
+        """
         self.venv = venv
         self.nstack = nstack
         wos = venv.observation_space # wrapped ob space

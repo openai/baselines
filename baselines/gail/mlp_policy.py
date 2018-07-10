@@ -8,7 +8,7 @@ import gym
 
 import baselines.common.tf_util as tf_util
 from baselines.common.mpi_running_mean_std import RunningMeanStd
-from baselines.common.distributions import make_pdtype
+from baselines.common.distributions import make_proba_dist_type
 from baselines.acktr.utils import dense
 
 
@@ -25,7 +25,7 @@ class MlpPolicy(object):
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
         assert isinstance(ob_space, gym.spaces.Box)
 
-        self.pdtype = pdtype = make_pdtype(ac_space)
+        self.pdtype = pdtype = make_proba_dist_type(ac_space)
         sequence_length = None
 
         ob = tf_util.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
@@ -53,7 +53,7 @@ class MlpPolicy(object):
         else:
             pdparam = dense(last_out, pdtype.param_shape()[0], "polfinal", tf_util.normc_initializer(0.01))
 
-        self.pd = pdtype.pdfromflat(pdparam)
+        self.pd = pdtype.probability_distribution_from_flat(pdparam)
 
         self.state_in = []
         self.state_out = []
