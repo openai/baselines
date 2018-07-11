@@ -1,13 +1,8 @@
 import subprocess
 
+from baselines.common.tests.test_common import _assert_eq
+
 ENV_ID = 'Pendulum-v0'
-
-def _assert_eq(left, right):
-    assert left == right, '{} != {}'.format(left, right)
-
-
-def _assert_neq(left, right):
-    assert left != right, '{} == {}'.format(left, right)
 
 
 def test_ddpg():
