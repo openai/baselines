@@ -24,6 +24,7 @@ def test_identity(learn_func):
     """
     Test if the algorithm (with a given policy) 
     can learn an identity transformation (i.e. return observation as an action)
+    :param learn_func: (lambda (Gym Environment): A2CPolicy) the policy generator
     """
     np.random.seed(0)
     np_random.seed(0)

@@ -2,8 +2,13 @@ import numpy as np
 
 
 class RunningMeanStd(object):
-    # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
     def __init__(self, epsilon=1e-4, shape=()):
+        """
+        calulates the running mean and std of a data stream
+        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+        :param epsilon: (float) helps with arithmetic issues
+        :param shape: (tuple) the shape of the data stream's output
+        """
         self.mean = np.zeros(shape, 'float64')
         self.var = np.ones(shape, 'float64')
         self.count = epsilon
@@ -32,6 +37,9 @@ class RunningMeanStd(object):
 
 
 def test_runningmeanstd():
+    """
+    tests RunningMeanStd object
+    """
     for (x1, x2, x3) in [
          (np.random.randn(3), np.random.randn(4), np.random.randn(5)),
          (np.random.randn(3, 2), np.random.randn(4, 2), np.random.randn(5, 2))]:
