@@ -1,14 +1,22 @@
 import numpy as np
 
 
-# http://www.johndcook.com/blog/standard_deviation/
 class RunningStat(object):
     def __init__(self, shape):
+        """
+        calulates the running mean and std of a data stream
+        http://www.johndcook.com/blog/standard_deviation/
+        :param shape: (tuple) the shape of the data stream's output
+        """
         self._n = 0
         self._M = np.zeros(shape)
         self._S = np.zeros(shape)
 
     def push(self, x):
+        """
+        update the running mean and std
+        :param x: (numpy Number) the data
+        """
         x = np.asarray(x)
         assert x.shape == self._M.shape
         self._n += 1
@@ -21,26 +29,49 @@ class RunningStat(object):
 
     @property
     def n(self):
+        """
+        the number of data points
+        :return: (int)
+        """
         return self._n
 
     @property
     def mean(self):
+        """
+        the average value
+        :return: (float)
+        """
         return self._M
 
     @property
     def var(self):
+        """
+        the variation of the data points
+        :return: (float)
+        """
         return self._S / (self._n - 1) if self._n > 1 else np.square(self._M)
 
     @property
     def std(self):
+        """
+        the standard deviation of the data points
+        :return: (float)
+        """
         return np.sqrt(self.var)
 
     @property
     def shape(self):
+        """
+        the shape of the data points
+        :return: (tuple)
+        """
         return self._M.shape
 
 
 def test_running_stat():
+    """
+    test RunningStat object
+    """
     for shp in ((), (3,), (3, 4)):
         li = []
         rs = RunningStat(shp)

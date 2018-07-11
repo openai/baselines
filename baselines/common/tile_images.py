@@ -7,10 +7,9 @@ def tile_images(img_nhwc):
     (P,Q) are chosen to be as close as possible, and if N
     is square, then P=Q.
 
-    input: img_nhwc, list or array of images, ndim=4 once turned into array
+    :param img_nhwc: (list) list or array of images, ndim=4 once turned into array. img nhwc
         n = batch index, h = height, w = width, c = channel
-    returns:
-        bigim_HWc, ndarray with ndim=3
+    :return: (numpy float) img_HWc, ndim=3
     """
     img_nhwc = np.asarray(img_nhwc)
     N, h, w, c = img_nhwc.shape
