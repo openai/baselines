@@ -164,7 +164,8 @@ def learn(env, policy_fn, *,
                 stepdir = conjugate_gradient(fisher_vector_product, g, cg_iters=cg_iters, verbose=rank == 0)
             assert np.isfinite(stepdir).all()
             shs = .5 * stepdir.dot(fisher_vector_product(stepdir))
-            lm = np.sqrt(shs / max_kl)
+            # abs(shs) to avoid taking square root of negative values
+            lm = np.sqrt(abs(shs) / max_kl)
             # logger.log("lagrange multiplier:", lm, "gnorm:", np.linalg.norm(g))
             fullstep = stepdir / lm
             expectedimprove = g.dot(fullstep)
