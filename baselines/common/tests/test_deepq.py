@@ -17,3 +17,12 @@ def test_cartpole():
 
     ok = subprocess.call(['python', '-m', 'baselines.deepq.experiments.enjoy_cartpole', '--no-render'])
     _assert_eq(ok, 0)
+
+def test_mountaincar():
+    args = ['--max-timesteps', 1000]
+    args = list(map(str, args))
+    ok = subprocess.call(['python', '-m', 'baselines.deepq.experiments.train_mountaincar'] + args)
+    _assert_eq(ok, 0)
+
+    ok = subprocess.call(['python', '-m', 'baselines.deepq.experiments.enjoy_mountaincar', '--no-render'])
+    _assert_eq(ok, 0)
