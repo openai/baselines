@@ -10,12 +10,14 @@ import baselines.common.tf_util as tf_util
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.common.distributions import make_proba_dist_type
 from baselines.acktr.utils import dense
+from baselines.ppo1.mlp_policy import BasePolicy
 
 
-class MlpPolicy(object):
+class MlpPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, reuse=False, *args, **kwargs):
+        super(BasePolicy, self).__init__()
         with tf.variable_scope(name):
             if reuse:
                 tf.get_variable_scope().reuse_variables()
@@ -63,17 +65,3 @@ class MlpPolicy(object):
         ac = tf_util.switch(stochastic, self.pd.sample(), self.pd.mode())
         self.ac = ac
         self._act = tf_util.function([stochastic, ob], [ac, self.vpred])
-
-    def act(self, stochastic, ob):
-        ac1, vpred1 = self._act(stochastic, ob[None])
-        return ac1[0], vpred1[0]
-
-    def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
-
-    def get_trainable_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-
-    @classmethod
-    def get_initial_state(cls):
-        return []
