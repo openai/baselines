@@ -1,7 +1,5 @@
 import subprocess
 
-import pytest
-
 ENV_ID = 'Pendulum-v0'
 
 def _assert_eq(left, right):
