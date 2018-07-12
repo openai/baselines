@@ -11,7 +11,7 @@ from tqdm import tqdm
 import numpy as np
 import gym
 
-from baselines.gail import mlp_policy
+from baselines.gail import mlp_policy, behavior_clone
 from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
 from baselines import bench, logger
@@ -20,6 +20,11 @@ from baselines.gail.adversary import TransitionClassifier
 
 
 def argsparser():
+    """
+    get an argument parser for training mujoco on gail
+
+    :return: (ArgumentParser)
+    """
     parser = argparse.ArgumentParser("Tensorflow Implementation of GAIL")
     parser.add_argument('--env_id', help='environment ID', default='Hopper-v2')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
@@ -30,8 +35,8 @@ def argsparser():
     # Task
     parser.add_argument('--task', type=str, choices=['train', 'evaluate', 'sample'], default='train')
     # for evaluatation
-    boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
-    boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
+    boolean_flag(parser, 'stochastic_policy', default=False, help_msg='use stochastic/deterministic policy to evaluate')
+    boolean_flag(parser, 'save_sample', default=False, help_msg='save the trajectories or not')
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
     # Optimization Configuration
@@ -49,12 +54,18 @@ def argsparser():
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
     parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e6)
     # Behavior Cloning
-    boolean_flag(parser, 'pretrained', default=False, help='Use BC to pretrain')
+    boolean_flag(parser, 'pretrained', default=False, help_msg='Use BC to pretrain')
     parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e4)
     return parser.parse_args()
 
 
 def get_task_name(args):
+    """
+    get the task name
+
+    :param args: (ArgumentParser) the training argument
+    :return: (str) the task name
+    """
     task_name = args.algo + "_gail."
     if args.pretrained:
         task_name += "with_pretrained."
@@ -68,6 +79,11 @@ def get_task_name(args):
 
 
 def main(args):
+    """
+    start training the model
+
+    :param args: (ArgumentParser) the training argument
+    """
     with tf_util.make_session(num_cpu=1):
         set_global_seeds(args.seed)
         env = gym.make(args.env_id)
@@ -120,11 +136,30 @@ def main(args):
 def train(env, seed, policy_fn, reward_giver, dataset, algo,
           g_step, d_step, policy_entcoeff, num_timesteps, save_per_iter,
           checkpoint_dir, log_dir, pretrained, BC_max_iter, task_name=None):
+    """
+    train gail on mujoco
+
+    :param env: (Gym Environment) the environment
+    :param seed: (int) the initial random seed
+    :param policy_fn: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
+    :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
+    :param dataset: (MujocoDset) the dataset manager
+    :param algo: (str) the algorithm type (only 'trpo' is supported)
+    :param g_step: (int) number of steps to train policy in each epoch
+    :param d_step: (int) number of steps to train discriminator in each epoch
+    :param policy_entcoeff: (float) the weight of the entropy loss for the policy
+    :param num_timesteps: (int) the number of timesteps to run
+    :param save_per_iter: (int) the number of iterations before saving
+    :param checkpoint_dir: (str) the location for saving checkpoints
+    :param log_dir: (str) the logging directory
+    :param pretrained: (bool) use a pretrained behavior clone
+    :param BC_max_iter: (int) the maximum number of training iterations for the behavior clone
+    :param task_name: (str) the name of the task (can be None)
+    """
 
     pretrained_weight = None
     if pretrained and (BC_max_iter > 0):
         # Pretrain with behavior cloning
-        from baselines.gail import behavior_clone
         pretrained_weight = behavior_clone.learn(env, policy_fn, dataset,
                                                  max_iters=BC_max_iter)
 
@@ -155,6 +190,19 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
 
 def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
            stochastic_policy, save=False, reuse=False):
+    """
+    run the training for all the trajectories
+
+    :param env: (Gym Environment) the environment
+    :param policy_func: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
+    :param load_model_path: (str) the path to the model
+    :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
+    :param number_trajs: (int) the number of trajectories to run
+    :param stochastic_policy: (bool) use a stochastic policy
+    :param save: (bool) save the policy
+    :param reuse: (bool) allow reuse of the graph
+    :return: (float, float) average trajectory lenght, average trajectory reward
+    """
 
     # Setup network
     # ----------------------------------------
@@ -192,8 +240,16 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     return avg_len, avg_ret
 
 
-# Sample one trajectory (until trajectory end)
 def traj_1_generator(pi, env, horizon, stochastic):
+    """
+    Sample one trajectory (until trajectory end)
+
+    :param pi: (MLPPolicy) the policy
+    :param env: (Gym Environment) the environment
+    :param horizon: (int) the search horizon
+    :param stochastic: (bool) use a stochastic policy
+    :return: (dict) the trajectory
+    """
 
     t = 0
     env.action_space.sample()  # not used, just so we have the datatype

@@ -12,19 +12,36 @@ from baselines.common import tf_util as tf_util
 def logsigmoid(a):
     """
     Equivalent to tf.log(tf.sigmoid(a))
+
+    :param a: (TensorFlow Tensor)
+    :return: (TensorFlow Tensor)
     """
     return -tf.nn.softplus(-a)
 
 
-# Reference:
-# https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51
 def logit_bernoulli_entropy(logits):
+    """
+    Reference:
+    https://github.com/openai/imitation/blob/99fbccf3e060b6e6c739bdf209758620fcdefd3c/policyopt/thutil.py#L48-L51
+
+    :param logits: (TensorFlow Tensor) the logits
+    :return: (TensorFlow Tensor) the bernoulli entropy
+    """
     ent = (1.-tf.nn.sigmoid(logits))*logits - logsigmoid(logits)
     return ent
 
 
 class TransitionClassifier(object):
     def __init__(self, env, hidden_size, entcoeff=0.001, lr_rate=1e-3, scope="adversary"):
+        """
+        reward regression from observations and transitions
+
+        :param env: (Gym Environment)
+        :param hidden_size: ([int]) the hidden dimension for the MLP
+        :param entcoeff: (float) the entropy loss weight
+        :param lr_rate: (float) the learning rate
+        :param scope: (str) tensorflow variable scope
+        """
         self.scope = scope
         self.observation_shape = env.observation_space.shape
         self.actions_shape = env.action_space.shape
@@ -62,12 +79,23 @@ class TransitionClassifier(object):
             self.losses + [tf_util.flatgrad(self.total_loss, var_list)])
 
     def build_ph(self):
+        """
+        build placeholder
+        """
         self.generator_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name="observations_ph")
         self.generator_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name="actions_ph")
         self.expert_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name="expert_observations_ph")
         self.expert_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name="expert_actions_ph")
 
     def build_graph(self, obs_ph, acs_ph, reuse=False):
+        """
+        build the graph
+
+        :param obs_ph: (TensorFlow Tensor) the observation placeholder
+        :param acs_ph: (TensorFlow Tensor) the action placeholder
+        :param reuse: (bool)
+        :return: (TensorFlow Tensor) the graph output
+        """
         with tf.variable_scope(self.scope):
             if reuse:
                 tf.get_variable_scope().reuse_variables()
@@ -82,9 +110,21 @@ class TransitionClassifier(object):
         return logits
 
     def get_trainable_variables(self):
+        """
+        get all the trainable variables from the graph
+
+        :return: ([TensorFlow Tensor]) the variables
+        """
         return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
     def get_reward(self, obs, acs):
+        """
+        get the reward using the observation and action
+
+        :param obs: (TensorFlow Tensor or numpy Number) the observation
+        :param acs: (TensorFlow Tensor or numpy Number) the action
+        :return: (numpy Number) the reward
+        """
         sess = tf.get_default_session()
         if len(obs.shape) == 1:
             obs = np.expand_dims(obs, 0)

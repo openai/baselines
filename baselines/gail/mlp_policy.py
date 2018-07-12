@@ -17,6 +17,17 @@ class MlpPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, reuse=False, *args, **kwargs):
+        """
+        MLP policy for Gail
+
+        :param name: (str) the variable scope name
+        :param reuse: (bool) allow resue of the graph
+        :param ob_space: (Gym Space) the observation space
+        :param ac_space: (Gym Space) the action space
+        :param hid_size: (int) the number of hidden neurons for every hidden layer
+        :param num_hid_layers: (int) the number of hidden layers
+        :param gaussian_fixed_var: (bool) fix the gaussian variance
+        """
         super(MlpPolicy, self).__init__()
         with tf.variable_scope(name):
             if reuse:

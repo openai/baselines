@@ -261,7 +261,7 @@ def learn(env, policy_func, *,
         ep_stats = Stats(["True_rewards", "Rewards", "Episode_length"])
         # if provide pretrained weight
         if pretrained_weight is not None:
-            # Incorrect call argument...
+            # FIXME: Incorrect call argument...
             tf_util.load_state(pretrained_weight, var_list=pi.get_variables())
 
     while True:
