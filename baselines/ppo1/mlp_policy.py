@@ -5,11 +5,31 @@ from baselines.common.mpi_running_mean_std import RunningMeanStd
 import baselines.common.tf_util as tf_util
 from baselines.common.distributions import make_proba_dist_type
 
+class BasePolicy(object):
+    def __init__(self):
+        super(BasePolicy, self).__init__()
+        self.sess = None
 
-class MlpPolicy(object):
+    def act(self, stochastic, ob):
+        ac1, vpred1 = self._act(stochastic, ob[None], sess=self.sess)
+        return ac1[0], vpred1[0]
+
+    def get_variables(self):
+        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
+
+    def get_trainable_variables(self):
+        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
+
+    @classmethod
+    def get_initial_state(cls):
+        return []
+
+
+class MlpPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, *args, sess=None, reuse=False, **kwargs):
+        super(BasePolicy, self).__init__()
         self.reuse = reuse
         self.name = name
         self._init(*args, **kwargs)
@@ -59,17 +79,3 @@ class MlpPolicy(object):
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
         ac = tf_util.switch(stochastic, self.pd.sample(), self.pd.mode())
         self._act = tf_util.function([stochastic, ob], [ac, self.vpred])
-
-    def act(self, stochastic, ob):
-        ac1, vpred1 = self._act(stochastic, ob[None], sess=self.sess)
-        return ac1[0], vpred1[0]
-
-    def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
-
-    def get_trainable_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-
-    @classmethod
-    def get_initial_state(cls):
-        return []

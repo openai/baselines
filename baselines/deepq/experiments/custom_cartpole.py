@@ -1,6 +1,7 @@
-import gym
 import itertools
+import argparse
 
+import gym
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
@@ -22,6 +23,11 @@ def model(inpt, num_actions, scope, reuse=False):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Train DQN on cartpole using a custom mlp")
+    parser.add_argument('--no-render', default=False, action="store_true", help="Disable rendering")
+    parser.add_argument('--max-timesteps', default=50000, type=int, help="Maximum number of timesteps when not rendering")
+    args = parser.parse_args()
+
     with tf_utils.make_session(8):
         # Create the environment
         env = gym.make("CartPole-v0")
@@ -57,8 +63,19 @@ if __name__ == '__main__':
                 obs = env.reset()
                 episode_rewards.append(0)
 
-            is_solved = t > 100 and np.mean(episode_rewards[-101:-1]) >= 200
+            if len(episode_rewards[-101:-1]) == 0:
+                mean_100ep_reward = -np.inf
+            else:
+                mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
+
+            is_solved = t > 100 and mean_100ep_reward >= 200
+
+            if args.no_render and t > args.max_timesteps:
+                break
+
             if is_solved:
+                if args.no_render:
+                    break
                 # Show off the result
                 env.render()
             else:
@@ -73,6 +90,6 @@ if __name__ == '__main__':
             if done and len(episode_rewards) % 10 == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", len(episode_rewards))
-                logger.record_tabular("mean episode reward", round(float(np.mean(episode_rewards[-101:-1]), 1)))
+                logger.record_tabular("mean episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
