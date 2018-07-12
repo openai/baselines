@@ -11,6 +11,7 @@ import numpy as np
 def fmt_row(width, row, header=False):
     """
     fits a list of items to at least a certain length
+
     :param width: (int) the minimum width of the string
     :param row: ([Any]) a list of object you wish to get the string representation
     :param header: (bool) whether or not to return the string as a header
@@ -25,6 +26,7 @@ def fmt_row(width, row, header=False):
 def fmt_item(x, l):
     """
     fits items to a given string length
+
     :param x: (Any) the item you wish to get the string representation
     :param l: (int) the minimum width of the string
     :return: (str) the string representation of 'x' of length >= 'l'
@@ -59,6 +61,7 @@ color2num = dict(
 def colorize(string, color, bold=False, highlight=False):
     """
     Colorize, bold and/or highlight a string for terminal print
+
     :param string: (str) input string
     :param color: (str) the color, the lookup table is the dict at console_util.color2num
     :param bold: (bool) if the string should be bold or not

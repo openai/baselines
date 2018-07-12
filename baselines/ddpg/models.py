@@ -4,6 +4,11 @@ import tensorflow.contrib as tc
 
 class Model(object):
     def __init__(self, name):
+        """
+        A TensorFlow Model type
+
+        :param name: (str) the name of the model
+        """
         self.name = name
 
     @property
@@ -21,6 +26,13 @@ class Model(object):
 
 class Actor(Model):
     def __init__(self, nb_actions, name='actor', layer_norm=True):
+        """
+        A TensorFlow Actor model, this is used to output the actions
+
+        :param nb_actions: (int) the size of the action space
+        :param name: (str) the name of the model (default: 'actor')
+        :param layer_norm: (bool) enable layer normalization
+        """
         super(Actor, self).__init__(name=name)
         self.nb_actions = nb_actions
         self.layer_norm = layer_norm
@@ -49,6 +61,12 @@ class Actor(Model):
 
 class Critic(Model):
     def __init__(self, name='critic', layer_norm=True):
+        """
+            A TensorFlow Critic model, this is used to output the value of a state
+
+            :param name: (str) the name of the model (default: 'critic')
+            :param layer_norm: (bool) enable layer normalization
+            """
         super(Critic, self).__init__(name=name)
         self.layer_norm = layer_norm
 

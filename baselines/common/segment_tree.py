@@ -88,6 +88,7 @@ class SumSegmentTree(SegmentTree):
     def sum(self, start=0, end=None):
         """
         Returns arr[start] + ... + arr[end]
+
         :param start: (int) start position of the reduction (must be >= 0)
         :param end: (int) end position of the reduction (must be < len(arr), can be None for len(arr) - 1)
         :return: (Any) reduction of SumSegmentTree
@@ -128,6 +129,7 @@ class MinSegmentTree(SegmentTree):
     def min(self, start=0, end=None):
         """
         Returns min(arr[start], ...,  arr[end])
+
         :param start: (int) start position of the reduction (must be >= 0)
         :param end: (int) end position of the reduction (must be < len(arr), can be None for len(arr) - 1)
         :return: (Any) reduction of MinSegmentTree

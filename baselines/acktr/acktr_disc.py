@@ -21,6 +21,7 @@ class Model(object):
                  kfac_clip=0.001, lrschedule='linear'):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
+
         :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Space) The observation space
         :param ac_space: (Gym Space) The action space
@@ -127,6 +128,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
           kfac_clip=0.001, save_interval=None, lrschedule='linear'):
     """
     Traines an ACKTR model.
+
     :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
     :param seed: (int) The initial seed for training

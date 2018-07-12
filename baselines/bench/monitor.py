@@ -19,6 +19,7 @@ class Monitor(Wrapper):
     def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), info_keywords=()):
         """
         A monitor wrapper for Gym environments, it is used to know the episode reward, length, time and other data.
+
         :param env: (Gym environment) The environment
         :param filename: (str) the location to save a log file, can be None for no log
         :param allow_early_resets: (bool) allows the reset of the environment before it is done
@@ -56,6 +57,7 @@ class Monitor(Wrapper):
     def reset(self, **kwargs):
         """
         Calls the Gym environment reset. Can only be called if the environment is over, or if allow_early_resets is True
+
         :param kwargs: Extra keywords saved for the next episode. only if defined by reset_keywords
         :return: ([int] or [float]) the first observation of the environment
         """
@@ -74,6 +76,7 @@ class Monitor(Wrapper):
     def step(self, action):
         """
         Step the environment with the given action
+
         :param action: ([int] or [float]) the action
         :return: ([int] or [float], [float], [bool], dict) observation, reward, done, information
         """
@@ -109,6 +112,7 @@ class Monitor(Wrapper):
     def get_total_steps(self):
         """
         Returns the total number of timesteps
+
         :return: (int)
         """
         return self.total_steps
@@ -116,6 +120,7 @@ class Monitor(Wrapper):
     def get_episode_rewards(self):
         """
         Returns the rewards of all the episodes
+
         :return: ([float])
         """
         return self.episode_rewards
@@ -123,6 +128,7 @@ class Monitor(Wrapper):
     def get_episode_lengths(self):
         """
         Returns the number of timesteps of all the episodes
+
         :return: ([int])
         """
         return self.episode_lengths
@@ -130,6 +136,7 @@ class Monitor(Wrapper):
     def get_episode_times(self):
         """
         Returns the runtime in seconds of all the episodes
+
         :return: ([float])
         """
         return self.episode_times
@@ -145,6 +152,7 @@ class LoadMonitorResultsError(Exception):
 def get_monitor_files(path):
     """
     get all the monitor files in the given path
+
     :param path: (str) the logging folder
     :return: ([str]) the log files
     """
@@ -154,6 +162,7 @@ def get_monitor_files(path):
 def load_results(path):
     """
     Load results from a given file
+
     :param path: (str) the path to the log file
     :return: (Pandas DataFrame) the logged data
     """

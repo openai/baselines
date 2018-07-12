@@ -4,6 +4,7 @@ import tensorflow as tf
 def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
     """
     Do a matrix multiplication with tensor 'a' and 'b', even when their shape do not match
+
     :param a: (TensorFlow Tensor)
     :param b: (TensorFlow Tensor)
     :param transpose_a: (bool) If 'a' needs transposing
@@ -65,6 +66,7 @@ def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
 def clipout_neg(vec, threshold=1e-6):
     """
     clip to 0 if input lower than threshold value
+
     :param vec: (TensorFlow Tensor)
     :param threshold: (float) the cutoff threshold
     :return: (TensorFlow Tensor) clipped input
@@ -76,6 +78,7 @@ def clipout_neg(vec, threshold=1e-6):
 def detect_min_val(input_mat, var, threshold=1e-6, name='', debug=False):
     """
     If debug is not set, will run clipout_neg. Else, will clip and print out odd eigen values
+
     :param input_mat: (TensorFlow Tensor)
     :param var: (TensorFlow Tensor) variable
     :param threshold: (float) the cutoff threshold
@@ -101,6 +104,7 @@ def detect_min_val(input_mat, var, threshold=1e-6, name='', debug=False):
 def factor_reshape(Q, e, grad, facIndx=0, ftype='act'):
     """
     factor and reshape input eigen values
+
     :param Q: ([TensorFlow Tensor]) eigen value
     :param e: ([TensorFlow Tensor]) eigen value
     :param grad: ([TensorFlow Tensor]) gradiant

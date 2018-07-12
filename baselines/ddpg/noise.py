@@ -3,6 +3,13 @@ import numpy as np
 
 class AdaptiveParamNoiseSpec(object):
     def __init__(self, initial_stddev=0.1, desired_action_stddev=0.1, adoption_coefficient=1.01):
+        """
+        Implements adaptive parameter noise
+
+        :param initial_stddev: (float) the initial value for the standard deviation of the noise
+        :param desired_action_stddev: (float) the desired value for the standard deviation of the noise
+        :param adoption_coefficient: (float) the update coefficient for the standard deviation of the noise
+        """
         self.initial_stddev = initial_stddev
         self.desired_action_stddev = desired_action_stddev
         self.adoption_coefficient = adoption_coefficient
@@ -10,6 +17,11 @@ class AdaptiveParamNoiseSpec(object):
         self.current_stddev = initial_stddev
 
     def adapt(self, distance):
+        """
+        update the standard deviation for the parameter noise
+
+        :param distance: (float) the noise distance applied to the parameters
+        """
         if distance > self.desired_action_stddev:
             # Decrease stddev.
             self.current_stddev /= self.adoption_coefficient
@@ -18,6 +30,11 @@ class AdaptiveParamNoiseSpec(object):
             self.current_stddev *= self.adoption_coefficient
 
     def get_stats(self):
+        """
+        return the standard deviation for the parameter noise
+
+        :return: (dict) the stats of the noise
+        """
         stats = {
             'param_noise_stddev': self.current_stddev,
         }
@@ -29,12 +46,24 @@ class AdaptiveParamNoiseSpec(object):
 
 
 class ActionNoise(object):
+    """
+    The action noise base class
+    """
     def reset(self):
+        """
+        call end of episode reset for the noise
+        """
         pass
 
 
 class NormalActionNoise(ActionNoise):
     def __init__(self, mu, sigma):
+        """
+        A guassian action noise
+
+        :param mu: (float) the position of the noise
+        :param sigma: (float) the scale of the noise
+        """
         self.mu = mu
         self.sigma = sigma
 
@@ -45,14 +74,25 @@ class NormalActionNoise(ActionNoise):
         return 'NormalActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)
 
 
-# Based on http://math.stackexchange.com/questions/1287634/implementing-ornstein-uhlenbeck-in-matlab
 class OrnsteinUhlenbeckActionNoise(ActionNoise):
     def __init__(self, mu, sigma, theta=.15, dt=1e-2, x0=None):
+        """
+        A Ornstein Uhlenbeck action noise, this is designed to aproximate brownian motion with friction.
+
+        Based on http://math.stackexchange.com/questions/1287634/implementing-ornstein-uhlenbeck-in-matlab
+
+        :param mu: (float) the position of the noise
+        :param sigma: (float) the scale of the noise
+        :param theta: (float) the rate of mean reversion
+        :param dt: (float) the timestep for the noise
+        :param x0: ([float]) the initial value for the noise output, (if None: 0)
+        """
         self.theta = theta
         self.mu = mu
         self.sigma = sigma
         self.dt = dt
         self.x0 = x0
+        self.x_prev = None
         self.reset()
 
     def __call__(self):
@@ -62,6 +102,9 @@ class OrnsteinUhlenbeckActionNoise(ActionNoise):
         return x
 
     def reset(self):
+        """
+        reset the Ornstein Uhlenbeck noise, to the initial position
+        """
         self.x_prev = self.x0 if self.x0 is not None else np.zeros_like(self.mu)
 
     def __repr__(self):

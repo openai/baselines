@@ -10,6 +10,7 @@ from baselines.a2c.policies import CnnPolicy, LstmPolicy, LnLstmPolicy
 def train(env_id, num_timesteps, seed, policy, lrschedule, num_env):
     """
     Train A2C model for atari environment, for testing purposes
+
     :param env_id: (str) Environment ID
     :param num_timesteps: (int) The total number of samples
     :param seed: (int) The initial seed for training

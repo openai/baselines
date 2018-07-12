@@ -5,6 +5,7 @@ def conjugate_gradient(f_ax, b, cg_iters=10, callback=None, verbose=False, resid
     """
     conjugate gradient calculation (Ax = b), bases on
     https://epubs.siam.org/doi/book/10.1137/1.9781611971446 Demmel p 312
+
     :param f_ax: (function) The function describing the Matrix A dot the vector x
                  (x being the input parameter of the function)
     :param b: (numpy float) vector b, where Ax = b

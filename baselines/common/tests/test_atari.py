@@ -34,6 +34,7 @@ def clear_tf_session():
 def test_a2c(policy):
     """
     test A2C on atari
+
     :param policy: (str) the policy to test for A2C
     """
     clear_tf_session()
@@ -46,6 +47,7 @@ def test_a2c(policy):
 def test_acer(policy):
     """
     test ACER on atari
+
     :param policy: (str) the policy to test for ACER
     """
     clear_tf_session()
@@ -97,6 +99,7 @@ def test_ppo1():
 def test_ppo2(policy):
     """
     test PPO2 on atari
+
     :param policy: (str) the policy to test for PPO2
     """
     clear_tf_session()

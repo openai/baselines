@@ -7,6 +7,7 @@ from baselines.a2c.utils import fc, batch_to_seq, seq_to_batch, lstm, sample
 class AcerPolicy(object):
     """
     Policy object for Acer
+    
     :param sess: (TensorFlow session) The current TensorFlow session
     :param ob_space: (Gym Space) The observation space of the environment
     :param ac_space: (Gym Space) The action space of the environment
@@ -31,6 +32,7 @@ class AcerPolicy(object):
     def step(self, obs, state, mask, *args, **kwargs):
         """
         Returns the policy for a single step
+        
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
@@ -43,6 +45,7 @@ class AcerPolicy(object):
     def out(self, obs, state, mask, *args, **kwargs):
         """
         Returns the pi and q values for a single step
+        
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
@@ -55,6 +58,7 @@ class AcerPolicy(object):
     def act(self, obs, state, mask, *args, **kwargs):
         """
         Returns the action for a single step
+        
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)

@@ -9,6 +9,7 @@ from baselines.common.input import observation_input
 def nature_cnn(unscaled_images, **kwargs):
     """
     CNN from Nature paper.
+    
     :param unscaled_images: (TensorFlow Tensor) Image input placeholder
     :param kwargs: (dict) Extra keywords parameters for the convolutional layers of the CNN
     :return: (TensorFlow Tensor) The CNN output layer
@@ -26,6 +27,7 @@ class A2CPolicy(object):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
         """
         Policy object for A2C
+        
         :param sess: (TensorFlow session) The current TensorFlow session
         :param ob_space: (Gym Space) The observation space of the environment
         :param ac_space: (Gym Space) The action space of the environment
@@ -45,6 +47,7 @@ class A2CPolicy(object):
     def step(self, obs, state, mask):
         """
         Returns the policy for a single step
+        
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
@@ -55,6 +58,7 @@ class A2CPolicy(object):
     def value(self, obs, state, mask):
         """
         Returns the value for a single step
+        
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)

@@ -10,6 +10,7 @@ class RunningMeanStd(object):
         """
         calulates the running mean and std of a data stream
         https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
+
         :param epsilon: (float) helps with arithmetic issues
         :param shape: (tuple) the shape of the data stream's output
         """
@@ -44,6 +45,7 @@ class RunningMeanStd(object):
     def update(self, x):
         """
         update the running mean and std
+
         :param x: (numpy Number) the data
         """
         x = x.astype('float64')

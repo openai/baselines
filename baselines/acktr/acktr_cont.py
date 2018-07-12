@@ -15,6 +15,7 @@ from baselines.common.filters import ZFilter
 def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
     """
     Simulate the env and policy for max_pathlength steps
+
     :param env: (Gym environment) The environment to learn from
     :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
     :param max_pathlength: (int) The maximum length for an episode
@@ -61,6 +62,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
           animate=False, callback=None, desired_kl=0.002):
     """
     Learns a Kfac model
+
     :param env: (Gym environment) The environment to learn from
     :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
     :param vf: (Object) The value function model to use (MLP, CNN, LSTM, ...)

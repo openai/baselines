@@ -55,6 +55,7 @@ def lrelu(x, leak=0.2):
 def huber_loss(x, delta=1.0):
     """
     Reference: https://en.wikipedia.org/wiki/Huber_loss
+
     :param x: (TensorFlow Tensor) the input value
     :param delta: (float) huber loss delta value
     :return: (TensorFlow Tensor) huber loss output
@@ -73,6 +74,7 @@ def huber_loss(x, delta=1.0):
 def make_session(num_cpu=None, make_default=False, graph=None):
     """
     Returns a session that will use <num_cpu> CPU's only
+
     :param num_cpu: (int) number of CPUs to use for TensorFlow
     :param make_default: (bool) if this should return an InteractiveSession or a normal Session
     :param graph: (TensorFlow Graph) the graph of the session
@@ -92,6 +94,7 @@ def make_session(num_cpu=None, make_default=False, graph=None):
 def single_threaded_session():
     """
     Returns a session which will only use a single CPU
+
     :return: (TensorFlow session)
     """
     return make_session(num_cpu=1)
@@ -100,6 +103,7 @@ def single_threaded_session():
 def in_session(f):
     """
     wrappes a function so that it is in a TensorFlow Session
+
     :param f: (function) the function to wrap
     :return: (function)
     """
@@ -117,6 +121,7 @@ ALREADY_INITIALIZED = set()
 def initialize(sess=None):
     """
     Initialize all the uninitialized variables in the global scope.
+
     :param sess: (TensorFlow Session)
     """
     if sess is None:
@@ -133,6 +138,7 @@ def initialize(sess=None):
 def normc_initializer(std=1.0, axis=0):
     """
     Return a parameter initializer for TensorFlow
+
     :param std: (float) standard deviation
     :param axis: (int) the axis to normalize on
     :return: (function)
@@ -149,6 +155,7 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
            summary_tag=None):
     """
     Creates a 2d convolutional layer for TensorFlow
+
     :param x: (TensorFlow Tensor) The input tensor for the convolution
     :param num_filters: (int) The number of filters
     :param name: (str) The TensorFlow variable scope
@@ -235,6 +242,7 @@ class _Function(object):
     def __init__(self, inputs, outputs, updates, givens):
         """
         Theano like function
+
         :param inputs: (TensorFlow Tensor or Object with make_feed_dict) list of input arguments
         :param outputs: (TensorFlow Tensor) list of outputs or a single output to be returned from function. Returned
             value will also have the same shape.
@@ -279,6 +287,7 @@ class _Function(object):
 def var_shape(x):
     """
     get TensorFlow Tensor shape
+
     :param x: (TensorFlow Tensor) the input tensor
     :return: ([int]) the shape
     """
@@ -291,6 +300,7 @@ def var_shape(x):
 def numel(x):
     """
     get TensorFlow Tensor's number of elements
+
     :param x: (TensorFlow Tensor) the input tensor
     :return: (int) the number of elements
     """
@@ -300,6 +310,7 @@ def numel(x):
 def intprod(x):
     """
     calculates the product of all the elements in a list
+
     :param x: ([Number]) the list of elements
     :return: (int) the product truncated
     """
@@ -309,6 +320,7 @@ def intprod(x):
 def flatgrad(loss, var_list, clip_norm=None):
     """
     calculates the gradiant and flattens it
+
     :param loss: (float) the loss value
     :param var_list: ([TensorFlow Tensor]) the variables
     :param clip_norm: (float) clip the gradiants (disabled if None)
@@ -327,6 +339,7 @@ class SetFromFlat(object):
     def __init__(self, var_list, dtype=tf.float32, sess=None):
         """
         Set the parameters from a flat vector
+
         :param var_list: ([TensorFlow Tensor]) the variables
         :param dtype: (type) the type for the placeholder
         :param sess: (TensorFlow Session)
@@ -355,6 +368,7 @@ class GetFlat(object):
     def __init__(self, var_list, sess=None):
         """
         Get the parameters as a flat vector
+
         :param var_list: ([TensorFlow Tensor]) the variables
         :param sess: (TensorFlow Session)
         """
@@ -374,6 +388,7 @@ _PLACEHOLDER_CACHE = {}  # name -> (placeholder, dtype, shape)
 def get_placeholder(name, dtype, shape):
     """
     get the placeholder from the placeholder cache if it exists, otherwise create one and save it to the cache.
+
     :param name: (str) the name of the place holder
     :param dtype: (type) the type for the placeholder
     :param shape: (tuple or [int]) the shape for the placeholder
@@ -392,6 +407,7 @@ def get_placeholder(name, dtype, shape):
 def get_placeholder_cached(name):
     """
     get cacher placeholder
+
     :param name: (str) the name of the place holder
     :return: (TensorFlow Tensor) the placeholder
     """
@@ -401,6 +417,7 @@ def get_placeholder_cached(name):
 def flattenallbut0(x):
     """
     flatten all the dimension, except from the first one
+
     :param x: (TensorFlow Tensor) the input tensor
     :return: (TensorFlow Tensor) the flattened tensor
     """
@@ -414,6 +431,7 @@ def flattenallbut0(x):
 def display_var_info(vars):
     """
     log variable information, for debug purposes
+
     :param vars: ([TensorFlow Tensor]) the variables
     """
     count_params = 0
@@ -433,6 +451,7 @@ def display_var_info(vars):
 def get_available_gpus():
     """
     Return a list of all the available GPUs
+
     :return: ([str]) the GPUs available
     """
     # recipe from here:
@@ -448,6 +467,7 @@ def get_available_gpus():
 def load_state(fname, sess=None):
     """
     Load a TensorFlow saved model
+
     :param fname: (str) the graph name
     :param sess: (TensorFlow Session) the session, if None: get_default_session()
     """
@@ -460,6 +480,7 @@ def load_state(fname, sess=None):
 def save_state(fname, sess=None):
     """
     Save a TensorFlow model
+
     :param fname: (str) the graph name
     :param sess: (TensorFlow Session) the session, if None: get_default_session()
     """

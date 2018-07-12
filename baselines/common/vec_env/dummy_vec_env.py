@@ -10,6 +10,7 @@ class DummyVecEnv(VecEnv):
     def __init__(self, env_fns):
         """
         Creates a simple vectorized wrapper for multiple environments
+        
         :param env_fns: ([Gym Environment]) the list of environments to vectorize
         """
         self.envs = [fn() for fn in env_fns]

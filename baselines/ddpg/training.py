@@ -16,6 +16,39 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
           normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
           popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
           tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    """
+    Runs the training of the Deep Deterministic Policy Gradien (DDPG) model
+
+    DDPG: https://arxiv.org/pdf/1509.02971.pdf
+
+    :param env: (Gym Environment) the environment
+    :param nb_epochs: (int) the number of training epochs
+    :param nb_epoch_cycles: (int) the number cycles within each epoch
+    :param render_eval: (bool) enable rendering of the evalution environment
+    :param reward_scale: (float) the value the reward should be scaled by
+    :param render: (bool) enable rendering of the environment
+    :param param_noise: (AdaptiveParamNoiseSpec) the parameter noise type (can be None)
+    :param actor: (TensorFlow Tensor) the actor model
+    :param critic: (TensorFlow Tensor) the critic model
+    :param normalize_returns: (bool) should the critic output be normalized
+    :param normalize_observations: (bool) should the observation be normalized
+    :param critic_l2_reg: (float) l2 regularizer coefficient
+    :param actor_lr: (float) the actor learning rate
+    :param critic_lr: (float) the critic learning rate
+    :param action_noise: (ActionNoise) the action noise type (can be None)
+    :param popart: (bool) enable pop-art normalization of the critic output
+        (https://arxiv.org/pdf/1602.07714.pdf)
+    :param gamma: (float) the discount rate
+    :param clip_norm: (float) clip the gradiants (disabled if None)
+    :param nb_train_steps: (int) the number of training steps
+    :param nb_rollout_steps: (int) the number of rollout steps
+    :param nb_eval_steps: (int) the number of evalutation steps
+    :param batch_size: (int) the size of the batch for learning the policy
+    :param memory: (Memory) the replay buffer
+    :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
+    :param eval_env: (Gym Environment) the evaluation environment (can be None)
+    :param param_noise_adaption_interval: (int) apply param noise every N steps
+    """
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
@@ -157,6 +190,12 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 combined_stats['eval/episodes'] = len(eval_episode_rewards)
 
             def as_scalar(x):
+                """
+                check and return the input if it is a scalar, otherwise raise ValueError
+
+                :param x: (Any) the object to check
+                :return: (Number) the scalar if x is a scalar
+                """
                 if isinstance(x, np.ndarray):
                     assert x.size == 1
                     return x[0]

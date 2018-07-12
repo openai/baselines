@@ -21,6 +21,7 @@ class Filter(object):
     def output_shape(self, input_space):
         """
         returns the output shape
+
         :param input_space: (numpy int)
         :return: (numpy int) output shape
         """

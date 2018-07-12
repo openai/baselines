@@ -9,6 +9,7 @@ from baselines.common import zipsame
 def mpi_mean(x, axis=0, comm=None, keepdims=False):
     """
     calculates the mean of an array, using MPI
+
     :param x: (numpy Number)
     :param axis: (int or tuple or list) the axis to run the means over
     :param comm: (MPI Communicators) if None, MPI.COMM_WORLD
@@ -32,6 +33,7 @@ def mpi_mean(x, axis=0, comm=None, keepdims=False):
 def mpi_moments(x, axis=0, comm=None, keepdims=False):
     """
     calculates the mean and std of an array, using MPI
+
     :param x: (numpy Number)
     :param axis: (int or tuple or list) the axis to run the moments over
     :param comm: (MPI Communicators) if None, MPI.COMM_WORLD

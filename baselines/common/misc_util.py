@@ -12,6 +12,7 @@ import tensorflow as tf
 def zipsame(*seqs):
     """
     Performes a zip function, but asserts that all zipped elements are of the same size
+
     :param seqs: a list of arrays that are zipped together
     :return: the zipped arguments
     """
@@ -47,7 +48,8 @@ def unpack(seq, sizes):
 
 class EzPickle(object):
     def __init__(self, *args, **kwargs):
-        """Objects that are pickled and unpickled via their constructor arguments.
+        """
+        Objects that are pickled and unpickled via their constructor arguments.
 
         Example usage:
 
@@ -81,6 +83,7 @@ class EzPickle(object):
 def set_global_seeds(seed):
     """
     set the seed for python random, tensorflow, and numpy
+
     :param seed: (int) the seed
     """
     tf.set_random_seed(seed)
@@ -89,7 +92,8 @@ def set_global_seeds(seed):
 
 
 def pretty_eta(seconds_left):
-    """Print the number of seconds in human readable format.
+    """
+    Print the number of seconds in human readable format.
 
     Examples:
     2 days
@@ -126,7 +130,8 @@ def pretty_eta(seconds_left):
 
 class RunningAvg(object):
     def __init__(self, gamma, init_value=None):
-        """Keep a running estimate of a quantity. This is a bit like mean
+        """
+        Keep a running estimate of a quantity. This is a bit like mean
         but more sensitive to recent changes.
 
         :param gamma: (float) Must be between 0 and 1, where 0 is the most sensitive to recent changes.
@@ -136,7 +141,8 @@ class RunningAvg(object):
         self._gamma = gamma
 
     def update(self, new_val):
-        """Update the estimate.
+        """
+        Update the estimate.
 
         :param new_val: (float) new observated value of estimated quantity.
         """
@@ -148,6 +154,7 @@ class RunningAvg(object):
     def __float__(self):
         """
         Get the current estimate
+
         :return: (float) current value
         """
         return self._value
@@ -156,6 +163,7 @@ class RunningAvg(object):
 def boolean_flag(parser, name, default=False, help_msg=None):
     """
     Add a boolean flag to argparse parser.
+
     :param parser: (argparse.Parser) parser to add the flag to
     :param name: (str) --<name> will enable the flag, while --no-<name> will disable it
     :param default: (bool) default value of the flag

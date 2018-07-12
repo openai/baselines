@@ -12,6 +12,7 @@ from baselines.acktr.value_functions import NeuralNetValueFunction
 def train(env_id, num_timesteps, seed):
     """
     train an ACKTR model on atari
+
     :param env_id: (str) Environment ID
     :param num_timesteps: (int) The total number of samples
     :param seed: (int) The initial seed for training

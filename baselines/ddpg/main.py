@@ -15,6 +15,18 @@ from baselines.ddpg.noise import *
 
 
 def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
+    """
+    run the training of DDPG
+
+    :param env_id: (str) the environment ID
+    :param seed: (int) the initial random seed
+    :param noise_type: (str) the wanted noises ('adaptive-param', 'normal' or 'ou'), can use multiple noise type by
+        seperating them with commas
+    :param layer_norm: (bool) use layer normalization
+    :param evaluation: (bool) enable evaluation of DDPG training
+    :param kwargs: (dict) extra keywords for the training.train function
+    """
+
     # Configure things.
     rank = MPI.COMM_WORLD.Get_rank()
     if rank != 0:
@@ -79,6 +91,11 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 
 
 def parse_args():
+    """
+    parse the arguments for DDPG training
+
+    :return: (dict) the arguments
+    """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('--env-id', type=str, default='HalfCheetah-v1')
