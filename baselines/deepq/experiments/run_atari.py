@@ -8,6 +8,9 @@ from baselines.common.atari_wrappers import make_atari
 
 
 def main():
+    """
+    run the atari test
+    """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)

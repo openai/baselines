@@ -14,7 +14,15 @@ from baselines.common.schedules import LinearSchedule
 
 
 def model(inpt, num_actions, scope, reuse=False):
-    """This model takes as input an observation and returns values of all actions."""
+    """
+    This model takes as input an observation and returns values of all actions.
+
+    :param inpt: (TensorFlow Tensor) the input placeholder
+    :param num_actions: (int) size of the action space
+    :param scope: (str) the variable scope
+    :param reuse: (bool) is a reusable model
+    :return: (TensorFlow Tensor)
+    """
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.tanh)

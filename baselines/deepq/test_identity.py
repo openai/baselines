@@ -7,6 +7,9 @@ from baselines.common.identity_env import IdentityEnv
 
 
 def test_identity():
+    """
+    test identity function for DeepQ
+    """
     env = IdentityEnv(10)
     random.seed(0)
 

@@ -6,6 +6,11 @@ from baselines import deepq
 
 
 def main(args):
+    """
+    train and save the DeepQ model, for the mountain car problem
+
+    :param args: (ArgumentParser) the input arguments
+    """
     env = gym.make("MountainCar-v0")
     # Enabling layer_norm here is import for parameter space noise!
     model = deepq.models.mlp([64], layer_norm=True)
