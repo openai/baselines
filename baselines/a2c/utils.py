@@ -164,7 +164,7 @@ def seq_to_batch(h, flat=False):
         return tf.reshape(tf.stack(values=h, axis=1), [-1])
 
 
-def lstm(xs, ms, s, scope, nh, init_scale=1.0):
+def lstm(xs, ms, s, scope, nh, init_scale=1.0, layer_norm=False):
     """
     Creates an Long Short Term Memory (LSTM) cell for TensorFlow
 
@@ -174,6 +174,7 @@ def lstm(xs, ms, s, scope, nh, init_scale=1.0):
     :param scope: (str) The TensorFlow variable scope
     :param nh: (int) The number of hidden neurons
     :param init_scale: (int) The initialization scale
+    :param layer_norm: (bool) Whether to apply Layer Normalization or not
     :return: (TensorFlow Tensor) LSTM cell
     """
     nbatch, nin = [v.value for v in xs[0].get_shape()]
@@ -182,11 +183,25 @@ def lstm(xs, ms, s, scope, nh, init_scale=1.0):
         wh = tf.get_variable("wh", [nh, nh * 4], initializer=ortho_init(init_scale))
         b = tf.get_variable("b", [nh * 4], initializer=tf.constant_initializer(0.0))
 
+        if layer_norm:
+            # Gain and bias of layer norm
+            gx = tf.get_variable("gx", [nh * 4], initializer=tf.constant_initializer(1.0))
+            bx = tf.get_variable("bx", [nh * 4], initializer=tf.constant_initializer(0.0))
+
+            gh = tf.get_variable("gh", [nh * 4], initializer=tf.constant_initializer(1.0))
+            bh = tf.get_variable("bh", [nh * 4], initializer=tf.constant_initializer(0.0))
+
+            gc = tf.get_variable("gc", [nh], initializer=tf.constant_initializer(1.0))
+            bc = tf.get_variable("bc", [nh], initializer=tf.constant_initializer(0.0))
+
     c, h = tf.split(axis=1, num_or_size_splits=2, value=s)
     for idx, (x, m) in enumerate(zip(xs, ms)):
         c = c * (1 - m)
         h = h * (1 - m)
-        z = tf.matmul(x, wx) + tf.matmul(h, wh) + b
+        if layer_norm:
+            z = _ln(tf.matmul(x, wx), gx, bx) + _ln(tf.matmul(h, wh), gh, bh) + b
+        else:
+            z = tf.matmul(x, wx) + tf.matmul(h, wh) + b
         i, f, o, u = tf.split(axis=1, num_or_size_splits=4, value=z)
         i = tf.nn.sigmoid(i)
         f = tf.nn.sigmoid(f)
@@ -230,36 +245,7 @@ def lnlstm(xs, ms, s, scope, nh, init_scale=1.0):
     :param init_scale: (int) The initialization scale
     :return: (TensorFlow Tensor) LNLSTM cell
     """
-    nbatch, nin = [v.value for v in xs[0].get_shape()]
-    with tf.variable_scope(scope):
-        wx = tf.get_variable("wx", [nin, nh * 4], initializer=ortho_init(init_scale))
-        gx = tf.get_variable("gx", [nh * 4], initializer=tf.constant_initializer(1.0))
-        bx = tf.get_variable("bx", [nh * 4], initializer=tf.constant_initializer(0.0))
-
-        wh = tf.get_variable("wh", [nh, nh * 4], initializer=ortho_init(init_scale))
-        gh = tf.get_variable("gh", [nh * 4], initializer=tf.constant_initializer(1.0))
-        bh = tf.get_variable("bh", [nh * 4], initializer=tf.constant_initializer(0.0))
-
-        b = tf.get_variable("b", [nh * 4], initializer=tf.constant_initializer(0.0))
-
-        gc = tf.get_variable("gc", [nh], initializer=tf.constant_initializer(1.0))
-        bc = tf.get_variable("bc", [nh], initializer=tf.constant_initializer(0.0))
-
-    c, h = tf.split(axis=1, num_or_size_splits=2, value=s)
-    for idx, (x, m) in enumerate(zip(xs, ms)):
-        c = c * (1 - m)
-        h = h * (1 - m)
-        z = _ln(tf.matmul(x, wx), gx, bx) + _ln(tf.matmul(h, wh), gh, bh) + b
-        i, f, o, u = tf.split(axis=1, num_or_size_splits=4, value=z)
-        i = tf.nn.sigmoid(i)
-        f = tf.nn.sigmoid(f)
-        o = tf.nn.sigmoid(o)
-        u = tf.tanh(u)
-        c = f * c + i * u
-        h = o * tf.tanh(_ln(c, gc, bc))
-        xs[idx] = h
-    s = tf.concat(axis=1, values=[c, h])
-    return xs, s
+    return lstm(xs, ms, s, scope, nh, init_scale, layer_norm=True)
 
 
 def conv_to_fc(x):
