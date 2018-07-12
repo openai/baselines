@@ -17,7 +17,7 @@ class MlpPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, reuse=False, *args, **kwargs):
-        super(BasePolicy, self).__init__()
+        super(MlpPolicy, self).__init__()
         with tf.variable_scope(name):
             if reuse:
                 tf.get_variable_scope().reuse_variables()

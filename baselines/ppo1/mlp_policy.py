@@ -29,7 +29,7 @@ class MlpPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, *args, sess=None, reuse=False, **kwargs):
-        super(BasePolicy, self).__init__()
+        super(MlpPolicy, self).__init__()
         self.reuse = reuse
         self.name = name
         self._init(*args, **kwargs)

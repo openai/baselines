@@ -10,7 +10,7 @@ class CnnPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, ob_space, ac_space, sess=None, reuse=False):
-        super(BasePolicy, self).__init__()
+        super(CnnPolicy, self).__init__()
         self.sess = sess
         self.reuse = reuse
         self.name = name
