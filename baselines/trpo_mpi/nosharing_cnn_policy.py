@@ -3,12 +3,14 @@ import gym
 
 import baselines.common.tf_util as tf_utils
 from baselines.common.distributions import make_proba_dist_type
+from baselines.ppo1.mlp_policy import BasePolicy
 
 
-class CnnPolicy(object):
+class CnnPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, ob_space, ac_space, sess=None, reuse=False):
+        super(BasePolicy, self).__init__()
         self.sess = sess
         self.reuse = reuse
         self.name = name
@@ -49,17 +51,3 @@ class CnnPolicy(object):
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
         ac = self.pd.sample()
         self._act = tf_utils.function([stochastic, ob], [ac, self.vpred])
-
-    def act(self, stochastic, ob):
-        ac1, vpred1 = self._act(stochastic, ob[None], sess=self.sess)
-        return ac1[0], vpred1[0]
-
-    def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
-
-    def get_trainable_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-
-    @classmethod
-    def get_initial_state(cls):
-        return []
