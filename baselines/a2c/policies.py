@@ -9,7 +9,7 @@ from baselines.common.input import observation_input
 def nature_cnn(unscaled_images, **kwargs):
     """
     CNN from Nature paper.
-    
+
     :param unscaled_images: (TensorFlow Tensor) Image input placeholder
     :param kwargs: (dict) Extra keywords parameters for the convolutional layers of the CNN
     :return: (TensorFlow Tensor) The CNN output layer
@@ -27,7 +27,7 @@ class A2CPolicy(object):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
         """
         Policy object for A2C
-        
+
         :param sess: (TensorFlow session) The current TensorFlow session
         :param ob_space: (Gym Space) The observation space of the environment
         :param ac_space: (Gym Space) The action space of the environment
@@ -47,7 +47,7 @@ class A2CPolicy(object):
     def step(self, obs, state, mask):
         """
         Returns the policy for a single step
-        
+
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
@@ -58,7 +58,7 @@ class A2CPolicy(object):
     def value(self, obs, state, mask):
         """
         Returns the value for a single step
-        
+
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
@@ -66,41 +66,14 @@ class A2CPolicy(object):
         """
         raise NotImplementedError()
 
-
-class LnLstmPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
-        super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
-        with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.processed_x, **kwargs)
-            xs = batch_to_seq(h, self.nenv, nsteps)
-            ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
-            h5, self.snew = lnlstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
-            h5 = seq_to_batch(h5)
-            vf = fc(h5, 'v', 1)
-            self.pd, self.pi = self.pdtype.probability_distribution_from_latent(h5)
-
-        self.v0 = vf[:, 0]
-        self.a0 = self.pd.sample()
-        self.neglogp0 = self.pd.neglogp(self.a0)
-        self.initial_state = np.zeros((self.nenv, nlstm * 2), dtype=np.float32)
-        self.vf = vf
-
-    def step(self, obs, state, mask):
-        return self.sess.run([self.a0, self.v0, self.snew, self.neglogp0],
-                             {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
-
-    def value(self, obs, state, mask):
-        return self.sess.run(self.v0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
-
-
 class LstmPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, layer_norm=False, **kwargs):
         super(LstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
             h = nature_cnn(self.obs_ph, **kwargs)
             xs = batch_to_seq(h, self.nenv, nsteps)
             ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
-            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
+            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm, layer_norm=layer_norm)
             h5 = seq_to_batch(h5)
             vf = fc(h5, 'v', 1)
             self.pd, self.pi = self.pdtype.probability_distribution_from_latent(h5)
@@ -119,12 +92,27 @@ class LstmPolicy(A2CPolicy):
         return self.sess.run(self.v0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
 
-class CnnPolicy(A2CPolicy):
+class LnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
-        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
+        super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse, layer_norm=True)
+
+
+class FeedForwardPolicy(A2CPolicy):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, _type="cnn", **kwargs):
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.processed_x, **kwargs)
-            vf = fc(h, 'v', 1)[:, 0]
+            if _type == "cnn":
+                h = nature_cnn(self.processed_x, **kwargs)
+                vf = fc(h, 'v', 1)[:, 0]
+            else:
+                activ = tf.tanh
+                processed_x = tf.layers.flatten(self.processed_x)
+                pi_h1 = activ(fc(processed_x, 'pi_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
+                pi_h2 = activ(fc(pi_h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
+                vf_h1 = activ(fc(processed_x, 'vf_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
+                vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
+                vf = fc(vf_h2, 'vf', 1)[:, 0]
+                h = pi_h2
             self.pd, self.pi = self.pdtype.probability_distribution_from_latent(h, init_scale=0.01)
 
         self.a0 = self.pd.sample()
@@ -140,29 +128,11 @@ class CnnPolicy(A2CPolicy):
         return self.sess.run(self.vf, {self.obs_ph: obs})
 
 
-class MlpPolicy(A2CPolicy):
+class CnnPolicy(FeedForwardPolicy):
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
-        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
-        with tf.variable_scope("model", reuse=reuse):
-            activ = tf.tanh
-            processed_x = tf.layers.flatten(self.processed_x)
-            pi_h1 = activ(fc(processed_x, 'pi_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
-            pi_h2 = activ(fc(pi_h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
-            vf_h1 = activ(fc(processed_x, 'vf_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
-            vf_h2 = activ(fc(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
-            vf = fc(vf_h2, 'vf', 1)[:, 0]
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse, _type="cnn")
 
-            self.pd, self.pi = self.pdtype.probability_distribution_from_latent(pi_h2, init_scale=0.01)
 
-        self.a0 = self.pd.sample()
-        self.neglogp0 = self.pd.neglogp(self.a0)
-        self.initial_state = None
-        self.vf = vf
-
-    def step(self, obs, *args, **kwargs):
-        a, v, neglogp = self.sess.run([self.a0, self.vf, self.neglogp0], {self.obs_ph: obs})
-        return a, v, self.initial_state, neglogp
-
-    def value(self, obs, *args, **kwargs):
-        return self.sess.run(self.vf, {self.obs_ph: obs})
-
+class MlpPolicy(FeedForwardPolicy):
+    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **kwargs):
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse, _type="mlp")
