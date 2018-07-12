@@ -6,6 +6,11 @@ from baselines import deepq
 
 
 def main(args):
+    """
+    run a trained model for the mountain car problem
+
+    :param args: (ArgumentParser) the input arguments
+    """
     env = gym.make("MountainCar-v0")
     act = deepq.load("mountaincar_model.pkl")
 

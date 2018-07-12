@@ -3,6 +3,13 @@ import numpy as np
 
 class RingBuffer(object):
     def __init__(self, maxlen, shape, dtype='float32'):
+        """
+        A buffer object, when full restarts at the initial position
+
+        :param maxlen: (int) the max number of numpy objects to store
+        :param shape: (tuple) the shape of the numpy objects you want to store
+        :param dtype: (str) the name of the type of the numpy object you want to store
+        """
         self.maxlen = maxlen
         self.start = 0
         self.length = 0
@@ -17,9 +24,20 @@ class RingBuffer(object):
         return self.data[(self.start + idx) % self.maxlen]
 
     def get_batch(self, idxs):
+        """
+        get the value at the indexes
+
+        :param idxs: (int or numpy int) the indexes
+        :return: (numpy Any) the stored information in the buffer at the asked positions
+        """
         return self.data[(self.start + idxs) % self.maxlen]
 
     def append(self, v):
+        """
+        Append an object to the buffer
+
+        :param v: (numpy Any) the object you wish to add
+        """
         if self.length < self.maxlen:
             # We have space, simply increase the length.
             self.length += 1
@@ -33,6 +51,12 @@ class RingBuffer(object):
 
 
 def array_min2d(x):
+    """
+    cast to numpy array, and make sure it is of 2 dim
+
+    :param x: ([Any]) the array to clean
+    :return: (numpy Any) the cleaned array
+    """
     x = np.array(x)
     if x.ndim >= 2:
         return x
@@ -41,6 +65,13 @@ def array_min2d(x):
 
 class Memory(object):
     def __init__(self, limit, action_shape, observation_shape):
+        """
+        The replay buffer object
+
+        :param limit: (int) the max number of transitions to store
+        :param action_shape: (tuple) the action shape
+        :param observation_shape: (tuple) the observation shape
+        """
         self.limit = limit
 
         self.observations0 = RingBuffer(limit, shape=observation_shape)
@@ -50,6 +81,12 @@ class Memory(object):
         self.observations1 = RingBuffer(limit, shape=observation_shape)
 
     def sample(self, batch_size):
+        """
+        sample a random batch from the buffer
+
+        :param batch_size: (int) the number of element to sample for the batch
+        :return: (dict) the sampled batch
+        """
         # Draw such that we always have a proceeding element.
         batch_idxs = np.random.random_integers(self.nb_entries - 2, size=batch_size)
 
@@ -69,6 +106,16 @@ class Memory(object):
         return result
 
     def append(self, obs0, action, reward, obs1, terminal1, training=True):
+        """
+        Append a transition to the buffer
+
+        :param obs0: ([float] or [int]) the last observation
+        :param action: ([float]) the action
+        :param reward: (float] the reward
+        :param obs1: ([float] or [int]) the current observation
+        :param terminal1: (bool) is the episode done
+        :param training: (bool) is the RL model training or not
+        """
         if not training:
             return
         

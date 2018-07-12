@@ -37,6 +37,7 @@ class SubprocVecEnv(VecEnv):
     def __init__(self, env_fns):
         """
         Creates a multiprocess vectorized wrapper for multiple environments
+        
         :param env_fns: ([Gym Environment]) Environments to run in subprocesses
         """
         self.waiting = False

@@ -8,6 +8,7 @@ import tensorflow as tf
 def sample(logits):
     """
     Creates a sampling Tensor for non deterministic policies
+
     :param logits: (TensorFlow Tensor) The input probability for each action
     :return: (TensorFlow Tensor) The sampled action
     """
@@ -18,6 +19,7 @@ def sample(logits):
 def calc_entropy(logits):
     """
     Calculates the entropy of the output values of the network
+
     :param logits: (TensorFlow Tensor) The input probability for each action
     :return: (TensorFlow Tensor) The Entropy of the output values of the network
     """
@@ -31,6 +33,7 @@ def calc_entropy(logits):
 def calc_entropy_softmax(p0):
     """
     Calculates the softmax entropy of the output values of the network
+
     :param p0: (TensorFlow Tensor) The input probability for each action
     :return: (TensorFlow Tensor) The softmax entropy of the output values of the network
     """
@@ -40,6 +43,7 @@ def calc_entropy_softmax(p0):
 def mse(pred, target):
     """
     Returns the Mean squared error between prediction and target
+
     :param pred: (TensorFlow Tensor) The predicted value
     :param target: (TensorFlow Tensor) The target value
     :return: (TensorFlow Tensor) The Mean squared error between prediction and target
@@ -50,6 +54,7 @@ def mse(pred, target):
 def ortho_init(scale=1.0):
     """
     Orthogonal initialization for the policy weights
+
     :param scale: (float) The output scale
     :return: (function) an initialization function for the weights
     """
@@ -74,6 +79,7 @@ def ortho_init(scale=1.0):
 def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
     """
     Creates a 2d convolutional layer for TensorFlow
+
     :param x: (TensorFlow Tensor) The input tensor for the convolution
     :param scope: (str) The TensorFlow variable scope
     :param nf: (int) The number of filters
@@ -109,6 +115,7 @@ def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='
 def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
     """
     Creates a fully connected layer for TensorFlow
+
     :param x: (TensorFlow Tensor) The input tensor for the fully connected layer
     :param scope: (str) The TensorFlow variable scope
     :param nh: (int) The number of hidden neurons
@@ -126,6 +133,7 @@ def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
 def batch_to_seq(h, nbatch, nsteps, flat=False):
     """
     Transform a batch of Tensors, into a sequence of Tensors for reccurent policies
+
     :param h: (TensorFlow Tensor) The input tensor to unroll
     :param nbatch: (int) The number of batch to run (nenvs * nsteps)
     :param nsteps: (int) The number of steps to run for each environment
@@ -142,6 +150,7 @@ def batch_to_seq(h, nbatch, nsteps, flat=False):
 def seq_to_batch(h, flat=False):
     """
     Transform a sequence of Tensors, into a batch of Tensors for reccurent policies
+
     :param h: (TensorFlow Tensor) The input tensor to batch
     :param flat: (bool) If the input Tensor is flat
     :return: (TensorFlow Tensor) batch of Tensors for reccurent policies
@@ -158,6 +167,7 @@ def seq_to_batch(h, flat=False):
 def lstm(xs, ms, s, scope, nh, init_scale=1.0):
     """
     Creates an Long Short Term Memory (LSTM) cell for TensorFlow
+
     :param xs: (TensorFlow Tensor) The input tensor for the LSTM cell
     :param ms: (TensorFlow Tensor) The mask tensor for the LSTM cell
     :param s: (TensorFlow Tensor) The state tensor for the LSTM cell
@@ -192,6 +202,7 @@ def lstm(xs, ms, s, scope, nh, init_scale=1.0):
 def _ln(x, g, b, e=1e-5, axes=None):
     """
     Creates a normalizing layer for TensorFlow
+
     :param x: (TensorFlow Tensor) The input tensor for the Layer normalization
     :param g: (TensorFlow Tensor) The scale tensor for the Layer normalization
     :param b: (TensorFlow Tensor) The bias tensor for the Layer normalization
@@ -210,6 +221,7 @@ def _ln(x, g, b, e=1e-5, axes=None):
 def lnlstm(xs, ms, s, scope, nh, init_scale=1.0):
     """
     Creates a Layer normalized LSTM (LNLSTM) cell for TensorFlow
+
     :param xs: (TensorFlow Tensor) The input tensor for the LSTM cell
     :param ms: (TensorFlow Tensor) The mask tensor for the LSTM cell
     :param s: (TensorFlow Tensor) The state tensor for the LSTM cell
@@ -253,6 +265,7 @@ def lnlstm(xs, ms, s, scope, nh, init_scale=1.0):
 def conv_to_fc(x):
     """
     Reshapes a Tensor from a convolutional network to a Tensor for a fully connected network
+
     :param x: (TensorFlow Tensor) The convolutional input tensor
     :return: (TensorFlow Tensor) The fully connected output tensor
     """
@@ -264,6 +277,7 @@ def conv_to_fc(x):
 def discount_with_dones(rewards, dones, gamma):
     """
     Apply the discount value to the reward, where the environment is not done
+
     :param rewards: ([float]) The rewards
     :param dones: ([bool]) Whether an environment is done or not
     :param gamma: (float) The discount value
@@ -280,6 +294,7 @@ def discount_with_dones(rewards, dones, gamma):
 def find_trainable_variables(key):
     """
     Returns the trainable variables within a given scope
+
     :param key: (str) The variable scope
     :return: ([TensorFlow Tensor]) the trainable variables
     """
@@ -290,6 +305,7 @@ def find_trainable_variables(key):
 def make_path(f):
     """
     For a given path, create the folders if they do not exist
+
     :param f: (str) The path
     :return: (bool) Whether or not it finished correctly
     """
@@ -299,6 +315,7 @@ def make_path(f):
 def constant(_):
     """
     Returns a constant value for the Scheduler
+
     :param _: ignored
     :return: (float) 1
     """
@@ -308,6 +325,7 @@ def constant(_):
 def linear(p):
     """
     Returns a linear value for the Scheduler
+
     :param p: (float) The input value
     :return: (float) 1 - p
     """
@@ -317,6 +335,7 @@ def linear(p):
 def middle_drop(p):
     """
     Returns a linear value with a drop near the middle to a constant value for the Scheduler
+
     :param p: (float) The input value
     :return: (float) 1 - p if (1 - p) >= 0.75 else 0.075
     """
@@ -329,6 +348,7 @@ def middle_drop(p):
 def double_linear_con(p):
     """
     Returns a linear value (x2) with a flattend tail for the Scheduler
+
     :param p: (float) The input value
     :return: (float) 1 - p*2 if (1 - p*2) >= 0.125 else 0.125
     """
@@ -342,6 +362,7 @@ def double_linear_con(p):
 def double_middle_drop(p):
     """
     Returns a linear value with two drops near the middle to a constant value for the Scheduler
+
     :param p: (float) The input value
     :return: (float) if 0.75 <= 1 - p: 1 - p, if 0.25 <= 1 - p < 0.75: 0.75, if 1 - p < 0.25: 0.125
     """
@@ -367,6 +388,7 @@ class Scheduler(object):
     def __init__(self, v, nvalues, schedule):
         """
         Update a value every iteration, with a specific curve
+
         :param v: (float) initial value
         :param nvalues: (int) the total number of iterations
         :param schedule: (function) the curve you wish to follow for your value
@@ -379,6 +401,7 @@ class Scheduler(object):
     def value(self):
         """
         Update the Scheduler, and return the current value
+
         :return: (float) the current value
         """
         current_value = self.v * self.schedule(self.n / self.nvalues)
@@ -388,6 +411,7 @@ class Scheduler(object):
     def value_steps(self, steps):
         """
         Get a value for a given step
+
         :param steps: (int) The current number of iterations
         :return: (float) the value for the current number of iterations
         """
@@ -398,6 +422,7 @@ class EpisodeStats:
     def __init__(self, nsteps, nenvs):
         """
         Calculates the episode statistics
+
         :param nsteps: (int) The number of steps to run for each environment
         :param nenvs: (int) The number of environments
         """
@@ -412,6 +437,7 @@ class EpisodeStats:
     def feed(self, rewards, masks):
         """
         Update the latest reward and mask
+
         :param rewards: ([float]) The new rewards for the new step
         :param masks: ([float]) The new masks for the new step
         """
@@ -430,6 +456,7 @@ class EpisodeStats:
     def mean_length(self):
         """
         Returns the average length of each episode
+
         :return: (float)
         """
         if self.lenbuffer:
@@ -440,6 +467,7 @@ class EpisodeStats:
     def mean_reward(self):
         """
         Returns the average reward of each episode
+
         :return: (float)
         """
         if self.rewbuffer:
@@ -452,6 +480,7 @@ class EpisodeStats:
 def get_by_index(x, idx):
     """
     Return the input tensor, offset by a certain value
+
     :param x: (TensorFlow Tensor) The input tensor
     :param idx: (int) The index offset
     :return: (TensorFlow Tensor) the offset tensor
@@ -467,6 +496,7 @@ def get_by_index(x, idx):
 def check_shape(ts, shapes):
     """
     Verifies the tensors match the given shape, will raise an error if the shapes do not match
+
     :param ts: ([TensorFlow Tensor]) The tensors that should be checked
     :param shapes: ([list]) The list of shapes for each tensor
     """
@@ -479,6 +509,7 @@ def check_shape(ts, shapes):
 def avg_norm(t):
     """
     Return an average of the L2 normalization of the batch
+
     :param t: (TensorFlow Tensor) The input tensor
     :return: (TensorFlow Tensor) Average L2 normalization of the batch
     """
@@ -488,6 +519,7 @@ def avg_norm(t):
 def gradient_add(g1, g2, param):
     """
     Sum two gradiants
+
     :param g1: (TensorFlow Tensor) The first gradiant
     :param g2: (TensorFlow Tensor) The second gradiant
     :param param: (TensorFlow parameters) The trainable parameters
@@ -506,6 +538,7 @@ def gradient_add(g1, g2, param):
 def q_explained_variance(qpred, q):
     """
     Calculates the explained variance of the Q value
+
     :param qpred: (TensorFlow Tensor) The predicted Q value
     :param q: (TensorFlow Tensor) The expected Q value
     :return: (TensorFlow Tensor) the explained variance of the Q value

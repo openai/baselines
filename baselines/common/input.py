@@ -5,6 +5,7 @@ from gym.spaces import Discrete, Box
 def observation_input(ob_space, batch_size=None, name='Ob'):
     """
     Build observation input with encoding depending on the observation space type
+
     :param ob_space: (Gym Space) The observation space
     :param batch_size: (int) batch size for input
                        (default is None, so that resulting input placeholder can take tensors with any batch size)

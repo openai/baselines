@@ -28,6 +28,7 @@ def test_main():
 def test_make_output(_format):
     """
     test make output
+
     :param _format: (str) output format
     """
     writer = make_output_format(_format, LOG_DIR)

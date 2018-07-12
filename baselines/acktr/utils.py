@@ -4,6 +4,7 @@ import tensorflow as tf
 def dense(x, size, name, weight_init=None, bias_init=0, weight_loss_dict=None, reuse=None):
     """
     A dense Layer
+    
     :param x: ([TensorFlow Tensor]) input
     :param size: (int) number of hidden neurons
     :param name: (str) layer name
@@ -33,6 +34,7 @@ def dense(x, size, name, weight_init=None, bias_init=0, weight_loss_dict=None, r
 def kl_div(action_dist1, action_dist2, action_size):
     """
     Kullback leiber divergence
+    
     :param action_dist1: ([TensorFlow Tensor]) action distribution 1
     :param action_dist2: ([TensorFlow Tensor]) action distribution 2
     :param action_size: (int) the shape of an action

@@ -16,6 +16,13 @@ from baselines.deepq.utils import ObservationInput
 
 class ActWrapper(object):
     def __init__(self, act, act_params, sess=None):
+        """
+        the actor wrapper for loading and saving
+
+        :param act: (function (TensorFlow Tensor, bool, float): TensorFlow Tensor) the actor function
+        :param act_params: (dict) {'make_obs_ph', 'q_func', 'num_actions'}
+        :param sess: (TensorFlow Session) the current session
+        """
         self._act = act
         self._act_params = act_params
         if sess is None:
@@ -25,6 +32,12 @@ class ActWrapper(object):
 
     @staticmethod
     def load(path):
+        """
+        Load from a path an actor model
+
+        :param path: (str) the save location
+        :return: (ActWrapper) a loaded actor model
+        """
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         act = deepq.build_act(**act_params)
@@ -44,7 +57,11 @@ class ActWrapper(object):
             return self._act(*args, **kwargs)
 
     def save(self, path=None):
-        """Save model to a pickle located at `path`"""
+        """
+        Save model to a pickle located at `path`
+
+        :param path: (str) the save location
+        """
         if path is None:
             path = os.path.join(logger.get_dir(), "model.pkl")
 
@@ -64,18 +81,12 @@ class ActWrapper(object):
 
 
 def load(path):
-    """Load act function that was returned by learn function.
+    """
+    Load act function that was returned by learn function.
 
-    Parameters
-    ----------
-    path: str
-        path to the act function pickle
+    :param path: (str) path to the act function pickle
 
-    Returns
-    -------
-    act: ActWrapper
-        function that takes a batch of observations
-        and returns actions.
+    :return: (ActWrapper) function that takes a batch of observations and returns actions.
     """
     return ActWrapper.load(path)
 
@@ -102,74 +113,43 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None):
-    """Train a deepq model.
+    """
+    Train a deepq model.
 
-    Parameters
-    -------
-    env: gym.Env
-        environment to train on
-    q_func: (tf.Variable, int, str, bool) -> tf.Variable
+    :param env: (Gym Environment) environment to train on
+    :param q_func: (function (TensorFlow Tensor, int, str, bool): TensorFlow Tensor)
         the model that takes the following inputs:
-            observation_in: object
-                the output of observation placeholder
-            num_actions: int
-                number of actions
-            scope: str
-            reuse: bool
-                should be passed to outer variable scope
+            - observation_in: (object) the output of observation placeholder
+            - num_actions: (int) number of actions
+            - scope: (str)
+            - reuse: (bool) should be passed to outer variable scope
         and returns a tensor of shape (batch_size, num_actions) with values of every action.
-    lr: float
-        learning rate for adam optimizer
-    max_timesteps: int
-        number of env steps to optimizer for
-    buffer_size: int
-        size of the replay buffer
-    exploration_fraction: float
-        fraction of entire training period over which the exploration rate is annealed
-    exploration_final_eps: float
-        final value of random action probability
-    train_freq: int
-        update the model every `train_freq` steps.
-        set to None to disable printing
-    batch_size: int
-        size of a batched sampled from replay buffer for training
-    print_freq: int
-        how often to print out training progress
-        set to None to disable printing
-    checkpoint_freq: int
-        how often to save the model. This is so that the best version is restored
-        at the end of the training. If you do not wish to restore the best version at
-        the end of the training set this variable to None.
-    checkpoint_path: str
-        replacement path used if you need to log to somewhere else than a temporary directory.
-    learning_starts: int
-        how many steps of the model to collect transitions for before learning starts
-    gamma: float
-        discount factor
-    target_network_update_freq: int
-        update the target network every `target_network_update_freq` steps.
-    prioritized_replay: True
-        if True prioritized replay buffer will be used.
-    prioritized_replay_alpha: float
-        alpha parameter for prioritized replay buffer
-    prioritized_replay_beta0: float
-        initial value of beta for prioritized replay buffer
-    prioritized_replay_beta_iters: int
-        number of iterations over which beta will be annealed from initial value
+    :param lr: (float) learning rate for adam optimizer
+    :param max_timesteps: (int) number of env steps to optimizer for
+    :param buffer_size: (int) size of the replay buffer
+    :param exploration_fraction: (float) fraction of entire training period over which the exploration rate is annealed
+    :param exploration_final_eps: (float) final value of random action probability
+    :param train_freq: (int) update the model every `train_freq` steps. set to None to disable printing
+    :param batch_size: (int) size of a batched sampled from replay buffer for training
+    :param print_freq: (int) how often to print out training progress set to None to disable printing
+    :param checkpoint_freq: (int) how often to save the model. This is so that the best version is restored at the end
+        of the training. If you do not wish to restore the best version at the end of the training set this variable
+        to None.
+    :param checkpoint_path: (str) replacement path used if you need to log to somewhere else than a temporary directory.
+    :param learning_starts: (int) how many steps of the model to collect transitions for before learning starts
+    :param gamma: (float) discount factor
+    :param target_network_update_freq: (int) update the target network every `target_network_update_freq` steps.
+    :param prioritized_replay: (bool) if True prioritized replay buffer will be used.
+    :param prioritized_replay_alpha: (float) alpha parameter for prioritized replay buffer
+    :param prioritized_replay_beta0: (float) initial value of beta for prioritized replay buffer
+    :param prioritized_replay_beta_iters: (int) number of iterations over which beta will be annealed from initial value
         to 1.0. If set to None equals to max_timesteps.
-    prioritized_replay_eps: float
-        epsilon to add to the TD errors when updating priorities.
-    param_noise: bool
-        Whether or not to apply noise to the parameters of the policy.
-    callback: (locals, globals) -> None
-        function called at every steps with state of the algorithm.
-        If callback returns true training stops.
-
-    Returns
-    -------
-    act: ActWrapper
-        Wrapper over act function. Adds ability to save it and load it.
-        See header of baselines/deepq/categorical.py for details on the act function.
+    :param prioritized_replay_eps: (float) epsilon to add to the TD errors when updating priorities.
+    :param param_noise: (bool) Whether or not to apply noise to the parameters of the policy.
+    :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
+        If callback returns true training stops. It takes the local and global variables.
+    :return: (ActWrapper) Wrapper over act function. Adds ability to save it and load it. See header of
+        baselines/deepq/categorical.py for details on the act function.
     """
     # Create all the functions necessary to train the model
 
@@ -178,6 +158,12 @@ def learn(env,
     observation_space_shape = env.observation_space
 
     def make_obs_ph(name):
+        """
+        makes the observation placeholder
+
+        :param name: (str) the placeholder name
+        :return: (TensorFlow Tensor) the placeholder
+        """
         return ObservationInput(observation_space_shape, name=name)
 
     act, train, update_target, debug = deepq.build_train(

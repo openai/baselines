@@ -13,6 +13,7 @@ class Schedule(object):
     def value(self, t):
         """
         Value of the schedule at time t
+
         :param t: (int) the time
         :return: (float) the output value for the given time
         """

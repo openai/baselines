@@ -8,6 +8,7 @@ from baselines.common.cmd_util import make_atari_env, atari_arg_parser
 def train(env_id, num_timesteps, seed, policy, lrschedule, num_cpu):
     """
     train an ACER model on atari
+
     :param env_id: (str) Environment ID
     :param num_timesteps: (int) The total number of samples
     :param seed: (int) The initial seed for training

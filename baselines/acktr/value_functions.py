@@ -12,6 +12,7 @@ class NeuralNetValueFunction(object):
     def __init__(self, ob_dim, ac_dim):
         """
         Create an MLP policy for a value function
+
         :param ob_dim: (int) Observation dimention
         :param ac_dim: (int) action dimention
         """
@@ -46,6 +47,7 @@ class NeuralNetValueFunction(object):
     def _preproc(cls, path):
         """
         preprocess path
+
         :param path: ({TensorFlow Tensor}) the history of the network
         :return: ([TensorFlow Tensor]) processed input
         """
@@ -58,6 +60,7 @@ class NeuralNetValueFunction(object):
     def predict(self, path):
         """
         predict value from history
+
         :param path: ({TensorFlow Tensor}) the history of the network
         :return: ([TensorFlow Tensor]) value function output
         """
@@ -66,6 +69,7 @@ class NeuralNetValueFunction(object):
     def fit(self, paths, targvals):
         """
         fit paths to target values
+
         :param paths: ({TensorFlow Tensor}) the history of the network
         :param targvals: ([TensorFlow Tensor]) the expected value
         """

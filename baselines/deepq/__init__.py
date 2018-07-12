@@ -5,5 +5,11 @@ from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer 
 
 
 def wrap_atari_dqn(env):
+    """
+    wrap the environment in atari wrappers for DeepQ
+
+    :param env: (Gym Environment) the environment
+    :return: (Gym Environment) the wrapped environment
+    """
     from baselines.common.atari_wrappers import wrap_deepmind
     return wrap_deepmind(env, frame_stack=True, scale=True)

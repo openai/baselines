@@ -14,6 +14,7 @@ remove_version_re = re.compile(r'-v\d+$')
 def register_benchmark(benchmark):
     """
     Register an OpenAI gym environment
+
     :param benchmark: (dict) Containes the name, description and tasks of the environment you wish to register
     """
     for b in _BENCHMARKS:
@@ -31,6 +32,7 @@ def register_benchmark(benchmark):
 def list_benchmarks():
     """
     Retuns a list of all the benchmark dictionaries registed by this module
+
     :return: ([dict]) the benchmarks
     """
     return [b['name'] for b in _BENCHMARKS]
@@ -39,6 +41,7 @@ def list_benchmarks():
 def get_benchmark(benchmark_name):
     """
     Returns the registered benchmark of the same name, will raise a ValueError if the name is not present
+
     :param benchmark_name: (str) the name of the benchmark you wish to lookup
     :return: (dict) the benchmark dictionarie
     """
@@ -51,6 +54,7 @@ def get_benchmark(benchmark_name):
 def get_task(benchmark, env_id):
     """
     Get a task by env_id. Return None if the benchmark doesn't have the env.
+
     :param benchmark: (dict) the benchmark you wish to look in
     :param env_id: (str) the environment id you want to find
     :return: (dict) the task
@@ -61,6 +65,7 @@ def get_task(benchmark, env_id):
 def find_task_for_env_id_in_any_benchmark(env_id):
     """
     Get the first task and benchmark, that has the corresponding environment id
+
     :param env_id: (str) the environment id you want to find
     :return: (dict, dict) the benchmark and task dictionaries
     """

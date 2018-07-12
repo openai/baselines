@@ -6,6 +6,11 @@ from baselines import deepq
 
 
 def main(args):
+    """
+    run a trained model for the cartpole problem
+
+    :param args: (ArgumentParser) the input arguments
+    """
     env = gym.make("CartPole-v0")
     act = deepq.load("cartpole_model.pkl")
 

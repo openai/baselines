@@ -16,6 +16,7 @@ from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, make_path
 def strip(var, nenvs, nsteps, flat=False):
     """
     Removes the last step in the batch
+
     :param var: (TensorFlow Tensor) The input Tensor
     :param nenvs: (int) The number of environments
     :param nsteps: (int) The number of steps to run for each environment
@@ -29,6 +30,7 @@ def strip(var, nenvs, nsteps, flat=False):
 def q_retrace(rewards, dones, q_i, v, rho_i, nenvs, nsteps, gamma):
     """
     Calculates the target Q-retrace
+
     :param rewards: ([TensorFlow Tensor]) The rewards
     :param dones: ([TensorFlow Tensor])
     :param q_i: ([TensorFlow Tensor]) The Q values for actions taken
@@ -63,6 +65,7 @@ class Model(object):
                  delta):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
+
         :param policy: (AcerPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Space) The observation space
         :param ac_space: (Gym Space) The action space
@@ -251,6 +254,7 @@ class Runner(AbstractEnvRunner):
     def __init__(self, env, model, nsteps, nstack):
         """
         A runner to learn the policy of an environment for a model
+
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param nsteps: (int) The number of steps to run for each environment
@@ -271,6 +275,7 @@ class Runner(AbstractEnvRunner):
     def update_obs(self, obs, dones=None):
         """
         Update the observation for rolling observation with stacking
+
         :param obs: ([int] or [float]) The input observation
         :param dones: ([bool])
         """
@@ -282,6 +287,7 @@ class Runner(AbstractEnvRunner):
     def run(self):
         """
         Run a step leaning of the model
+
         :return: ([float], [float], [float], [float], [float], [bool], [float])
                  encoded observation, observations, actions, rewards, mus, dones, masks
         """
@@ -324,6 +330,7 @@ class Acer:
     def __init__(self, runner, model, buffer, log_interval):
         """
         Wrapper for the ACER model object
+
         :param runner: (AbstractEnvRunner) The runner to learn the policy of an environment for a model
         :param model: (Model) The model to learn
         :param buffer: (Buffer) The observation buffer
@@ -340,6 +347,7 @@ class Acer:
     def call(self, on_policy):
         """
         Call a step with ACER
+
         :param on_policy: (bool) To step on policy and not on buffer
         """
         runner, model, buffer, steps = self.runner, self.model, self.buffer, self.steps
@@ -381,6 +389,7 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
           trust_region=True, alpha=0.99, delta=1):
     """
     Traines an ACER model.
+
     :param policy: (ACERPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
     :param seed: (int) The initial seed for training

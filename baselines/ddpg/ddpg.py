@@ -13,28 +13,66 @@ from baselines.common.mpi_running_mean_std import RunningMeanStd
 
 
 def normalize(x, stats):
+    """
+    normalize a tensor using a running mean and std
+
+    :param x: (TensorFlow Tensor) the input tensor
+    :param stats: (RunningMeanStd) the running mean and std of the input to normalize
+    :return: (TensorFlow Tensor) the normalized tensor
+    """
     if stats is None:
         return x
     return (x - stats.mean) / stats.std
 
 
 def denormalize(x, stats):
+    """
+    denormalize a tensor using a running mean and std
+
+    :param x: (TensorFlow Tensor) the normalized tensor
+    :param stats: (RunningMeanStd) the running mean and std of the input to normalize
+    :return: (TensorFlow Tensor) the restored tensor
+    """
     if stats is None:
         return x
     return x * stats.std + stats.mean
 
 
 def reduce_std(x, axis=None, keepdims=False):
+    """
+    get the standard deviation of a Tensor
+
+    :param x: (TensorFlow Tensor) the input tensor
+    :param axis: (int or [int]) the axis to itterate the std over
+    :param keepdims: (bool) keep the other dimentions the same
+    :return: (TensorFlow Tensor) the std of the tensor
+    """
     return tf.sqrt(reduce_var(x, axis=axis, keepdims=keepdims))
 
 
 def reduce_var(x, axis=None, keepdims=False):
+    """
+    get the variance of a Tensor
+
+    :param x: (TensorFlow Tensor) the input tensor
+    :param axis: (int or [int]) the axis to itterate the variance over
+    :param keepdims: (bool) keep the other dimentions the same
+    :return: (TensorFlow Tensor) the variance of the tensor
+    """
     m = tf.reduce_mean(x, axis=axis, keep_dims=True)
     devs_squared = tf.square(x - m)
     return tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims)
 
 
 def get_target_updates(vars, target_vars, tau):
+    """
+    get target update operations
+
+    :param vars: ([TensorFlow Tensor]) the initial variables
+    :param target_vars: ([TensorFlow Tensor]) the target variables
+    :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
+    :return: (TensorFlow Operation, TensorFlow Operation) initial update, soft update
+    """
     logger.info('setting up target updates ...')
     soft_updates = []
     init_updates = []
@@ -49,6 +87,14 @@ def get_target_updates(vars, target_vars, tau):
 
 
 def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
+    """
+    get the actor update, with noise.
+
+    :param actor: (TensorFlow Tensor) the actor
+    :param perturbed_actor: (TensorFlow Tensor) the pertubed actor
+    :param param_noise_stddev: (float) the std of the parameter noise
+    :return: (TensorFlow Operation) the update function
+    """
     assert len(actor.vars) == len(perturbed_actor.vars)
     assert len(actor.perturbable_vars) == len(perturbed_actor.perturbable_vars)
 
@@ -71,6 +117,36 @@ class DDPG(object):
                  batch_size=128, observation_range=(-5., 5.), action_range=(-1., 1.), return_range=(-np.inf, np.inf),
                  adaptive_param_noise=True, adaptive_param_noise_policy_threshold=.1,
                  critic_l2_reg=0., actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.):
+        """
+        Deep Deterministic Policy Gradien (DDPG) model
+
+        DDPG: https://arxiv.org/pdf/1509.02971.pdf
+
+        :param actor: (TensorFlow Tensor) the actor model
+        :param critic: (TensorFlow Tensor) the critic model
+        :param memory: (Memory) the replay buffer
+        :param observation_shape: (tuple) the observation space
+        :param action_shape: (tuple) the action space
+        :param param_noise: (AdaptiveParamNoiseSpec) the parameter noise type (can be None)
+        :param action_noise: (ActionNoise) the action noise type (can be None)
+        :param gamma: (float) the discount rate
+        :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
+        :param normalize_returns: (bool) should the critic output be normalized
+        :param enable_popart: (bool) enable pop-art normalization of the critic output
+            (https://arxiv.org/pdf/1602.07714.pdf)
+        :param normalize_observations: (bool) should the observation be normalized
+        :param batch_size: (int) the size of the batch for learning the policy
+        :param observation_range: (tuple) the bounding values for the observation
+        :param action_range: (tuple) the bounding values for the actions
+        :param return_range: (tuple) the bounding values for the critic output
+        :param adaptive_param_noise: (bool) if the parameter noise should be used or not
+        :param adaptive_param_noise_policy_threshold: (float) the clipping value for the parameter noise
+        :param critic_l2_reg: (float) l2 regularizer coefficient
+        :param actor_lr: (float) the actor learning rate
+        :param critic_lr: (float) the critic learning rate
+        :param clip_norm: (float) clip the gradiants (disabled if None)
+        :param reward_scale: (float) the value the reward should be scaled by
+        """
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
         self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
@@ -151,12 +227,19 @@ class DDPG(object):
         self.setup_target_network_updates()
 
     def setup_target_network_updates(self):
+        """
+        set the target update operations
+        """
         actor_init_updates, actor_soft_updates = get_target_updates(self.actor.vars, self.target_actor.vars, self.tau)
         critic_init_updates, critic_soft_updates = get_target_updates(self.critic.vars, self.target_critic.vars, self.tau)
         self.target_init_updates = [actor_init_updates, critic_init_updates]
         self.target_soft_updates = [actor_soft_updates, critic_soft_updates]
 
     def setup_param_noise(self, normalized_obs0):
+        """
+        set the parameter noise operations
+        :param normalized_obs0: (TensorFlow Tensor) the normalized observation
+        """
         assert self.param_noise is not None
 
         # Configure perturbed actor.
@@ -174,6 +257,9 @@ class DDPG(object):
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
     def setup_actor_optimizer(self):
+        """
+        setup the optimizer for the actor
+        """
         logger.info('setting up actor optimizer')
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
         actor_shapes = [var.get_shape().as_list() for var in self.actor.trainable_vars]
@@ -185,6 +271,9 @@ class DDPG(object):
             beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def setup_critic_optimizer(self):
+        """
+        setup the optimizer for the critic
+        """
         logger.info('setting up critic optimizer')
         normalized_critic_target_tf = tf.clip_by_value(normalize(self.critic_target, self.ret_rms), self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
@@ -206,7 +295,11 @@ class DDPG(object):
         self.critic_optimizer = MpiAdam(var_list=self.critic.trainable_vars, beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def setup_popart(self):
-        # See https://arxiv.org/pdf/1602.07714.pdf for details.
+        """
+        setup pop-art normalization of the critic output
+
+        See https://arxiv.org/pdf/1602.07714.pdf for details.
+        """
         self.old_std = tf.placeholder(tf.float32, shape=[1], name='old_std')
         new_std = self.ret_rms.std
         self.old_mean = tf.placeholder(tf.float32, shape=[1], name='old_mean')
@@ -224,6 +317,9 @@ class DDPG(object):
             self.renormalize_Q_outputs_op += [b.assign((b * self.old_std + self.old_mean - new_mean) / new_std)]
 
     def setup_stats(self):
+        """
+        setup the running means and std of the inputs and outputs of the model
+        """
         ops = []
         names = []
 
@@ -260,6 +356,14 @@ class DDPG(object):
         self.stats_names = names
 
     def pi(self, obs, apply_noise=True, compute_Q=True):
+        """
+        Get the actions and critic output, from a given observation
+
+        :param obs: ([float] or [int]) the observation
+        :param apply_noise: (bool) enable the noise
+        :param compute_Q: (bool) compute the critic output
+        :return: ([float], float) the action and critic value
+        """
         if self.param_noise is not None and apply_noise:
             actor_tf = self.perturbed_actor_tf
         else:
@@ -279,12 +383,25 @@ class DDPG(object):
         return action, q
 
     def store_transition(self, obs0, action, reward, obs1, terminal1):
+        """
+        Store a transition in the replay buffer
+
+        :param obs0: ([float] or [int]) the last observation
+        :param action: ([float]) the action
+        :param reward: (float] the reward
+        :param obs1: ([float] or [int]) the current observation
+        :param terminal1: (bool) is the episode done
+        """
         reward *= self.reward_scale
         self.memory.append(obs0, action, reward, obs1, terminal1)
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
     def train(self):
+        """
+        run a step of training from batch
+        :return: (float, float) critic loss, actor loss
+        """
         # Get a batch.
         batch = self.memory.sample(batch_size=self.batch_size)
 
@@ -300,15 +417,6 @@ class DDPG(object):
                 self.old_mean : np.array([old_mean]),
             })
 
-            # Run sanity check. Disabled by default since it slows down things considerably.
-            # print('running sanity check')
-            # target_Q_new, new_mean, new_std = self.sess.run([self.target_Q, self.ret_rms.mean, self.ret_rms.std], feed_dict={
-            #     self.obs1: batch['obs1'],
-            #     self.rewards: batch['rewards'],
-            #     self.terminals1: batch['terminals1'].astype('float32'),
-            # })
-            # print(target_Q_new, target_Q, new_mean, new_std)
-            # assert (np.abs(target_Q - target_Q_new) < 1e-3).all()
         else:
             target_Q = self.sess.run(self.target_Q, feed_dict={
                 self.obs1: batch['obs1'],
@@ -329,6 +437,11 @@ class DDPG(object):
         return critic_loss, actor_loss
 
     def initialize(self, sess):
+        """
+        initialize the model parameters and optimizers
+
+        :param sess: (TensorFlow Session) the current TensorFlow session
+        """
         self.sess = sess
         self.sess.run(tf.global_variables_initializer())
         self.actor_optimizer.sync()
@@ -336,9 +449,17 @@ class DDPG(object):
         self.sess.run(self.target_init_updates)
 
     def update_target_net(self):
+        """
+        run target soft update operation
+        """
         self.sess.run(self.target_soft_updates)
 
     def get_stats(self):
+        """
+        Get the mean and standard deviation of the model's inputs and outputs
+
+        :return: (dict) the means and stds
+        """
         if self.stats_sample is None:
             # Get a sample and keep that fixed for all further computations.
             # This allows us to estimate the change in value for the same set of inputs.
@@ -358,6 +479,11 @@ class DDPG(object):
         return stats
 
     def adapt_param_noise(self):
+        """
+        calculate the adaptation for the parameter noise
+
+        :return: (float) the mean distance for the parameter noise
+        """
         if self.param_noise is None:
             return 0.
 
@@ -376,7 +502,9 @@ class DDPG(object):
         return mean_distance
 
     def reset(self):
-        # Reset internal state after an episode is complete.
+        """
+        Reset internal state after an episode is complete.
+        """
         if self.action_noise is not None:
             self.action_noise.reset()
         if self.param_noise is not None:

@@ -9,6 +9,7 @@ from baselines.acktr.kfac_utils import detect_min_val, factor_reshape, gmatmul
 KFAC_OPS = ['MatMul', 'Conv2D', 'BiasAdd']
 KFAC_DEBUG = False
 
+
 # TODO: fix missing/inacurate comments
 class KfacOptimizer:
     def __init__(self, learning_rate=0.01, momentum=0.9, clip_kl=0.01, kfac_update=2, stats_accum_iter=60,
@@ -17,6 +18,7 @@ class KfacOptimizer:
                  use_float64=False, weight_decay_dict=None, max_grad_norm=0.5):
         """
         Kfac Optimizer for ACKTR models
+
         :param learning_rate: (float) The learning rate
         :param momentum: (float) The momentum value for the TensorFlow momentum optimizer
         :param clip_kl: (float) gradiant clipping for Kullback leiber
@@ -84,6 +86,7 @@ class KfacOptimizer:
     def get_factors(self, g, varlist):
         """
         get factors to update
+
         :param g: ([TensorFlow Tensor]) The gradients
         :param varlist: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) The factors to update
@@ -215,6 +218,7 @@ class KfacOptimizer:
     def get_stats(self, factors, varlist):
         """
         return the stats values from the factors to update and the parameters
+
         :param factors: ([TensorFlow Tensor]) The factors to update
         :param varlist: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) The stats values
@@ -322,6 +326,7 @@ class KfacOptimizer:
     def compute_and_apply_stats(self, loss_sampled, var_list=None):
         """
         compute and apply stats
+
         :param loss_sampled: ([TensorFlow Tensor]) the loss function output
         :param var_list: ([TensorFlow Tensor]) The parameters
         :return: (function) apply stats
@@ -336,6 +341,7 @@ class KfacOptimizer:
     def compute_stats(self, loss_sampled, var_list=None):
         """
         compute the stats values
+
         :param loss_sampled: ([TensorFlow Tensor]) the loss function output
         :param var_list: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) stats updates
@@ -482,6 +488,7 @@ class KfacOptimizer:
     def apply_stats(self, stats_updates):
         """
         compute stats and update/apply the new stats to the running average
+
         :param stats_updates: ([TensorFlow Tensor]) The stats updates
         :return: (function) update stats operation
         """
@@ -561,6 +568,7 @@ class KfacOptimizer:
     def get_stats_eigen(self, stats=None):
         """
         Return the eigen values from the stats
+
         :param stats: ([TensorFlow Tensor]) The stats
         :return: ([TensorFlow Tensor]) The stats eigen values
         """
@@ -594,6 +602,7 @@ class KfacOptimizer:
     def compute_stats_eigen(self):
         """
         compute the eigen decomp using copied var stats to avoid concurrent read/write from other queue
+
         :return: ([TensorFlow Tensor]) update operations
         """
         # TO-DO: figure out why this op has delays (possibly moving
@@ -633,6 +642,7 @@ class KfacOptimizer:
     def apply_stats_eigen(self, eigen_list):
         """
         apply the update using the eigen values of the stats
+
         :param eigen_list: ([TensorFlow Tensor]) The list of eigen values of the stats
         :return: ([TensorFlow Tensor]) update operations
         """
@@ -654,6 +664,7 @@ class KfacOptimizer:
     def get_kfac_precond_updates(self, gradlist, varlist):
         """
         return the KFAC updates
+
         :param gradlist: ([TensorFlow Tensor]) The gradiants
         :param varlist: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) the update list
@@ -839,6 +850,7 @@ class KfacOptimizer:
     def compute_gradients(cls, loss, var_list=None):
         """
         compute the gradiants from the loss and the parameters
+
         :param loss: ([TensorFlow Tensor]) The loss
         :param var_list: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) the gradiant
@@ -853,6 +865,7 @@ class KfacOptimizer:
     def apply_gradients_kfac(self, grads):
         """
         apply the kfac gradiant
+
         :param grads: ([TensorFlow Tensor]) the gradiant
         :return: ([function], QueueRunner) Update functions, queue operation runner
         """
@@ -955,6 +968,7 @@ class KfacOptimizer:
     def apply_gradients(self, grads):
         """
         apply the gradiant
+
         :param grads: ([TensorFlow Tensor]) the gradiant
         :return: (function, QueueRunner) train operation, queue operation runner
         """
@@ -986,6 +1000,7 @@ class KfacOptimizer:
     def minimize(self, loss, loss_sampled, var_list=None):
         """
         minimize the gradiant loss
+
         :param loss: ([TensorFlow Tensor]) The loss
         :param loss_sampled: ([TensorFlow Tensor]) the loss function output
         :param var_list: ([TensorFlow Tensor]) The parameters

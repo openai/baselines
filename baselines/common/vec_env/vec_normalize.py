@@ -8,6 +8,7 @@ class VecNormalize(VecEnvWrapper):
     def __init__(self, venv, ob=True, ret=True, clipob=10., cliprew=10., gamma=0.99, epsilon=1e-8):
         """
         A rolling average, normalizing, vectorized wrapepr for environment base class
+        
         :param venv: ([Gym Environment]) the list of environments to vectorize and normalize
         :param ob: (bool) normalize observation
         :param ret: (bool) normalize reward with discounting (r = sum(r_old) * gamma + r_new)

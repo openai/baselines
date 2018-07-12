@@ -9,6 +9,7 @@ class GaussianMlpPolicy(object):
     def __init__(self, ob_dim, ac_dim):
         """
         Create a gaussian MLP policy
+        
         :param ob_dim: (int) Observation dimention
         :param ac_dim: (int) action dimention
         """
@@ -64,6 +65,7 @@ class GaussianMlpPolicy(object):
     def act(self, ob):
         """
         get the action from an observation
+        
         :param ob: ([float]) observation
         :return: ([float], [float], [float]) action, action_proba, logp
         """

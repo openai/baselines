@@ -8,6 +8,7 @@ class VecFrameStack(VecEnvWrapper):
     def __init__(self, venv, nstack):
         """
         Vectorized environment base class
+        
         :param venv: ([Gym Environment]) the list of environments to vectorize and normalize
         :param nstack:
         """

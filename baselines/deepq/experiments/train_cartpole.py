@@ -7,6 +7,13 @@ from baselines import deepq
 
 
 def callback(lcl, _glb):
+    """
+    the callback function for logging and saving
+
+    :param lcl: (dict) the local variables
+    :param _glb: (dict) the global variables
+    :return: (bool) is solved
+    """
     # stop training if reward exceeds 199
     if len(lcl['episode_rewards'][-101:-1]) == 0:
         mean_100ep_reward = -np.inf
@@ -17,6 +24,11 @@ def callback(lcl, _glb):
 
 
 def main(args):
+    """
+    train and save the DeepQ model, for the cartpole problem
+
+    :param args: (ArgumentParser) the input arguments
+    """
     env = gym.make("CartPole-v0")
     model = deepq.models.mlp([64])
     act = deepq.learn(

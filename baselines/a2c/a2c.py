@@ -17,6 +17,7 @@ class Model(object):
                  alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
+
         :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Space) Observation space
         :param ac_space: (Gym Space) Action space
@@ -102,6 +103,7 @@ class Runner(AbstractEnvRunner):
     def __init__(self, env, model, nsteps=5, gamma=0.99):
         """
         A runner to learn the policy of an environment for a model
+
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param nsteps: (int) The number of steps to run for each environment
@@ -113,6 +115,7 @@ class Runner(AbstractEnvRunner):
     def run(self):
         """
         Run a learning step of the model
+
         :return: ([float], [float], [float], [bool], [float], [float])
                  observations, states, rewards, masks, actions, values
         """
@@ -162,6 +165,7 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
           lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
     """
     Return a trained A2C model.
+
     :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
     :param seed: (int) The initial seed for training

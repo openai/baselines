@@ -14,6 +14,7 @@ class ProbabilityDistribution(object):
     def flatparam(self):
         """
         Return the direct probabilities
+
         :return: ([float]) the probabilites
         """
         raise NotImplementedError
@@ -21,6 +22,7 @@ class ProbabilityDistribution(object):
     def mode(self):
         """
         Returns the index of the highest probability
+
         :return: (int) the max index of the probabilites
         """
         raise NotImplementedError
@@ -28,6 +30,7 @@ class ProbabilityDistribution(object):
     def neglogp(self, x):
         """
         returns the of the negative log likelihood
+
         :param x: (str) the labels of each index
         :return: ([float]) The negative log likelihood of the distribution
         """
@@ -37,6 +40,7 @@ class ProbabilityDistribution(object):
     def kl(self, other):
         """
         Calculates the Kullback-Leiber divergence from the given probabilty distribution
+
         :param other: ([float]) the distibution to compare with
         :return: (float) the KL divergence of the two distributions
         """
@@ -45,6 +49,7 @@ class ProbabilityDistribution(object):
     def entropy(self):
         """
         Returns shannon's entropy of the probability
+
         :return: (float) the entropy
         """
         raise NotImplementedError
@@ -52,15 +57,17 @@ class ProbabilityDistribution(object):
     def sample(self):
         """
         Sample an index from the probabilty distribution
+
         :return: (int) the sampled index
         """
         raise NotImplementedError
 
     def logp(self, x):
         """
+        returns the of the log likelihood
 
-        :param x:
-        :return:
+        :param x: (str) the labels of each index
+        :return: ([float]) The log likelihood of the distribution
         """
         return - self.neglogp(x)
 
@@ -72,6 +79,7 @@ class ProbabilityDistributionType(object):
     def probability_distribution_class(self):
         """
         returns the ProbabilityDistribution class of this type
+
         :return: (Type ProbabilityDistribution) the probability distribution class associated
         """
         raise NotImplementedError
@@ -79,6 +87,7 @@ class ProbabilityDistributionType(object):
     def probability_distribution_from_flat(self, flat):
         """
         returns the probability distribution from flat probabilities
+
         :param flat: ([float]) the flat probabilities
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
         """
@@ -87,6 +96,7 @@ class ProbabilityDistributionType(object):
     def probability_distribution_from_latent(self, latent_vector):
         """
         returns the probability distribution from latent values
+
         :param latent_vector: ([float]) the latent values
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
         """
@@ -95,6 +105,7 @@ class ProbabilityDistributionType(object):
     def param_shape(self):
         """
         returns the shape of the input parameters
+
         :return: ([int]) the shape
         """
         raise NotImplementedError
@@ -102,6 +113,7 @@ class ProbabilityDistributionType(object):
     def sample_shape(self):
         """
         returns the shape of the sampling
+
         :return: ([int]) the shape
         """
         raise NotImplementedError
@@ -109,6 +121,7 @@ class ProbabilityDistributionType(object):
     def sample_dtype(self):
         """
         returns the type of the sampling
+
         :return: (type) the type
         """
         raise NotImplementedError
@@ -116,6 +129,7 @@ class ProbabilityDistributionType(object):
     def param_placeholder(self, prepend_shape, name=None):
         """
         returns the TensorFlow placeholder for the input parameters
+
         :param prepend_shape: ([int]) the prepend shape
         :param name: (str) the placeholder name
         :return: (TensorFlow Tensor) the placeholder
@@ -125,6 +139,7 @@ class ProbabilityDistributionType(object):
     def sample_placeholder(self, prepend_shape, name=None):
         """
         returns the TensorFlow placeholder for the sampling
+
         :param prepend_shape: ([int]) the prepend shape
         :param name: (str) the placeholder name
         :return: (TensorFlow Tensor) the placeholder
@@ -136,6 +151,7 @@ class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, ncat):
         """
         The probability distribution type for categorical input
+
         :param ncat: (int) the number of categories
         """
         self.ncat = ncat
@@ -146,6 +162,7 @@ class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
     def probability_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
         """
         returns the probability distribution from latent values
+
         :param latent_vector: ([float]) the latent values
         :param init_scale: (float) the inital scale of the distribution
         :param init_bias: (float) the inital bias of the distribution
@@ -168,6 +185,7 @@ class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, nvec):
         """
         The probability distribution type for multiple categorical input
+
         :param ncat: (int) the number of vectors
         """
         self.ncats = nvec
@@ -195,6 +213,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, size):
         """
         The probability distribution type for multivariate gaussian input
+
         :param size: (int) the number of dimentions of the multivariate gaussian
         """
         self.size = size
@@ -205,6 +224,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
     def probability_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
         """
         returns the probability distribution from latent values
+
         :param latent_vector: ([float]) the latent values
         :param init_scale: (float) the inital scale of the distribution
         :param init_bias: (float) the inital bias of the distribution
@@ -229,6 +249,7 @@ class BernoulliProbabilityDistributionType(ProbabilityDistributionType):
     def __init__(self, size):
         """
         The probability distribution type for bernoulli input
+
         :param size: (int) the number of dimentions of the bernoulli distribution
         """
         self.size = size
@@ -253,6 +274,7 @@ class CategoricalProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, logits):
         """
         Probability distributions from categorical input
+
         :param logits: ([float]) the categorical logits input
         """
         self.logits = logits
@@ -297,6 +319,7 @@ class CategoricalProbabilityDistribution(ProbabilityDistribution):
     def fromflat(cls, flat):
         """
         Create an instance of this from new logits values
+
         :param flat: ([float]) the categorical logits input
         :return: (ProbabilityDistribution) the instance from the given categorical input
         """
@@ -307,6 +330,7 @@ class MultiCategoricalProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, nvec, flat):
         """
         Probability distributions from multicategorical input
+
         :param nvec: (int) the number of categorical inputs
         :param flat: ([float]) the categorical logits input
         """
@@ -335,6 +359,7 @@ class MultiCategoricalProbabilityDistribution(ProbabilityDistribution):
     def fromflat(cls, flat):
         """
         Create an instance of this from new logits values
+
         :param flat: ([float]) the multi categorical logits input
         :return: (ProbabilityDistribution) the instance from the given multi categorical input
         """
@@ -345,6 +370,7 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, flat):
         """
         Probability distributions from multivariate gaussian input
+
         :param flat: ([float]) the multivariate gaussian input data
         """
         self.flat = flat
@@ -379,6 +405,7 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
     def fromflat(cls, flat):
         """
         Create an instance of this from new multivariate gaussian input
+
         :param flat: ([float]) the multivariate gaussian input data
         :return: (ProbabilityDistribution) the instance from the given multivariate gaussian input data
         """
@@ -389,6 +416,7 @@ class BernoulliProbabilityDistribution(ProbabilityDistribution):
     def __init__(self, logits):
         """
         Probability distributions from bernoulli input
+
         :param logits: ([float]) the bernoulli input data
         """
         self.logits = logits
@@ -419,6 +447,7 @@ class BernoulliProbabilityDistribution(ProbabilityDistribution):
     def fromflat(cls, flat):
         """
         Create an instance of this from new bernoulli input
+
         :param flat: ([float]) the bernoulli input data
         :return: (ProbabilityDistribution) the instance from the given bernoulli input data
         """
@@ -428,6 +457,7 @@ class BernoulliProbabilityDistribution(ProbabilityDistribution):
 def make_proba_dist_type(ac_space):
     """
     return an instance of ProbabilityDistributionType for the correct type of action space
+
     :param ac_space: (Gym Space) the input action space
     :return: (ProbabilityDistributionType) the approriate instance of a ProbabilityDistributionType
     """
@@ -447,6 +477,7 @@ def make_proba_dist_type(ac_space):
 def shape_el(v, i):
     """
     get the shape of a TensorFlow Tensor element
+
     :param v: (TensorFlow Tensor) the input tensor
     :param i: (int) the element
     :return: ([int]) the shape
@@ -486,6 +517,7 @@ def test_probtypes():
 def validate_probtype(probtype, pdparam):
     """
     validate probability distribution types
+
     :param probtype: (ProbabilityDistributionType) the type to validate
     :param pdparam: ([float]) the flat probabilities to test
     """

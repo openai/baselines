@@ -18,6 +18,7 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
     """
     Create a wrapped, monitored SubprocVecEnv for Atari.
+    
     :param env_id: (str) the environment ID
     :param num_env: (int) the number of environment you wish to have in subprocesses
     :param seed: (int) the inital seed for RNG
@@ -42,6 +43,7 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
 def make_mujoco_env(env_id, seed):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
+    
     :param env_id: (str) the environment ID
     :param seed: (int) the inital seed for RNG
     :return: (Gym Environment) The mujoco environment
@@ -57,6 +59,7 @@ def make_mujoco_env(env_id, seed):
 def make_robotics_env(env_id, seed, rank=0):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
+    
     :param env_id: (str) the environment ID
     :param seed: (int) the inital seed for RNG
     :param rank: (int) the rank of the environment (for logging)
@@ -75,6 +78,7 @@ def make_robotics_env(env_id, seed, rank=0):
 def arg_parser():
     """
     Create an empty argparse.ArgumentParser.
+    
     :return: (ArgumentParser)
     """
     import argparse
@@ -84,6 +88,7 @@ def arg_parser():
 def atari_arg_parser():
     """
     Create an argparse.ArgumentParser for run_atari.py.
+    
     :return: (ArgumentParser) parser {'--env': 'BreakoutNoFrameskip-v4', '--seed': 0, '--num-timesteps': int(1e7)}
     """
     parser = arg_parser()
@@ -96,6 +101,7 @@ def atari_arg_parser():
 def mujoco_arg_parser():
     """
     Create an argparse.ArgumentParser for run_mujoco.py.
+    
     :return:  (ArgumentParser) parser {'--env': 'Reacher-v2', '--seed': 0, '--num-timesteps': int(1e6), '--play': False}
     """
     parser = arg_parser()
@@ -109,6 +115,7 @@ def mujoco_arg_parser():
 def robotics_arg_parser():
     """
     Create an argparse.ArgumentParser for run_mujoco.py.
+    
     :return: (ArgumentParser) parser {'--env': 'FetchReach-v0', '--seed': 0, '--num-timesteps': int(1e6)}
     """
     parser = arg_parser()

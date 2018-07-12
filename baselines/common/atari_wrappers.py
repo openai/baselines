@@ -12,6 +12,7 @@ class NoopResetEnv(gym.Wrapper):
         """
         Sample initial states by taking random number of no-ops on reset.
         No-op is assumed to be action 0.
+
         :param env: (Gym Environment) the environment to wrap
         :param noop_max: (int) the maximum value of no-ops to run
         """
@@ -43,6 +44,7 @@ class FireResetEnv(gym.Wrapper):
     def __init__(self, env):
         """
         Take action on reset for environments that are fixed until firing.
+
         :param env: (Gym Environment) the environment to wrap
         """
         gym.Wrapper.__init__(self, env)
@@ -68,6 +70,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         """
         Make end-of-life == end-of-episode, but only reset on true game over.
         Done by DeepMind for the DQN and co. since it helps value estimation.
+
         :param env: (Gym Environment) the environment to wrap
         """
         gym.Wrapper.__init__(self, env)
@@ -93,6 +96,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         Calls the Gym environment reset, only when lives are exhausted.
         This way all states are still reachable even though lives are episodic,
         and the learner need not know about any of this behind-the-scenes.
+
         :param kwargs: Extra keywords passed to env.reset() call
         :return: ([int] or [float]) the first observation of the environment
         """
@@ -109,6 +113,7 @@ class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env, skip=4):
         """
         Return only every `skip`-th frame (frameskipping)
+
         :param env: (Gym Environment) the environment
         :param skip: (int) number of `skip`-th frame
         """
@@ -121,6 +126,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         """
         Step the environment with the given action
         Repeat action, sum reward, and max over last observations.
+
         :param action: ([int] or [float]) the action
         :return: ([int] or [float], [float], [bool], dict) observation, reward, done, information
         """
@@ -149,6 +155,7 @@ class ClipRewardEnv(gym.RewardWrapper):
     def __init__(self, env):
         """
         clips the reward to {+1, 0, -1} by its sign.
+
         :param env: (Gym Environment) the environment
         """
         gym.RewardWrapper.__init__(self, env)
@@ -156,6 +163,7 @@ class ClipRewardEnv(gym.RewardWrapper):
     def reward(self, reward):
         """
         Bin reward to {+1, 0, -1} by its sign.
+
         :param reward: (float)
         """
         return np.sign(reward)
@@ -165,6 +173,7 @@ class WarpFrame(gym.ObservationWrapper):
     def __init__(self, env):
         """
         Warp frames to 84x84 as done in the Nature paper and later work.
+
         :param env: (Gym Environment) the environment
         """
         gym.ObservationWrapper.__init__(self, env)
@@ -175,6 +184,7 @@ class WarpFrame(gym.ObservationWrapper):
     def observation(self, frame):
         """
         returns the current observation from a frame
+
         :param frame: ([int] or [float]) environment frame
         :return: ([int] or [float]) the observation
         """
@@ -236,6 +246,7 @@ class LazyFrames(object):
         buffers.
 
         This object should only be converted to numpy array before being passed to the model.
+
         :param frames: ([int] or [float]) environment frames
         """
         self._frames = frames
@@ -263,6 +274,7 @@ class LazyFrames(object):
 def make_atari(env_id):
     """
     Create a wrapped atari envrionment
+
     :param env_id: (str) the environment ID
     :return: (Gym Environment) the wrapped atari environment
     """
@@ -276,6 +288,7 @@ def make_atari(env_id):
 def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, scale=False):
     """
     Configure environment for DeepMind-style Atari.
+
     :param env: (Gym Environment) the atari environment
     :param episode_life: (bool) wrap the episode life wrapper
     :param clip_rewards: (bool) wrap the reward clipping wrapper
