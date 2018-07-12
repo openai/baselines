@@ -58,27 +58,6 @@ class RunningMeanStd(object):
 
 
 @tf_util.in_session
-def test_runningmeanstd():
-    """
-    test the running mean std
-    """
-    for (x1, x2, x3) in [
-         (np.random.randn(3), np.random.randn(4), np.random.randn(5)),
-         (np.random.randn(3, 2), np.random.randn(4, 2), np.random.randn(5, 2))]:
-        rms = RunningMeanStd(epsilon=0.0, shape=x1.shape[1:])
-        tf_util.initialize()
-
-        x = np.concatenate([x1, x2, x3], axis=0)
-        ms1 = [x.mean(axis=0), x.std(axis=0)]
-        rms.update(x1)
-        rms.update(x2)
-        rms.update(x3)
-        ms2 = [rms.mean.eval(), rms.std.eval()]
-
-        assert np.allclose(ms1, ms2)
-
-
-@tf_util.in_session
 def test_dist():
     """
     test the running mean std
@@ -86,9 +65,6 @@ def test_dist():
     np.random.seed(0)
     p1, p2, p3 = (np.random.randn(3, 1), np.random.randn(4, 1), np.random.randn(5, 1))
     q1, q2, q3 = (np.random.randn(6, 1), np.random.randn(7, 1), np.random.randn(8, 1))
-
-    # p1,p2,p3=(np.random.randn(3), np.random.randn(4), np.random.randn(5))
-    # q1,q2,q3=(np.random.randn(6), np.random.randn(7), np.random.randn(8))
 
     comm = MPI.COMM_WORLD
     assert comm.Get_size() == 2
