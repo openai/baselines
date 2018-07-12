@@ -16,6 +16,12 @@ from baselines.her.util import mpi_fork
 
 
 def mpi_average(value):
+    """
+    calculate the average from the array, using MPI
+
+    :param value: (numpy Number) the array
+    :return: (float) the average
+    """
     if len(value) == 0:
         value = [0.]
     if not isinstance(value, list):
@@ -23,9 +29,22 @@ def mpi_average(value):
     return mpi_moments(np.array(value))[0]
 
 
-def train(policy, rollout_worker, evaluator,
-          n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
+def train(policy, rollout_worker, evaluator, n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
           save_policies, **kwargs):
+    """
+    train the given policy
+
+    :param policy: (her.DDPG) the policy to train
+    :param rollout_worker: (RolloutWorker) Rollout worker generates experience for training.
+    :param evaluator: (RolloutWorker)  Rollout worker for evalutation
+    :param n_epochs: (int) the number of epochs
+    :param n_test_rollouts: (int) the number of for the evalutation RolloutWorker
+    :param n_cycles: (int) the number of cycles for training per epoch
+    :param n_batches: (int) the batch size
+    :param policy_save_interval: (int) the interval with which policy pickles are saved.
+        If set to 0, only the best and latest policy will be pickled.
+    :param save_policies: (bool) whether or not to save the policies
+    """
     rank = MPI.COMM_WORLD.Get_rank()
 
     latest_policy_path = os.path.join(logger.get_dir(), 'policy_latest.pkl')
@@ -84,6 +103,21 @@ def train(policy, rollout_worker, evaluator,
 
 def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
            override_params=None, save_policies=True):
+    """
+    launch training with mpi
+
+    :param env: (str) environment ID
+    :param logdir: (str) the log directory
+    :param n_epochs: (int) the number of training epochs
+    :param num_cpu: (int) the number of CPUs to run on
+    :param seed: (int) the initial random seed
+    :param replay_strategy: (str) the type of replay strategy ('future' or 'none')
+    :param policy_save_interval: (int) the interval with which policy pickles are saved.
+        If set to 0, only the best and latest policy will be pickled.
+    :param clip_return: (float): clip returns to be in [-clip_return, clip_return]
+    :param override_params: (dict) override any parameter for training
+    :param save_policies: (bool) whether or not to save the policies
+    """
 
     if override_params is None:
         override_params = {}
@@ -124,7 +158,7 @@ def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_in
     with open(os.path.join(logger.get_dir(), 'params.json'), 'w') as f:
         json.dump(params, f)
     params = config.prepare_params(params)
-    config.log_params(params, logger=logger)
+    config.log_params(params, logger_input=logger)
 
     if num_cpu == 1:
         logger.warn()
@@ -190,6 +224,11 @@ def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_in
               help='the HER replay strategy to be used. "future" uses HER, "none" disables HER.')
 @click.option('--clip_return', type=int, default=1, help='whether or not returns should be clipped')
 def main(**kwargs):
+    """
+    run launch for MPI HER DDPG training
+
+    :param kwargs: (dict) the launch kwargs
+    """
     launch(**kwargs)
 
 

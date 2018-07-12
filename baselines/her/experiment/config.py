@@ -55,6 +55,9 @@ def cached_make_env(make_env):
     Only creates a new environment from the provided function if one has not yet already been
     created. This is useful here because we need to infer certain properties of the env, e.g.
     its observation and action spaces, without any intend of actually using it.
+
+    :param make_env: (function (): Gym Environment) creates the environment
+    :return: (Gym Environment) the created environment
     """
     if make_env not in CACHED_ENVS:
         env = make_env()
@@ -63,6 +66,12 @@ def cached_make_env(make_env):
 
 
 def prepare_params(kwargs):
+    """
+    prepares DDPG params from kwargs
+
+    :param kwargs: (dict) the input kwargs
+    :return: (dict) DDPG parameters
+    """
     # DDPG params
     ddpg_params = dict()
 
@@ -95,12 +104,24 @@ def prepare_params(kwargs):
     return kwargs
 
 
-def log_params(params, logger=logger):
+def log_params(params, logger_input=logger):
+    """
+    log the parameters
+
+    :param params: (dict) parameters to log
+    :param logger_input: (logger) the logger
+    """
     for key in sorted(params.keys()):
-        logger.info('{}: {}'.format(key, params[key]))
+        logger_input.info('{}: {}'.format(key, params[key]))
 
 
 def configure_her(params):
+    """
+    configure hindsight experience replay
+
+    :param params: (dict) input parameters
+    :return: (function (dict, int): dict) returns a HER update function for replay buffer batch
+    """
     env = cached_make_env(params['make_env'])
     env.reset()
 
@@ -121,11 +142,28 @@ def configure_her(params):
 
 
 def simple_goal_subtract(a, b):
+    """
+    checks if a and b have the same shape, and does a - b
+
+    :param a: (numpy Number)
+    :param b: (numpy Number)
+    :return: (numpy Number) a - b
+    """
     assert a.shape == b.shape
     return a - b
 
 
 def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):
+    """
+    configure a DDPG model from parameters
+
+    :param dims: ({str: int}) the dimensions
+    :param params: (dict) the DDPG parameters
+    :param reuse: (bool) whether or not the networks should be reused
+    :param use_mpi: (bool) whether or not to use MPI
+    :param clip_return: (float) clip returns to be in [-clip_return, clip_return]
+    :return: (her.DDPG) the ddpg model
+    """
     sample_her_transitions = configure_her(params)
     # Extract relevant parameters.
     gamma = params['gamma']
@@ -154,6 +192,12 @@ def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):
 
 
 def configure_dims(params):
+    """
+    configure input and output dimensions
+
+    :param params: (dict) the parameters
+    :return: ({str: int}) the dimensions
+    """
     env = cached_make_env(params['make_env'])
     env.reset()
     obs, _, _, info = env.step(env.action_space.sample())

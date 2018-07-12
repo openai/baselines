@@ -4,33 +4,45 @@ import pickle
 import numpy as np
 from mujoco_py import MujocoException
 
-from baselines.her.util import convert_episode_to_batch_major, store_args
+from baselines.her.util import convert_episode_to_batch_major
 
 
 class RolloutWorker:
-
-    @store_args
     def __init__(self, make_env, policy, dims, logger, T, rollout_batch_size=1,
                  exploit=False, use_target_net=False, compute_Q=False, noise_eps=0,
                  random_eps=0, history_len=100, render=False, **kwargs):
-        """Rollout worker generates experience by interacting with one or many environments.
-
-        Args:
-            make_env (function): a factory function that creates a new instance of the environment
-                when called
-            policy (object): the policy that is used to act
-            dims (dict of ints): the dimensions for observations (o), goals (g), and actions (u)
-            logger (object): the logger that is used by the rollout worker
-            rollout_batch_size (int): the number of parallel rollouts that should be used
-            exploit (boolean): whether or not to exploit, i.e. to act optimally according to the
-                current policy without any exploration
-            use_target_net (boolean): whether or not to use the target net for rollouts
-            compute_Q (boolean): whether or not to compute the Q values alongside the actions
-            noise_eps (float): scale of the additive Gaussian noise
-            random_eps (float): probability of selecting a completely random action
-            history_len (int): length of history for statistics smoothing
-            render (boolean): whether or not to render the rollouts
         """
+        Rollout worker generates experience by interacting with one or many environments.
+
+        :param make_env: (function (): Gym Environment) a factory function that creates a new instance of the
+            environment when called
+        :param policy: (Object) the policy that is used to act
+        :param dims: ({str: int}) the dimensions for observations (o), goals (g), and actions (u)
+        :param logger: (Object) the logger that is used by the rollout worker
+        :param rollout_batch_size: (int) the number of parallel rollouts that should be used
+        :param exploit: (bool) whether or not to exploit, i.e. to act optimally according to the current policy without
+            any exploration
+        :param use_target_net: (bool) whether or not to use the target net for rollouts
+        :param compute_Q: (bool) whether or not to compute the Q values alongside the actions
+        :param noise_eps: (float) scale of the additive Gaussian noise
+        :param random_eps: (float) probability of selecting a completely random action
+        :param history_len: (int) length of history for statistics smoothing
+        :param render: (boolean) whether or not to render the rollouts
+        """
+        self.make_env = make_env
+        self.policy = policy
+        self.dims = dims
+        self.logger = logger
+        self.T = T
+        self.rollout_batch_size = rollout_batch_size
+        self.exploit = exploit
+        self.use_target_net = use_target_net
+        self.compute_Q = compute_Q
+        self.noise_eps = noise_eps
+        self.random_eps = random_eps
+        self.history_len = history_len
+        self.render = render
+
         self.envs = [make_env() for _ in range(rollout_batch_size)]
         assert self.T > 0
 
@@ -47,8 +59,11 @@ class RolloutWorker:
         self.clear_history()
 
     def reset_rollout(self, i):
-        """Resets the `i`-th rollout environment, re-samples a new goal, and updates the `initial_o`
-        and `g` arrays accordingly.
+        """
+        Resets the `i`-th rollout environment, re-samples a new goal, and updates the `initial_o` and `g` arrays
+        accordingly.
+
+        :param i: (int) the index to reset
         """
         obs = self.envs[i].reset()
         self.initial_o[i] = obs['observation']
@@ -56,14 +71,18 @@ class RolloutWorker:
         self.g[i] = obs['desired_goal']
 
     def reset_all_rollouts(self):
-        """Resets all `rollout_batch_size` rollout workers.
+        """
+        Resets all `rollout_batch_size` rollout workers.
         """
         for i in range(self.rollout_batch_size):
             self.reset_rollout(i)
 
     def generate_rollouts(self):
-        """Performs `rollout_batch_size` rollouts in parallel for time horizon `T` with the current
+        """
+        Performs `rollout_batch_size` rollouts in parallel for time horizon `T` with the current
         policy acting on it accordingly.
+
+        :return: (dict) batch
         """
         self.reset_all_rollouts()
 
@@ -151,25 +170,41 @@ class RolloutWorker:
         return convert_episode_to_batch_major(episode)
 
     def clear_history(self):
-        """Clears all histories that are used for statistics
+        """
+        Clears all histories that are used for statistics
         """
         self.success_history.clear()
         self.Q_history.clear()
 
     def current_success_rate(self):
+        """
+        returns the current success rate
+        :return: (float) the success rate
+        """
         return np.mean(self.success_history)
 
     def current_mean_Q(self):
+        """
+        returns the current mean Q value
+        :return: (float) the mean Q value
+        """
         return np.mean(self.Q_history)
 
     def save_policy(self, path):
-        """Pickles the current policy for later inspection.
+        """
+        Pickles the current policy for later inspection.
+
+        :param path: (str) the save location
         """
         with open(path, 'wb') as f:
             pickle.dump(self.policy, f)
 
     def logs(self, prefix='worker'):
-        """Generates a dictionary that contains all collected statistics.
+        """
+        Generates a dictionary that contains all collected statistics.
+
+        :param prefix: (str) the prefix for the name in logging
+        :return: ([(str, float)]) the logging information
         """
         logs = []
         logs += [('success_rate', np.mean(self.success_history))]
@@ -183,7 +218,10 @@ class RolloutWorker:
             return logs
 
     def seed(self, seed):
-        """Seeds each environment with a distinct seed derived from the passed in global seed.
+        """
+        Seeds each environment with a distinct seed derived from the passed in global seed.
+
+        :param seed: (int) the random seed
         """
         for idx, env in enumerate(self.envs):
             env.seed(seed + 1000 * idx)

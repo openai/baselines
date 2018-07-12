@@ -2,14 +2,14 @@ import numpy as np
 
 
 def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
-    """Creates a sample function that can be used for HER experience replay.
+    """
+    Creates a sample function that can be used for HER experience replay.
 
-    Args:
-        replay_strategy (in ['future', 'none']): the HER replay strategy; if set to 'none',
-            regular DDPG experience replay is used
-        replay_k (int): the ratio between HER replays and regular replays (e.g. k = 4 -> 4 times
+    :param replay_strategy: (str) the HER replay strategy; if set to 'none', regular DDPG experience replay is used
+        (can be 'future' or 'none').
+    :param replay_k: (int) the ratio between HER replays and regular replays (e.g. k = 4 -> 4 times
             as many HER replays as regular replays are used)
-        reward_fun (function): function to re-compute the reward with substituted goals
+    :param reward_fun: (function (dict, dict): float) function to re-compute the reward with substituted goals
     """
     if replay_strategy == 'future':
         future_p = 1 - (1. / (1 + replay_k))

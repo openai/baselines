@@ -9,15 +9,15 @@ from baselines.her.util import reshape_for_broadcasting
 
 class Normalizer:
     def __init__(self, size, eps=1e-2, default_clip_range=np.inf, sess=None):
-        """A normalizer that ensures that observations are approximately distributed according to
+        """
+        A normalizer that ensures that observations are approximately distributed according to
         a standard Normal distribution (i.e. have mean zero and variance one).
 
-        Args:
-            size (int): the size of the observation to be normalized
-            eps (float): a small constant that avoids underflows
-            default_clip_range (float): normalized observations are clipped to be in
-                [-default_clip_range, default_clip_range]
-            sess (object): the TensorFlow session to be used
+        :param size: (int) the size of the observation to be normalized
+        :param eps: (float) a small constant that avoids underflows
+        :param default_clip_range: (float) normalized observations are clipped to be in
+            [-default_clip_range, default_clip_range]
+        :param sess: (TensorFlow Session) the TensorFlow session to be used
         """
         self.size = size
         self.eps = eps
@@ -62,6 +62,11 @@ class Normalizer:
         self.lock = threading.Lock()
 
     def update(self, v):
+        """
+        update the parameters from the input
+
+        :param x: (numpy Number) the input
+        """
         v = v.reshape(-1, self.size)
 
         with self.lock:
@@ -70,6 +75,13 @@ class Normalizer:
             self.local_count[0] += v.shape[0]
 
     def normalize(self, v, clip_range=None):
+        """
+        normalize the input
+
+        :param v: (numpy Number) the input
+        :param clip_range: (float) the range to clip to [-clip_range, clip_range]
+        :return: (numpy Number) normalized input
+        """
         if clip_range is None:
             clip_range = self.default_clip_range
         mean = reshape_for_broadcasting(self.mean, v)
@@ -77,6 +89,12 @@ class Normalizer:
         return tf.clip_by_value((v - mean) / std, -clip_range, clip_range)
 
     def denormalize(self, v):
+        """
+        denormalize the input
+
+        :param v: (numpy Number) the normalized input
+        :return: (numpy Number) original input
+        """
         mean = reshape_for_broadcasting(self.mean, v)
         std = reshape_for_broadcasting(self.std,  v)
         return mean + v * std
@@ -88,13 +106,24 @@ class Normalizer:
         buf /= MPI.COMM_WORLD.Get_size()
         return buf
 
-    def synchronize(self, local_sum, local_sumsq, local_count, root=None):
+    def synchronize(self, local_sum, local_sumsq, local_count):
+        """
+        syncronize over mpi threads
+
+        :param local_sum: (numpy Number) the sum
+        :param local_sumsq: (numpy Number) the square root sum
+        :param local_count: (numpy Number) the number of values updated
+        :return: (numpy Number, numpy Number, numpy Number) the updated local_sum, local_sumsq, and local_count
+        """
         local_sum[...] = self._mpi_average(local_sum)
         local_sumsq[...] = self._mpi_average(local_sumsq)
         local_count[...] = self._mpi_average(local_count)
         return local_sum, local_sumsq, local_count
 
     def recompute_stats(self):
+        """
+        recompute the stats
+        """
         with self.lock:
             # Copy over results.
             local_count = self.local_count.copy()
@@ -121,21 +150,51 @@ class Normalizer:
 
 class IdentityNormalizer:
     def __init__(self, size, std=1.):
+        """
+        Normalizer that returns the input unchanged
+
+        :param size: (int or [int]) the shape of the input to normalize
+        :param std: (float) the initial standard deviation or the normalization
+        """
         self.size = size
         self.mean = tf.zeros(self.size, tf.float32)
         self.std = std * tf.ones(self.size, tf.float32)
 
     def update(self, x):
+        """
+        update the parameters from the input
+
+        :param x: (numpy Number) the input
+        """
         pass
 
     def normalize(self, x, clip_range=None):
+        """
+        normalize the input
+
+        :param x: (numpy Number) the input
+        :param clip_range: (float) the range to clip to [-clip_range, clip_range]
+        :return: (numpy Number) normalized input
+        """
         return x / self.std
 
     def denormalize(self, x):
+        """
+        denormalize the input
+
+        :param x: (numpy Number) the normalized input
+        :return: (numpy Number) original input
+        """
         return self.std * x
 
     def synchronize(self):
+        """
+        syncronize over mpi threads
+        """
         pass
 
     def recompute_stats(self):
+        """
+        recompute the stats
+        """
         pass

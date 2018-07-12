@@ -5,14 +5,13 @@ import numpy as np
 
 class ReplayBuffer:
     def __init__(self, buffer_shapes, size_in_transitions, T, sample_transitions):
-        """Creates a replay buffer.
+        """
+        Creates a replay buffer.
 
-        Args:
-            buffer_shapes (dict of ints): the shape for all buffers that are used in the replay
-                buffer
-            size_in_transitions (int): the size of the buffer, measured in transitions
-            T (int): the time horizon for episodes
-            sample_transitions (function): a function that samples from the replay buffer
+        :param buffer_shapes: ({str: int}) the shape for all buffers that are used in the replay buffer
+        :param size_in_transitions: (int) the size of the buffer, measured in transitions
+        :param T: (int) the time horizon for episodes
+        :param sample_transitions: (function) a function that samples from the replay buffer
         """
         self.buffer_shapes = buffer_shapes
         self.size = size_in_transitions // T
@@ -35,7 +34,11 @@ class ReplayBuffer:
             return self.current_size == self.size
 
     def sample(self, batch_size):
-        """Returns a dict {key: array(batch_size x shapes[key])}
+        """
+        sample random transitions
+
+        :param batch_size: (int) How many transitions to sample.
+        :return: (dict) {key: array(batch_size x shapes[key])}
         """
         buffers = {}
 
@@ -55,7 +58,10 @@ class ReplayBuffer:
         return transitions
 
     def store_episode(self, episode_batch):
-        """episode_batch: array(batch_size x (T or T+1) x dim_key)
+        """
+        Store an episode in the replay buffer
+
+        :param episode_batch: (numpy Number) batch_size x (T or T+1) x dim_key
         """
         batch_sizes = [len(episode_batch[key]) for key in episode_batch.keys()]
         assert np.all(np.array(batch_sizes) == batch_sizes[0])
@@ -71,18 +77,36 @@ class ReplayBuffer:
             self.n_transitions_stored += batch_size * self.T
 
     def get_current_episode_size(self):
+        """
+        get current episode size
+
+        :return: (int) the current size of the episode
+        """
         with self.lock:
             return self.current_size
 
     def get_current_size(self):
+        """
+        get current size of the buffer
+
+        :return: (int) the current size of the buffer
+        """
         with self.lock:
             return self.current_size * self.T
 
     def get_transitions_stored(self):
+        """
+        get the number of stored transitions
+
+        :return: (int) the number of transitions stored
+        """
         with self.lock:
             return self.n_transitions_stored
 
     def clear_buffer(self):
+        """
+        clear the buffer of all entries
+        """
         with self.lock:
             self.current_size = 0
 

@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.contrib.staging import StagingArea
 
 from baselines import logger
-from baselines.her.util import import_function, store_args, flatten_grads, transitions_in_episode_batch
+from baselines.her.util import import_function, flatten_grads, transitions_in_episode_batch
 from baselines.her.normalizer import Normalizer
 from baselines.her.replay_buffer import ReplayBuffer
 from baselines.common.mpi_adam import MpiAdam
@@ -16,40 +16,64 @@ def dims_to_shapes(input_dims):
 
 
 class DDPG(object):
-    @store_args
     def __init__(self, input_dims, buffer_size, hidden, layers, network_class, polyak, batch_size,
                  Q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, T,
                  rollout_batch_size, subtract_goals, relative_goals, clip_pos_returns, clip_return,
                  sample_transitions, gamma, reuse=False, **kwargs):
-        """Implementation of DDPG that is used in combination with Hindsight Experience Replay (HER).
-
-        Args:
-            input_dims (dict of ints): dimensions for the observation (o), the goal (g), and the
-                actions (u)
-            buffer_size (int): number of transitions that are stored in the replay buffer
-            hidden (int): number of units in the hidden layers
-            layers (int): number of hidden layers
-            network_class (str): the network class that should be used (e.g. 'baselines.her.ActorCritic')
-            polyak (float): coefficient for Polyak-averaging of the target network
-            batch_size (int): batch size for training
-            Q_lr (float): learning rate for the Q (critic) network
-            pi_lr (float): learning rate for the pi (actor) network
-            norm_eps (float): a small value used in the normalizer to avoid numerical instabilities
-            norm_clip (float): normalized inputs are clipped to be in [-norm_clip, norm_clip]
-            max_u (float): maximum action magnitude, i.e. actions are in [-max_u, max_u]
-            action_l2 (float): coefficient for L2 penalty on the actions
-            clip_obs (float): clip observations before normalization to be in [-clip_obs, clip_obs]
-            scope (str): the scope used for the TensorFlow graph
-            T (int): the time horizon for rollouts
-            rollout_batch_size (int): number of parallel rollouts per DDPG agent
-            subtract_goals (function): function that subtracts goals from each other
-            relative_goals (boolean): whether or not relative goals should be fed into the network
-            clip_pos_returns (boolean): whether or not positive returns should be clipped
-            clip_return (float): clip returns to be in [-clip_return, clip_return]
-            sample_transitions (function) function that samples from the replay buffer
-            gamma (float): gamma used for Q learning updates
-            reuse (boolean): whether or not the networks should be reused
         """
+        Implementation of DDPG that is used in combination with Hindsight Experience Replay (HER).
+
+        :param input_dims: ({str: int}) dimensions for the observation (o), the goal (g), and the actions (u)
+        :param buffer_size: (int) number of transitions that are stored in the replay buffer
+        :param hidden: (int) number of units in the hidden layers
+        :param layers: (int) number of hidden layers
+        :param network_class: (str) the network class that should be used (e.g. 'baselines.her.ActorCritic')
+        :param polyak: (float) coefficient for Polyak-averaging of the target network
+        :param batch_size: (int) batch size for training
+        :param Q_lr: (float) learning rate for the Q (critic) network
+        :param pi_lr: (float) learning rate for the pi (actor) network
+        :param norm_eps: (float) a small value used in the normalizer to avoid numerical instabilities
+        :param norm_clip: (float) normalized inputs are clipped to be in [-norm_clip, norm_clip]
+        :param max_u: (float) maximum action magnitude, i.e. actions are in [-max_u, max_u]
+        :param action_l2: (float) coefficient for L2 penalty on the actions
+        :param clip_obs: (float) clip observations before normalization to be in [-clip_obs, clip_obs]
+        :param scope: (str) the scope used for the TensorFlow graph
+        :param T: (int) the time horizon for rollouts
+        :param rollout_batch_size: (int) number of parallel rollouts per DDPG agent
+        :param subtract_goals: (function (numpy Number, numpy Number): numpy Number) function that subtracts goals
+            from each other
+        :param relative_goals: (boolean) whether or not relative goals should be fed into the network
+        :param clip_pos_returns: (boolean) whether or not positive returns should be clipped
+        :param clip_return: (float) clip returns to be in [-clip_return, clip_return]
+        :param sample_transitions: (function (dict, int): dict) function that samples from the replay buffer
+        :param gamma: (float) gamma used for Q learning updates
+        :param reuse: (boolean) whether or not the networks should be reused
+        """
+        self.input_dims = input_dims
+        self.buffer_size = buffer_size
+        self.hidden = hidden
+        self.layers = layers
+        self.network_class = network_class
+        self.polyak = polyak
+        self.batch_size = batch_size
+        self.Q_lr = Q_lr
+        self.pi_lr = pi_lr
+        self.norm_eps = norm_eps
+        self.norm_clip = norm_clip
+        self.max_u = max_u
+        self.action_l2 = action_l2
+        self.clip_obs = clip_obs
+        self.scope = scope
+        self.T = T
+        self.rollout_batch_size = rollout_batch_size
+        self.subtract_goals = subtract_goals
+        self.relative_goals = relative_goals
+        self.clip_pos_returns = clip_pos_returns
+        self.clip_return = clip_return
+        self.sample_transitions = sample_transitions
+        self.gamma = gamma
+        self.reuse = reuse
+
         if self.clip_return is None:
             self.clip_return = np.inf
 
@@ -105,8 +129,19 @@ class DDPG(object):
         g = np.clip(g, -self.clip_obs, self.clip_obs)
         return o, g
 
-    def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False,
-                    compute_Q=False):
+    def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False, compute_Q=False):
+        """
+        return the action from an observation and goal
+
+        :param o: (numpy Number) the observation
+        :param ag: (numpy Number) the action goal
+        :param g: (numpy Number) the goal
+        :param noise_eps: (float) the noise epsilon
+        :param random_eps: (float) the random epsilon
+        :param use_target_net: (bool) whether or not to use the target network
+        :param compute_Q: (bool) whether or not to compute Q value
+        :return: (numpy float or float) the actions
+        """
         o, g = self._preprocess_og(o, ag, g)
         policy = self.target if use_target_net else self.main
         # values to compute
@@ -140,8 +175,11 @@ class DDPG(object):
 
     def store_episode(self, episode_batch, update_stats=True):
         """
-        episode_batch: array of batch_size x (T or T+1) x dim_key
-                       'o' is of size T+1, others are of size T
+        Story the episode transitions
+
+        :param episode_batch: (numpy Number) array of batch_size x (T or T+1) x dim_key 'o' is of size T+1,
+            others are of size T
+        :param update_stats: (bool) whether to update stats or not
         """
 
         self.buffer.store_episode(episode_batch)
@@ -164,6 +202,11 @@ class DDPG(object):
             self.g_stats.recompute_stats()
 
     def get_current_buffer_size(self):
+        """
+        returns the current buffer size
+
+        :return: (int) buffer size
+        """
         return self.buffer.get_current_size()
 
     def _sync_optimizers(self):
@@ -185,6 +228,11 @@ class DDPG(object):
         self.pi_adam.update(pi_grad, self.pi_lr)
 
     def sample_batch(self):
+        """
+        sample a batch
+
+        :return: (dict) the batch
+        """
         transitions = self.buffer.sample(self.batch_size)
         o, o_2, g = transitions['o'], transitions['o_2'], transitions['g']
         ag, ag_2 = transitions['ag'], transitions['ag_2']
@@ -195,12 +243,23 @@ class DDPG(object):
         return transitions_batch
 
     def stage_batch(self, batch=None):
+        """
+        apply a batch to staging
+
+        :param batch: (dict) the batch to add to staging, if None: self.sample_batch()
+        """
         if batch is None:
             batch = self.sample_batch()
         assert len(self.buffer_ph_tf) == len(batch)
         self.sess.run(self.stage_op, feed_dict=dict(zip(self.buffer_ph_tf, batch)))
 
     def train(self, stage=True):
+        """
+        train DDPG
+
+        :param stage: (bool) enable staging
+        :return: (float, float) critic loss, actor loss
+        """
         if stage:
             self.stage_batch()
         critic_loss, actor_loss, Q_grad, pi_grad = self._grads()
@@ -211,9 +270,15 @@ class DDPG(object):
         self.sess.run(self.init_target_net_op)
 
     def update_target_net(self):
+        """
+        update the target network
+        """
         self.sess.run(self.update_target_net_op)
 
     def clear_buffer(self):
+        """
+        clears the replay buffer
+        """
         self.buffer.clear_buffer()
 
     def _vars(self, scope):
@@ -301,6 +366,11 @@ class DDPG(object):
         self._init_target_net()
 
     def logs(self, prefix=''):
+        """
+        create a log dictionary
+        :param prefix: (str) the prefix for evey index
+        :return: ({str: Any}) the log
+        """
         logs = []
         logs += [('stats_o/mean', np.mean(self.sess.run([self.o_stats.mean])))]
         logs += [('stats_o/std', np.mean(self.sess.run([self.o_stats.std])))]

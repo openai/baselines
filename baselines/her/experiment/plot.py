@@ -9,6 +9,13 @@ import glob2
 
 
 def smooth_reward_curve(x, y):
+    """
+    smooth the reward curve
+
+    :param x: (numpy float) the x coord of the reward
+    :param y: (numpy float) the y coord of the reward
+    :return: (numpy float, numpy float) smoothed x, smoothed y
+    """
     halfwidth = int(np.ceil(len(x) / 60))  # Halfwidth of our smoothing convolution
     k = halfwidth
     xsmoo = x
@@ -18,6 +25,12 @@ def smooth_reward_curve(x, y):
 
 
 def load_results(file):
+    """
+    load the results from a file
+
+    :param file: (str) the saved results
+    :return: (dict) the result
+    """
     if not os.path.exists(file):
         return None
     with open(file, 'r') as f:
@@ -37,6 +50,13 @@ def load_results(file):
 
 
 def pad(xs, value=np.nan):
+    """
+
+
+    :param xs:
+    :param value:
+    :return:
+    """
     maxlen = np.max([len(x) for x in xs])
     
     padded_xs = []

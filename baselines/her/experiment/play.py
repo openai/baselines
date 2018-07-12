@@ -15,6 +15,14 @@ from baselines.her.rollout import RolloutWorker
 @click.option('--n_test_rollouts', type=int, default=10)
 @click.option('--render', type=int, default=1)
 def main(policy_file, seed, n_test_rollouts, render):
+    """
+    run HER from a saved policy
+
+    :param policy_file: (str) pickle path to a saved policy
+    :param seed: (int) initial seed
+    :param n_test_rollouts: (int) the number of test rollouts
+    :param render: (bool) if rendering should be done
+    """
     set_global_seeds(seed)
 
     # Load policy.
