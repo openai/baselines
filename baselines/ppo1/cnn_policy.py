@@ -43,7 +43,7 @@ class CnnPolicy(BasePolicy):
                 flattened_layer_2 = tf_util.flattenallbut0(layer_2)
                 last_layer = tf.nn.relu(tf.layers.dense(flattened_layer_2, 256,
                                                         name='lin', kernel_initializer=tf_util.normc_initializer(1.0)))
-            elif architecture_size== 'large':  # Nature DQN
+            elif architecture_size == 'large':  # Nature DQN
                 layer_1 = tf.nn.relu(tf_util.conv2d(normalized_obs, 32, "l1", [8, 8], [4, 4], pad="VALID"))
                 layer_2 = tf.nn.relu(tf_util.conv2d(layer_1, 64, "l2", [4, 4], [2, 2], pad="VALID"))
                 layer_3 = tf.nn.relu(tf_util.conv2d(layer_2, 64, "l3", [3, 3], [1, 1], pad="VALID"))

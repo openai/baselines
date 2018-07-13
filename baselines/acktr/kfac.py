@@ -18,6 +18,7 @@ class KfacOptimizer:
                  use_float64=False, weight_decay_dict=None, max_grad_norm=0.5):
         """
         Kfac Optimizer for ACKTR models
+        link: https://arxiv.org/pdf/1708.05144.pdf
 
         :param learning_rate: (float) The learning rate
         :param momentum: (float) The momentum value for the TensorFlow momentum optimizer
@@ -112,7 +113,7 @@ class KfacOptimizer:
                 for grad in gradient.op.inputs:
                     factors.append(_search_factors(grad, graph))
                 op_names = [_item['opName'] for _item in factors]
-                # TO-DO: need to check all the attribute of the ops as well
+                # TODO: need to check all the attribute of the ops as well
                 print(gradient.name)
                 print(op_names)
                 print(len(np.unique(op_names)))
@@ -131,13 +132,12 @@ class KfacOptimizer:
                 fprop_op = graph.get_operation_by_name(fprop_op_name)
                 if fprop_op.op_def.name in KFAC_OPS:
                     # Known OPs
-                    ###
                     b_tensor = [_i for _i in bprop_op.inputs if 'gradientsSampled' in _i.name][-1]
                     b_tensor_shape = fprop_op.outputs[0].get_shape()
                     if b_tensor.get_shape()[0].value is None:
                         b_tensor.set_shape(b_tensor_shape)
                     b_tensors.append(b_tensor)
-                    ###
+
                     if fprop_op.op_def.name == 'BiasAdd':
                         f_tensors = []
                     else:
@@ -165,11 +165,9 @@ class KfacOptimizer:
             found_factors = _search_factors(t, default_graph)
             factor_tensors[param] = found_factors
 
-        ########
         # check associated weights and bias for homogeneous coordinate representation
         # and check redundent factors
-        # TO-DO: there may be a bug to detect associate bias and weights for
-        # forking layer, e.g. in inception models.
+        # TODO: there may be a bug to detect associate bias and weights for forking layer, e.g. in inception models.
         for param in varlist:
             factor_tensors[param]['assnWeights'] = None
             factor_tensors[param]['assnBias'] = None
@@ -185,11 +183,8 @@ class KfacOptimizer:
                             factor_tensors[param]['bpropFactors'] = factor_tensors[
                                 item]['bpropFactors']
 
-        ########
 
-        ########
-        # concatenate the additive gradients along the batch dimension, i.e.
-        # assuming independence structure
+        # concatenate the additive gradients along the batch dimension, i.e. assuming independence structure
         for key in ['fpropFactors', 'bpropFactors']:
             for i, param in enumerate(varlist):
                 if len(factor_tensors[param][key]) > 0:
@@ -201,13 +196,12 @@ class KfacOptimizer:
                                 key + '_concat'] = tf.concat(factor_tensors[param][key], 0)
                 else:
                     factor_tensors[param][key + '_concat'] = None
-                for j, param2 in enumerate(varlist[(i + 1):]):
+                for _, param2 in enumerate(varlist[(i + 1):]):
                     if (len(factor_tensors[param][key]) > 0) and (
                             set(factor_tensors[param2][key]) == set(factor_tensors[param][key])):
                         factor_tensors[param2][key] = factor_tensors[param][key]
                         factor_tensors[param2][
                             key + '_concat'] = factor_tensors[param][key + '_concat']
-        ########
 
         if KFAC_DEBUG:
             for items in zip(varlist, fprop_tensors, bprop_tensors, op_types):
@@ -235,16 +229,15 @@ class KfacOptimizer:
                     bprop_factor = factors[var]['bpropFactors_concat']
                     op_type = factors[var]['opName']
                     if op_type == 'Conv2D':
-                        oh = bprop_factor.get_shape()[1]
-                        ow = bprop_factor.get_shape()[2]
-                        if oh == 1 and ow == 1 and self._channel_fac:
+                        operator_height = bprop_factor.get_shape()[1]
+                        operator_width = bprop_factor.get_shape()[2]
+                        if operator_height == 1 and operator_width == 1 and self._channel_fac:
                             # factorization along the channels do not support
                             # homogeneous coordinate
                             var_assn_bias = factors[var]['assnBias']
                             if var_assn_bias:
                                 factors[var]['assnBias'] = None
                                 factors[var_assn_bias]['assnWeights'] = None
-                ##
 
                 for var in varlist:
                     fprop_factor = factors[var]['fpropFactors_concat']
@@ -259,20 +252,20 @@ class KfacOptimizer:
                     if fprop_factor is not None:
                         if fprop_factor not in tmp_stats_cache:
                             if op_type == 'Conv2D':
-                                kh = var.get_shape()[0]
-                                kw = var.get_shape()[1]
+                                kernel_height = var.get_shape()[0]
+                                kernel_width = var.get_shape()[1]
                                 chan = fprop_factor.get_shape()[-1]
 
-                                oh = bprop_factor.get_shape()[1]
-                                ow = bprop_factor.get_shape()[2]
-                                if oh == 1 and ow == 1 and self._channel_fac:
+                                operator_height = bprop_factor.get_shape()[1]
+                                operator_width = bprop_factor.get_shape()[2]
+                                if operator_height == 1 and operator_width == 1 and self._channel_fac:
                                     # factorization along the channels
                                     # assume independence between input channels and spatial
                                     # 2K-1 x 2K-1 covariance matrix and C x C covariance matrix
                                     # factorization along the channels do not
                                     # support homogeneous coordinate, assnBias
                                     # is always None
-                                    fprop_factor2_size = kh * kw
+                                    fprop_factor2_size = kernel_height * kernel_width
                                     slot_fprop_factor_stats2 = tf.Variable(tf.diag(tf.ones(
                                         [fprop_factor2_size])) * self._diag_init_coeff,
                                                                            name='KFAC_STATS/' + fprop_factor.op.name,
@@ -284,7 +277,7 @@ class KfacOptimizer:
                                 else:
                                     # 2K-1 x 2K-1 x C x C covariance matrix
                                     # assume BHWC
-                                    fprop_factor_size = kh * kw * chan
+                                    fprop_factor_size = kernel_height * kernel_width * chan
                             else:
                                 # D x D covariance matrix
                                 fprop_factor_size = fprop_factor.get_shape()[-1]
@@ -350,9 +343,9 @@ class KfacOptimizer:
         if varlist is None:
             varlist = tf.trainable_variables()
 
-        gs = tf.gradients(loss_sampled, varlist, name='gradientsSampled')
-        self.gs = gs
-        factors = self.get_factors(gs, varlist)
+        gradiant_sampled = tf.gradients(loss_sampled, varlist, name='gradientsSampled')
+        self.gradiant_sampled = gradiant_sampled
+        factors = self.get_factors(gradiant_sampled, varlist)
         stats = self.get_stats(factors, varlist)
 
         update_ops = []
@@ -375,15 +368,15 @@ class KfacOptimizer:
                         padding = fops.get_attr("padding")
                         convkernel_size = var.get_shape()[0:3]
 
-                        kh = int(convkernel_size[0])
-                        kw = int(convkernel_size[1])
+                        kernel_height = int(convkernel_size[0])
+                        kernel_width = int(convkernel_size[1])
                         chan = int(convkernel_size[2])
-                        flatten_size = int(kh * kw * chan)
+                        flatten_size = int(kernel_height * kernel_width * chan)
 
-                        oh = int(bprop_factor.get_shape()[1])
-                        ow = int(bprop_factor.get_shape()[2])
+                        operator_height = int(bprop_factor.get_shape()[1])
+                        operator_width = int(bprop_factor.get_shape()[2])
 
-                        if oh == 1 and ow == 1 and self._channel_fac:
+                        if operator_height == 1 and operator_width == 1 and self._channel_fac:
                             # factorization along the channels
                             # assume independence among input channels
                             # factor = B x 1 x 1 x (KH xKW x C)
@@ -393,17 +386,17 @@ class KfacOptimizer:
                                     print(('approx %s act factor with rank-1 SVD factors' % var.name))
                                 # find closest rank-1 approx to the feature map
                                 S, U, V = tf.batch_svd(tf.reshape(
-                                    fprop_factor, [-1, kh * kw, chan]))
+                                    fprop_factor, [-1, kernel_height * kernel_width, chan]))
                                 # get rank-1 approx slides
                                 sqrt_s1 = tf.expand_dims(tf.sqrt(S[:, 0, 0]), 1)
                                 patches_k = U[:, :, 0] * sqrt_s1  # B x KH*KW
                                 full_factor_shape = fprop_factor.get_shape()
                                 patches_k.set_shape(
-                                    [full_factor_shape[0], kh * kw])
+                                    [full_factor_shape[0], kernel_height * kernel_width])
                                 patches_c = V[:, :, 0] * sqrt_s1  # B x C
                                 patches_c.set_shape([full_factor_shape[0], chan])
                                 svd_factors[chan] = patches_c
-                                svd_factors[kh * kw] = patches_k
+                                svd_factors[kernel_height * kernel_width] = patches_k
                             fprop_factor = svd_factors[stats_var_dim]
 
                         else:
@@ -419,14 +412,14 @@ class KfacOptimizer:
                             else:
                                 # size: (B x Oh x Ow) x C
                                 fprop_factor = tf.reshape(
-                                    patches, [-1, flatten_size]) / oh / ow
+                                    patches, [-1, flatten_size]) / operator_height / operator_width
                     fprop_factor_size = int(fprop_factor.get_shape()[-1])
                     if stats_var_dim == (fprop_factor_size + 1) and not self._blockdiag_bias:
                         if op_type == 'Conv2D' and not self._approxT2:
                             # correct padding for numerical stability (we
                             # divided out OhxOw from activations for T1 approx)
                             fprop_factor = tf.concat([fprop_factor, tf.ones(
-                                [tf.shape(fprop_factor)[0], 1]) / oh / ow], 1)
+                                [tf.shape(fprop_factor)[0], 1]) / operator_height / operator_width], 1)
                         else:
                             # use homogeneous coordinates
                             fprop_factor = tf.concat(
@@ -457,7 +450,7 @@ class KfacOptimizer:
                                     bprop_factor, [1, 2])  # T^2 terms * 1/T^2
                             else:
                                 bprop_factor = tf.reshape(
-                                    bprop_factor, [-1, chan]) * oh * ow  # T * 1/T terms
+                                    bprop_factor, [-1, chan]) * operator_height * operator_width  # T * 1/T terms
                         else:
                             # just doing block diag approx. spatial independent
                             # structure does not apply here. summing over
@@ -466,7 +459,7 @@ class KfacOptimizer:
                                 print(('block diag approx fisher for %s' % var.name))
                             bprop_factor = tf.reduce_sum(bprop_factor, [1, 2])
 
-                    # assume sampled loss is averaged. TO-DO:figure out better
+                    # assume sampled loss is averaged. TODO:figure out better
                     # way to handle this
                     bprop_factor *= tf.to_float(batch_size)
                     ##
@@ -503,9 +496,6 @@ class KfacOptimizer:
                     *self._apply_stats(stats_updates, accumulate=True, accumulate_coeff=1. / self._stats_accum_iter))
 
         def _update_running_avg_stats(stats_updates, fac_iter=1):
-            # return tf.cond(tf.greater_equal(self.factor_step,
-            # tf.convert_to_tensor(fac_iter)), lambda:
-            # tf.group(*self._apply_stats(stats_list, varlist)), tf.no_op)
             return tf.group(*self._apply_stats(stats_updates))
 
         if self._async_stats:
@@ -584,13 +574,13 @@ class KfacOptimizer:
                         for stats_var in stats[var][key]:
                             if stats_var not in tmp_eigen_cache:
                                 stats_dim = stats_var.get_shape()[1].value
-                                e = tf.Variable(tf.ones(
+                                eigen_values = tf.Variable(tf.ones(
                                     [stats_dim]), name='KFAC_FAC/' + stats_var.name.split(':')[0] + '/e',
                                     trainable=False)
-                                Q = tf.Variable(tf.diag(tf.ones(
+                                eigen_vectors = tf.Variable(tf.diag(tf.ones(
                                     [stats_dim])), name='KFAC_FAC/' + stats_var.name.split(':')[0] + '/Q',
                                     trainable=False)
-                                stats_eigen[stats_var] = {'e': e, 'Q': Q}
+                                stats_eigen[stats_var] = {'e': eigen_values, 'Q': eigen_vectors}
                                 tmp_eigen_cache[
                                     stats_var] = stats_eigen[stats_var]
                             else:
@@ -605,8 +595,7 @@ class KfacOptimizer:
 
         :return: ([TensorFlow Tensor]) update operations
         """
-        # TO-DO: figure out why this op has delays (possibly moving
-        # eigenvectors around?)
+        # TODO: figure out why this op has delays (possibly moving eigenvectors around?)
         with tf.device('/cpu:0'):
             stats_eigen = self.stats_eigen
             computed_eigen = {}
@@ -616,17 +605,17 @@ class KfacOptimizer:
             with tf.control_dependencies([]):
                 for stats_var in stats_eigen:
                     if stats_var not in computed_eigen:
-                        eigens = tf.self_adjoint_eig(stats_var)
-                        e = eigens[0]
-                        Q = eigens[1]
+                        eigen_decomposition = tf.self_adjoint_eig(stats_var)
+                        eigen_values = eigen_decomposition[0]
+                        eigen_vectors = eigen_decomposition[1]
                         if self._use_float64:
-                            e = tf.cast(e, tf.float64)
-                            Q = tf.cast(Q, tf.float64)
-                        update_ops.append(e)
-                        update_ops.append(Q)
-                        computed_eigen[stats_var] = {'e': e, 'Q': Q}
-                        eigen_reverse_lookup[e] = stats_eigen[stats_var]['e']
-                        eigen_reverse_lookup[Q] = stats_eigen[stats_var]['Q']
+                            eigen_values = tf.cast(eigen_values, tf.float64)
+                            eigen_vectors = tf.cast(eigen_vectors, tf.float64)
+                        update_ops.append(eigen_values)
+                        update_ops.append(eigen_vectors)
+                        computed_eigen[stats_var] = {'e': eigen_values, 'Q': eigen_vectors}
+                        eigen_reverse_lookup[eigen_values] = stats_eigen[stats_var]['e']
+                        eigen_reverse_lookup[eigen_vectors] = stats_eigen[stats_var]['Q']
 
             self.eigen_reverse_lookup = eigen_reverse_lookup
             self.eigen_update_list = update_ops
@@ -648,7 +637,7 @@ class KfacOptimizer:
         """
         update_ops = []
         print(('updating %d eigenvalue/vectors' % len(eigen_list)))
-        for i, (tensor, mark) in enumerate(zip(eigen_list, self.eigen_update_list)):
+        for _, (tensor, mark) in enumerate(zip(eigen_list, self.eigen_update_list)):
             stats_eigen_var = self.eigen_reverse_lookup[mark]
             update_ops.append(
                 tf.assign(stats_eigen_var, tensor, use_locking=True))
@@ -689,14 +678,14 @@ class KfacOptimizer:
                 grad_shape = grad.get_shape()
                 if len(grad.get_shape()) > 2:
                     # reshape conv kernel parameters
-                    kw = int(grad.get_shape()[0])
-                    kh = int(grad.get_shape()[1])
+                    kernel_width = int(grad.get_shape()[0])
+                    kernel_height = int(grad.get_shape()[1])
                     chan = int(grad.get_shape()[2])
                     depth = int(grad.get_shape()[3])
 
                     if len(fprop_factored_fishers) > 1 and self._channel_fac:
                         # reshape conv kernel parameters into tensor
-                        grad = tf.reshape(grad, [kw * kh, chan, depth])
+                        grad = tf.reshape(grad, [kernel_width * kernel_height, chan, depth])
                     else:
                         # reshape conv kernel parameters into 2D grad
                         grad = tf.reshape(grad, [-1, depth])
@@ -709,7 +698,7 @@ class KfacOptimizer:
 
                 if (self.stats[var]['assnBias'] is not None) and not self._blockdiag_bias:
                     # use homogeneous coordinates only works for 2D grad.
-                    # TO-DO: figure out how to factorize bias grad
+                    # TODO: figure out how to factorize bias grad
                     # stack bias grad
                     var_assn_bias = self.stats[var]['assnBias']
                     grad = tf.concat(
@@ -720,25 +709,23 @@ class KfacOptimizer:
                 eig_vals = []
 
                 for idx, stats in enumerate(self.stats[var]['fprop_concat_stats']):
-                    Q = self.stats_eigen[stats]['Q']
-                    e = detect_min_val(self.stats_eigen[stats][
+                    eigen_vectors = self.stats_eigen[stats]['Q']
+                    eigen_values = detect_min_val(self.stats_eigen[stats][
                                          'e'], var, name='act', debug=KFAC_DEBUG)
 
-                    Q, e = factor_reshape(Q, e, grad, facIndx=idx, ftype='act')
-                    eig_vals.append(e)
-                    grad = gmatmul(Q, grad, transpose_a=True, reduce_dim=idx)
+                    eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values, grad, facIndx=idx, ftype='act')
+                    eig_vals.append(eigen_values)
+                    grad = gmatmul(eigen_vectors, grad, transpose_a=True, reduce_dim=idx)
 
                 for idx, stats in enumerate(self.stats[var]['bprop_concat_stats']):
-                    Q = self.stats_eigen[stats]['Q']
-                    e = detect_min_val(self.stats_eigen[stats][
+                    eigen_vectors = self.stats_eigen[stats]['Q']
+                    eigen_values = detect_min_val(self.stats_eigen[stats][
                                          'e'], var, name='grad', debug=KFAC_DEBUG)
 
-                    Q, e = factor_reshape(Q, e, grad, facIndx=idx, ftype='grad')
-                    eig_vals.append(e)
-                    grad = gmatmul(grad, Q, transpose_b=False, reduce_dim=idx)
-                ##
+                    eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values, grad, facIndx=idx, ftype='grad')
+                    eig_vals.append(eigen_values)
+                    grad = gmatmul(grad, eigen_vectors, transpose_b=False, reduce_dim=idx)
 
-                #####
                 # whiten using eigenvalues
                 weight_decay_coeff = 0.
                 if var in self._weight_decay_dict:
@@ -781,26 +768,20 @@ class KfacOptimizer:
                         coeffs *= e
                     coeffs += damping
 
-                # grad = tf.Print(grad, [tf.convert_to_tensor('1'), tf.convert_to_tensor(var.name), grad.get_shape()])
-
                 grad /= coeffs
 
-                # grad = tf.Print(grad, [tf.convert_to_tensor('2'), tf.convert_to_tensor(var.name), grad.get_shape()])
-                #####
                 # project gradient back to euclidean space
                 for idx, stats in enumerate(self.stats[var]['fprop_concat_stats']):
-                    Q = self.stats_eigen[stats]['Q']
-                    grad = gmatmul(Q, grad, transpose_a=False, reduce_dim=idx)
+                    eigen_vectors = self.stats_eigen[stats]['Q']
+                    grad = gmatmul(eigen_vectors, grad, transpose_a=False, reduce_dim=idx)
 
                 for idx, stats in enumerate(self.stats[var]['bprop_concat_stats']):
-                    Q = self.stats_eigen[stats]['Q']
-                    grad = gmatmul(grad, Q, transpose_b=True, reduce_dim=idx)
-                ##
+                    eigen_vectors = self.stats_eigen[stats]['Q']
+                    grad = gmatmul(grad, eigen_vectors, transpose_b=True, reduce_dim=idx)
 
-                # grad = tf.Print(grad, [tf.convert_to_tensor('3'), tf.convert_to_tensor(var.name), grad.get_shape()])
                 if (self.stats[var]['assnBias'] is not None) and not self._blockdiag_bias:
                     # use homogeneous coordinates only works for 2D grad.
-                    # TO-DO: figure out how to factorize bias grad
+                    # TODO: figure out how to factorize bias grad
                     # un-stack bias grad
                     var_assn_bias = self.stats[var]['assnBias']
                     c_plus_one = int(grad.get_shape()[0])
@@ -814,7 +795,6 @@ class KfacOptimizer:
                     grad_dict[var_assn_bias] = grad_assn_bias
                     grad = grad_assn_weights
 
-                # grad = tf.Print(grad, [tf.convert_to_tensor('4'), tf.convert_to_tensor(var.name), grad.get_shape()])
                 if grad_reshape:
                     grad = tf.reshape(grad, grad_shape)
 
@@ -824,7 +804,7 @@ class KfacOptimizer:
 
         for g, var in zip(gradlist, varlist):
             grad = grad_dict[var]
-            ### clipping ###
+            # clipping
             if KFAC_DEBUG:
                 print(('apply clipping to %s' % var.name))
             tf.Print(grad, [tf.sqrt(tf.reduce_sum(tf.pow(grad, 2)))], "Euclidean norm of new grad")
@@ -858,9 +838,9 @@ class KfacOptimizer:
         varlist = var_list
         if varlist is None:
             varlist = tf.trainable_variables()
-        g = tf.gradients(loss, varlist)
+        gradients = tf.gradients(loss, varlist)
 
-        return [(a, b) for a, b in zip(g, varlist)]
+        return [(a, b) for a, b in zip(gradients, varlist)]
 
     def apply_gradients_kfac(self, grads):
         """
@@ -978,7 +958,7 @@ class KfacOptimizer:
             sgd_grads, sgd_var = zip(*grads)
 
             if self.max_grad_norm is not None:
-                sgd_grads, sgd_grad_norm = tf.clip_by_global_norm(sgd_grads, self.max_grad_norm)
+                sgd_grads, _ = tf.clip_by_global_norm(sgd_grads, self.max_grad_norm)
 
             sgd_grads = list(zip(sgd_grads, sgd_var))
 
