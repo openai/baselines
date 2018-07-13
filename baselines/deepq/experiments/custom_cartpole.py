@@ -33,7 +33,8 @@ def model(inpt, num_actions, scope, reuse=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train DQN on cartpole using a custom mlp")
     parser.add_argument('--no-render', default=False, action="store_true", help="Disable rendering")
-    parser.add_argument('--max-timesteps', default=50000, type=int, help="Maximum number of timesteps when not rendering")
+    parser.add_argument('--max-timesteps', default=50000, type=int,
+                        help="Maximum number of timesteps when not rendering")
     args = parser.parse_args()
 
     with tf_utils.make_session(8):

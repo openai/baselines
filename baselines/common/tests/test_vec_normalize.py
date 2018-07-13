@@ -10,25 +10,27 @@ from baselines.common.tests.test_common import _assert_eq
 
 ENV_ID = 'BreakoutNoFrameskip-v4'
 
+
 def test_runningmeanstd():
     """Test RunningMeanStd object"""
-    for (x1, x2, x3) in [
-         (np.random.randn(3), np.random.randn(4), np.random.randn(5)),
-         (np.random.randn(3, 2), np.random.randn(4, 2), np.random.randn(5, 2))]:
+    for (x_1, x_2, x_3) in [
+        (np.random.randn(3), np.random.randn(4), np.random.randn(5)),
+        (np.random.randn(3, 2), np.random.randn(4, 2), np.random.randn(5, 2))]:
+        rms = RunningMeanStd(epsilon=0.0, shape=x_1.shape[1:])
 
-        rms = RunningMeanStd(epsilon=0.0, shape=x1.shape[1:])
+        x = np.concatenate([x_1, x_2, x_3], axis=0)
+        moments_1 = [x.mean(axis=0), x.var(axis=0)]
+        rms.update(x_1)
+        rms.update(x_2)
+        rms.update(x_3)
+        moments_2 = [rms.mean, rms.var]
 
-        x = np.concatenate([x1, x2, x3], axis=0)
-        ms1 = [x.mean(axis=0), x.var(axis=0)]
-        rms.update(x1)
-        rms.update(x2)
-        rms.update(x3)
-        ms2 = [rms.mean, rms.var]
+        assert np.allclose(moments_1, moments_2)
 
-        assert np.allclose(ms1, ms2)
 
 def test_vec_env():
     """Test VecNormalize Object"""
+
     def make_env():
         return gym.make(ENV_ID)
 
@@ -40,7 +42,9 @@ def test_vec_env():
         obs, _, done, _ = env.step(actions)
     assert np.max(obs) <= 10
 
+
 def test_mpi_runningmeanstd():
     """Test RunningMeanStd object for MPI"""
-    return_code = subprocess.call(['mpirun', '--allow-run-as-root', '-np', '2', 'python', '-m', 'baselines.common.mpi_running_mean_std'])
+    return_code = subprocess.call(['mpirun', '--allow-run-as-root', '-np', '2',
+                                   'python', '-m', 'baselines.common.mpi_running_mean_std'])
     _assert_eq(return_code, 0)

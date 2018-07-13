@@ -15,11 +15,11 @@ from baselines.common.cg import conjugate_gradient
 from baselines.gail.statistics import Stats
 
 
-def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail=False):
+def traj_segment_generator(policy, env, horizon, stochastic, reward_giver=None, gail=False):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
 
-    :param pi: (MLPPolicy) the policy
+    :param policy: (MLPPolicy) the policy
     :param env: (Gym Environment) the environment
     :param horizon: (int) the number of timesteps to run per batch
     :param stochastic: (bool) use a stochastic policy
@@ -42,10 +42,10 @@ def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail
     assert not (gail and reward_giver is None), "You must pass a reward giver when using GAIL"
 
     # Initialize state variables
-    t = 0
-    ac = env.action_space.sample()  # not used, just so we have the datatype
+    step = 0
+    action = env.action_space.sample()  # not used, just so we have the datatype
     new = True
-    ob = env.reset()
+    observation = env.reset()
 
     cur_ep_ret = 0  # return in current episode
     cur_ep_len = 0  # len of current episode
@@ -55,42 +55,42 @@ def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail
     ep_lens = []  # Episode lengths
 
     # Initialize history arrays
-    obs = np.array([ob for _ in range(horizon)])
+    observations = np.array([observation for _ in range(horizon)])
     true_rews = np.zeros(horizon, 'float32')
     rews = np.zeros(horizon, 'float32')
     vpreds = np.zeros(horizon, 'float32')
     news = np.zeros(horizon, 'int32')
-    acs = np.array([ac for _ in range(horizon)])
-    prevacs = acs.copy()
+    actions = np.array([action for _ in range(horizon)])
+    prev_actions = actions.copy()
 
     while True:
-        prevac = ac
-        ac, vpred = pi.act(stochastic, ob)
+        prevac = action
+        action, vpred = policy.act(stochastic, observation)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
-        if t > 0 and t % horizon == 0:
-            yield {"ob": obs, "rew": rews, "vpred": vpreds, "new": news,
-                   "ac": acs, "prevac": prevacs, "nextvpred": vpred * (1 - new),
+        if step > 0 and step % horizon == 0:
+            yield {"ob": observations, "rew": rews, "vpred": vpreds, "new": news,
+                   "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
                    "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets}
-            _, vpred = pi.act(stochastic, ob)
+            _, vpred = policy.act(stochastic, observation)
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
             ep_true_rets = []
             ep_lens = []
-        i = t % horizon
-        obs[i] = ob
+        i = step % horizon
+        observations[i] = observation
         vpreds[i] = vpred
         news[i] = new
-        acs[i] = ac
-        prevacs[i] = prevac
+        actions[i] = action
+        prev_actions[i] = prevac
 
         if gail:
-            rew = reward_giver.get_reward(ob, ac)
-            ob, true_rew, new, _ = env.step(ac)
+            rew = reward_giver.get_reward(observation, action)
+            observation, true_rew, new, _ = env.step(action)
         else:
-            ob, rew, new, _ = env.step(ac)
+            observation, rew, new, _ = env.step(action)
             true_rew = rew
         rews[i] = rew
         true_rews[i] = true_rew
@@ -105,8 +105,8 @@ def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail
             cur_ep_ret = 0
             cur_ep_true_ret = 0
             cur_ep_len = 0
-            ob = env.reset()
-        t += 1
+            observation = env.reset()
+        step += 1
 
 
 def add_vtarg_and_adv(seg, gamma, lam):
@@ -124,10 +124,10 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["adv"] = gaelam = np.empty(rew_len, 'float32')
     rew = seg["rew"]
     lastgaelam = 0
-    for t in reversed(range(rew_len)):
-        nonterminal = 1 - new[t + 1]
-        delta = rew[t] + gamma * vpred[t + 1] * nonterminal - vpred[t]
-        gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
+    for step in reversed(range(rew_len)):
+        nonterminal = 1 - new[step + 1]
+        delta = rew[step] + gamma * vpred[step + 1] * nonterminal - vpred[step]
+        gaelam[step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
@@ -176,27 +176,27 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     ob_space = env.observation_space
     ac_space = env.action_space
     if using_gail:
-        pi = policy_func("pi", ob_space, ac_space, reuse=(pretrained_weight is not None))
-        oldpi = policy_func("oldpi", ob_space, ac_space)
+        policy = policy_func("pi", ob_space, ac_space, reuse=(pretrained_weight is not None))
+        old_policy = policy_func("oldpi", ob_space, ac_space)
     else:
-        pi = policy_func("pi", ob_space, ac_space, sess=sess)
-        oldpi = policy_func("oldpi", ob_space, ac_space, sess=sess)
+        policy = policy_func("pi", ob_space, ac_space, sess=sess)
+        old_policy = policy_func("oldpi", ob_space, ac_space, sess=sess)
 
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-    ob = tf_util.get_placeholder_cached(name="ob")
-    ac = pi.pdtype.sample_placeholder([None])
+    observation = tf_util.get_placeholder_cached(name="ob")
+    action = policy.pdtype.sample_placeholder([None])
 
-    kloldnew = oldpi.pd.kl(pi.pd)
-    ent = pi.pd.entropy()
+    kloldnew = old_policy.pd.kl(policy.pd)
+    ent = policy.pd.entropy()
     meankl = tf.reduce_mean(kloldnew)
     meanent = tf.reduce_mean(ent)
     entbonus = entcoeff * meanent
 
-    vferr = tf.reduce_mean(tf.square(pi.vpred - ret))
+    vferr = tf.reduce_mean(tf.square(policy.vpred - ret))
 
-    ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # advantage * pnew / pold
+    ratio = tf.exp(policy.pd.logp(action) - old_policy.pd.logp(action))  # advantage * pnew / pold
     surrgain = tf.reduce_mean(ratio * atarg)
 
     optimgain = surrgain + entbonus
@@ -205,7 +205,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
 
     dist = meankl
 
-    all_var_list = pi.get_trainable_variables()
+    all_var_list = policy.get_trainable_variables()
     if using_gail:
         var_list = [v for v in all_var_list if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
         vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
@@ -227,26 +227,27 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     start = 0
     tangents = []
     for shape in shapes:
-        sz = tf_util.intprod(shape)
-        tangents.append(tf.reshape(flat_tangent[start:start+sz], shape))
-        start += sz
-    gvp = tf.add_n([tf.reduce_sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
+        var_size = tf_util.intprod(shape)
+        tangents.append(tf.reshape(flat_tangent[start: start + var_size], shape))
+        start += var_size
+    gvp = tf.add_n([tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
     fvp = tf_util.flatgrad(gvp, var_list)
 
     assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                                          zipsame(oldpi.get_variables(), pi.get_variables())])
-    compute_losses = tf_util.function([ob, ac, atarg], losses)
-    compute_lossandgrad = tf_util.function([ob, ac, atarg], losses + [tf_util.flatgrad(optimgain, var_list)])
-    compute_fvp = tf_util.function([flat_tangent, ob, ac, atarg], fvp)
-    compute_vflossandgrad = tf_util.function([ob, ret], tf_util.flatgrad(vferr, vf_var_list))
+                                                          zipsame(old_policy.get_variables(), policy.get_variables())])
+    compute_losses = tf_util.function([observation, action, atarg], losses)
+    compute_lossandgrad = tf_util.function([observation, action, atarg],
+                                           losses + [tf_util.flatgrad(optimgain, var_list)])
+    compute_fvp = tf_util.function([flat_tangent, observation, action, atarg], fvp)
+    compute_vflossandgrad = tf_util.function([observation, ret], tf_util.flatgrad(vferr, vf_var_list))
 
     @contextmanager
     def timed(msg):
         if rank == 0:
             print(colorize(msg, color='magenta'))
-            tstart = time.time()
+            start_time = time.time()
             yield
-            print(colorize("done in %.3f seconds" % (time.time() - tstart), color='magenta'))
+            print(colorize("done in %.3f seconds" % (time.time() - start_time), color='magenta'))
         else:
             yield
 
@@ -256,25 +257,30 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         MPI.COMM_WORLD.Allreduce(x, out, op=MPI.SUM)
         out /= nworkers
         return out
+
     if using_gail:
         tf_util.initialize()
     else:
         tf_util.initialize(sess=sess)
+
     th_init = get_flat()
     MPI.COMM_WORLD.Bcast(th_init, root=0)
     set_from_flat(th_init)
+
     if using_gail:
         d_adam.sync()
     vfadam.sync()
+
     if rank == 0:
         print("Init param sum", th_init.sum(), flush=True)
 
     # Prepare for rollouts
     # ----------------------------------------
     if using_gail:
-        seg_gen = traj_segment_generator(pi, env, timesteps_per_batch, stochastic=True, reward_giver=reward_giver, gail=True)
+        seg_gen = traj_segment_generator(policy, env, timesteps_per_batch, stochastic=True,
+                                         reward_giver=reward_giver, gail=True)
     else:
-        seg_gen = traj_segment_generator(pi, env, timesteps_per_batch, stochastic=True)
+        seg_gen = traj_segment_generator(policy, env, timesteps_per_batch, stochastic=True)
 
     episodes_so_far = 0
     timesteps_so_far = 0
@@ -293,7 +299,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         # if provide pretrained weight
         if pretrained_weight is not None:
             # FIXME: Incorrect call argument...
-            tf_util.load_state(pretrained_weight, var_list=pi.get_variables())
+            tf_util.load_state(pretrained_weight, var_list=policy.get_variables())
 
     while True:
         if callback:
@@ -330,14 +336,14 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                 seg = seg_gen.__next__()
             add_vtarg_and_adv(seg, gamma, lam)
             # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-            ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+            observation, action, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
             vpredbefore = seg["vpred"]  # predicted value function before udpate
             atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
-            if hasattr(pi, "ret_rms"):
-                pi.ret_rms.update(tdlamret)
-            if hasattr(pi, "ob_rms"):
-                pi.ob_rms.update(ob)  # update running mean/std for policy
+            if hasattr(policy, "ret_rms"):
+                policy.ret_rms.update(tdlamret)
+            if hasattr(policy, "ob_rms"):
+                policy.ob_rms.update(observation)  # update running mean/std for policy
 
             args = seg["ob"], seg["ac"], atarg
             fvpargs = [arr[::5] for arr in args]
@@ -349,23 +355,23 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
 
             with timed("computegrad"):
                 if using_gail:
-                    *lossbefore, g = compute_lossandgrad(*args)
+                    *lossbefore, grad = compute_lossandgrad(*args)
                 else:
-                    *lossbefore, g = compute_lossandgrad(*args, sess=sess)
+                    *lossbefore, grad = compute_lossandgrad(*args, sess=sess)
             lossbefore = allmean(np.array(lossbefore))
-            g = allmean(g)
-            if np.allclose(g, 0):
+            grad = allmean(grad)
+            if np.allclose(grad, 0):
                 logger.log("Got zero gradient. not updating")
             else:
                 with timed("cg"):
-                    stepdir = conjugate_gradient(fisher_vector_product, g, cg_iters=cg_iters, verbose=rank == 0)
+                    stepdir = conjugate_gradient(fisher_vector_product, grad, cg_iters=cg_iters, verbose=rank == 0)
                 assert np.isfinite(stepdir).all()
                 shs = .5 * stepdir.dot(fisher_vector_product(stepdir))
                 # abs(shs) to avoid taking square root of negative values
-                lm = np.sqrt(abs(shs) / max_kl)
+                lagrande_multiplier = np.sqrt(abs(shs) / max_kl)
                 # logger.log("lagrange multiplier:", lm, "gnorm:", np.linalg.norm(g))
-                fullstep = stepdir / lm
-                expectedimprove = g.dot(fullstep)
+                fullstep = stepdir / lagrande_multiplier
+                expectedimprove = grad.dot(fullstep)
                 surrbefore = lossbefore[0]
                 stepsize = 1.0
                 thbefore = get_flat()
@@ -373,14 +379,14 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                     thnew = thbefore + fullstep * stepsize
                     set_from_flat(thnew)
                     if using_gail:
-                        meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args)))
+                        meanlosses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args)))
                     else:
-                        meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
+                        meanlosses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
                     improve = surr - surrbefore
                     logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
                     if not np.isfinite(meanlosses).all():
                         logger.log("Got non-finite value of losses -- bad!")
-                    elif kl > max_kl * 1.5:
+                    elif kl_loss > max_kl * 1.5:
                         logger.log("violated KL constraint. shrinking step.")
                     elif improve < 0:
                         logger.log("surrogate didn't improve. shrinking step.")
@@ -399,13 +405,13 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                 for _ in range(vf_iters):
                     for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                                                              include_final_partial_batch=False, batch_size=128):
-                        if hasattr(pi, "ob_rms"):
-                            pi.ob_rms.update(mbob)  # update running mean/std for policy
+                        if hasattr(policy, "ob_rms"):
+                            policy.ob_rms.update(mbob)  # update running mean/std for policy
                         if using_gail:
-                            g = allmean(compute_vflossandgrad(mbob, mbret))
+                            grad = allmean(compute_vflossandgrad(mbob, mbret))
                         else:
-                            g = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
-                        vfadam.update(g, vf_stepsize)
+                            grad = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
+                        vfadam.update(grad, vf_stepsize)
 
         g_losses = meanlosses
         for (lossname, lossval) in zip(loss_names, meanlosses):
@@ -417,18 +423,18 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
             # ------------------ Update D ------------------
             logger.log("Optimizing Discriminator...")
             logger.log(fmt_row(13, reward_giver.loss_name))
-            ob_expert, ac_expert = expert_dataset.get_next_batch(len(ob))
-            batch_size = len(ob) // d_step
+            ob_expert, ac_expert = expert_dataset.get_next_batch(len(observation))
+            batch_size = len(observation) // d_step
             d_losses = []  # list of tuples, each of which gives the loss for a minibatch
-            for ob_batch, ac_batch in dataset.iterbatches((ob, ac),
+            for ob_batch, ac_batch in dataset.iterbatches((observation, action),
                                                           include_final_partial_batch=False,
                                                           batch_size=batch_size):
                 ob_expert, ac_expert = expert_dataset.get_next_batch(len(ob_batch))
                 # update running mean/std for reward_giver
                 if hasattr(reward_giver, "obs_rms"):
                     reward_giver.obs_rms.update(np.concatenate((ob_batch, ob_expert), 0))
-                *newlosses, g = reward_giver.lossandgrad(ob_batch, ac_batch, ob_expert, ac_expert)
-                d_adam.update(allmean(g), d_stepsize)
+                *newlosses, grad = reward_giver.lossandgrad(ob_batch, ac_batch, ob_expert, ac_expert)
+                d_adam.update(allmean(grad), d_stepsize)
                 d_losses.append(newlosses)
             logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
 

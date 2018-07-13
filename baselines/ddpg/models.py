@@ -24,15 +24,15 @@ class Model(object):
     def perturbable_vars(self):
         return [var for var in self.trainable_vars if 'LayerNorm' not in var.name]
 
-    def fc(self, x):
+    def fc_with_relu(self, input_tensor):
         """
         Fully connected layer followed by ReLU
         with optional batchnorm
         """
-        x = tf.layers.dense(x, 64)
+        preactivation = tf.layers.dense(input_tensor, 64)
         if self.layer_norm:
-            x = tc.layers.layer_norm(x, center=True, scale=True)
-        return tf.nn.relu(x)
+            preactivation = tc.layers.layer_norm(preactivation, center=True, scale=True)
+        return tf.nn.relu(preactivation)
 
 
 class Actor(Model):
@@ -53,12 +53,12 @@ class Actor(Model):
             if reuse:
                 scope.reuse_variables()
 
-            x = self.fc(obs)
-            x = self.fc(x)
-            x = tf.layers.dense(x, self.nb_actions,
-                                kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
-            x = tf.nn.tanh(x)
-        return x
+            layer_1 = self.fc_with_relu(obs)
+            layer_2 = self.fc_with_relu(layer_1)
+            last_layer = tf.layers.dense(layer_2, self.nb_actions,
+                                         kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
+            squashed_out = tf.nn.tanh(last_layer)
+        return squashed_out
 
 
 class Critic(Model):
@@ -77,11 +77,11 @@ class Critic(Model):
             if reuse:
                 scope.reuse_variables()
 
-            x = self.fc(obs)
-            x = tf.concat([x, action], axis=-1)
-            x = self.fc(x)
-            x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
-        return x
+            layer_1 = self.fc_with_relu(obs)
+            layer_2 = tf.concat([layer_1, action], axis=-1)
+            layer_3 = self.fc_with_relu(layer_2)
+            value = tf.layers.dense(layer_3, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
+        return value
 
     @property
     def output_vars(self):

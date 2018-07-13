@@ -57,7 +57,8 @@ class Model(object):
         entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
         vpred = train_model.value_fn
-        vpredclipped = old_vpred_ph + tf.clip_by_value(train_model.value_fn - old_vpred_ph, - clip_range_ph, clip_range_ph)
+        vpredclipped = old_vpred_ph \
+                       + tf.clip_by_value(train_model.value_fn - old_vpred_ph, - clip_range_ph, clip_range_ph)
         vf_losses1 = tf.square(vpred - rewards_ph)
         vf_losses2 = tf.square(vpredclipped - rewards_ph)
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
@@ -90,7 +91,8 @@ class Model(object):
             :param values: (numpy array)
             :param neglogpacs: (numpy array)
             :param states: (numpy array) For recurrent policies
-            :return: policy gradient loss, value function loss, policy entropy,  approximation of kl divergence, _train (?)
+            :return: policy gradient loss, value function loss, policy entropy,
+                    approximation of kl divergence, clip fraction ?, _train (?)
             """
             advs = returns - values
             advs = (advs - advs.mean()) / (advs.std() + 1e-8)
@@ -180,12 +182,13 @@ class Runner(AbstractEnvRunner):
                 nextnonterminal = 1.0 - self.dones
                 nextvalues = last_values
             else:
-                nextnonterminal = 1.0 - mb_dones[t+1]
-                nextvalues = mb_values[t+1]
+                nextnonterminal = 1.0 - mb_dones[t + 1]
+                nextvalues = mb_values[t + 1]
             delta = mb_rewards[t] + self.gamma * nextvalues * nextnonterminal - mb_values[t]
             mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
         mb_returns = mb_advs + mb_values
-        return (*map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states, epinfos)
+        return (*map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states,
+                epinfos)
 
 
 # obs, returns, masks, actions, values, neglogpacs, states = runner.run()
@@ -208,12 +211,14 @@ def constfn(val):
     :param val: (float)
     :return: (function)
     """
+
     def f(_):
         return val
+
     return f
 
 
-def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
+def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate, vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
           log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2, save_interval=0, load_path=None):
     """
     Return a trained PPO2 model.
@@ -223,7 +228,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
     :param nsteps: (int) The number of steps to run for each environment
     :param total_timesteps: (int) The total number of samples
     :param ent_coef: (float) Entropy coefficient for the loss caculation
-    :param lr: (float or callable) The learning rate, it can a function
+    :param learning_rate: (float or callable) The learning rate, it can a function
     :param vf_coef: (float) Value function coefficient for the loss calculation
     :param max_grad_norm: (float) The maximum value for the gradiant clipping
     :param gamma: (float) Discount factor
@@ -236,10 +241,10 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
     :param load_path: (str) Path to a trained ppo2 model, set to None, it will learn from scratch
     :return: (Model) PPO2 model
     """
-    if isinstance(lr, float):
-        lr = constfn(lr)
+    if isinstance(learning_rate, float):
+        learning_rate = constfn(learning_rate)
     else:
-        assert callable(lr)
+        assert callable(learning_rate)
     if isinstance(cliprange, float):
         cliprange = constfn(cliprange)
     else:
@@ -257,8 +262,8 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
                                max_grad_norm=max_grad_norm)
     if save_interval and logger.get_dir():
         import cloudpickle
-        with open(os.path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
-            fh.write(cloudpickle.dumps(make_model))
+        with open(os.path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as file_handler:
+            file_handler.write(cloudpickle.dumps(make_model))
     model = make_model()
     if load_path is not None:
         model.load(load_path)
@@ -267,13 +272,13 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
     epinfobuf = deque(maxlen=100)
     tfirststart = time.time()
 
-    nupdates = total_timesteps//nbatch
-    for update in range(1, nupdates+1):
+    nupdates = total_timesteps // nbatch
+    for update in range(1, nupdates + 1):
         assert nbatch % nminibatches == 0
         nbatch_train = nbatch // nminibatches
         tstart = time.time()
         frac = 1.0 - (update - 1.0) / nupdates
-        lrnow = lr(frac)
+        lrnow = learning_rate(frac)
         cliprangenow = cliprange(frac)
         obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run()  # pylint: disable=E0632
         epinfobuf.extend(epinfos)
@@ -307,9 +312,9 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
         fps = int(nbatch / (tnow - tstart))
         if update % log_interval == 0 or update == 1:
             ev = explained_variance(values, returns)
-            logger.logkv("serial_timesteps", update*nsteps)
+            logger.logkv("serial_timesteps", update * nsteps)
             logger.logkv("nupdates", update)
-            logger.logkv("total_timesteps", update*nbatch)
+            logger.logkv("total_timesteps", update * nbatch)
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(ev))
             logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
