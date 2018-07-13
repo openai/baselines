@@ -22,7 +22,7 @@ class KfacOptimizer:
 
         :param learning_rate: (float) The learning rate
         :param momentum: (float) The momentum value for the TensorFlow momentum optimizer
-        :param clip_kl: (float) gradiant clipping for Kullback leiber
+        :param clip_kl: (float) gradient clipping for Kullback leiber
         :param kfac_update: (int) update kfac after kfac_update steps
         :param stats_accum_iter: (int) how may steps to accumulate stats
         :param full_stats_init: (bool) whether or not to fully initalize stats
@@ -37,8 +37,8 @@ class KfacOptimizer:
         :param factored_damping: (bool) use factored damping
         :param approx_t2: (bool) approximate T2 act and grad fisher
         :param use_float64: (bool) use 64-bit float
-        :param weight_decay_dict: (dict) custom weight decay coeff for a given gradiant
-        :param max_grad_norm: (float) The maximum value for the gradiant clipping
+        :param weight_decay_dict: (dict) custom weight decay coeff for a given gradient
+        :param max_grad_norm: (float) The maximum value for the gradient clipping
         """
         self.max_grad_norm = max_grad_norm
         self._lr = learning_rate
@@ -343,9 +343,9 @@ class KfacOptimizer:
         if varlist is None:
             varlist = tf.trainable_variables()
 
-        gradiant_sampled = tf.gradients(loss_sampled, varlist, name='gradientsSampled')
-        self.gradiant_sampled = gradiant_sampled
-        factors = self.get_factors(gradiant_sampled, varlist)
+        gradient_sampled = tf.gradients(loss_sampled, varlist, name='gradientsSampled')
+        self.gradient_sampled = gradient_sampled
+        factors = self.get_factors(gradient_sampled, varlist)
         stats = self.get_stats(factors, varlist)
 
         update_ops = []
@@ -654,7 +654,7 @@ class KfacOptimizer:
         """
         return the KFAC updates
 
-        :param gradlist: ([TensorFlow Tensor]) The gradiants
+        :param gradlist: ([TensorFlow Tensor]) The gradients
         :param varlist: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) the update list
         """
@@ -713,7 +713,8 @@ class KfacOptimizer:
                     eigen_values = detect_min_val(self.stats_eigen[stats][
                                          'e'], var, name='act', debug=KFAC_DEBUG)
 
-                    eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values, grad, facIndx=idx, ftype='act')
+                    eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values,
+                                                                 grad, facIndx=idx, ftype='act')
                     eig_vals.append(eigen_values)
                     grad = gmatmul(eigen_vectors, grad, transpose_a=True, reduce_dim=idx)
 
@@ -722,7 +723,8 @@ class KfacOptimizer:
                     eigen_values = detect_min_val(self.stats_eigen[stats][
                                          'e'], var, name='grad', debug=KFAC_DEBUG)
 
-                    eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values, grad, facIndx=idx, ftype='grad')
+                    eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values,
+                                                                 grad, facIndx=idx, ftype='grad')
                     eig_vals.append(eigen_values)
                     grad = gmatmul(grad, eigen_vectors, transpose_b=False, reduce_dim=idx)
 
@@ -747,7 +749,7 @@ class KfacOptimizer:
                             self._epsilon + weight_decay_coeff, 1. / num_factors)
                     eig_vals_tnorm_avg = [tf.reduce_mean(
                         tf.abs(e)) for e in eig_vals]
-                    for e, e_tnorm in zip(eig_vals, eig_vals_tnorm_avg):
+                    for eigen_val, e_tnorm in zip(eig_vals, eig_vals_tnorm_avg):
                         eig_tnorm_neg_list = [
                             item for item in eig_vals_tnorm_avg if item != e_tnorm]
                         if len(eig_vals) == 1:
@@ -760,12 +762,12 @@ class KfacOptimizer:
                                 lambda x, y: x * y, eig_tnorm_neg_list)
                             adjustment = tf.pow(
                                 tf.pow(e_tnorm, num_factors - 1.) / eig_tnorm_neg_list_prod, 1. / num_factors)
-                        coeffs *= (e + adjustment * damping)
+                        coeffs *= (eigen_val + adjustment * damping)
                 else:
                     coeffs = 1.
                     damping = (self._epsilon + weight_decay_coeff)
-                    for e in eig_vals:
-                        coeffs *= e
+                    for eigen_val in eig_vals:
+                        coeffs *= eigen_val
                     coeffs += damping
 
                 grad /= coeffs
@@ -829,11 +831,11 @@ class KfacOptimizer:
     @classmethod
     def compute_gradients(cls, loss, var_list=None):
         """
-        compute the gradiants from the loss and the parameters
+        compute the gradients from the loss and the parameters
 
         :param loss: ([TensorFlow Tensor]) The loss
         :param var_list: ([TensorFlow Tensor]) The parameters
-        :return: ([TensorFlow Tensor]) the gradiant
+        :return: ([TensorFlow Tensor]) the gradient
         """
         varlist = var_list
         if varlist is None:
@@ -844,9 +846,9 @@ class KfacOptimizer:
 
     def apply_gradients_kfac(self, grads):
         """
-        apply the kfac gradiant
+        apply the kfac gradient
 
-        :param grads: ([TensorFlow Tensor]) the gradiant
+        :param grads: ([TensorFlow Tensor]) the gradient
         :return: ([function], QueueRunner) Update functions, queue operation runner
         """
         g, varlist = list(zip(*grads))
@@ -854,7 +856,7 @@ class KfacOptimizer:
         if len(self.stats_eigen) == 0:
             self.get_stats_eigen()
 
-        qr = None
+        queue_runner = None
         # launch eigen-decomp on a queue thread
         if self._async:
             print('Use async eigen decomp')
@@ -872,7 +874,7 @@ class KfacOptimizer:
             def dequeue_op():
                 return queue.dequeue()
 
-            qr = tf.train.QueueRunner(queue, [enqueue_op])
+            queue_runner = tf.train.QueueRunner(queue, [enqueue_op])
 
         update_ops = []
         global_step_op = tf.assign_add(self.global_step, 1)
@@ -943,13 +945,13 @@ class KfacOptimizer:
 
                     update_ops.append(optim_op())
 
-        return tf.group(*update_ops), qr
+        return tf.group(*update_ops), queue_runner
 
     def apply_gradients(self, grads):
         """
-        apply the gradiant
+        apply the gradient
 
-        :param grads: ([TensorFlow Tensor]) the gradiant
+        :param grads: ([TensorFlow Tensor]) the gradient
         :return: (function, QueueRunner) train operation, queue operation runner
         """
         cold_optim = tf.train.MomentumOptimizer(self._cold_lr, self._momentum)
@@ -970,16 +972,16 @@ class KfacOptimizer:
                         sgd_step_op, [self.sgd_step, tf.convert_to_tensor('doing cold sgd step')])
             return tf.group(*[sgd_step_op, cold_optim_op])
 
-        kfac_optim_op, qr = self.apply_gradients_kfac(grads)
+        kfac_optim_op, queue_runner = self.apply_gradients_kfac(grads)
 
         def _warm_kfac_start():
             return kfac_optim_op
 
-        return tf.cond(tf.greater(self.sgd_step, self._cold_iter), _warm_kfac_start, _cold_sgd_start), qr
+        return tf.cond(tf.greater(self.sgd_step, self._cold_iter), _warm_kfac_start, _cold_sgd_start), queue_runner
 
     def minimize(self, loss, loss_sampled, var_list=None):
         """
-        minimize the gradiant loss
+        minimize the gradient loss
 
         :param loss: ([TensorFlow Tensor]) The loss
         :param loss_sampled: ([TensorFlow Tensor]) the loss function output

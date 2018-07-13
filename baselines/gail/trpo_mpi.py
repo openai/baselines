@@ -368,9 +368,9 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                 assert np.isfinite(stepdir).all()
                 shs = .5 * stepdir.dot(fisher_vector_product(stepdir))
                 # abs(shs) to avoid taking square root of negative values
-                lagrande_multiplier = np.sqrt(abs(shs) / max_kl)
+                lagrange_multiplier = np.sqrt(abs(shs) / max_kl)
                 # logger.log("lagrange multiplier:", lm, "gnorm:", np.linalg.norm(g))
-                fullstep = stepdir / lagrande_multiplier
+                fullstep = stepdir / lagrange_multiplier
                 expectedimprove = grad.dot(fullstep)
                 surrbefore = lossbefore[0]
                 stepsize = 1.0

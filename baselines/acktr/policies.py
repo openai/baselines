@@ -9,7 +9,7 @@ class GaussianMlpPolicy(object):
     def __init__(self, ob_dim, ac_dim):
         """
         Create a gaussian MLP policy
-        
+
         :param ob_dim: (int) Observation dimention
         :param ac_dim: (int) action dimention
         """
@@ -24,12 +24,14 @@ class GaussianMlpPolicy(object):
         oldac_dist = tf.placeholder(tf.float32, shape=[None, ac_dim * 2], name="oldac_dist")
         adv_n = tf.placeholder(tf.float32, shape=[None], name="adv")  # advantage function estimate
         wd_dict = {}
-        layer_1 = tf.nn.tanh(
-            dense(ob_no, 64, "h1", weight_init=tf_util.normc_initializer(1.0), bias_init=0.0, weight_loss_dict=wd_dict))
-        layer_2 = tf.nn.tanh(
-            dense(layer_1, 64, "h2", weight_init=tf_util.normc_initializer(1.0), bias_init=0.0, weight_loss_dict=wd_dict))
-        mean_na = dense(layer_2, ac_dim, "mean", weight_init=tf_util.normc_initializer(0.1), bias_init=0.0,
-                        weight_loss_dict=wd_dict)  # Mean control output
+        layer_1 = tf.nn.tanh(dense(ob_no, 64, "h1",
+                                   weight_init=tf_util.normc_initializer(1.0),
+                                   bias_init=0.0, weight_loss_dict=wd_dict))
+        layer_2 = tf.nn.tanh(dense(layer_1, 64, "h2",
+                                   weight_init=tf_util.normc_initializer(1.0),
+                                   bias_init=0.0, weight_loss_dict=wd_dict))
+        mean_na = dense(layer_2, ac_dim, "mean", weight_init=tf_util.normc_initializer(0.1),
+                        bias_init=0.0, weight_loss_dict=wd_dict)  # Mean control output
         self.wd_dict = wd_dict
         # Variance on outputs
         self.logstd_1a = logstd_1a = tf.get_variable("logstd", [ac_dim], tf.float32, tf.zeros_initializer())
@@ -65,7 +67,7 @@ class GaussianMlpPolicy(object):
     def act(self, ob):
         """
         get the action from an observation
-        
+
         :param ob: ([float]) observation
         :return: ([float], [float], [float]) action, action_proba, logp
         """

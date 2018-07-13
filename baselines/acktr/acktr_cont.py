@@ -94,9 +94,9 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
     # start queue runners
     enqueue_threads = []
     coord = tf.train.Coordinator()
-    for qr in [q_runner, vf.q_runner]:
-        assert qr is not None
-        enqueue_threads.extend(qr.create_threads(tf.get_default_session(), coord=coord, start=True))
+    for queue_runner in [q_runner, vf.q_runner]:
+        assert queue_runner is not None
+        enqueue_threads.extend(queue_runner.create_threads(tf.get_default_session(), coord=coord, start=True))
 
     i = 0
     timesteps_so_far = 0
