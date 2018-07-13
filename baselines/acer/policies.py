@@ -105,7 +105,7 @@ class AcerLstmPolicy(AcerPolicy):
             # lstm
             xs = batch_to_seq(h, nenv, nsteps)
             ms = batch_to_seq(self.masks_ph, nenv, nsteps)
-            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
+            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', n_hidden=nlstm)
             h5 = seq_to_batch(h5)
 
             pi_logits = fc(h5, 'pi', self.nact, init_scale=0.01)

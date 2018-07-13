@@ -209,7 +209,7 @@ class Model(object):
         with tf.control_dependencies([_opt_op]):
             _train = tf.group(ema_apply_op)
 
-        lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
+        lr = Scheduler(initial_value=lr, nvalues=total_timesteps, schedule=lrschedule)
 
         # Ops/Summaries to run, and their names for logging
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]

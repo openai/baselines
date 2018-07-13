@@ -83,7 +83,7 @@ class Model(object):
             optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads, params)))
         self.q_runner = q_runner
-        self.lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
+        self.lr = Scheduler(initial_value=lr, nvalues=total_timesteps, schedule=lrschedule)
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values

@@ -23,6 +23,7 @@ def calc_entropy(logits):
     :param logits: (TensorFlow Tensor) The input probability for each action
     :return: (TensorFlow Tensor) The Entropy of the output values of the network
     """
+    # Compute softmax
     a0 = logits - tf.reduce_max(logits, 1, keep_dims=True)
     ea0 = tf.exp(a0)
     z0 = tf.reduce_sum(ea0, 1, keep_dims=True)
@@ -30,14 +31,14 @@ def calc_entropy(logits):
     return tf.reduce_sum(p0 * (tf.log(z0) - a0), 1)
 
 
-def calc_entropy_softmax(p0):
+def calc_entropy_softmax(action_proba):
     """
     Calculates the softmax entropy of the output values of the network
 
-    :param p0: (TensorFlow Tensor) The input probability for each action
+    :param action_proba: (TensorFlow Tensor) The input probability for each action
     :return: (TensorFlow Tensor) The softmax entropy of the output values of the network
     """
-    return - tf.reduce_sum(p0 * tf.log(p0 + 1e-6), axis=1)
+    return - tf.reduce_sum(action_proba * tf.log(action_proba + 1e-6), axis=1)
 
 
 def mse(pred, target):
@@ -58,7 +59,8 @@ def ortho_init(scale=1.0):
     :param scale: (float) The output scale
     :return: (function) an initialization function for the weights
     """
-    def _ortho_init(shape, dtype, partition_info=None):
+    # _ortho_init(shape, dtype, partition_info=None)
+    def _ortho_init(shape, *_, **_kwargs):
         # lasagne ortho init for tf
         shape = tuple(shape)
         if len(shape) == 2:
@@ -76,11 +78,11 @@ def ortho_init(scale=1.0):
     return _ortho_init
 
 
-def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
+def conv(input_tensor, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
     """
     Creates a 2d convolutional layer for TensorFlow
 
-    :param x: (TensorFlow Tensor) The input tensor for the convolution
+    :param input_tensor: (TensorFlow Tensor) The input tensor for the convolution
     :param scope: (str) The TensorFlow variable scope
     :param nf: (int) The number of filters
     :param rf: (int) The filter size
@@ -102,21 +104,21 @@ def conv(x, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='
     else:
         raise NotImplementedError
     bias_var_shape = [nf] if one_dim_bias else [1, nf, 1, 1]
-    nin = x.get_shape()[channel_ax].value
+    nin = input_tensor.get_shape()[channel_ax].value
     wshape = [rf, rf, nin, nf]
     with tf.variable_scope(scope):
-        w = tf.get_variable("w", wshape, initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", bias_var_shape, initializer=tf.constant_initializer(0.0))
+        weight = tf.get_variable("w", wshape, initializer=ortho_init(init_scale))
+        bias = tf.get_variable("b", bias_var_shape, initializer=tf.constant_initializer(0.0))
         if not one_dim_bias and data_format == 'NHWC':
-            b = tf.reshape(b, bshape)
-        return b + tf.nn.conv2d(x, w, strides=strides, padding=pad, data_format=data_format)
+            bias = tf.reshape(bias, bshape)
+        return bias + tf.nn.conv2d(input_tensor, weight, strides=strides, padding=pad, data_format=data_format)
 
 
-def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
+def fc(input_tensor, scope, nh, *, init_scale=1.0, init_bias=0.0):
     """
     Creates a fully connected layer for TensorFlow
 
-    :param x: (TensorFlow Tensor) The input tensor for the fully connected layer
+    :param input_tensor: (TensorFlow Tensor) The input tensor for the fully connected layer
     :param scope: (str) The TensorFlow variable scope
     :param nh: (int) The number of hidden neurons
     :param init_scale: (int) The initialization scale
@@ -124,140 +126,143 @@ def fc(x, scope, nh, *, init_scale=1.0, init_bias=0.0):
     :return: (TensorFlow Tensor) fully connected layer
     """
     with tf.variable_scope(scope):
-        nin = x.get_shape()[1].value
-        w = tf.get_variable("w", [nin, nh], initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
-        return tf.matmul(x, w) + b
+        nin = input_tensor.get_shape()[1].value
+        weight = tf.get_variable("w", [nin, nh], initializer=ortho_init(init_scale))
+        bias = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
+        return tf.matmul(input_tensor, weight) + bias
 
 
-def batch_to_seq(h, nbatch, nsteps, flat=False):
+def batch_to_seq(tensor_batch, nbatch, nsteps, flat=False):
     """
     Transform a batch of Tensors, into a sequence of Tensors for reccurent policies
 
-    :param h: (TensorFlow Tensor) The input tensor to unroll
+    :param tensor_batch: (TensorFlow Tensor) The input tensor to unroll
     :param nbatch: (int) The number of batch to run (nenvs * nsteps)
     :param nsteps: (int) The number of steps to run for each environment
     :param flat: (bool) If the input Tensor is flat
     :return: (TensorFlow Tensor) sequence of Tensors for reccurent policies
     """
     if flat:
-        h = tf.reshape(h, [nbatch, nsteps])
+        tensor_batch = tf.reshape(tensor_batch, [nbatch, nsteps])
     else:
-        h = tf.reshape(h, [nbatch, nsteps, -1])
-    return [tf.squeeze(v, [1]) for v in tf.split(axis=1, num_or_size_splits=nsteps, value=h)]
+        tensor_batch = tf.reshape(tensor_batch, [nbatch, nsteps, -1])
+    return [tf.squeeze(v, [1]) for v in tf.split(axis=1, num_or_size_splits=nsteps, value=tensor_batch)]
 
 
-def seq_to_batch(h, flat=False):
+def seq_to_batch(tensor_sequence, flat=False):
     """
     Transform a sequence of Tensors, into a batch of Tensors for reccurent policies
 
-    :param h: (TensorFlow Tensor) The input tensor to batch
+    :param tensor_sequence: (TensorFlow Tensor) The input tensor to batch
     :param flat: (bool) If the input Tensor is flat
     :return: (TensorFlow Tensor) batch of Tensors for reccurent policies
     """
-    shape = h[0].get_shape().as_list()
+    shape = tensor_sequence[0].get_shape().as_list()
     if not flat:
         assert (len(shape) > 1)
-        nh = h[0].get_shape()[-1].value
-        return tf.reshape(tf.concat(axis=1, values=h), [-1, nh])
+        nh = tensor_sequence[0].get_shape()[-1].value
+        return tf.reshape(tf.concat(axis=1, values=tensor_sequence), [-1, nh])
     else:
-        return tf.reshape(tf.stack(values=h, axis=1), [-1])
+        return tf.reshape(tf.stack(values=tensor_sequence, axis=1), [-1])
 
 
-def lstm(xs, ms, s, scope, nh, init_scale=1.0, layer_norm=False):
+def lstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale=1.0, layer_norm=False):
     """
     Creates an Long Short Term Memory (LSTM) cell for TensorFlow
 
-    :param xs: (TensorFlow Tensor) The input tensor for the LSTM cell
-    :param ms: (TensorFlow Tensor) The mask tensor for the LSTM cell
-    :param s: (TensorFlow Tensor) The state tensor for the LSTM cell
+    :param input_tensor: (TensorFlow Tensor) The input tensor for the LSTM cell
+    :param mask_tensor: (TensorFlow Tensor) The mask tensor for the LSTM cell
+    :param cell_state: (TensorFlow Tensor) The state tensor for the LSTM cell
     :param scope: (str) The TensorFlow variable scope
-    :param nh: (int) The number of hidden neurons
+    :param n_hidden: (int) The number of hidden neurons
     :param init_scale: (int) The initialization scale
     :param layer_norm: (bool) Whether to apply Layer Normalization or not
     :return: (TensorFlow Tensor) LSTM cell
     """
-    nbatch, nin = [v.value for v in xs[0].get_shape()]
+    _, n_input = [v.value for v in input_tensor[0].get_shape()]
     with tf.variable_scope(scope):
-        wx = tf.get_variable("wx", [nin, nh * 4], initializer=ortho_init(init_scale))
-        wh = tf.get_variable("wh", [nh, nh * 4], initializer=ortho_init(init_scale))
-        b = tf.get_variable("b", [nh * 4], initializer=tf.constant_initializer(0.0))
+        weight_x = tf.get_variable("wx", [n_input, n_hidden * 4], initializer=ortho_init(init_scale))
+        weight_h = tf.get_variable("wh", [n_hidden, n_hidden * 4], initializer=ortho_init(init_scale))
+        bias = tf.get_variable("b", [n_hidden * 4], initializer=tf.constant_initializer(0.0))
 
         if layer_norm:
             # Gain and bias of layer norm
-            gx = tf.get_variable("gx", [nh * 4], initializer=tf.constant_initializer(1.0))
-            bx = tf.get_variable("bx", [nh * 4], initializer=tf.constant_initializer(0.0))
+            gain_x = tf.get_variable("gx", [n_hidden * 4], initializer=tf.constant_initializer(1.0))
+            bias_x = tf.get_variable("bx", [n_hidden * 4], initializer=tf.constant_initializer(0.0))
 
-            gh = tf.get_variable("gh", [nh * 4], initializer=tf.constant_initializer(1.0))
-            bh = tf.get_variable("bh", [nh * 4], initializer=tf.constant_initializer(0.0))
+            gain_h = tf.get_variable("gh", [n_hidden * 4], initializer=tf.constant_initializer(1.0))
+            bias_h = tf.get_variable("bh", [n_hidden * 4], initializer=tf.constant_initializer(0.0))
 
-            gc = tf.get_variable("gc", [nh], initializer=tf.constant_initializer(1.0))
-            bc = tf.get_variable("bc", [nh], initializer=tf.constant_initializer(0.0))
+            gain_c = tf.get_variable("gc", [n_hidden], initializer=tf.constant_initializer(1.0))
+            bias_c = tf.get_variable("bc", [n_hidden], initializer=tf.constant_initializer(0.0))
 
-    c, h = tf.split(axis=1, num_or_size_splits=2, value=s)
-    for idx, (x, m) in enumerate(zip(xs, ms)):
-        c = c * (1 - m)
-        h = h * (1 - m)
+    c, h = tf.split(axis=1, num_or_size_splits=2, value=cell_state)
+    for idx, (x, mask) in enumerate(zip(input_tensor, mask_tensor)):
+        c = c * (1 - mask)
+        h = h * (1 - mask)
         if layer_norm:
-            z = _ln(tf.matmul(x, wx), gx, bx) + _ln(tf.matmul(h, wh), gh, bh) + b
+            z = _ln(tf.matmul(x, weight_x), gain_x, bias_x) + _ln(tf.matmul(h, weight_h), gain_h, bias_h) + bias
         else:
-            z = tf.matmul(x, wx) + tf.matmul(h, wh) + b
+            z = tf.matmul(x, weight_x) + tf.matmul(h, weight_h) + bias
         i, f, o, u = tf.split(axis=1, num_or_size_splits=4, value=z)
         i = tf.nn.sigmoid(i)
         f = tf.nn.sigmoid(f)
         o = tf.nn.sigmoid(o)
         u = tf.tanh(u)
         c = f * c + i * u
-        h = o * tf.tanh(c)
-        xs[idx] = h
-    s = tf.concat(axis=1, values=[c, h])
-    return xs, s
+        if layer_norm:
+            h = o * tf.tanh(_ln(c, gain_c, bias_c))
+        else:
+            h = o * tf.tanh(c)
+        input_tensor[idx] = h
+    cell_state = tf.concat(axis=1, values=[c, h])
+    return input_tensor, cell_state
 
 
-def _ln(x, g, b, e=1e-5, axes=None):
+def _ln(input_tensor, gain, bias, epsilon=1e-5, axes=None):
     """
-    Creates a normalizing layer for TensorFlow
+    Apply layer normalisation.
 
-    :param x: (TensorFlow Tensor) The input tensor for the Layer normalization
-    :param g: (TensorFlow Tensor) The scale tensor for the Layer normalization
-    :param b: (TensorFlow Tensor) The bias tensor for the Layer normalization
-    :param e: (float) The epsilon value for floating point calculations
+    :param input_tensor: (TensorFlow Tensor) The input tensor for the Layer normalization
+    :param gain: (TensorFlow Tensor) The scale tensor for the Layer normalization
+    :param bias: (TensorFlow Tensor) The bias tensor for the Layer normalization
+    :param epsilon: (float) The epsilon value for floating point calculations
     :param axes: (tuple, list or int) The axes to apply the mean and variance calculation
     :return: (TensorFlow Tensor) a normalizing layer
     """
     if axes is None:
         axes = [1]
-    u, s = tf.nn.moments(x, axes=axes, keep_dims=True)
-    x = (x - u) / tf.sqrt(s + e)
-    x = x * g + b
-    return x
+    mean, variance = tf.nn.moments(input_tensor, axes=axes, keep_dims=True)
+    input_tensor = (input_tensor - mean) / tf.sqrt(variance + epsilon)
+    input_tensor = input_tensor * gain + bias
+    return input_tensor
 
 
-def lnlstm(xs, ms, s, scope, nh, init_scale=1.0):
+def lnlstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale=1.0):
     """
-    Creates a Layer normalized LSTM (LNLSTM) cell for TensorFlow
+    Creates a LSTM with Layer Normalization (LNLSTM) cell for TensorFlow
 
-    :param xs: (TensorFlow Tensor) The input tensor for the LSTM cell
-    :param ms: (TensorFlow Tensor) The mask tensor for the LSTM cell
-    :param s: (TensorFlow Tensor) The state tensor for the LSTM cell
+    :param input_tensor: (TensorFlow Tensor) The input tensor for the LSTM cell
+    :param mask_tensor: (TensorFlow Tensor) The mask tensor for the LSTM cell
+    :param cell_state: (TensorFlow Tensor) The state tensor for the LSTM cell
     :param scope: (str) The TensorFlow variable scope
-    :param nh: (int) The number of hidden neurons
+    :param n_hidden: (int) The number of hidden neurons
     :param init_scale: (int) The initialization scale
     :return: (TensorFlow Tensor) LNLSTM cell
     """
-    return lstm(xs, ms, s, scope, nh, init_scale, layer_norm=True)
+    return lstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale, layer_norm=True)
 
 
-def conv_to_fc(x):
+def conv_to_fc(input_tensor):
     """
     Reshapes a Tensor from a convolutional network to a Tensor for a fully connected network
 
-    :param x: (TensorFlow Tensor) The convolutional input tensor
+    :param input_tensor: (TensorFlow Tensor) The convolutional input tensor
     :return: (TensorFlow Tensor) The fully connected output tensor
     """
-    nh = np.prod([v.value for v in x.get_shape()[1:]])
-    x = tf.reshape(x, [-1, nh])
-    return x
+    n_hidden = np.prod([v.value for v in input_tensor.get_shape()[1:]])
+    input_tensor = tf.reshape(input_tensor, [-1, n_hidden])
+    return input_tensor
 
 
 def discount_with_dones(rewards, dones, gamma):
@@ -270,10 +275,10 @@ def discount_with_dones(rewards, dones, gamma):
     :return: ([float]) The discounted rewards
     """
     discounted = []
-    r = 0
+    ret = 0  # Return: discounted reward
     for reward, done in zip(rewards[::-1], dones[::-1]):
-        r = reward + gamma * r * (1. - done)  # fixed off by one bug
-        discounted.append(r)
+        ret = reward + gamma * ret * (1. - done)  # fixed off by one bug
+        discounted.append(ret)
     return discounted[::-1]
 
 
@@ -288,14 +293,14 @@ def find_trainable_variables(key):
         return tf.trainable_variables()
 
 
-def make_path(f):
+def make_path(path):
     """
     For a given path, create the folders if they do not exist
 
-    :param f: (str) The path
+    :param path: (str) The path
     :return: (bool) Whether or not it finished correctly
     """
-    return os.makedirs(f, exist_ok=True)
+    return os.makedirs(path, exist_ok=True)
 
 
 def constant(_):
@@ -308,57 +313,57 @@ def constant(_):
     return 1.
 
 
-def linear(p):
+def linear(progress):
     """
     Returns a linear value for the Scheduler
 
-    :param p: (float) The input value
-    :return: (float) 1 - p
+    :param progress: (float) Current progress status (in [0, 1])
+    :return: (float) 1 - progress
     """
-    return 1 - p
+    return 1 - progress
 
 
-def middle_drop(p):
+def middle_drop(progress):
     """
     Returns a linear value with a drop near the middle to a constant value for the Scheduler
 
-    :param p: (float) The input value
-    :return: (float) 1 - p if (1 - p) >= 0.75 else 0.075
+    :param progress: (float) Current progress status (in [0, 1])
+    :return: (float) 1 - progress if (1 - progress) >= 0.75 else 0.075
     """
     eps = 0.75
-    if 1 - p < eps:
+    if 1 - progress < eps:
         return eps * 0.1
-    return 1 - p
+    return 1 - progress
 
 
-def double_linear_con(p):
+def double_linear_con(progress):
     """
-    Returns a linear value (x2) with a flattend tail for the Scheduler
+    Returns a linear value (x2) with a flattened tail for the Scheduler
 
-    :param p: (float) The input value
-    :return: (float) 1 - p*2 if (1 - p*2) >= 0.125 else 0.125
+    :param progress: (float) Current progress status (in [0, 1])
+    :return: (float) 1 - progress*2 if (1 - progress*2) >= 0.125 else 0.125
     """
-    p *= 2
+    progress *= 2
     eps = 0.125
-    if 1 - p < eps:
+    if 1 - progress < eps:
         return eps
-    return 1 - p
+    return 1 - progress
 
 
-def double_middle_drop(p):
+def double_middle_drop(progress):
     """
     Returns a linear value with two drops near the middle to a constant value for the Scheduler
 
-    :param p: (float) The input value
+    :param progress: (float) Current progress status (in [0, 1])
     :return: (float) if 0.75 <= 1 - p: 1 - p, if 0.25 <= 1 - p < 0.75: 0.75, if 1 - p < 0.25: 0.125
     """
     eps1 = 0.75
     eps2 = 0.25
-    if 1 - p < eps1:
-        if 1 - p < eps2:
+    if 1 - progress < eps1:
+        if 1 - progress < eps2:
             return eps2 * 0.5
         return eps1 * 0.1
-    return 1 - p
+    return 1 - progress
 
 
 schedules = {
@@ -371,16 +376,16 @@ schedules = {
 
 
 class Scheduler(object):
-    def __init__(self, v, nvalues, schedule):
+    def __init__(self, initial_value, nvalues, schedule):
         """
         Update a value every iteration, with a specific curve
 
-        :param v: (float) initial value
+        :param initial_value: (float) initial value
         :param nvalues: (int) the total number of iterations
         :param schedule: (function) the curve you wish to follow for your value
         """
         self.n = 0.
-        self.v = v
+        self.initial_value = initial_value
         self.nvalues = nvalues
         self.schedule = schedules[schedule]
 
@@ -390,7 +395,7 @@ class Scheduler(object):
 
         :return: (float) the current value
         """
-        current_value = self.v * self.schedule(self.n / self.nvalues)
+        current_value = self.initial_value * self.schedule(self.n / self.nvalues)
         self.n += 1.
         return current_value
 
@@ -401,7 +406,7 @@ class Scheduler(object):
         :param steps: (int) The current number of iterations
         :return: (float) the value for the current number of iterations
         """
-        return self.v * self.schedule(steps / self.nvalues)
+        return self.initial_value * self.schedule(steps / self.nvalues)
 
 
 class EpisodeStats:
@@ -413,7 +418,7 @@ class EpisodeStats:
         :param nenvs: (int) The number of environments
         """
         self.episode_rewards = []
-        for i in range(nenvs):
+        for _ in range(nenvs):
             self.episode_rewards.append([])
         self.lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
         self.rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards

@@ -73,7 +73,7 @@ class LstmPolicy(A2CPolicy):
             h = nature_cnn(self.obs_ph, **kwargs)
             xs = batch_to_seq(h, self.nenv, nsteps)
             ms = batch_to_seq(self.masks_ph, self.nenv, nsteps)
-            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm, layer_norm=layer_norm)
+            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', n_hidden=nlstm, layer_norm=layer_norm)
             h5 = seq_to_batch(h5)
             vf = fc(h5, 'v', 1)
             self.pd, self.pi = self.pdtype.probability_distribution_from_latent(h5)
