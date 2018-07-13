@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from baselines.a2c.policies import nature_cnn
-from baselines.a2c.utils import fc, batch_to_seq, seq_to_batch, lstm, sample
+from baselines.a2c.utils import linear, batch_to_seq, seq_to_batch, lstm, sample
 
 
 class AcerPolicy(object):
@@ -74,9 +74,9 @@ class AcerCnnPolicy(AcerPolicy):
         super(AcerCnnPolicy, self).__init__(sess, ob_space, ac_space, nenv, nsteps, nstack, reuse)
         with tf.variable_scope("model", reuse=reuse):
             h = nature_cnn(self.obs_ph)
-            pi_logits = fc(h, 'pi', self.nact, init_scale=0.01)
+            pi_logits = linear(h, 'pi', self.nact, init_scale=0.01)
             pi = tf.nn.softmax(pi_logits)
-            q = fc(h, 'q', self.nact)
+            q = linear(h, 'q', self.nact)
 
         self.a = sample(pi_logits)  # could change this to use self.pi instead
         self.initial_state = []  # not stateful
@@ -108,9 +108,9 @@ class AcerLstmPolicy(AcerPolicy):
             h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', n_hidden=nlstm)
             h5 = seq_to_batch(h5)
 
-            pi_logits = fc(h5, 'pi', self.nact, init_scale=0.01)
+            pi_logits = linear(h5, 'pi', self.nact, init_scale=0.01)
             pi = tf.nn.softmax(pi_logits)
-            q = fc(h5, 'q', self.nact)
+            q = linear(h5, 'q', self.nact)
 
         self.a = sample(pi_logits)  # could change this to use self.pi instead
         self.initial_state = np.zeros((nenv, nlstm * 2), dtype=np.float32)

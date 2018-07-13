@@ -4,7 +4,7 @@ import numpy as np
 from gym import spaces
 
 import baselines.common.tf_util as tf_util
-from baselines.a2c.utils import fc
+from baselines.a2c.utils import linear
 
 
 class ProbabilityDistribution(object):
@@ -168,7 +168,7 @@ class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
         :param init_bias: (float) the inital bias of the distribution
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
         """
-        pdparam = fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
+        pdparam = linear(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
         return self.probability_distribution_from_flat(pdparam), pdparam
 
     def param_shape(self):
@@ -230,7 +230,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
         :param init_bias: (float) the inital bias of the distribution
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
         """
-        mean = fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
+        mean = linear(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         return self.probability_distribution_from_flat(pdparam), mean

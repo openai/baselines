@@ -53,21 +53,21 @@ class Model(object):
         self.model = step_model = policy(sess, ob_space, ac_space, nenvs, 1, reuse=False)
         self.model2 = train_model = policy(sess, ob_space, ac_space, nenvs * nsteps, nsteps, reuse=True)
 
-        logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=action_ph)
-        self.logits = train_model.pi
+        logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
+        self.logits = train_model.policy
 
         # training loss
         pg_loss = tf.reduce_mean(advs_ph * logpac)
-        entropy = tf.reduce_mean(calc_entropy(train_model.pi))
+        entropy = tf.reduce_mean(calc_entropy(train_model.policy))
         pg_loss = pg_loss - ent_coef * entropy
-        vf_loss = mse(tf.squeeze(train_model.vf), rewards_ph)
+        vf_loss = mse(tf.squeeze(train_model.value_fn), rewards_ph)
         train_loss = pg_loss + vf_coef * vf_loss
 
         # Fisher loss construction
         self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(logpac)
-        sample_net = train_model.vf + tf.random_normal(tf.shape(train_model.vf))
+        sample_net = train_model.value_fn + tf.random_normal(tf.shape(train_model.value_fn))
         self.vf_fisher = vf_fisher_loss = - vf_fisher_coef * tf.reduce_mean(
-            tf.pow(train_model.vf - tf.stop_gradient(sample_net), 2))
+            tf.pow(train_model.value_fn - tf.stop_gradient(sample_net), 2))
         self.joint_fisher = pg_fisher_loss + vf_fisher_loss
 
         self.params = params = find_trainable_variables("model")

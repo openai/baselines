@@ -114,7 +114,7 @@ def conv(input_tensor, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, da
         return bias + tf.nn.conv2d(input_tensor, weight, strides=strides, padding=pad, data_format=data_format)
 
 
-def fc(input_tensor, scope, nh, *, init_scale=1.0, init_bias=0.0):
+def linear(input_tensor, scope, nh, *, init_scale=1.0, init_bias=0.0):
     """
     Creates a fully connected layer for TensorFlow
 
@@ -160,19 +160,19 @@ def seq_to_batch(tensor_sequence, flat=False):
     shape = tensor_sequence[0].get_shape().as_list()
     if not flat:
         assert (len(shape) > 1)
-        nh = tensor_sequence[0].get_shape()[-1].value
-        return tf.reshape(tf.concat(axis=1, values=tensor_sequence), [-1, nh])
+        n_hidden = tensor_sequence[0].get_shape()[-1].value
+        return tf.reshape(tf.concat(axis=1, values=tensor_sequence), [-1, n_hidden])
     else:
         return tf.reshape(tf.stack(values=tensor_sequence, axis=1), [-1])
 
 
-def lstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale=1.0, layer_norm=False):
+def lstm(input_tensor, mask_tensor, cell_state_hidden, scope, n_hidden, init_scale=1.0, layer_norm=False):
     """
     Creates an Long Short Term Memory (LSTM) cell for TensorFlow
 
     :param input_tensor: (TensorFlow Tensor) The input tensor for the LSTM cell
     :param mask_tensor: (TensorFlow Tensor) The mask tensor for the LSTM cell
-    :param cell_state: (TensorFlow Tensor) The state tensor for the LSTM cell
+    :param cell_state_hidden: (TensorFlow Tensor) The state tensor for the LSTM cell
     :param scope: (str) The TensorFlow variable scope
     :param n_hidden: (int) The number of hidden neurons
     :param init_scale: (int) The initialization scale
@@ -196,27 +196,27 @@ def lstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale=1.0,
             gain_c = tf.get_variable("gc", [n_hidden], initializer=tf.constant_initializer(1.0))
             bias_c = tf.get_variable("bc", [n_hidden], initializer=tf.constant_initializer(0.0))
 
-    c, h = tf.split(axis=1, num_or_size_splits=2, value=cell_state)
+    cell_state, hidden = tf.split(axis=1, num_or_size_splits=2, value=cell_state_hidden)
     for idx, (x, mask) in enumerate(zip(input_tensor, mask_tensor)):
-        c = c * (1 - mask)
-        h = h * (1 - mask)
+        cell_state = cell_state * (1 - mask)
+        hidden = hidden * (1 - mask)
         if layer_norm:
-            z = _ln(tf.matmul(x, weight_x), gain_x, bias_x) + _ln(tf.matmul(h, weight_h), gain_h, bias_h) + bias
+            gates = _ln(tf.matmul(x, weight_x), gain_x, bias_x) + _ln(tf.matmul(hidden, weight_h), gain_h, bias_h) + bias
         else:
-            z = tf.matmul(x, weight_x) + tf.matmul(h, weight_h) + bias
-        i, f, o, u = tf.split(axis=1, num_or_size_splits=4, value=z)
-        i = tf.nn.sigmoid(i)
-        f = tf.nn.sigmoid(f)
-        o = tf.nn.sigmoid(o)
-        u = tf.tanh(u)
-        c = f * c + i * u
+            gates = tf.matmul(x, weight_x) + tf.matmul(hidden, weight_h) + bias
+        in_gate, forget_gate, out_gate, update_gate = tf.split(axis=1, num_or_size_splits=4, value=gates)
+        in_gate = tf.nn.sigmoid(in_gate)
+        forget_gate = tf.nn.sigmoid(forget_gate)
+        out_gate = tf.nn.sigmoid(out_gate)
+        update_gate = tf.tanh(update_gate)
+        cell_state = forget_gate * cell_state + in_gate * update_gate
         if layer_norm:
-            h = o * tf.tanh(_ln(c, gain_c, bias_c))
+            hidden = out_gate * tf.tanh(_ln(cell_state, gain_c, bias_c))
         else:
-            h = o * tf.tanh(c)
-        input_tensor[idx] = h
-    cell_state = tf.concat(axis=1, values=[c, h])
-    return input_tensor, cell_state
+            hidden = out_gate * tf.tanh(cell_state)
+        input_tensor[idx] = hidden
+    cell_state_hidden = tf.concat(axis=1, values=[cell_state, hidden])
+    return input_tensor, cell_state_hidden
 
 
 def _ln(input_tensor, gain, bias, epsilon=1e-5, axes=None):
@@ -313,7 +313,7 @@ def constant(_):
     return 1.
 
 
-def linear(progress):
+def linear_schedule(progress):
     """
     Returns a linear value for the Scheduler
 
@@ -367,7 +367,7 @@ def double_middle_drop(progress):
 
 
 schedules = {
-    'linear': linear,
+    'linear': linear_schedule,
     'constant': constant,
     'double_linear_con': double_linear_con,
     'middle_drop': middle_drop,
@@ -476,24 +476,24 @@ def get_by_index(x, idx):
     :param idx: (int) The index offset
     :return: (TensorFlow Tensor) the offset tensor
     """
-    assert (len(x.get_shape()) == 2)
-    assert (len(idx.get_shape()) == 1)
+    assert len(x.get_shape()) == 2
+    assert len(idx.get_shape()) == 1
     idx_flattened = tf.range(0, x.shape[0]) * x.shape[1] + idx
     y = tf.gather(tf.reshape(x, [-1]),  # flatten input
                   idx_flattened)  # use flattened indices
     return y
 
 
-def check_shape(ts, shapes):
+def check_shape(tensors, shapes):
     """
     Verifies the tensors match the given shape, will raise an error if the shapes do not match
 
-    :param ts: ([TensorFlow Tensor]) The tensors that should be checked
+    :param tensors: ([TensorFlow Tensor]) The tensors that should be checked
     :param shapes: ([list]) The list of shapes for each tensor
     """
     i = 0
-    for (t, shape) in zip(ts, shapes):
-        assert t.get_shape().as_list() == shape, "id " + str(i) + " shape " + str(t.get_shape()) + str(shape)
+    for (tensor, shape) in zip(tensors, shapes):
+        assert tensor.get_shape().as_list() == shape, "id " + str(i) + " shape " + str(tensor.get_shape()) + str(shape)
         i += 1
 
 
