@@ -12,7 +12,7 @@ class Stats:
 
     def __init__(self, scalar_keys=None, histogram_keys=None):
         """
-        initialize the placeholders from the input keys, for summarie logging
+        initialize the placeholders from the input keys, for summary logging
 
         :param scalar_keys: ([str]) the name of all the scalar inputs
         :param histogram_keys: ([str]) the name of all the histogram inputs

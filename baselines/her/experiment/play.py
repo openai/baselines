@@ -36,7 +36,7 @@ def main(policy_file, seed, n_test_rollouts, render):
         params.update(config.DEFAULT_ENV_PARAMS[env_name])  # merge env-specific parameters in
     params['env_name'] = env_name
     params = config.prepare_params(params)
-    config.log_params(params, logger=logger)
+    config.log_params(params, logger_input=logger)
 
     dims = config.configure_dims(params)
 

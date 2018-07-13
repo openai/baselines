@@ -132,7 +132,7 @@ class RolloutWorker:
                         info_values[idx][t, i] = info[key]
                     if self.render:
                         self.envs[i].render()
-                except MujocoException as e:
+                except MujocoException:
                     return self.generate_rollouts()
 
             if np.isnan(o_new).any():

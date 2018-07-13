@@ -171,18 +171,11 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
         workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
         set_global_seeds(workerseed)
         env.seed(workerseed)
-        trpo_mpi.learn(env, policy_fn, reward_giver=reward_giver, expert_dataset=dataset, rank=rank,
-                       pretrained=pretrained, pretrained_weight=pretrained_weight,
-                       g_step=g_step, d_step=d_step,
-                       entcoeff=policy_entcoeff,
-                       max_timesteps=num_timesteps,
-                       ckpt_dir=checkpoint_dir, log_dir=log_dir,
-                       save_per_iter=save_per_iter,
-                       timesteps_per_batch=1024,
-                       max_kl=0.01, cg_iters=10, cg_damping=0.1,
-                       gamma=0.995, lam=0.97,
-                       vf_iters=5, vf_stepsize=1e-3,
-                       task_name=task_name)
+        trpo_mpi.learn(env, policy_fn, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, gamma=0.995, lam=0.97,
+                       entcoeff=policy_entcoeff, cg_damping=0.1, vf_stepsize=1e-3, vf_iters=5,
+                       max_timesteps=num_timesteps, pretrained_weight=pretrained_weight, reward_giver=reward_giver,
+                       expert_dataset=dataset, rank=rank, save_per_iter=save_per_iter, ckpt_dir=checkpoint_dir,
+                       g_step=g_step, d_step=d_step, task_name=task_name)
     else:
         raise NotImplementedError
 

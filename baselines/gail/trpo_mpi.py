@@ -133,10 +133,9 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam, entcoeff=0.0, cg_damping=1e-2,
           vf_stepsize=3e-4, vf_iters=3, max_timesteps=0, max_episodes=0, max_iters=0, callback=None,
-          # GAIL params
-          pretrained=False, pretrained_weight=None, reward_giver=None, expert_dataset=None, rank=0, save_per_iter=1,
-          ckpt_dir="/tmp/gail/ckpt/", log_dir="/tmp/gail/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4,
-          using_gail=True):
+          # GAIL Params
+          pretrained_weight=None, reward_giver=None, expert_dataset=None, rank=0, save_per_iter=1,
+          ckpt_dir="/tmp/gail/ckpt/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4, using_gail=True):
     """
     learns a GAIL policy using the given environment
 
@@ -155,14 +154,12 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     :param max_episodes: (int) the maximum number of episodes before halting
     :param max_iters: (int) the maximum number of training iterations  before halting
     :param callback: (function (dict, dict)) the call back function, takes the local and global attribute dictionary
-    :param pretrained: (bool) load a pretrained Behavior clone
     :param pretrained_weight: (str) the save location for the pretrained weights
     :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
     :param expert_dataset: (MujocoDset) the dataset manager
     :param rank: (int) the rank of the mpi thread
     :param save_per_iter: (int) the number of iterations before saving
     :param ckpt_dir: (str) the location for saving checkpoints
-    :param log_dir: (str) the logging directory
     :param g_step: (int) number of steps to train policy in each epoch
     :param d_step: (int) number of steps to train discriminator in each epoch
     :param task_name: (str) the name of the task (can be None)
