@@ -283,84 +283,21 @@ def learn(env, policy_func, *,
 
         logger.log("********** Iteration %i ************" % iters_so_far)
 
+        # TODO: Add session everywhere for GAIL
+        # so we can remove duplicated code
         if using_gail:
             def fisher_vector_product(p):
                 return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
-            # ------------------ Update G ------------------
-            logger.log("Optimizing Policy...")
-            for _ in range(g_step):
-                with timed("sampling"):
-                    seg = seg_gen.__next__()
-                add_vtarg_and_adv(seg, gamma, lam)
-                # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-                ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-                vpredbefore = seg["vpred"]  # predicted value function before udpate
-                atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
-
-                if hasattr(pi, "ob_rms"):
-                    pi.ob_rms.update(ob)  # update running mean/std for policy
-
-                args = seg["ob"], seg["ac"], atarg
-                fvpargs = [arr[::5] for arr in args]
-
-                assign_old_eq_new()  # set old parameter values to new parameter values
-                with timed("computegrad"):
-                    *lossbefore, g = compute_lossandgrad(*args)
-                lossbefore = allmean(np.array(lossbefore))
-                g = allmean(g)
-                if np.allclose(g, 0):
-                    logger.log("Got zero gradient. not updating")
-                else:
-                    with timed("cg"):
-                        stepdir = conjugate_gradient(fisher_vector_product, g, cg_iters=cg_iters, verbose=rank == 0)
-                    assert np.isfinite(stepdir).all()
-                    shs = .5*stepdir.dot(fisher_vector_product(stepdir))
-                    lm = np.sqrt(shs / max_kl)
-                    # logger.log("lagrange multiplier:", lm, "gnorm:", np.linalg.norm(g))
-                    fullstep = stepdir / lm
-                    expectedimprove = g.dot(fullstep)
-                    surrbefore = lossbefore[0]
-                    stepsize = 1.0
-                    thbefore = get_flat()
-                    for _ in range(10):
-                        thnew = thbefore + fullstep * stepsize
-                        set_from_flat(thnew)
-                        meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args)))
-                        improve = surr - surrbefore
-                        logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
-                        if not np.isfinite(meanlosses).all():
-                            logger.log("Got non-finite value of losses -- bad!")
-                        elif kl > max_kl * 1.5:
-                            logger.log("violated KL constraint. shrinking step.")
-                        elif improve < 0:
-                            logger.log("surrogate didn't improve. shrinking step.")
-                        else:
-                            logger.log("Stepsize OK!")
-                            break
-                        stepsize *= .5
-                    else:
-                        logger.log("couldn't compute a good step")
-                        set_from_flat(thbefore)
-                    if nworkers > 1 and iters_so_far % 20 == 0:
-                        paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), vfadam.getflat().sum()))  # list of tuples
-                        assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
-                with timed("vf"):
-                    for _ in range(vf_iters):
-                        for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
-                                                                 include_final_partial_batch=False, batch_size=128):
-                            if hasattr(pi, "ob_rms"):
-                                pi.ob_rms.update(mbob)  # update running mean/std for policy
-                            g = allmean(compute_vflossandgrad(mbob, mbret))
-                            vfadam.update(g, vf_stepsize)
-
-            g_losses = meanlosses
-            for (lossname, lossval) in zip(loss_names, meanlosses):
-                logger.record_tabular(lossname, lossval)
         else:
+            def fisher_vector_product(p):
+                return allmean(compute_fvp(p, *fvpargs, sess=sess)) + cg_damping * p
+        # ------------------ Update G ------------------
+        logger.log("Optimizing Policy...")
+        # g_step = 1 when not using GAIL
+        for _ in range(g_step):
             with timed("sampling"):
                 seg = seg_gen.__next__()
             add_vtarg_and_adv(seg, gamma, lam)
-
             # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
             ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
             vpredbefore = seg["vpred"]  # predicted value function before udpate
@@ -374,12 +311,16 @@ def learn(env, policy_func, *,
             args = seg["ob"], seg["ac"], atarg
             fvpargs = [arr[::5] for arr in args]
 
-            def fisher_vector_product(p):
-                return allmean(compute_fvp(p, *fvpargs, sess=sess)) + cg_damping * p
+            if using_gail:
+                assign_old_eq_new()  # set old parameter values to new parameter values
+            else:
+                assign_old_eq_new(sess=sess)
 
-            assign_old_eq_new(sess=sess)  # set old parameter values to new parameter values
             with timed("computegrad"):
-                *lossbefore, g = compute_lossandgrad(*args, sess=sess)
+                if using_gail:
+                    *lossbefore, g = compute_lossandgrad(*args)
+                else:
+                    *lossbefore, g = compute_lossandgrad(*args, sess=sess)
             lossbefore = allmean(np.array(lossbefore))
             g = allmean(g)
             if np.allclose(g, 0):
@@ -400,7 +341,10 @@ def learn(env, policy_func, *,
                 for _ in range(10):
                     thnew = thbefore + fullstep * stepsize
                     set_from_flat(thnew)
-                    meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
+                    if using_gail:
+                        meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args)))
+                    else:
+                        meanlosses = surr, kl, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
                     improve = surr - surrbefore
                     logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
                     if not np.isfinite(meanlosses).all():
@@ -420,16 +364,21 @@ def learn(env, policy_func, *,
                     paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), vfadam.getflat().sum()))  # list of tuples
                     assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
 
-            for (lossname, lossval) in zip(loss_names, meanlosses):
-                logger.record_tabular(lossname, lossval)
-
             with timed("vf"):
-
                 for _ in range(vf_iters):
                     for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
-                                                             include_final_partial_batch=False, batch_size=64):
-                        g = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
+                                                             include_final_partial_batch=False, batch_size=128):
+                        if hasattr(pi, "ob_rms"):
+                            pi.ob_rms.update(mbob)  # update running mean/std for policy
+                        if using_gail:
+                            g = allmean(compute_vflossandgrad(mbob, mbret))
+                        else:
+                            g = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
                         vfadam.update(g, vf_stepsize)
+
+        g_losses = meanlosses
+        for (lossname, lossval) in zip(loss_names, meanlosses):
+            logger.record_tabular(lossname, lossval)
 
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
 
