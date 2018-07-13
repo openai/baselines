@@ -11,6 +11,12 @@ import baselines.common.tf_util as tf_util
 class Stats:
 
     def __init__(self, scalar_keys=None, histogram_keys=None):
+        """
+        initialize the placeholders from the input keys, for summarie logging
+
+        :param scalar_keys: ([str]) the name of all the scalar inputs
+        :param histogram_keys: ([str]) the name of all the histogram inputs
+        """
         if scalar_keys is None:
             scalar_keys = []
         if histogram_keys is None:
@@ -36,8 +42,14 @@ class Stats:
         self.summaries = tf.summary.merge(self.scalar_summaries+self.histogram_summaries)
 
     def add_all_summary(self, writer, values, iter):
-        # Note that the order of the incoming ```values``` should be the same as the that of the
-        #            ```scalar_keys``` given in ```__init__```
+        """
+        Note that the order of the incoming ```values``` should be the same as the that of the
+                   ```scalar_keys``` given in ```__init__```
+
+        :param writer: (TensorFlow FileWriter) the writer
+        :param values: (TensorFlow Tensor or numpy Number) the input for the summary run
+        :param iter: (Number) the global step value
+        """
         if np.sum(np.isnan(values)+0) != 0:
             return
         sess = tf_util.get_session()

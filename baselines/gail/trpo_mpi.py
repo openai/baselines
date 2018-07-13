@@ -18,19 +18,32 @@ from baselines.gail.statistics import Stats
 def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail=False):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
-    :param pi: (Policy Object)
-    :param env: (Gym Env)
-    :param horizon: (int)
-    :param stochastic: (bool)
-    :param reward_giver: For GAIL
+
+    :param pi: (MLPPolicy) the policy
+    :param env: (Gym Environment) the environment
+    :param horizon: (int) the number of timesteps to run per batch
+    :param stochastic: (bool) use a stochastic policy
+    :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
     :param gail: (bool) Whether we are using this generator for standard trpo or with gail
+    :return: (dict) generator that returns a dict with the following keys:
+
+        - ob: (numpy Number) observations
+        - rew: (numpy float) rewards (if gail is used it is the predicted reward)
+        - vpred: (numpy float) action logits
+        - new: (numpy bool) dones (is end of episode)
+        - ac: (numpy Number) actions
+        - prevac: (numpy Number) previous actions
+        - nextvpred: (numpy float) next action logits
+        - ep_rets: (float) cumulated current episode reward
+        - ep_lens: (int) the length of the current episode
+        - ep_true_rets: (float) the real environment reward
     """
     # Check when using GAIL
     assert not (gail and reward_giver is None), "You must pass a reward giver when using GAIL"
 
     # Initialize state variables
     t = 0
-    ac = env.action_space.sample() # not used, just so we have the datatype
+    ac = env.action_space.sample()  # not used, just so we have the datatype
     new = True
     ob = env.reset()
 
@@ -99,7 +112,8 @@ def traj_segment_generator(pi, env, horizon, stochastic, reward_giver=None, gail
 def add_vtarg_and_adv(seg, gamma, lam):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
-    :param seg: (dict)
+
+    :param seg: (dict) the current segment of the trajectory (see traj_segment_generator return for more information)
     :param gamma: (float) Discount factor
     :param lam: (float) GAE factor
     """
@@ -117,24 +131,44 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
-def learn(env, policy_func, *,
-          timesteps_per_batch,
-          max_kl, cg_iters,
-          gamma, lam,
-          entcoeff=0.0,
-          cg_damping=1e-2,
-          vf_stepsize=3e-4,
-          vf_iters=3,
-          max_timesteps=0, max_episodes=0, max_iters=0,
-          callback=None,
+def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam, entcoeff=0.0, cg_damping=1e-2,
+          vf_stepsize=3e-4, vf_iters=3, max_timesteps=0, max_episodes=0, max_iters=0, callback=None,
           # GAIL params
-          pretrained=False, pretrained_weight=None,
-          reward_giver=None, expert_dataset=None, rank=0,
-          save_per_iter=1, ckpt_dir="/tmp/gail/ckpt/", log_dir="/tmp/gail/",
-          g_step=1, d_step=1, task_name="task_name",
-          d_stepsize=3e-4,
-          using_gail=True
-          ):
+          pretrained=False, pretrained_weight=None, reward_giver=None, expert_dataset=None, rank=0, save_per_iter=1,
+          ckpt_dir="/tmp/gail/ckpt/", log_dir="/tmp/gail/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4,
+          using_gail=True):
+    """
+    learns a GAIL policy using the given environment
+
+    :param env: (Gym Environment) the environment
+    :param policy_func: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
+    :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
+    :param max_kl: (float) the kullback leiber loss threashold
+    :param cg_iters: (int) the number of iterations for the conjugate gradient calculation
+    :param gamma: (float) the discount value
+    :param lam: (float) GAE factor
+    :param entcoeff: (float) the weight for the entropy loss
+    :param cg_damping: (float) the compute gradiant dampening factor
+    :param vf_stepsize: (float) the value function stepsize
+    :param vf_iters: (int) the value function's number iterations for learning
+    :param max_timesteps: (int) the maximum number of timesteps before halting
+    :param max_episodes: (int) the maximum number of episodes before halting
+    :param max_iters: (int) the maximum number of training iterations  before halting
+    :param callback: (function (dict, dict)) the call back function, takes the local and global attribute dictionary
+    :param pretrained: (bool) load a pretrained Behavior clone
+    :param pretrained_weight: (str) the save location for the pretrained weights
+    :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
+    :param expert_dataset: (MujocoDset) the dataset manager
+    :param rank: (int) the rank of the mpi thread
+    :param save_per_iter: (int) the number of iterations before saving
+    :param ckpt_dir: (str) the location for saving checkpoints
+    :param log_dir: (str) the logging directory
+    :param g_step: (int) number of steps to train policy in each epoch
+    :param d_step: (int) number of steps to train discriminator in each epoch
+    :param task_name: (str) the name of the task (can be None)
+    :param d_stepsize: (float) the reward giver stepsize
+    :param using_gail: (bool) using the GAIL model
+    """
 
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
@@ -483,6 +517,7 @@ def learn(env, policy_func, *,
 def flatten_lists(listoflists):
     """
     Flatten a python list of list
+
     :param listoflists: (list(list))
     :return: (list)
     """
