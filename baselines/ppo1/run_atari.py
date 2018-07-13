@@ -11,6 +11,13 @@ from baselines.ppo1 import pposgd_simple, cnn_policy
 
 
 def train(env_id, num_timesteps, seed):
+    """
+    Train PPO1 model for Atari environments, for testing purposes
+
+    :param env_id: (str) Environment ID
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    """
     rank = MPI.COMM_WORLD.Get_rank()
 
     if rank == 0:
@@ -43,6 +50,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
+    """
+    Runs the test
+    """
     args = atari_arg_parser().parse_args()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 

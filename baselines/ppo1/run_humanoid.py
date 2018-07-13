@@ -10,6 +10,13 @@ from baselines import logger
 
 
 def train(num_timesteps, seed, model_path=None):
+    """
+    Train PPO1 model for the Humanoid environment, for testing purposes
+
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    :param model_path: (str) path to the model
+    """
     env_id = 'Humanoid-v2'
 
     def policy_fn(name, ob_space, ac_space):
@@ -47,6 +54,9 @@ class RewScale(gym.RewardWrapper):
 
 
 def main():
+    """
+    Runs the test
+    """
     logger.configure()
     parser = mujoco_arg_parser()
     parser.add_argument('--model-path', default=os.path.join(logger.get_dir(), 'humanoid_policy'))

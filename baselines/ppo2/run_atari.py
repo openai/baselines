@@ -7,6 +7,14 @@ from baselines.a2c.policies import CnnPolicy, LstmPolicy, LnLstmPolicy, MlpPolic
 
 
 def train(env_id, num_timesteps, seed, policy):
+    """
+    Train PPO2 model for atari environment, for testing purposes
+
+    :param env_id: (str) the environment id string
+    :param num_timesteps: (int) the number of timesteps to run
+    :param seed: (int) Used to seed the random generator.
+    :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
+    """
 
     env = VecFrameStack(make_atari_env(env_id, 8, seed), 4)
     policy = {'cnn': CnnPolicy, 'lstm': LstmPolicy, 'lnlstm': LnLstmPolicy, 'mlp': MlpPolicy}[policy]
@@ -19,6 +27,9 @@ def train(env_id, num_timesteps, seed, policy):
 
 
 def main():
+    """
+    Runs the test
+    """
     parser = atari_arg_parser()
     parser.add_argument('--policy', help='Policy architecture', choices=['cnn', 'lstm', 'lnlstm', 'mlp'], default='cnn')
     args = parser.parse_args()

@@ -12,6 +12,13 @@ from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
 
 def train(env_id, num_timesteps, seed):
+    """
+    Train PPO2 model for Mujoco environment, for testing purposes
+
+    :param env_id: (str) the environment id string
+    :param num_timesteps: (int) the number of timesteps to run
+    :param seed: (int) Used to seed the random generator.
+    """
     def make_env():
         env_out = gym.make(env_id)
         env_out = bench.Monitor(env_out, logger.get_dir(), allow_early_resets=True)
@@ -33,6 +40,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
+    """
+    Runs the test
+    """
     args = mujoco_arg_parser().parse_args()
     logger.configure()
     model, env = train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)

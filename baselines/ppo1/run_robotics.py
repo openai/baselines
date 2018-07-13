@@ -9,6 +9,13 @@ from baselines.ppo1 import mlp_policy, pposgd_simple
 
 
 def train(env_id, num_timesteps, seed):
+    """
+    Train PPO1 model for Robotics environment, for testing purposes
+
+    :param env_id: (str) Environment ID
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    """
 
     rank = MPI.COMM_WORLD.Get_rank()
     with mujoco_py.ignore_mujoco_warnings():
@@ -29,6 +36,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
+    """
+    Runs the test
+    """
     args = robotics_arg_parser().parse_args()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 

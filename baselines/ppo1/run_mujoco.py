@@ -6,6 +6,13 @@ from baselines import logger
 
 
 def train(env_id, num_timesteps, seed):
+    """
+    Train PPO1 model for the Mujoco environment, for testing purposes
+
+    :param env_id: (str) Environment ID
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    """
     def policy_fn(name, ob_space, ac_space):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2)
 
@@ -20,6 +27,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
+    """
+    Runs the test
+    """
     args = mujoco_arg_parser().parse_args()
     logger.configure()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)

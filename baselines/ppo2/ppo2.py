@@ -14,8 +14,8 @@ from baselines.common.runners import AbstractEnvRunner
 
 
 class Model(object):
-    def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                 nsteps, ent_coef, vf_coef, max_grad_norm):
+    def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train, nsteps, ent_coef, vf_coef,
+                 max_grad_norm):
         """
         The PPO (Proximal Policy Optimization) model class https://arxiv.org/abs/1707.06347.
         It shares policies with A2C.
@@ -80,16 +80,16 @@ class Model(object):
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
             """
-
+            Training of PPO2 Algorithm
 
             :param lr: (float) learning rate
             :param cliprange: (float) Clipping factor
-            :param obs: (numpy array)
-            :param returns: (numpy array)
-            :param masks: (numpy array)
-            :param actions: (numpy array)
-            :param values: (numpy array)
-            :param neglogpacs: (numpy array)
+            :param obs: (numpy array) The current observation of the environment
+            :param returns: (numpy array) the rewards
+            :param masks: (numpy array) The last masks (used in reccurent policies)
+            :param actions: (numpy array) the actions
+            :param values: (numpy array) the values
+            :param neglogpacs: (numpy array) Negative Log-likelihood probability of Actions
             :param states: (numpy array) For recurrent policies
             :return: policy gradient loss, value function loss, policy entropy,
                     approximation of kl divergence, clip fraction ?, _train (?)
