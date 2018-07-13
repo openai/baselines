@@ -11,7 +11,7 @@ from tqdm import tqdm
 import numpy as np
 import gym
 
-from baselines.gail import mlp_policy, behavior_clone
+from baselines.gail import mlp_policy, behavior_clone, trpo_mpi
 from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
 from baselines import bench, logger
@@ -164,7 +164,6 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
                                                  max_iters=BC_max_iter)
 
     if algo == 'trpo':
-        from baselines.gail import trpo_mpi
         # Set up for MPI seed
         rank = MPI.COMM_WORLD.Get_rank()
         if rank != 0:
@@ -172,7 +171,7 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
         workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
         set_global_seeds(workerseed)
         env.seed(workerseed)
-        trpo_mpi.learn(env, policy_fn, reward_giver, dataset, rank,
+        trpo_mpi.learn(env, policy_fn, reward_giver=reward_giver, expert_dataset=dataset, rank=rank,
                        pretrained=pretrained, pretrained_weight=pretrained_weight,
                        g_step=g_step, d_step=d_step,
                        entcoeff=policy_entcoeff,
