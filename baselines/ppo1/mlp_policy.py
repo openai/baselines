@@ -21,8 +21,9 @@ class BasePolicy(object):
         self.pdtype = pdtype = make_proba_dist_type(ac_space)
         sequence_length = None
 
-        ob = tf_util.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
-        return ob, pdtype
+        obs = tf_util.get_placeholder(name="ob", dtype=tf.float32,
+                                      shape=[sequence_length] + list(ob_space.shape))
+        return obs, pdtype
 
     def act(self, stochastic, ob):
         ac1, vpred1 = self._act(stochastic, ob[None], sess=self.sess)
@@ -51,13 +52,13 @@ class MlpPolicy(BasePolicy):
         self.sess = sess
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
-        ob, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
+        obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
         with tf.variable_scope(self.name + "/obfilter", reuse=self.reuse):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
 
         with tf.variable_scope(self.name + '/vf', reuse=self.reuse):
-            obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
+            obz = tf.clip_by_value((obs - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
             last_out = obz
             for i in range(num_hid_layers):
                 last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name="fc%i" % (i + 1),
@@ -87,4 +88,4 @@ class MlpPolicy(BasePolicy):
 
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
         ac = tf_util.switch(stochastic, self.pd.sample(), self.pd.mode())
-        self._act = tf_util.function([stochastic, ob], [ac, self.vpred])
+        self._act = tf_util.function([stochastic, obs], [ac, self.vpred])

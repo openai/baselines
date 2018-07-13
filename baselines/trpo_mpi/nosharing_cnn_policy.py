@@ -1,8 +1,6 @@
 import tensorflow as tf
-import gym
 
 import baselines.common.tf_util as tf_utils
-from baselines.common.distributions import make_proba_dist_type
 from baselines.ppo1.mlp_policy import BasePolicy
 
 
@@ -18,36 +16,29 @@ class CnnPolicy(BasePolicy):
         self.scope = tf.get_variable_scope().name
 
     def _init(self, ob_space, ac_space):
-        assert isinstance(ob_space, gym.spaces.Box)
+        obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
-        self.pdtype = pdtype = make_proba_dist_type(ac_space)
-        sequence_length = None
-
-        ob = tf_utils.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
-
-        obscaled = ob / 255.0
+        obs_normalized = obs / 255.0
 
         with tf.variable_scope(self.name + "/pol", reuse=self.reuse):
-            x = obscaled
-            x = tf.nn.relu(tf_utils.conv2d(x, 8, "l1", [8, 8], [4, 4], pad="VALID"))
-            x = tf.nn.relu(tf_utils.conv2d(x, 16, "l2", [4, 4], [2, 2], pad="VALID"))
-            x = tf_utils.flattenallbut0(x)
-            x = tf.nn.relu(tf.layers.dense(x, 128, name='lin', kernel_initializer=tf_utils.normc_initializer(1.0)))
-            logits = tf.layers.dense(x, pdtype.param_shape()[0], name='logits',
+            layer_1 = tf.nn.relu(tf_utils.conv2d(obs_normalized, 8, "l1", [8, 8], [4, 4], pad="VALID"))
+            layer_2 = tf.nn.relu(tf_utils.conv2d(layer_1, 16, "l2", [4, 4], [2, 2], pad="VALID"))
+            layer_2 = tf_utils.flattenallbut0(layer_2)
+            layer_3 = tf.nn.relu(tf.layers.dense(layer_2, 128, name='lin', kernel_initializer=tf_utils.normc_initializer(1.0)))
+            logits = tf.layers.dense(layer_3, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_utils.normc_initializer(0.01))
             self.pd = pdtype.proba_distribution_from_flat(logits)
         with tf.variable_scope(self.name + "/vf", reuse=self.reuse):
-            x = obscaled
-            x = tf.nn.relu(tf_utils.conv2d(x, 8, "l1", [8, 8], [4, 4], pad="VALID"))
-            x = tf.nn.relu(tf_utils.conv2d(x, 16, "l2", [4, 4], [2, 2], pad="VALID"))
-            x = tf_utils.flattenallbut0(x)
-            x = tf.nn.relu(tf.layers.dense(x, 128, name='lin', kernel_initializer=tf_utils.normc_initializer(1.0)))
-            self.vpred = tf.layers.dense(x, 1, name='value', kernel_initializer=tf_utils.normc_initializer(1.0))
+            layer_1 = tf.nn.relu(tf_utils.conv2d(obs_normalized, 8, "l1", [8, 8], [4, 4], pad="VALID"))
+            layer_2 = tf.nn.relu(tf_utils.conv2d(layer_1, 16, "l2", [4, 4], [2, 2], pad="VALID"))
+            layer_2 = tf_utils.flattenallbut0(layer_2)
+            layer_3 = tf.nn.relu(tf.layers.dense(layer_2, 128, name='lin', kernel_initializer=tf_utils.normc_initializer(1.0)))
+            self.vpred = tf.layers.dense(layer_3, 1, name='value', kernel_initializer=tf_utils.normc_initializer(1.0))
             self.vpredz = self.vpred
 
         self.state_in = []
         self.state_out = []
 
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
-        ac = self.pd.sample()
-        self._act = tf_utils.function([stochastic, ob], [ac, self.vpred])
+        action = self.pd.sample()
+        self._act = tf_utils.function([stochastic, obs], [action, self.vpred])

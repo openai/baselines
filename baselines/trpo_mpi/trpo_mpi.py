@@ -13,5 +13,6 @@ def learn(env, policy_fn, *,
           callback=None):
     return base_learn(env, policy_fn, timesteps_per_batch=timesteps_per_batch, max_kl=max_kl,
                       cg_iters=cg_iters, gamma=gamma, lam=lam, entcoeff=entcoeff, cg_damping=cg_damping,
-                      vf_stepsize=vf_stepsize, vf_iters=vf_iters, max_timesteps=max_timesteps, max_episodes=max_episodes,
+                      vf_stepsize=vf_stepsize, vf_iters=vf_iters,
+                      max_timesteps=max_timesteps, max_episodes=max_episodes,
                       max_iters=max_iters, callback=callback, using_gail=False)

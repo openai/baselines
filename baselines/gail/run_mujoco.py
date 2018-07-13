@@ -160,8 +160,7 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
     pretrained_weight = None
     if pretrained and (BC_max_iter > 0):
         # Pretrain with behavior cloning
-        pretrained_weight = behavior_clone.learn(env, policy_fn, dataset,
-                                                 max_iters=BC_max_iter)
+        pretrained_weight = behavior_clone.learn(env, policy_fn, dataset, max_iters=BC_max_iter)
 
     if algo == 'trpo':
         # Set up for MPI seed

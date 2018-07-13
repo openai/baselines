@@ -70,8 +70,8 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         self.file.flush()
 
     @classmethod
-    def _truncate(cls, s):
-        return s[:20] + '...' if len(s) > 23 else s
+    def _truncate(cls, string):
+        return string[:20] + '...' if len(string) > 23 else string
 
     def writeseq(self, seq):
         seq = list(seq)

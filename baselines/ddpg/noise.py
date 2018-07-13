@@ -35,10 +35,7 @@ class AdaptiveParamNoiseSpec(object):
 
         :return: (dict) the stats of the noise
         """
-        stats = {
-            'param_noise_stddev': self.current_stddev,
-        }
-        return stats
+        return {'param_noise_stddev': self.current_stddev}
 
     def __repr__(self):
         fmt = 'AdaptiveParamNoiseSpec(initial_stddev={}, desired_action_stddev={}, adoption_coefficient={})'
@@ -75,7 +72,7 @@ class NormalActionNoise(ActionNoise):
 
 
 class OrnsteinUhlenbeckActionNoise(ActionNoise):
-    def __init__(self, mu, sigma, theta=.15, dt=1e-2, x0=None):
+    def __init__(self, mu, sigma, theta=.15, dt=1e-2, initial_noise=None):
         """
         A Ornstein Uhlenbeck action noise, this is designed to aproximate brownian motion with friction.
 
@@ -85,27 +82,27 @@ class OrnsteinUhlenbeckActionNoise(ActionNoise):
         :param sigma: (float) the scale of the noise
         :param theta: (float) the rate of mean reversion
         :param dt: (float) the timestep for the noise
-        :param x0: ([float]) the initial value for the noise output, (if None: 0)
+        :param initial_noise: ([float]) the initial value for the noise output, (if None: 0)
         """
         self.theta = theta
         self.mu = mu
         self.sigma = sigma
         self.dt = dt
-        self.x0 = x0
-        self.x_prev = None
+        self.initial_noise = initial_noise
+        self.noise_prev = None
         self.reset()
 
     def __call__(self):
-        x = self.x_prev + self.theta * (self.mu - self.x_prev) * self.dt + \
-            self.sigma * np.sqrt(self.dt) * np.random.normal(size=self.mu.shape)
-        self.x_prev = x
-        return x
+        noise = self.noise_prev + self.theta * (self.mu - self.noise_prev) * self.dt + \
+                self.sigma * np.sqrt(self.dt) * np.random.normal(size=self.mu.shape)
+        self.noise_prev = noise
+        return noise
 
     def reset(self):
         """
         reset the Ornstein Uhlenbeck noise, to the initial position
         """
-        self.x_prev = self.x0 if self.x0 is not None else np.zeros_like(self.mu)
+        self.noise_prev = self.initial_noise if self.initial_noise is not None else np.zeros_like(self.mu)
 
     def __repr__(self):
         return 'OrnsteinUhlenbeckActionNoise(mu={}, sigma={})'.format(self.mu, self.sigma)

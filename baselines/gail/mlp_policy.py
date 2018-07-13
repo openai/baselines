@@ -36,12 +36,12 @@ class MlpPolicy(BasePolicy):
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
 
-        ob, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
+        obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
         with tf.variable_scope("obfilter"):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
 
-        obz = tf.clip_by_value((ob - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
+        obz = tf.clip_by_value((obs - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
         last_out = obz
         for i in range(num_hid_layers):
             last_out = tf.nn.tanh(dense(last_out, hid_size, "vffc%i" % (i+1),
@@ -68,6 +68,6 @@ class MlpPolicy(BasePolicy):
 
         # change for BC
         stochastic = tf_util.get_placeholder(name="stochastic", dtype=tf.bool, shape=())
-        ac = tf_util.switch(stochastic, self.pd.sample(), self.pd.mode())
-        self.ac = ac
-        self._act = tf_util.function([stochastic, ob], [ac, self.vpred])
+        action = tf_util.switch(stochastic, self.pd.sample(), self.pd.mode())
+        self.ac = action
+        self._act = tf_util.function([stochastic, obs], [action, self.vpred])

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
 import gym
-import tensorflow as tf
 
 from baselines.common.cmd_util import mujoco_arg_parser
 from baselines import bench, logger
@@ -26,7 +25,7 @@ def train(env_id, num_timesteps, seed):
     model = ppo2.learn(policy=policy, env=env, nsteps=2048, nminibatches=32,
                        lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
                        ent_coef=0.0,
-                       lr=3e-4,
+                       learning_rate=3e-4,
                        cliprange=0.2,
                        total_timesteps=num_timesteps)
 

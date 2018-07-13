@@ -219,7 +219,6 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
         # Perturbable Q used for the actual rollout.
         q_values_perturbed = q_func(observations_ph.get(), num_actions, scope="perturbed_q_func")
 
-
         def perturb_vars(original_scope, perturbed_scope):
             """
             We have to wrap this code into a function due to the way tf.cond() works.
@@ -252,10 +251,10 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
         # is too big, reduce scale of perturbation, otherwise increase.
         q_values_adaptive = q_func(observations_ph.get(), num_actions, scope="adaptive_q_func")
         perturb_for_adaption = perturb_vars(original_scope="q_func", perturbed_scope="adaptive_q_func")
-        kl = tf.reduce_sum(
+        kl_loss = tf.reduce_sum(
             tf.nn.softmax(q_values) * (tf.log(tf.nn.softmax(q_values)) - tf.log(tf.nn.softmax(q_values_adaptive))),
             axis=-1)
-        mean_kl = tf.reduce_mean(kl)
+        mean_kl = tf.reduce_mean(kl_loss)
 
         def update_scale():
             """

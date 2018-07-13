@@ -43,7 +43,7 @@ def argsparser():
 
 
 def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_epsilon=1e-5, optim_stepsize=3e-4,
-          ckpt_dir=None, log_dir=None, task_name=None, verbose=False):
+          ckpt_dir=None, task_name=None, verbose=False):
     """
     Learn a behavior clone policy, and return the save location
 
@@ -55,7 +55,6 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_e
     :param adam_epsilon: (float) the epsilon value for the adam optimizer
     :param optim_stepsize: (float) the optimizer stepsize
     :param ckpt_dir: (str) the save directory, can be None for temporary directory
-    :param log_dir: (str) the logging directory, can be None for no logging
     :param task_name: (str) the save name, can be None for saving directly to the directory name
     :param verbose: (bool)
     :return: (str) the save location for the TensorFlow model
@@ -66,13 +65,13 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_e
     ac_space = env.action_space
     pi = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
     # placeholder
-    ob = tf_util.get_placeholder_cached(name="ob")
-    ac = pi.pdtype.sample_placeholder([None])
+    observation = tf_util.get_placeholder_cached(name="ob")
+    action = pi.pdtype.sample_placeholder([None])
     stochastic = tf_util.get_placeholder_cached(name="stochastic")
-    loss = tf.reduce_mean(tf.square(ac-pi.ac))
+    loss = tf.reduce_mean(tf.square(action - pi.ac))
     var_list = pi.get_trainable_variables()
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
-    lossandgrad = tf_util.function([ob, ac, stochastic], [loss] + [tf_util.flatgrad(loss, var_list)])
+    lossandgrad = tf_util.function([observation, action, stochastic], [loss] + [tf_util.flatgrad(loss, var_list)])
 
     tf_util.initialize()
     adam.sync()
@@ -130,14 +129,8 @@ def main(args):
         args.checkpoint_dir = os.path.join(args.checkpoint_dir, task_name)
         args.log_dir = os.path.join(args.log_dir, task_name)
         dataset = MujocoDset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
-        savedir_fname = learn(env,
-                              policy_fn,
-                              dataset,
-                              max_iters=args.BC_max_iter,
-                              ckpt_dir=args.checkpoint_dir,
-                              log_dir=args.log_dir,
-                              task_name=task_name,
-                              verbose=True)
+        savedir_fname = learn(env, policy_fn, dataset, max_iters=args.BC_max_iter, ckpt_dir=args.checkpoint_dir,
+                              task_name=task_name, verbose=True)
         runner(env,
                policy_fn,
                savedir_fname,

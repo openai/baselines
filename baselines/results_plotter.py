@@ -63,9 +63,9 @@ def plot_curves(xy_list, xaxis, title):
 def plot_results(dirs, num_timesteps, xaxis, task_name):
     tslist = []
     for folder in dirs:
-        ts = load_results(folder)
-        ts = ts[ts.l.cumsum() <= num_timesteps]
-        tslist.append(ts)
+        timesteps = load_results(folder)
+        timesteps = timesteps[timesteps.l.cumsum() <= num_timesteps]
+        tslist.append(timesteps)
     xy_list = [ts2xy(ts, xaxis) for ts in tslist]
     plot_curves(xy_list, xaxis, task_name)
 
