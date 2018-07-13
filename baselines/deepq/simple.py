@@ -91,28 +91,11 @@ def load(path):
     return ActWrapper.load(path)
 
 
-def learn(env,
-          q_func,
-          lr=5e-4,
-          max_timesteps=100000,
-          buffer_size=50000,
-          exploration_fraction=0.1,
-          exploration_final_eps=0.02,
-          train_freq=1,
-          batch_size=32,
-          print_freq=100,
-          checkpoint_freq=10000,
-          checkpoint_path=None,
-          learning_starts=1000,
-          gamma=1.0,
-          target_network_update_freq=500,
-          prioritized_replay=False,
-          prioritized_replay_alpha=0.6,
-          prioritized_replay_beta0=0.4,
-          prioritized_replay_beta_iters=None,
-          prioritized_replay_eps=1e-6,
-          param_noise=False,
-          callback=None):
+def learn(env, q_func, lr=5e-4, max_timesteps=100000, buffer_size=50000, exploration_fraction=0.1,
+          exploration_final_eps=0.02, train_freq=1, batch_size=32, print_freq=100, checkpoint_freq=10000,
+          checkpoint_path=None, learning_starts=1000, gamma=1.0, target_network_update_freq=500,
+          prioritized_replay=False, prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4,
+          prioritized_replay_beta_iters=None, prioritized_replay_eps=1e-6, param_noise=False, callback=None):
     """
     Train a deepq model.
 

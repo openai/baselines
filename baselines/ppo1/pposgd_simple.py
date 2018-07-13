@@ -13,29 +13,55 @@ from baselines.common.mpi_moments import mpi_moments
 from baselines.gail.trpo_mpi import traj_segment_generator, add_vtarg_and_adv
 
 
-def learn(env, policy_fn, *,
-          timesteps_per_actorbatch,  # timesteps per actor per update
-          clip_param, entcoeff,  # clipping parameter epsilon, entropy coeff
-          optim_epochs, optim_stepsize, optim_batchsize,  # optimization hypers
-          gamma, lam,  # advantage estimation
-          max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0,  # time constraint
-          callback=None,  # you can do anything in the callback, since it takes locals(), globals()
-          adam_epsilon=1e-5,
-          schedule='constant'  # annealing for stepsize parameters (epsilon and adam)
-          ):
+def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, optim_epochs, optim_stepsize,
+          optim_batchsize, gamma, lam, max_timesteps=0, max_episodes=0, max_iters=0, max_seconds=0, callback=None,
+          adam_epsilon=1e-5, schedule='constant'):
+    """
+    Learning PPO with Stochastic Gradient Descent
+
+    :param env: (Gym Environment) environment to train on
+    :param policy_fn: (function (str, Gym Space, Gym Space): TensorFlow Tensor) creates the policy
+    :param timesteps_per_actorbatch: (int) timesteps per actor per update
+    :param clip_param: (float) clipping parameter epsilon
+    :param entcoeff: (float) the entropy loss weight
+    :param optim_epochs: (float) the optimizer's number of epochs
+    :param optim_stepsize: (float) the optimizer's stepsize
+    :param optim_batch_size: (int) the optimizer's the batch size
+    :param gamma: (float) discount factor
+    :param lam: (float) advantage estimation
+    :param max_timesteps:  (int) number of env steps to optimizer for
+    :param max_episodes: (int) the maximum number of epochs
+    :param max_iters: (int) the maximum number of iterations
+    :param max_seconds: (int) the maximal duration
+    :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
+        If callback returns true training stops. It takes the local and global variables.
+    :param adam_epsilon: (float) the epsilon value for the adam optimizer
+    :param schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    """
+
     # Setup losses and stuff
-    # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
     sess = tf_util.single_threaded_session()
-    pi = policy_fn("pi", ob_space, ac_space, sess=sess)  # Construct network for new policy
-    oldpi = policy_fn("oldpi", ob_space, ac_space, sess=sess)  # Network for old policy
-    atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
-    ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-    lrmult = tf.placeholder(name='lrmult', dtype=tf.float32,
-                            shape=[])  # learning rate multiplier, updated with schedule
-    clip_param = clip_param * lrmult  # Annealed cliping parameter epislon
+    # Construct network for new policy
+    pi = policy_fn("pi", ob_space, ac_space, sess=sess)
+
+    # Network for old policy
+    oldpi = policy_fn("oldpi", ob_space, ac_space, sess=sess)
+
+    # Target advantage function (if applicable)
+    atarg = tf.placeholder(dtype=tf.float32, shape=[None])
+
+    # Empirical return
+    ret = tf.placeholder(dtype=tf.float32, shape=[None])
+
+    # learning rate multiplier, updated with schedule
+    lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[])
+
+    # Annealed cliping parameter epislon
+    clip_param = clip_param * lrmult
 
     ob = tf_util.get_placeholder_cached(name="ob")
     ac = pi.pdtype.sample_placeholder([None])
@@ -46,10 +72,15 @@ def learn(env, policy_fn, *,
     meanent = tf.reduce_mean(ent)
     pol_entpen = (-entcoeff) * meanent
 
-    ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))  # pnew / pold
-    surr1 = ratio * atarg  # surrogate from conservative policy iteration
-    surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg  #
-    pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))  # PPO's pessimistic surrogate (L^CLIP)
+    # pnew / pold
+    ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac))
+
+    # surrogate from conservative policy iteration
+    surr1 = ratio * atarg
+    surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg
+
+    # PPO's pessimistic surrogate (L^CLIP)
+    pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
     vf_loss = tf.reduce_mean(tf.square(pi.vpred - ret))
     total_loss = pol_surr + pol_entpen + vf_loss
     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
@@ -68,15 +99,17 @@ def learn(env, policy_fn, *,
     adam.sync()
 
     # Prepare for rollouts
-    # ----------------------------------------
     seg_gen = traj_segment_generator(pi, env, timesteps_per_actorbatch, stochastic=True)
 
     episodes_so_far = 0
     timesteps_so_far = 0
     iters_so_far = 0
     tstart = time.time()
-    lenbuffer = deque(maxlen=100)  # rolling buffer for episode lengths
-    rewbuffer = deque(maxlen=100)  # rolling buffer for episode rewards
+
+    # rolling buffer for episode lengths
+    lenbuffer = deque(maxlen=100)
+    # rolling buffer for episode rewards
+    rewbuffer = deque(maxlen=100)
 
     assert sum([max_iters > 0, max_timesteps > 0, max_episodes > 0,
                 max_seconds > 0]) == 1, "Only one time constraint permitted"
@@ -107,20 +140,28 @@ def learn(env, policy_fn, *,
 
         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-        vpredbefore = seg["vpred"]  # predicted value function before udpate
-        atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
+
+        # predicted value function before udpate
+        vpredbefore = seg["vpred"]
+
+        # standardized advantage function estimate
+        atarg = (atarg - atarg.mean()) / atarg.std()
         d = Dataset(dict(ob=ob, ac=ac, atarg=atarg, vtarg=tdlamret), shuffle=not pi.recurrent)
         optim_batchsize = optim_batchsize or ob.shape[0]
 
         if hasattr(pi, "ob_rms"):
-            pi.ob_rms.update(ob)  # update running mean/std for policy
+            # update running mean/std for policy
+            pi.ob_rms.update(ob)
 
-        assign_old_eq_new(sess=sess)  # set old parameter values to new parameter values
+        # set old parameter values to new parameter values
+        assign_old_eq_new(sess=sess)
         logger.log("Optimizing...")
         logger.log(fmt_row(13, loss_names))
+
         # Here we do a bunch of optimization epochs over the data
         for _ in range(optim_epochs):
-            losses = []  # list of tuples, each of which gives the loss for a minibatch
+            # list of tuples, each of which gives the loss for a minibatch
+            losses = []
             for batch in d.iterate_once(optim_batchsize):
                 *newlosses, g = lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult,
                                             sess=sess)
@@ -138,8 +179,12 @@ def learn(env, policy_fn, *,
         for (lossval, name) in zipsame(meanlosses, loss_names):
             logger.record_tabular("loss_" + name, lossval)
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
-        lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
-        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+
+        # local values
+        lrlocal = (seg["ep_lens"], seg["ep_rets"])
+
+        # list of tuples
+        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
