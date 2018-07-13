@@ -35,7 +35,7 @@ class CnnPolicy(BasePolicy):
             x = tf.nn.relu(tf.layers.dense(x, 128, name='lin', kernel_initializer=tf_utils.normc_initializer(1.0)))
             logits = tf.layers.dense(x, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_utils.normc_initializer(0.01))
-            self.pd = pdtype.probability_distribution_from_flat(logits)
+            self.pd = pdtype.proba_distribution_from_flat(logits)
         with tf.variable_scope(self.name + "/vf", reuse=self.reuse):
             x = obscaled
             x = tf.nn.relu(tf_utils.conv2d(x, 8, "l1", [8, 8], [4, 4], pad="VALID"))

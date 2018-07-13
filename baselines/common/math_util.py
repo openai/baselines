@@ -2,21 +2,21 @@ import numpy as np
 import scipy.signal
 
 
-def discount(x, gamma):
+def discount(vector, gamma):
     """
-    computes discounted sums along 0th dimension of x.
+    computes discounted sums along 0th dimension of vector x.
         y[t] = x[t] + gamma*x[t+1] + gamma^2*x[t+2] + ... + gamma^k x[t+k],
                 where k = len(x) - t - 1
 
-    :param x: (numpy Number) the input vector
+    :param vector: (numpy array) the input vector
     :param gamma: (float) the discount value
     :return: (numpy Number) the output vector
     """
-    assert x.ndim >= 1
-    return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
+    assert vector.ndim >= 1
+    return scipy.signal.lfilter([1], [1, -gamma], vector[::-1], axis=0)[::-1]
 
 
-def explained_variance(ypred, y):
+def explained_variance(y_pred, y_true):
     """
     Computes fraction of variance that ypred explains about y.
     Returns 1 - Var[y-ypred] / Var[y]
@@ -26,13 +26,13 @@ def explained_variance(ypred, y):
         ev=1  =>  perfect prediction
         ev<0  =>  worse than just predicting zero
 
-    :param ypred: (numpy Number) the prediction
-    :param y: (numpy Number) the expected value
+    :param y_pred: (numpy Number) the prediction
+    :param y_true: (numpy Number) the expected value
     :return: (float) explained variance of ypred and y
     """
-    assert y.ndim == 1 and ypred.ndim == 1
-    vary = np.var(y)
-    return np.nan if vary == 0 else 1 - np.var(y - ypred) / vary
+    assert y_true.ndim == 1 and y_pred.ndim == 1
+    var_y = np.var(y_true)
+    return np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
 
 
 def explained_variance_2d(ypred, y):
@@ -98,8 +98,8 @@ def discount_with_boundaries(x, new, gamma):
     y = np.zeros_like(x)
     n_samples = x.shape[0]
     y[n_samples - 1] = x[n_samples - 1]
-    for t in range(n_samples - 2, -1, -1):
-        y[t] = x[t] + gamma * y[t + 1] * (1 - new[t + 1])
+    for step in range(n_samples - 2, -1, -1):
+        y[step] = x[step] + gamma * y[step + 1] * (1 - new[step + 1])
     return y
 
 

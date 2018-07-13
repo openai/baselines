@@ -53,11 +53,11 @@ class Model(object):
         learning_rate_ph = tf.placeholder(tf.float32, [])
         clip_range_ph = tf.placeholder(tf.float32, [])
 
-        neglogpac = train_model.pd.neglogp(action_ph)
-        entropy = tf.reduce_mean(train_model.pd.entropy())
+        neglogpac = train_model.proba_distribution.neglogp(action_ph)
+        entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
-        vpred = train_model.vf
-        vpredclipped = old_vpred_ph + tf.clip_by_value(train_model.vf - old_vpred_ph, - clip_range_ph, clip_range_ph)
+        vpred = train_model.value_fn
+        vpredclipped = old_vpred_ph + tf.clip_by_value(train_model.value_fn - old_vpred_ph, - clip_range_ph, clip_range_ph)
         vf_losses1 = tf.square(vpred - rewards_ph)
         vf_losses2 = tf.square(vpredclipped - rewards_ph)
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))

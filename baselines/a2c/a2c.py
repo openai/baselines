@@ -45,10 +45,10 @@ class Model(object):
         step_model = policy(sess, ob_space, ac_space, nenvs, 1, reuse=False)
         train_model = policy(sess, ob_space, ac_space, nenvs * nsteps, nsteps, reuse=True)
 
-        neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=actions_ph)
+        neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=actions_ph)
         pg_loss = tf.reduce_mean(advs_ph * neglogpac)
-        vf_loss = mse(tf.squeeze(train_model.vf), rewards_ph)
-        entropy = tf.reduce_mean(calc_entropy(train_model.pi))
+        vf_loss = mse(tf.squeeze(train_model.value_fn), rewards_ph)
+        entropy = tf.reduce_mean(calc_entropy(train_model.policy))
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
         params = find_trainable_variables("model")
@@ -59,7 +59,7 @@ class Model(object):
         trainer = tf.train.RMSPropOptimizer(learning_rate=learning_rate_ph, decay=alpha, epsilon=epsilon)
         _train = trainer.apply_gradients(grads)
 
-        lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
+        lr = Scheduler(initial_value=lr, nvalues=total_timesteps, schedule=lrschedule)
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values
@@ -109,7 +109,7 @@ class Runner(AbstractEnvRunner):
         :param nsteps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         """
-        super().__init__(env=env, model=model, nsteps=nsteps)
+        super(Runner, self).__init__(env=env, model=model, nsteps=nsteps)
         self.gamma = gamma
 
     def run(self):
@@ -162,7 +162,7 @@ class Runner(AbstractEnvRunner):
 
 
 def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5,
-          lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
+          learning_rate=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
     """
     Return a trained A2C model.
 
@@ -174,7 +174,7 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     :param vf_coef: (float) Value function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
     :param max_grad_norm: (float) The maximum value for the gradiant clipping
-    :param lr: (float) The learning rate
+    :param learning_rate: (float) The learning rate
     :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
     :param epsilon: (float) RMS prop optimizer epsilon
@@ -189,8 +189,8 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     ob_space = env.observation_space
     ac_space = env.action_space
     model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef,
-                  vf_coef=vf_coef,
-                  max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
+                  vf_coef=vf_coef, max_grad_norm=max_grad_norm, lr=learning_rate,
+                  alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
                   lrschedule=lrschedule)
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 

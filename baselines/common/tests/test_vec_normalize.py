@@ -42,5 +42,5 @@ def test_vec_env():
 
 def test_mpi_runningmeanstd():
     """Test RunningMeanStd object for MPI"""
-    ok = subprocess.call(['mpirun', '--allow-run-as-root', '-np', '2', 'python', '-m', 'baselines.common.mpi_running_mean_std'])
-    _assert_eq(ok, 0)
+    return_code = subprocess.call(['mpirun', '--allow-run-as-root', '-np', '2', 'python', '-m', 'baselines.common.mpi_running_mean_std'])
+    _assert_eq(return_code, 0)

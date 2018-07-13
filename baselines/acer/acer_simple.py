@@ -27,14 +27,14 @@ def strip(var, nenvs, nsteps, flat=False):
     return seq_to_batch(out_vars[:-1], flat)
 
 
-def q_retrace(rewards, dones, q_i, v, rho_i, nenvs, nsteps, gamma):
+def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
     """
     Calculates the target Q-retrace
 
     :param rewards: ([TensorFlow Tensor]) The rewards
     :param dones: ([TensorFlow Tensor])
     :param q_i: ([TensorFlow Tensor]) The Q values for actions taken
-    :param v: ([TensorFlow Tensor]) The output of the value functions
+    :param values: ([TensorFlow Tensor]) The output of the value functions
     :param rho_i: ([TensorFlow Tensor]) The importance weight for each action
     :param nenvs: (int) The number of environments
     :param nsteps: (int) The number of steps to run for each environment
@@ -42,16 +42,16 @@ def q_retrace(rewards, dones, q_i, v, rho_i, nenvs, nsteps, gamma):
     :return: ([TensorFlow Tensor]) the target Q-retrace
     """
     rho_bar = batch_to_seq(tf.minimum(1.0, rho_i), nenvs, nsteps, True)  # list of len steps, shape [nenvs]
-    rs = batch_to_seq(rewards, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
-    ds = batch_to_seq(dones, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
+    reward_seq = batch_to_seq(rewards, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
+    done_seq = batch_to_seq(dones, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
     q_is = batch_to_seq(q_i, nenvs, nsteps, True)
-    vs = batch_to_seq(v, nenvs, nsteps + 1, True)
+    vs = batch_to_seq(values, nenvs, nsteps + 1, True)
     v_final = vs[-1]
     qret = v_final
     qrets = []
     for i in range(nsteps - 1, -1, -1):
-        check_shape([qret, ds[i], rs[i], rho_bar[i], q_is[i], vs[i]], [[nenvs]] * 6)
-        qret = rs[i] + gamma * qret * (1.0 - ds[i])
+        check_shape([qret, done_seq[i], reward_seq[i], rho_bar[i], q_is[i], vs[i]], [[nenvs]] * 6)
+        qret = reward_seq[i] + gamma * qret * (1.0 - done_seq[i])
         qrets.append(qret)
         qret = (rho_bar[i] * (qret - q_is[i])) + vs[i]
     qrets = qrets[::-1]
@@ -122,11 +122,11 @@ class Model(object):
             polyak_model = policy(sess, ob_space, ac_space, nenvs, nsteps + 1, nstack, reuse=True)
 
         # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
-        v = tf.reduce_sum(train_model.pi * train_model.q, axis=-1)  # shape is [nenvs * (nsteps + 1)]
+        v = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [nenvs * (nsteps + 1)]
 
         # strip off last step
         f, f_pol, q = map(lambda variables: strip(variables, nenvs, nsteps),
-                          [train_model.pi, polyak_model.pi, train_model.q])
+                          [train_model.policy, polyak_model.policy, train_model.q_value])
         # Get pi and q values for actions taken
         f_i = get_by_index(f, action_ph)
         q_i = get_by_index(q, action_ph)
@@ -209,7 +209,7 @@ class Model(object):
         with tf.control_dependencies([_opt_op]):
             _train = tf.group(ema_apply_op)
 
-        lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
+        lr = Scheduler(initial_value=lr, nvalues=total_timesteps, schedule=lrschedule)
 
         # Ops/Summaries to run, and their names for logging
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
@@ -326,7 +326,7 @@ class Runner(AbstractEnvRunner):
         return enc_obs, mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks
 
 
-class Acer:
+class Acer(object):
     def __init__(self, runner, model, buffer, log_interval):
         """
         Wrapper for the ACER model object
@@ -336,6 +336,7 @@ class Acer:
         :param buffer: (Buffer) The observation buffer
         :param log_interval: (int) The number of timesteps before logging.
         """
+        super(Acer, self).__init__()
         self.runner = runner
         self.model = model
         self.buffer = buffer

@@ -37,7 +37,7 @@ class CnnPolicy(BasePolicy):
             logits = tf.layers.dense(last_layer, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_util.normc_initializer(0.01))
 
-            self.pd = pdtype.probability_distribution_from_flat(logits)
+            self.pd = pdtype.proba_distribution_from_flat(logits)
             self.vpred = tf.layers.dense(last_layer, 1, name='value', kernel_initializer=tf_util.normc_initializer(1.0))[:, 0]
 
         self.state_in = []

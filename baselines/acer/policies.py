@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from baselines.a2c.policies import nature_cnn
-from baselines.a2c.utils import fc, batch_to_seq, seq_to_batch, lstm, sample
+from baselines.a2c.utils import linear, batch_to_seq, seq_to_batch, lstm, sample
 
 
 class AcerPolicy(object):
@@ -73,59 +73,59 @@ class AcerCnnPolicy(AcerPolicy):
     def __init__(self, sess, ob_space, ac_space, nenv, nsteps, nstack, reuse=False):
         super(AcerCnnPolicy, self).__init__(sess, ob_space, ac_space, nenv, nsteps, nstack, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.obs_ph)
-            pi_logits = fc(h, 'pi', self.nact, init_scale=0.01)
-            pi = tf.nn.softmax(pi_logits)
-            q = fc(h, 'q', self.nact)
+            extracted_features = nature_cnn(self.obs_ph)
+            pi_logits = linear(extracted_features, 'pi', self.nact, init_scale=0.01)
+            policy = tf.nn.softmax(pi_logits)
+            q_value = linear(extracted_features, 'q', self.nact)
 
-        self.a = sample(pi_logits)  # could change this to use self.pi instead
+        self.action = sample(pi_logits)  # could change this to use self.pi instead
         self.initial_state = []  # not stateful
-        self.pi = pi  # actual policy params now
-        self.q = q
+        self.policy = policy  # actual policy params now
+        self.q_value = q_value
 
     def step(self, obs, state, mask, *args, **kwargs):
         # returns actions, mus, states
-        a0, pi0 = self.sess.run([self.a, self.pi], {self.obs_ph: obs})
-        return a0, pi0, []  # dummy state
+        action_0, policy_0 = self.sess.run([self.action, self.policy], {self.obs_ph: obs})
+        return action_0, policy_0, []  # dummy state
 
     def out(self, obs, state, mask, *args, **kwargs):
-        pi0, q0 = self.sess.run([self.pi, self.q], {self.obs_ph: obs})
-        return pi0, q0
+        policy_0, q_value_0 = self.sess.run([self.policy, self.q_value], {self.obs_ph: obs})
+        return policy_0, q_value_0
 
     def act(self, obs, state, mask, *args, **kwargs):
-        return self.sess.run(self.a, {self.obs_ph: obs})
+        return self.sess.run(self.action, {self.obs_ph: obs})
 
 
 class AcerLstmPolicy(AcerPolicy):
     def __init__(self, sess, ob_space, ac_space, nenv, nsteps, nstack, reuse=False, nlstm=256):
         super(AcerLstmPolicy, self).__init__(sess, ob_space, ac_space, nenv, nsteps, nstack, reuse, nlstm)
         with tf.variable_scope("model", reuse=reuse):
-            h = nature_cnn(self.obs_ph)
+            extracted_features = nature_cnn(self.obs_ph)
 
             # lstm
-            xs = batch_to_seq(h, nenv, nsteps)
-            ms = batch_to_seq(self.masks_ph, nenv, nsteps)
-            h5, self.snew = lstm(xs, ms, self.states_ph, 'lstm1', nh=nlstm)
-            h5 = seq_to_batch(h5)
+            input_seq = batch_to_seq(extracted_features, nenv, nsteps)
+            masks = batch_to_seq(self.masks_ph, nenv, nsteps)
+            rnn_output, self.snew = lstm(input_seq, masks, self.states_ph, 'lstm1', n_hidden=nlstm)
+            rnn_output = seq_to_batch(rnn_output)
 
-            pi_logits = fc(h5, 'pi', self.nact, init_scale=0.01)
-            pi = tf.nn.softmax(pi_logits)
-            q = fc(h5, 'q', self.nact)
+            pi_logits = linear(rnn_output, 'pi', self.nact, init_scale=0.01)
+            policy = tf.nn.softmax(pi_logits)
+            q_value = linear(rnn_output, 'q', self.nact)
 
-        self.a = sample(pi_logits)  # could change this to use self.pi instead
+        self.action = sample(pi_logits)  # could change this to use self.pi instead
         self.initial_state = np.zeros((nenv, nlstm * 2), dtype=np.float32)
-        self.pi = pi  # actual policy params now
-        self.q = q
+        self.policy = policy  # actual policy params now
+        self.q_value = q_value
 
     def step(self, obs, state, mask, *args, **kwargs):
         # returns actions, mus, states
-        a0, pi0, s = self.sess.run([self.a, self.pi, self.snew],
+        action_0, policy_0, states = self.sess.run([self.action, self.policy, self.snew],
                                    {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
-        return a0, pi0, s
+        return action_0, policy_0, states
 
     def out(self, obs, state, mask, *args, **kwargs):
-        pi0, q0 = self.sess.run([self.pi, self.q], {self.obs_ph: obs})
-        return pi0, q0
+        policy_0, q_value_0 = self.sess.run([self.policy, self.q_value], {self.obs_ph: obs})
+        return policy_0, q_value_0
 
     def act(self, obs, state, mask, *args, **kwargs):
-        return self.sess.run(self.a, {self.obs_ph: obs})
+        return self.sess.run(self.action, {self.obs_ph: obs})
