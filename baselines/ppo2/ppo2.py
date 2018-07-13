@@ -19,6 +19,7 @@ class Model(object):
         """
         The PPO (Proximal Policy Optimization) model class https://arxiv.org/abs/1707.06347.
         It shares policies with A2C.
+
         :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Space) Observation space
         :param ac_space: (Gym Space) Action space
@@ -78,6 +79,8 @@ class Model(object):
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
             """
+
+
             :param lr: (float) learning rate
             :param cliprange: (float) Clipping factor
             :param obs: (numpy array)
@@ -128,6 +131,7 @@ class Runner(AbstractEnvRunner):
     def __init__(self, *, env, model, nsteps, gamma, lam):
         """
         A runner to learn the policy of an environment for a model
+
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param nsteps: (int) The number of steps to run for each environment
@@ -141,6 +145,7 @@ class Runner(AbstractEnvRunner):
     def run(self):
         """
         Run a learning step of the model
+
         :return: observations, rewards, masks, actions, values, negative log probabilities, states, infos
         """
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
@@ -187,6 +192,7 @@ class Runner(AbstractEnvRunner):
 def swap_and_flatten(arr):
     """
     swap and then flatten axes 0 and 1
+
     :param arr: (numpy array)
     :return: (numpy array)
     """
@@ -198,6 +204,7 @@ def constfn(val):
     """
     Create a function that returns a constant
     It is useful for learning rate schedule (to avoid code duplication)
+
     :param val: (float)
     :return: (function)
     """
@@ -210,6 +217,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,  vf_coef=0.5,  
           log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2, save_interval=0, load_path=None):
     """
     Return a trained PPO2 model.
+
     :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
     :param nsteps: (int) The number of steps to run for each environment
@@ -324,6 +332,7 @@ def safemean(xs):
     """
     Compute the mean of an array if there is at least one element.
     For empty array, return zero. It is used for logging only.
+
     :param xs: (numpy array)
     :return: (float)
     """
