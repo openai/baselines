@@ -40,7 +40,7 @@ def test_identity(learn_func):
         n_trials = 1000
         sum_rew = 0
         obs = env.reset()
-        for i in range(n_trials):
+        for _ in range(n_trials):
             obs, rew, done, _ = env.step(model.step(obs)[0])
             sum_rew += rew
 

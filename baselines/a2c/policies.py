@@ -20,7 +20,7 @@ def nature_cnn(unscaled_images, **kwargs):
     layer_2 = activ(conv(layer_1, 'c2', nf=64, rf=4, stride=2, init_scale=np.sqrt(2), **kwargs))
     layer_3 = activ(conv(layer_2, 'c3', nf=64, rf=3, stride=1, init_scale=np.sqrt(2), **kwargs))
     layer_3 = conv_to_fc(layer_3)
-    return activ(linear(layer_3, 'fc1', nh=512, init_scale=np.sqrt(2), **kwargs))
+    return activ(linear(layer_3, 'fc1', n_hidden=512, init_scale=np.sqrt(2)))
 
 
 class A2CPolicy(object):
@@ -78,7 +78,7 @@ class LstmPolicy(A2CPolicy):
                                          layer_norm=layer_norm)
             rnn_output = seq_to_batch(rnn_output)
             value_fn = linear(rnn_output, 'v', 1)
-            self.proba_distribution, self.policy = self.pdtype.probability_distribution_from_latent(rnn_output)
+            self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(rnn_output)
 
         self.value_0 = value_fn[:, 0]
         self.action_0 = self.proba_distribution.sample()
@@ -109,13 +109,13 @@ class FeedForwardPolicy(A2CPolicy):
             else:
                 activ = tf.tanh
                 processed_x = tf.layers.flatten(self.processed_x)
-                pi_h1 = activ(linear(processed_x, 'pi_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
-                pi_h2 = activ(linear(pi_h1, 'pi_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
-                vf_h1 = activ(linear(processed_x, 'vf_fc1', nh=64, init_scale=np.sqrt(2), **kwargs))
-                vf_h2 = activ(linear(vf_h1, 'vf_fc2', nh=64, init_scale=np.sqrt(2), **kwargs))
+                pi_h1 = activ(linear(processed_x, 'pi_fc1', n_hidden=64, init_scale=np.sqrt(2)))
+                pi_h2 = activ(linear(pi_h1, 'pi_fc2', n_hidden=64, init_scale=np.sqrt(2)))
+                vf_h1 = activ(linear(processed_x, 'vf_fc1', n_hidden=64, init_scale=np.sqrt(2)))
+                vf_h2 = activ(linear(vf_h1, 'vf_fc2', n_hidden=64, init_scale=np.sqrt(2)))
                 value_fn = linear(vf_h2, 'vf', 1)[:, 0]
                 extracted_features = pi_h2
-            self.proba_distribution, self.policy = self.pdtype.probability_distribution_from_latent(extracted_features, init_scale=0.01)
+            self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(extracted_features, init_scale=0.01)
 
         self.action_0 = self.proba_distribution.sample()
         self.neglogp0 = self.proba_distribution.neglogp(self.action_0)

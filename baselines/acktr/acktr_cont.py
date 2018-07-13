@@ -23,39 +23,39 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
     :param obfilter: (Filter) the observation filter
     :return: (dict) observation, terminated, reward, action, action_dist, logp
     """
-    ob = env.reset()
-    prev_ob = np.float32(np.zeros(ob.shape))
+    observation = env.reset()
+    prev_ob = np.float32(np.zeros(observation.shape))
     if obfilter:
-        ob = obfilter(ob)
+        observation = obfilter(observation)
     terminated = False
 
-    obs = []
-    acs = []
-    ac_dists = []
+    observations = []
+    actions = []
+    action_dists = []
     logps = []
     rewards = []
     for _ in range(max_pathlength):
         if animate:
             env.render()
-        state = np.concatenate([ob, prev_ob], -1)
-        obs.append(state)
-        ac, ac_dist, logp = policy.act(state)
-        acs.append(ac)
-        ac_dists.append(ac_dist)
+        state = np.concatenate([observation, prev_ob], -1)
+        observations.append(state)
+        action, ac_dist, logp = policy.act(state)
+        actions.append(action)
+        action_dists.append(ac_dist)
         logps.append(logp)
-        prev_ob = np.copy(ob)
-        scaled_ac = env.action_space.low + (ac + 1.) * 0.5 * (env.action_space.high - env.action_space.low)
+        prev_ob = np.copy(observation)
+        scaled_ac = env.action_space.low + (action + 1.) * 0.5 * (env.action_space.high - env.action_space.low)
         scaled_ac = np.clip(scaled_ac, env.action_space.low, env.action_space.high)
-        ob, rew, done, _ = env.step(scaled_ac)
+        observation, rew, done, _ = env.step(scaled_ac)
         if obfilter:
-            ob = obfilter(ob)
+            observation = obfilter(observation)
         rewards.append(rew)
         if done:
             terminated = True
             break
-    return {"observation": np.array(obs), "terminated": terminated,
-            "reward": np.array(rewards), "action": np.array(acs),
-            "action_dist": np.array(ac_dists), "logp": np.array(logps)}
+    return {"observation": np.array(observations), "terminated": terminated,
+            "reward": np.array(rewards), "action": np.array(actions),
+            "action_dist": np.array(action_dists), "logp": np.array(logps)}
 
 
 def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,

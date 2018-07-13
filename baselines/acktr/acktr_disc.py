@@ -157,8 +157,8 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
                                max_grad_norm=max_grad_norm, kfac_clip=kfac_clip, lrschedule=lrschedule)
     if save_interval and logger.get_dir():
         import cloudpickle
-        with open(os.path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
-            fh.write(cloudpickle.dumps(make_model))
+        with open(os.path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as file_handler:
+            file_handler.write(cloudpickle.dumps(make_model))
     model = make_model()
 
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)

@@ -109,7 +109,7 @@ class Runner(AbstractEnvRunner):
         :param nsteps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         """
-        super().__init__(env=env, model=model, nsteps=nsteps)
+        super(Runner, self).__init__(env=env, model=model, nsteps=nsteps)
         self.gamma = gamma
 
     def run(self):
@@ -189,8 +189,8 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     ob_space = env.observation_space
     ac_space = env.action_space
     model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef,
-                  vf_coef=vf_coef,
-                  max_grad_norm=max_grad_norm, lr=learning_rate, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
+                  vf_coef=vf_coef, max_grad_norm=max_grad_norm, lr=learning_rate,
+                  alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
                   lrschedule=lrschedule)
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 

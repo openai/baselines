@@ -20,8 +20,8 @@ def test_main():
     """
     Dry-run python -m baselines.logger
     """
-    ok = subprocess.call(['python', 'baselines/logger.py'])
-    _assert_eq(ok, 0)
+    return_code = subprocess.call(['python', 'baselines/logger.py'])
+    _assert_eq(return_code, 0)
 
 
 @pytest.mark.parametrize('_format', ['tensorboard', 'stdout', 'log', 'json', 'csv'])

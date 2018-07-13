@@ -114,21 +114,21 @@ def conv(input_tensor, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, da
         return bias + tf.nn.conv2d(input_tensor, weight, strides=strides, padding=pad, data_format=data_format)
 
 
-def linear(input_tensor, scope, nh, *, init_scale=1.0, init_bias=0.0):
+def linear(input_tensor, scope, n_hidden, *, init_scale=1.0, init_bias=0.0):
     """
     Creates a fully connected layer for TensorFlow
 
     :param input_tensor: (TensorFlow Tensor) The input tensor for the fully connected layer
     :param scope: (str) The TensorFlow variable scope
-    :param nh: (int) The number of hidden neurons
+    :param n_hidden: (int) The number of hidden neurons
     :param init_scale: (int) The initialization scale
     :param init_bias: (int) The initialization offset bias
     :return: (TensorFlow Tensor) fully connected layer
     """
     with tf.variable_scope(scope):
-        nin = input_tensor.get_shape()[1].value
-        weight = tf.get_variable("w", [nin, nh], initializer=ortho_init(init_scale))
-        bias = tf.get_variable("b", [nh], initializer=tf.constant_initializer(init_bias))
+        n_input = input_tensor.get_shape()[1].value
+        weight = tf.get_variable("w", [n_input, n_hidden], initializer=ortho_init(init_scale))
+        bias = tf.get_variable("b", [n_hidden], initializer=tf.constant_initializer(init_bias))
         return tf.matmul(input_tensor, weight) + bias
 
 
@@ -197,13 +197,14 @@ def lstm(input_tensor, mask_tensor, cell_state_hidden, scope, n_hidden, init_sca
             bias_c = tf.get_variable("bc", [n_hidden], initializer=tf.constant_initializer(0.0))
 
     cell_state, hidden = tf.split(axis=1, num_or_size_splits=2, value=cell_state_hidden)
-    for idx, (x, mask) in enumerate(zip(input_tensor, mask_tensor)):
+    for idx, (_input, mask) in enumerate(zip(input_tensor, mask_tensor)):
         cell_state = cell_state * (1 - mask)
         hidden = hidden * (1 - mask)
         if layer_norm:
-            gates = _ln(tf.matmul(x, weight_x), gain_x, bias_x) + _ln(tf.matmul(hidden, weight_h), gain_h, bias_h) + bias
+            gates = _ln(tf.matmul(_input, weight_x), gain_x, bias_x)\
+                    + _ln(tf.matmul(hidden, weight_h), gain_h, bias_h) + bias
         else:
-            gates = tf.matmul(x, weight_x) + tf.matmul(hidden, weight_h) + bias
+            gates = tf.matmul(_input, weight_x) + tf.matmul(hidden, weight_h) + bias
         in_gate, forget_gate, out_gate, update_gate = tf.split(axis=1, num_or_size_splits=4, value=gates)
         in_gate = tf.nn.sigmoid(in_gate)
         forget_gate = tf.nn.sigmoid(forget_gate)

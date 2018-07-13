@@ -102,7 +102,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         env.render()
                     assert max_action.shape == action.shape
                     # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                    new_obs, r, done, info = env.step(max_action * action)
+                    new_obs, r, done, _ = env.step(max_action * action)
                     t += 1
                     if rank == 0 and render:
                         env.render()
@@ -151,7 +151,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     for t_rollout in range(nb_eval_steps):
                         eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
                         # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)
+                        eval_obs, eval_r, eval_done, _ = eval_env.step(max_action * eval_action)
                         if render_eval:
                             eval_env.render()
                         eval_episode_reward += eval_r

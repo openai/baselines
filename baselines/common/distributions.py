@@ -84,7 +84,7 @@ class ProbabilityDistributionType(object):
         """
         raise NotImplementedError
 
-    def probability_distribution_from_flat(self, flat):
+    def proba_distribution_from_flat(self, flat):
         """
         returns the probability distribution from flat probabilities
 
@@ -93,7 +93,7 @@ class ProbabilityDistributionType(object):
         """
         return self.probability_distribution_class()(flat)
 
-    def probability_distribution_from_latent(self, latent_vector):
+    def proba_distribution_from_latent(self, latent_vector):
         """
         returns the probability distribution from latent values
 
@@ -159,7 +159,7 @@ class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
     def probability_distribution_class(self):
         return CategoricalProbabilityDistribution
 
-    def probability_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+    def proba_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
         """
         returns the probability distribution from latent values
 
@@ -169,7 +169,7 @@ class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
         """
         pdparam = linear(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
-        return self.probability_distribution_from_flat(pdparam), pdparam
+        return self.proba_distribution_from_flat(pdparam), pdparam
 
     def param_shape(self):
         return [self.ncat]
@@ -186,17 +186,17 @@ class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
         """
         The probability distribution type for multiple categorical input
 
-        :param ncat: (int) the number of vectors
+        :param nvec: (int) the number of vectors
         """
         self.ncats = nvec
 
     def probability_distribution_class(self):
         return MultiCategoricalProbabilityDistribution
 
-    def probability_distribution_from_flat(self, flat):
+    def proba_distribution_from_flat(self, flat):
         return MultiCategoricalProbabilityDistribution(self.ncats, flat)
 
-    def probability_distribution_from_latent(self, latent_vector):
+    def proba_distribution_from_latent(self, latent_vector):
         raise NotImplementedError
 
     def param_shape(self):
@@ -221,7 +221,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
     def probability_distribution_class(self):
         return DiagGaussianProbabilityDistribution
 
-    def probability_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+    def proba_distribution_from_latent(self, latent_vector, init_scale=1.0, init_bias=0.0):
         """
         returns the probability distribution from latent values
 
@@ -233,7 +233,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
         mean = linear(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
-        return self.probability_distribution_from_flat(pdparam), mean
+        return self.proba_distribution_from_flat(pdparam), mean
 
     def param_shape(self):
         return [2*self.size]
@@ -257,7 +257,7 @@ class BernoulliProbabilityDistributionType(ProbabilityDistributionType):
     def probability_distribution_class(self):
         return BernoulliProbabilityDistribution
 
-    def probability_distribution_from_latent(self, latent_vector):
+    def proba_distribution_from_latent(self, latent_vector):
         raise NotImplementedError
 
     def param_shape(self):
@@ -526,10 +526,10 @@ def validate_probtype(probtype, pdparam):
     mval = np.repeat(pdparam[None, :], number_samples, axis=0)
     mval_ph = probtype.param_placeholder([number_samples])
     xval_ph = probtype.sample_placeholder([number_samples])
-    pd = probtype.probability_distribution_from_flat(mval_ph)
-    calcloglik = tf_util.function([xval_ph, mval_ph], pd.logp(xval_ph))
-    calcent = tf_util.function([mval_ph], pd.entropy())
-    xval = tf.get_default_session().run(pd.sample(), feed_dict={mval_ph: mval})
+    proba_distribution = probtype.proba_distribution_from_flat(mval_ph)
+    calcloglik = tf_util.function([xval_ph, mval_ph], proba_distribution.logp(xval_ph))
+    calcent = tf_util.function([mval_ph], proba_distribution.entropy())
+    xval = tf.get_default_session().run(proba_distribution.sample(), feed_dict={mval_ph: mval})
     logliks = calcloglik(xval, mval)
     entval_ll = - logliks.mean()
     entval_ll_stderr = logliks.std() / np.sqrt(number_samples)
@@ -538,10 +538,10 @@ def validate_probtype(probtype, pdparam):
 
     # Check to see if kldiv[p,q] = - ent[p] - E_p[log q]
     mval2_ph = probtype.param_placeholder([number_samples])
-    pd2 = probtype.probability_distribution_from_flat(mval2_ph)
+    pd2 = probtype.proba_distribution_from_flat(mval2_ph)
     q = pdparam + np.random.randn(pdparam.size) * 0.1
     mval2 = np.repeat(q[None, :], number_samples, axis=0)
-    calckl = tf_util.function([mval_ph, mval2_ph], pd.kl(pd2))
+    calckl = tf_util.function([mval_ph, mval2_ph], proba_distribution.kl(pd2))
     klval = calckl(mval, mval2).mean()
     logliks = calcloglik(xval, mval2)
     klval_ll = - entval - logliks.mean()
