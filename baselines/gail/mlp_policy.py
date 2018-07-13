@@ -3,13 +3,12 @@ from baselines/ppo1/mlp_policy.py and add simple modification
 (1) add reuse argument
 (2) cache the `stochastic` placeholder
 """
-import tensorflow as tf
 import gym
+import tensorflow as tf
 
 import baselines.common.tf_util as tf_util
-from baselines.common.mpi_running_mean_std import RunningMeanStd
-from baselines.common.distributions import make_proba_dist_type
 from baselines.acktr.utils import dense
+from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.ppo1.mlp_policy import BasePolicy
 
 
@@ -36,12 +35,8 @@ class MlpPolicy(BasePolicy):
             self.scope = tf.get_variable_scope().name
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
-        assert isinstance(ob_space, gym.spaces.Box)
 
-        self.pdtype = pdtype = make_proba_dist_type(ac_space)
-        sequence_length = None
-
-        ob = tf_util.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
+        ob, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
         with tf.variable_scope("obfilter"):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
