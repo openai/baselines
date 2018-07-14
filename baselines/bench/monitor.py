@@ -14,7 +14,7 @@ import uuid
 
 class Monitor(Wrapper):
     EXT = "monitor.csv"
-    f = None
+    file_handler = None
 
     def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), info_keywords=()):
         """
@@ -29,7 +29,7 @@ class Monitor(Wrapper):
         Wrapper.__init__(self, env=env)
         self.tstart = time.time()
         if filename is None:
-            self.f = None
+            self.file_handler = None
             self.logger = None
         else:
             if not filename.endswith(Monitor.EXT):
@@ -37,11 +37,12 @@ class Monitor(Wrapper):
                     filename = os.path.join(filename, Monitor.EXT)
                 else:
                     filename = filename + "." + Monitor.EXT
-            self.f = open(filename, "wt")
-            self.f.write('#%s\n' % json.dumps({"t_start": self.tstart, 'env_id': env.spec and env.spec.id}))
-            self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't') + reset_keywords + info_keywords)
+            self.file_handler = open(filename, "wt")
+            self.file_handler.write('#%s\n' % json.dumps({"t_start": self.tstart, 'env_id': env.spec and env.spec.id}))
+            self.logger = csv.DictWriter(self.file_handler,
+                                         fieldnames=('r', 'l', 't') + reset_keywords + info_keywords)
             self.logger.writeheader()
-            self.f.flush()
+            self.file_handler.flush()
 
         self.reset_keywords = reset_keywords
         self.info_keywords = info_keywords
@@ -66,11 +67,11 @@ class Monitor(Wrapper):
                                "wrap your env with Monitor(env, path, allow_early_resets=True)")
         self.rewards = []
         self.needs_reset = False
-        for k in self.reset_keywords:
-            v = kwargs.get(k)
-            if v is None:
-                raise ValueError('Expected you to pass kwarg %s into reset' % k)
-            self.current_reset_info[k] = v
+        for key in self.reset_keywords:
+            value = kwargs.get(key)
+            if value is None:
+                raise ValueError('Expected you to pass kwarg %s into reset' % key)
+            self.current_reset_info[key] = value
         return self.env.reset(**kwargs)
 
     def step(self, action):
@@ -82,32 +83,32 @@ class Monitor(Wrapper):
         """
         if self.needs_reset:
             raise RuntimeError("Tried to step environment that needs reset")
-        ob, rew, done, info = self.env.step(action)
-        self.rewards.append(rew)
+        observation, reward, done, info = self.env.step(action)
+        self.rewards.append(reward)
         if done:
             self.needs_reset = True
             eprew = sum(self.rewards)
             eplen = len(self.rewards)
             epinfo = {"r": round(eprew, 6), "l": eplen, "t": round(time.time() - self.tstart, 6)}
-            for k in self.info_keywords:
-                epinfo[k] = info[k]
+            for key in self.info_keywords:
+                epinfo[key] = info[key]
             self.episode_rewards.append(eprew)
             self.episode_lengths.append(eplen)
             self.episode_times.append(time.time() - self.tstart)
             epinfo.update(self.current_reset_info)
             if self.logger:
                 self.logger.writerow(epinfo)
-                self.f.flush()
+                self.file_handler.flush()
             info['episode'] = epinfo
         self.total_steps += 1
-        return ob, rew, done, info
+        return observation, reward, done, info
 
     def close(self):
         """
         Closes the environment
         """
-        if self.f is not None:
-            self.f.close()
+        if self.file_handler is not None:
+            self.file_handler.close()
 
     def get_total_steps(self):
         """
@@ -171,35 +172,35 @@ def load_results(path):
             glob(os.path.join(path, "*monitor.csv")))  # get both csv and (old) json files
     if not monitor_files:
         raise LoadMonitorResultsError("no monitor files of the form *%s found in %s" % (Monitor.EXT, path))
-    dfs = []
+    data_frames = []
     headers = []
     for fname in monitor_files:
-        with open(fname, 'rt') as fh:
+        with open(fname, 'rt') as file_handler:
             if fname.endswith('csv'):
-                firstline = fh.readline()
+                firstline = file_handler.readline()
                 assert firstline[0] == '#'
                 header = json.loads(firstline[1:])
-                df = pandas.read_csv(fh, index_col=None)
+                data_frame = pandas.read_csv(file_handler, index_col=None)
                 headers.append(header)
             elif fname.endswith('json'):  # Deprecated json format
                 episodes = []
-                lines = fh.readlines()
+                lines = file_handler.readlines()
                 header = json.loads(lines[0])
                 headers.append(header)
                 for line in lines[1:]:
                     episode = json.loads(line)
                     episodes.append(episode)
-                df = pandas.DataFrame(episodes)
+                data_frame = pandas.DataFrame(episodes)
             else:
                 assert 0, 'unreachable'
-            df['t'] += header['t_start']
-        dfs.append(df)
-    df = pandas.concat(dfs)
-    df.sort_values('t', inplace=True)
-    df.reset_index(inplace=True)
-    df['t'] -= min(header['t_start'] for header in headers)
-    df.headers = headers  # HACK to preserve backwards compatibility
-    return df
+            data_frame['t'] += header['t_start']
+        data_frames.append(data_frame)
+    data_frame = pandas.concat(data_frames)
+    data_frame.sort_values('t', inplace=True)
+    data_frame.reset_index(inplace=True)
+    data_frame['t'] -= min(header['t_start'] for header in headers)
+    data_frame.headers = headers  # HACK to preserve backwards compatibility
+    return data_frame
 
 
 def test_monitor():
@@ -216,15 +217,15 @@ def test_monitor():
         if done:
             menv.reset()
 
-    f = open(mon_file, 'rt')
+    file_handler = open(mon_file, 'rt')
 
-    firstline = f.readline()
+    firstline = file_handler.readline()
     assert firstline.startswith('#')
     metadata = json.loads(firstline[1:])
     assert metadata['env_id'] == "CartPole-v1"
     assert set(metadata.keys()) == {'env_id', 'gym_version', 't_start'}, "Incorrect keys in monitor metadata"
 
-    last_logline = pandas.read_csv(f, index_col=None)
+    last_logline = pandas.read_csv(file_handler, index_col=None)
     assert set(last_logline.keys()) == {'l', 't', 'r'}, "Incorrect keys in monitor logline"
-    f.close()
+    file_handler.close()
     os.remove(mon_file)

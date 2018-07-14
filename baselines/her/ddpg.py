@@ -130,7 +130,7 @@ class DDPG(object):
         g = np.clip(g, -self.clip_obs, self.clip_obs)
         return o, g
 
-    def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False, compute_Q=False):
+    def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False, compute_q=False):
         """
         return the action from an observation and goal
 
@@ -140,14 +140,14 @@ class DDPG(object):
         :param noise_eps: (float) the noise epsilon
         :param random_eps: (float) the random epsilon
         :param use_target_net: (bool) whether or not to use the target network
-        :param compute_Q: (bool) whether or not to compute Q value
+        :param compute_q: (bool) whether or not to compute Q value
         :return: (numpy float or float) the actions
         """
         o, g = self._preprocess_og(o, ag, g)
         policy = self.target if use_target_net else self.main
         # values to compute
         vals = [policy.pi_tf]
-        if compute_Q:
+        if compute_q:
             vals += [policy.Q_pi_tf]
         # feed
         feed = {
@@ -219,7 +219,7 @@ class DDPG(object):
         critic_loss, actor_loss, q_grad, pi_grad = self.sess.run([
             self.q_loss_tf,
             self.main.Q_pi_tf,
-            self.Q_grad_tf,
+            self.q_grad_tf,
             self.pi_grad_tf
         ])
         return critic_loss, actor_loss, q_grad, pi_grad
@@ -342,9 +342,9 @@ class DDPG(object):
         pi_grads_tf = tf.gradients(self.pi_loss_tf, self._vars('main/pi'))
         assert len(self._vars('main/Q')) == len(q_grads_tf)
         assert len(self._vars('main/pi')) == len(pi_grads_tf)
-        self.Q_grads_vars_tf = zip(q_grads_tf, self._vars('main/Q'))
+        self.q_grads_vars_tf = zip(q_grads_tf, self._vars('main/Q'))
         self.pi_grads_vars_tf = zip(pi_grads_tf, self._vars('main/pi'))
-        self.Q_grad_tf = flatten_grads(grads=q_grads_tf, var_list=self._vars('main/Q'))
+        self.q_grad_tf = flatten_grads(grads=q_grads_tf, var_list=self._vars('main/Q'))
         self.pi_grad_tf = flatten_grads(grads=pi_grads_tf, var_list=self._vars('main/pi'))
 
         # optimizers
@@ -402,11 +402,11 @@ class DDPG(object):
 
         self.__init__(**state)
         # set up stats (they are overwritten in __init__)
-        for k, v in state.items():
-            if k[-6:] == '_stats':
-                self.__dict__[k] = v
+        for key, value in state.items():
+            if key[-6:] == '_stats':
+                self.__dict__[key] = value
         # load TF variables
-        vars = [x for x in self._global_vars('') if 'buffer' not in x.name]
-        assert(len(vars) == len(state["tf"]))
-        node = [tf.assign(var, val) for var, val in zip(vars, state["tf"])]
+        _vars = [x for x in self._global_vars('') if 'buffer' not in x.name]
+        assert len(_vars) == len(state["tf"])
+        node = [tf.assign(var, val) for var, val in zip(_vars, state["tf"])]
         self.sess.run(node)

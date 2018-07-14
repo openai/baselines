@@ -61,13 +61,13 @@ class MlpPolicy(BasePolicy):
         else:
             pdparam = dense(last_out, pdtype.param_shape()[0], "polfinal", tf_util.normc_initializer(0.01))
 
-        self.pd = pdtype.proba_distribution_from_flat(pdparam)
+        self.proba_distribution = pdtype.proba_distribution_from_flat(pdparam)
 
         self.state_in = []
         self.state_out = []
 
         # change for BC
         stochastic = tf_util.get_placeholder(name="stochastic", dtype=tf.bool, shape=())
-        action = tf_util.switch(stochastic, self.pd.sample(), self.pd.mode())
-        self.ac = action
+        action = tf_util.switch(stochastic, self.proba_distribution.sample(), self.proba_distribution.mode())
+        self.action = action
         self._act = tf_util.function([stochastic, obs], [action, self.vpred])

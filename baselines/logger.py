@@ -92,10 +92,10 @@ class JSONOutputFormat(KVWriter):
         self.file = open(filename, 'wt')
 
     def writekvs(self, kvs):
-        for k, v in sorted(kvs.items()):
-            if hasattr(v, 'dtype'):
-                v = v.tolist()
-                kvs[k] = float(v)
+        for key, value in sorted(kvs.items()):
+            if hasattr(value, 'dtype'):
+                value = value.tolist()
+                kvs[key] = float(value)
         self.file.write(json.dumps(kvs) + '\n')
         self.file.flush()
 
@@ -117,21 +117,21 @@ class CSVOutputFormat(KVWriter):
             self.file.seek(0)
             lines = self.file.readlines()
             self.file.seek(0)
-            for (i, k) in enumerate(self.keys):
+            for (i, key) in enumerate(self.keys):
                 if i > 0:
                     self.file.write(',')
-                self.file.write(k)
+                self.file.write(key)
             self.file.write('\n')
             for line in lines[1:]:
                 self.file.write(line[:-1])
                 self.file.write(self.sep * len(extra_keys))
                 self.file.write('\n')
-        for (i, k) in enumerate(self.keys):
+        for i, key in enumerate(self.keys):
             if i > 0:
                 self.file.write(',')
-            v = kvs.get(k)
-            if v is not None:
-                self.file.write(str(v))
+            value = kvs.get(key)
+            if value is not None:
+                self.file.write(str(value))
         self.file.write('\n')
         self.file.flush()
 
@@ -154,17 +154,17 @@ class TensorBoardOutputFormat(KVWriter):
         from tensorflow.python import pywrap_tensorflow
         from tensorflow.core.util import event_pb2
         from tensorflow.python.util import compat
-        self.tf = tf
+        self._tf = tf
         self.event_pb2 = event_pb2
         self.pywrap_tensorflow = pywrap_tensorflow
         self.writer = pywrap_tensorflow.EventsWriter(compat.as_bytes(path))
 
     def writekvs(self, kvs):
-        def summary_val(k, v):
-            kwargs = {'tag': k, 'simple_value': float(v)}
-            return self.tf.Summary.Value(**kwargs)
+        def summary_val(key, value):
+            kwargs = {'tag': key, 'simple_value': float(value)}
+            return self._tf.Summary.Value(**kwargs)
 
-        summary = self.tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
+        summary = self._tf.Summary(value=[summary_val(k, v) for k, v in kvs.items()])
         event = self.event_pb2.Event(wall_time=time.time(), summary=summary)
         event.step = self.step  # is there any reason why you'd want to specify the step?
         self.writer.WriteEvent(event)
@@ -213,12 +213,12 @@ def logkv_mean(key, val):
     Logger.CURRENT.logkv_mean(key, val)
 
 
-def logkvs(d):
+def logkvs(key_values):
     """
     Log a dictionary of key-value pairs
     """
-    for (k, v) in d.items():
-        logkv(k, v)
+    for key, value in key_values.items():
+        logkv(key, value)
 
 
 def dumpkvs():
@@ -237,7 +237,8 @@ def getkvs():
 
 def log(*args, level=INFO):
     """
-    Write the sequence of args, with no separators, to the console and output files (if you've configured an output file).
+    Write the sequence of args, with no separators,
+    to the console and output files (if you've configured an output file).
     """
     Logger.CURRENT.log(*args, level=level)
 
@@ -284,17 +285,17 @@ class ProfileKV:
         code
     """
 
-    def __init__(self, n):
-        self.n = "wait_" + n
+    def __init__(self, name):
+        self.name = "wait_" + name
 
     def __enter__(self):
-        self.t1 = time.time()
+        self.start_time = time.time()
 
     def __exit__(self, _type, value, traceback):
-        Logger.CURRENT.name2val[self.n] += time.time() - self.t1
+        Logger.CURRENT.name2val[self.name] += time.time() - self.start_time
 
 
-def profile(n):
+def profile(name):
     """
     Usage:
     @profile("my_func")
@@ -303,7 +304,7 @@ def profile(n):
 
     def decorator_with_name(func):
         def func_wrapper(*args, **kwargs):
-            with ProfileKV(n):
+            with ProfileKV(name):
                 return func(*args, **kwargs)
 
         return func_wrapper
@@ -410,7 +411,7 @@ def reset():
         log('Reset logger')
 
 
-class scoped_configure(object):
+class ScopedConfigure(object):
     def __init__(self, folder=None, format_strs=None):
         """
         Class for using context manager while logging
@@ -452,10 +453,10 @@ def _demo():
     logkv_mean("b", -44.4)
     logkv("a", 5.5)
     dumpkvs()
-    with scoped_configure(None, None):
+    with ScopedConfigure(None, None):
         info("^^^ should see b = 33.3")
 
-    with scoped_configure("/tmp/test-logger/", ["json"]):
+    with ScopedConfigure("/tmp/test-logger/", ["json"]):
         logkv("b", -2.5)
         dumpkvs()
 
@@ -473,11 +474,11 @@ def _demo():
 
 def read_json(fname):
     import pandas
-    ds = []
-    with open(fname, 'rt') as fh:
-        for line in fh:
-            ds.append(json.loads(line))
-    return pandas.DataFrame(ds)
+    data = []
+    with open(fname, 'rt') as file_handler:
+        for line in file_handler:
+            data.append(json.loads(line))
+    return pandas.DataFrame(data)
 
 
 def read_csv(fname):
@@ -493,7 +494,7 @@ def read_tb(path):
     import pandas
     import numpy as np
     from glob import glob
-    from collections import defaultdict
+    # from collections import defaultdict
     import tensorflow as tf
     if os.path.isdir(path):
         fnames = glob(os.path.join(path, "events.*"))
@@ -506,9 +507,9 @@ def read_tb(path):
     for fname in fnames:
         for summary in tf.train.summary_iterator(fname):
             if summary.step > 0:
-                for v in summary.summary.value:
-                    pair = (summary.step, v.simple_value)
-                    tag2pairs[v.tag].append(pair)
+                for value in summary.summary.value:
+                    pair = (summary.step, value.simple_value)
+                    tag2pairs[value.tag].append(pair)
                 maxstep = max(summary.step, maxstep)
     data = np.empty((maxstep, len(tag2pairs)))
     data[:] = np.nan

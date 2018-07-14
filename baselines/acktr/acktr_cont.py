@@ -58,14 +58,14 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
             "action_dist": np.array(action_dists), "logp": np.array(logps)}
 
 
-def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
+def learn(env, policy, value_fn, gamma, lam, timesteps_per_batch, num_timesteps,
           animate=False, callback=None, desired_kl=0.002):
     """
     Learns a Kfac model
 
     :param env: (Gym environment) The environment to learn from
     :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
-    :param vf: (Object) The value function model to use (MLP, CNN, LSTM, ...)
+    :param value_fn: (Object) The value function model to use (MLP, CNN, LSTM, ...)
     :param gamma: (float) The discount value
     :param lam: (float) the tradeoff between exploration and exploitation
     :param timesteps_per_batch: (int) the number of timesteps for each batch
@@ -94,7 +94,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
     # start queue runners
     enqueue_threads = []
     coord = tf.train.Coordinator()
-    for queue_runner in [q_runner, vf.q_runner]:
+    for queue_runner in [q_runner, value_fn.q_runner]:
         assert queue_runner is not None
         enqueue_threads.extend(queue_runner.create_threads(tf.get_default_session(), coord=coord, start=True))
 
@@ -124,13 +124,13 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
             rew_t = path["reward"]
             return_t = common.discount(rew_t, gamma)
             vtargs.append(return_t)
-            vpred_t = vf.predict(path)
+            vpred_t = value_fn.predict(path)
             vpred_t = np.append(vpred_t, 0.0 if path["terminated"] else vpred_t[-1])
             delta_t = rew_t + gamma * vpred_t[1:] - vpred_t[:-1]
             adv_t = common.discount(delta_t, gamma * lam)
             advs.append(adv_t)
         # Update value function
-        vf.fit(paths, vtargs)
+        value_fn.fit(paths, vtargs)
 
         # Build arrays for policy update
         ob_no = np.concatenate([path["observation"] for path in paths])
@@ -145,11 +145,11 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         min_stepsize = np.float32(1e-8)
         max_stepsize = np.float32(1e0)
         # Adjust stepsize
-        kl = policy.compute_kl(ob_no, oldac_dist)
-        if kl > desired_kl * 2:
+        kl_loss = policy.compute_kl(ob_no, oldac_dist)
+        if kl_loss > desired_kl * 2:
             logger.log("kl too high")
             tf.assign(stepsize, tf.maximum(min_stepsize, stepsize / 1.5)).eval()
-        elif kl < desired_kl / 2:
+        elif kl_loss < desired_kl / 2:
             logger.log("kl too low")
             tf.assign(stepsize, tf.minimum(max_stepsize, stepsize * 1.5)).eval()
         else:
@@ -158,7 +158,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         logger.record_tabular("EpRewMean", np.mean([path["reward"].sum() for path in paths]))
         logger.record_tabular("EpRewSEM", np.std([path["reward"].sum() / np.sqrt(len(paths)) for path in paths]))
         logger.record_tabular("EpLenMean", np.mean([path["reward"].shape[0] for path in paths]))
-        logger.record_tabular("KL", kl)
+        logger.record_tabular("KL", kl_loss)
         if callback:
             callback()
         logger.dump_tabular()

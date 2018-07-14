@@ -23,47 +23,47 @@ def switch(condition, then_expression, else_expression):
     :return: (TensorFlow Operation) the switch output
     """
     x_shape = copy.copy(then_expression.get_shape())
-    x = tf.cond(tf.cast(condition, 'bool'),
-                lambda: then_expression,
-                lambda: else_expression)
-    x.set_shape(x_shape)
-    return x
+    out_tensor = tf.cond(tf.cast(condition, 'bool'),
+                         lambda: then_expression,
+                         lambda: else_expression)
+    out_tensor.set_shape(x_shape)
+    return out_tensor
 
 
 # ================================================================
 # Extras
 # ================================================================
 
-def lrelu(x, leak=0.2):
+def lrelu(tensor, leak=0.2):
     """
     Leaky ReLU
     http://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf
 
-    :param x: (float) the input value
+    :param tensor: (float) the input value
     :param leak: (float) the leaking coeficient when the function is saturated
     :return: (float) LReLU output
     """
-    f1 = 0.5 * (1 + leak)
-    f2 = 0.5 * (1 - leak)
-    return f1 * x + f2 * abs(x)
+    f_1 = 0.5 * (1 + leak)
+    f_2 = 0.5 * (1 - leak)
+    return f_1 * tensor + f_2 * abs(tensor)
 
 
 # ================================================================
 # Mathematical utils
 # ================================================================
 
-def huber_loss(x, delta=1.0):
+def huber_loss(tensor, delta=1.0):
     """
     Reference: https://en.wikipedia.org/wiki/Huber_loss
 
-    :param x: (TensorFlow Tensor) the input value
+    :param tensor: (TensorFlow Tensor) the input value
     :param delta: (float) huber loss delta value
     :return: (TensorFlow Tensor) huber loss output
     """
     return tf.where(
-        tf.abs(x) < delta,
-        tf.square(x) * 0.5,
-        delta * (tf.abs(x) - 0.5 * delta)
+        tf.abs(tensor) < delta,
+        tf.square(tensor) * 0.5,
+        delta * (tf.abs(tensor) - 0.5 * delta)
     )
 
 
@@ -100,17 +100,18 @@ def single_threaded_session():
     return make_session(num_cpu=1)
 
 
-def in_session(f):
+def in_session(func):
     """
     wrappes a function so that it is in a TensorFlow Session
 
-    :param f: (function) the function to wrap
+    :param func: (function) the function to wrap
     :return: (function)
     """
-    @functools.wraps(f)
+
+    @functools.wraps(func)
     def newfunc(*args, **kwargs):
         with tf.Session():
-            f(*args, **kwargs)
+            func(*args, **kwargs)
 
     return newfunc
 
@@ -143,6 +144,7 @@ def normc_initializer(std=1.0, axis=0):
     :param axis: (int) the axis to normalize on
     :return: (function)
     """
+
     def _initializer(shape, dtype=None, partition_info=None):
         out = np.random.randn(*shape).astype(np.float32)
         out *= std / np.sqrt(np.square(out).sum(axis=axis, keepdims=True))
@@ -151,12 +153,12 @@ def normc_initializer(std=1.0, axis=0):
     return _initializer
 
 
-def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", dtype=tf.float32, collections=None,
-           summary_tag=None):
+def conv2d(input_tensor, num_filters, name, filter_size=(3, 3), stride=(1, 1),
+           pad="SAME", dtype=tf.float32, collections=None, summary_tag=None):
     """
     Creates a 2d convolutional layer for TensorFlow
 
-    :param x: (TensorFlow Tensor) The input tensor for the convolution
+    :param input_tensor: (TensorFlow Tensor) The input tensor for the convolution
     :param num_filters: (int) The number of filters
     :param name: (str) The TensorFlow variable scope
     :param filter_size: (tuple) The filter size
@@ -169,7 +171,7 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
     """
     with tf.variable_scope(name):
         stride_shape = [1, stride[0], stride[1], 1]
-        filter_shape = [filter_size[0], filter_size[1], int(x.get_shape()[3]), num_filters]
+        filter_shape = [filter_size[0], filter_size[1], int(input_tensor.get_shape()[3]), num_filters]
 
         # there are "num input feature maps * filter height * filter width"
         # inputs to each hidden unit
@@ -181,17 +183,17 @@ def conv2d(x, num_filters, name, filter_size=(3, 3), stride=(1, 1), pad="SAME", 
         # initialize weights with random weights
         w_bound = np.sqrt(6. / (fan_in + fan_out))
 
-        w = tf.get_variable("W", filter_shape, dtype, tf.random_uniform_initializer(-w_bound, w_bound),
-                            collections=collections)
-        b = tf.get_variable("b", [1, 1, 1, num_filters], initializer=tf.zeros_initializer(),
-                            collections=collections)
+        weight = tf.get_variable("W", filter_shape, dtype, tf.random_uniform_initializer(-w_bound, w_bound),
+                                 collections=collections)
+        bias = tf.get_variable("b", [1, 1, 1, num_filters], initializer=tf.zeros_initializer(),
+                               collections=collections)
 
         if summary_tag is not None:
             tf.summary.image(summary_tag,
-                             tf.transpose(tf.reshape(w, [filter_size[0], filter_size[1], -1, 1]), [2, 0, 1, 3]),
+                             tf.transpose(tf.reshape(weight, [filter_size[0], filter_size[1], -1, 1]), [2, 0, 1, 3]),
                              max_outputs=10)
 
-        return tf.nn.conv2d(x, w, stride_shape, pad) + b
+        return tf.nn.conv2d(input_tensor, weight, stride_shape, pad) + bias
 
 
 # ================================================================
@@ -231,11 +233,11 @@ def function(inputs, outputs, updates=None, givens=None):
     if isinstance(outputs, list):
         return _Function(inputs, outputs, updates, givens=givens)
     elif isinstance(outputs, (dict, collections.OrderedDict)):
-        f = _Function(inputs, outputs.values(), updates, givens=givens)
-        return lambda *args, **kwargs: type(outputs)(zip(outputs.keys(), f(*args, **kwargs)))
+        func = _Function(inputs, outputs.values(), updates, givens=givens)
+        return lambda *args, **kwargs: type(outputs)(zip(outputs.keys(), func(*args, **kwargs)))
     else:
-        f = _Function(inputs, [outputs], updates, givens=givens)
-        return lambda *args, **kwargs: f(*args, **kwargs)[0]
+        func = _Function(inputs, [outputs], updates, givens=givens)
+        return lambda *args, **kwargs: func(*args, **kwargs)[0]
 
 
 class _Function(object):
@@ -284,37 +286,37 @@ class _Function(object):
 # Flat vectors
 # ================================================================
 
-def var_shape(x):
+def var_shape(tensor):
     """
     get TensorFlow Tensor shape
 
-    :param x: (TensorFlow Tensor) the input tensor
+    :param tensor: (TensorFlow Tensor) the input tensor
     :return: ([int]) the shape
     """
-    out = x.get_shape().as_list()
+    out = tensor.get_shape().as_list()
     assert all(isinstance(a, int) for a in out), \
         "shape function assumes that shape is fully known"
     return out
 
 
-def numel(x):
+def numel(tensor):
     """
     get TensorFlow Tensor's number of elements
 
-    :param x: (TensorFlow Tensor) the input tensor
+    :param tensor: (TensorFlow Tensor) the input tensor
     :return: (int) the number of elements
     """
-    return intprod(var_shape(x))
+    return intprod(var_shape(tensor))
 
 
-def intprod(x):
+def intprod(tensor):
     """
     calculates the product of all the elements in a list
 
-    :param x: ([Number]) the list of elements
+    :param tensor: ([Number]) the list of elements
     :return: (int) the product truncated
     """
-    return int(np.prod(x))
+    return int(np.prod(tensor))
 
 
 def flatgrad(loss, var_list, clip_norm=None):
@@ -350,9 +352,9 @@ class SetFromFlat(object):
         self.theta = theta = tf.placeholder(dtype, [total_size])
         start = 0
         assigns = []
-        for (shape, v) in zip(shapes, var_list):
+        for (shape, _var) in zip(shapes, var_list):
             size = intprod(shape)
-            assigns.append(tf.assign(v, tf.reshape(theta[start:start + size], shape)))
+            assigns.append(tf.assign(_var, tf.reshape(theta[start:start + size], shape)))
             start += size
         self.op = tf.group(*assigns)
         self.sess = sess
@@ -414,36 +416,36 @@ def get_placeholder_cached(name):
     return _PLACEHOLDER_CACHE[name][0]
 
 
-def flattenallbut0(x):
+def flattenallbut0(tensor):
     """
     flatten all the dimension, except from the first one
 
-    :param x: (TensorFlow Tensor) the input tensor
+    :param tensor: (TensorFlow Tensor) the input tensor
     :return: (TensorFlow Tensor) the flattened tensor
     """
-    return tf.reshape(x, [-1, intprod(x.get_shape().as_list()[1:])])
+    return tf.reshape(tensor, [-1, intprod(tensor.get_shape().as_list()[1:])])
 
 
 # ================================================================
 # Diagnostics 
 # ================================================================
 
-def display_var_info(vars):
+def display_var_info(_vars):
     """
     log variable information, for debug purposes
 
-    :param vars: ([TensorFlow Tensor]) the variables
+    :param _vars: ([TensorFlow Tensor]) the variables
     """
     count_params = 0
-    for v in vars:
-        name = v.name
+    for _var in _vars:
+        name = _var.name
         if "/Adam" in name or "beta1_power" in name or "beta2_power" in name:
             continue
-        v_params = np.prod(v.shape.as_list())
+        v_params = np.prod(_var.shape.as_list())
         count_params += v_params
         if "/b:" in name or "/biases" in name:
             continue  # Wx+b, bias is not interesting to look at => count params, but not print
-        logger.info("   %s%s %i params %s" % (name, " " * (55 - len(name)), v_params, str(v.shape)))
+        logger.info("   %s%s %i params %s" % (name, " " * (55 - len(name)), v_params, str(_var.shape)))
 
     logger.info("Total model parameters: %0.2f million" % (count_params * 1e-6))
 

@@ -9,14 +9,14 @@ from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.common import tf_util as tf_util
 
 
-def logsigmoid(a):
+def logsigmoid(input_tensor):
     """
     Equivalent to tf.log(tf.sigmoid(a))
 
-    :param a: (TensorFlow Tensor)
+    :param input_tensor: (TensorFlow Tensor)
     :return: (TensorFlow Tensor)
     """
-    return -tf.nn.softplus(-a)
+    return -tf.nn.softplus(-input_tensor)
 
 
 def logit_bernoulli_entropy(logits):
@@ -27,25 +27,24 @@ def logit_bernoulli_entropy(logits):
     :param logits: (TensorFlow Tensor) the logits
     :return: (TensorFlow Tensor) the bernoulli entropy
     """
-    ent = (1.-tf.nn.sigmoid(logits))*logits - logsigmoid(logits)
+    ent = (1. - tf.nn.sigmoid(logits)) * logits - logsigmoid(logits)
     return ent
 
 
 class TransitionClassifier(object):
-    def __init__(self, env, hidden_size, entcoeff=0.001, lr_rate=1e-3, scope="adversary"):
+    def __init__(self, env, hidden_size, entcoeff=0.001, scope="adversary"):
         """
         reward regression from observations and transitions
 
         :param env: (Gym Environment)
         :param hidden_size: ([int]) the hidden dimension for the MLP
         :param entcoeff: (float) the entropy loss weight
-        :param lr_rate: (float) the learning rate
         :param scope: (str) tensorflow variable scope
         """
         self.scope = scope
         self.observation_shape = env.observation_space.shape
         self.actions_shape = env.action_space.shape
-        self.input_shape = tuple([o+a for o, a in zip(self.observation_shape, self.actions_shape)])
+        self.input_shape = tuple([o + a for o, a in zip(self.observation_shape, self.actions_shape)])
         self.num_actions = env.action_space.shape[0]
         self.hidden_size = hidden_size
         self.build_ph()
@@ -66,13 +65,13 @@ class TransitionClassifier(object):
         # Build entropy loss
         logits = tf.concat([generator_logits, expert_logits], 0)
         entropy = tf.reduce_mean(logit_bernoulli_entropy(logits))
-        entropy_loss = -entcoeff*entropy
+        entropy_loss = -entcoeff * entropy
         # Loss + Accuracy terms
         self.losses = [generator_loss, expert_loss, entropy, entropy_loss, generator_acc, expert_acc]
         self.loss_name = ["generator_loss", "expert_loss", "entropy", "entropy_loss", "generator_acc", "expert_acc"]
         self.total_loss = generator_loss + expert_loss + entropy_loss
         # Build Reward for policy
-        self.reward_op = -tf.log(1-tf.nn.sigmoid(generator_logits)+1e-8)
+        self.reward_op = -tf.log(1 - tf.nn.sigmoid(generator_logits) + 1e-8)
         var_list = self.get_trainable_variables()
         self.lossandgrad = tf_util.function(
             [self.generator_obs_ph, self.generator_acs_ph, self.expert_obs_ph, self.expert_acs_ph],
@@ -82,10 +81,14 @@ class TransitionClassifier(object):
         """
         build placeholder
         """
-        self.generator_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name="observations_ph")
-        self.generator_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name="actions_ph")
-        self.expert_obs_ph = tf.placeholder(tf.float32, (None, ) + self.observation_shape, name="expert_observations_ph")
-        self.expert_acs_ph = tf.placeholder(tf.float32, (None, ) + self.actions_shape, name="expert_actions_ph")
+        self.generator_obs_ph = tf.placeholder(tf.float32, (None,) + self.observation_shape,
+                                               name="observations_ph")
+        self.generator_acs_ph = tf.placeholder(tf.float32, (None,) + self.actions_shape,
+                                               name="actions_ph")
+        self.expert_obs_ph = tf.placeholder(tf.float32, (None,) + self.observation_shape,
+                                            name="expert_observations_ph")
+        self.expert_acs_ph = tf.placeholder(tf.float32, (None,) + self.actions_shape,
+                                            name="expert_actions_ph")
 
     def build_graph(self, obs_ph, acs_ph, reuse=False):
         """
@@ -117,19 +120,19 @@ class TransitionClassifier(object):
         """
         return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
-    def get_reward(self, obs, acs):
+    def get_reward(self, obs, actions):
         """
         get the reward using the observation and action
 
         :param obs: (TensorFlow Tensor or numpy Number) the observation
-        :param acs: (TensorFlow Tensor or numpy Number) the action
+        :param actions: (TensorFlow Tensor or numpy Number) the action
         :return: (numpy Number) the reward
         """
         sess = tf.get_default_session()
         if len(obs.shape) == 1:
             obs = np.expand_dims(obs, 0)
-        if len(acs.shape) == 1:
-            acs = np.expand_dims(acs, 0)
-        feed_dict = {self.generator_obs_ph: obs, self.generator_acs_ph: acs}
+        if len(actions.shape) == 1:
+            actions = np.expand_dims(actions, 0)
+        feed_dict = {self.generator_obs_ph: obs, self.generator_acs_ph: actions}
         reward = sess.run(self.reward_op, feed_dict)
         return reward

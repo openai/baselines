@@ -107,14 +107,14 @@ class Model(object):
         self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
         def save(save_path):
-            ps = sess.run(params)
-            joblib.dump(ps, save_path)
+            saved_params = sess.run(params)
+            joblib.dump(saved_params, save_path)
 
         def load(load_path):
             loaded_params = joblib.load(load_path)
             restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
+            for param, loaded_p in zip(params, loaded_params):
+                restores.append(param.assign(loaded_p))
             sess.run(restores)
             # If you want to load weights, also save/load observation scaling inside VecNormalize
 
@@ -218,8 +218,10 @@ def constfn(val):
     return f
 
 
-def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate, vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
-          log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2, save_interval=0, load_path=None):
+def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
+          vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
+          log_interval=10, nminibatches=4, noptepochs=4,
+          cliprange=0.2, save_interval=0, load_path=None):
     """
     Return a trained PPO2 model.
 

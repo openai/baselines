@@ -102,23 +102,9 @@ def main(args):
         if args.task == 'train':
             dataset = MujocoDset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
             reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
-            train(env,
-                  args.seed,
-                  policy_fn,
-                  reward_giver,
-                  dataset,
-                  args.algo,
-                  args.g_step,
-                  args.d_step,
-                  args.policy_entcoeff,
-                  args.num_timesteps,
-                  args.save_per_iter,
-                  args.checkpoint_dir,
-                  args.log_dir,
-                  args.pretrained,
-                  args.BC_max_iter,
-                  task_name
-                  )
+            train(env, args.seed, policy_fn, reward_giver, dataset, args.algo, args.g_step, args.d_step,
+                  args.policy_entcoeff, args.num_timesteps, args.save_per_iter, args.checkpoint_dir, args.pretrained,
+                  args.BC_max_iter, task_name)
         elif args.task == 'evaluate':
             runner(env,
                    policy_fn,
@@ -133,9 +119,8 @@ def main(args):
         env.close()
 
 
-def train(env, seed, policy_fn, reward_giver, dataset, algo,
-          g_step, d_step, policy_entcoeff, num_timesteps, save_per_iter,
-          checkpoint_dir, log_dir, pretrained, BC_max_iter, task_name=None):
+def train(env, seed, policy_fn, reward_giver, dataset, algo, g_step, d_step, policy_entcoeff, num_timesteps,
+          save_per_iter, checkpoint_dir, pretrained, bc_max_iter, task_name=None):
     """
     train gail on mujoco
 
@@ -151,16 +136,15 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
     :param num_timesteps: (int) the number of timesteps to run
     :param save_per_iter: (int) the number of iterations before saving
     :param checkpoint_dir: (str) the location for saving checkpoints
-    :param log_dir: (str) the logging directory
     :param pretrained: (bool) use a pretrained behavior clone
-    :param BC_max_iter: (int) the maximum number of training iterations for the behavior clone
+    :param bc_max_iter: (int) the maximum number of training iterations for the behavior clone
     :param task_name: (str) the name of the task (can be None)
     """
 
     pretrained_weight = None
-    if pretrained and (BC_max_iter > 0):
+    if pretrained and (bc_max_iter > 0):
         # Pretrain with behavior cloning
-        pretrained_weight = behavior_clone.learn(env, policy_fn, dataset, max_iters=BC_max_iter)
+        pretrained_weight = behavior_clone.learn(env, policy_fn, dataset, max_iters=bc_max_iter)
 
     if algo == 'trpo':
         # Set up for MPI seed
@@ -199,7 +183,7 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_func("pi", ob_space, ac_space, reuse=reuse)
+    policy = policy_func("pi", ob_space, ac_space, reuse=reuse)
     tf_util.initialize()
     # Prepare for rollouts
     # ----------------------------------------
@@ -210,7 +194,7 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     len_list = []
     ret_list = []
     for _ in tqdm(range(number_trajs)):
-        traj = traj_1_generator(pi, env, timesteps_per_batch, stochastic=stochastic_policy)
+        traj = traj_1_generator(policy, env, timesteps_per_batch, stochastic=stochastic_policy)
         obs, acs, ep_len, ep_ret = traj['ob'], traj['ac'], traj['ep_len'], traj['ep_ret']
         obs_list.append(obs)
         acs_list.append(acs)

@@ -24,7 +24,8 @@ class CnnPolicy(BasePolicy):
             layer_1 = tf.nn.relu(tf_utils.conv2d(obs_normalized, 8, "l1", [8, 8], [4, 4], pad="VALID"))
             layer_2 = tf.nn.relu(tf_utils.conv2d(layer_1, 16, "l2", [4, 4], [2, 2], pad="VALID"))
             layer_2 = tf_utils.flattenallbut0(layer_2)
-            layer_3 = tf.nn.relu(tf.layers.dense(layer_2, 128, name='lin', kernel_initializer=tf_utils.normc_initializer(1.0)))
+            layer_3 = tf.nn.relu(tf.layers.dense(layer_2, 128, name='lin',
+                                                 kernel_initializer=tf_utils.normc_initializer(1.0)))
             logits = tf.layers.dense(layer_3, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_utils.normc_initializer(0.01))
             self.pd = pdtype.proba_distribution_from_flat(logits)
@@ -32,8 +33,10 @@ class CnnPolicy(BasePolicy):
             layer_1 = tf.nn.relu(tf_utils.conv2d(obs_normalized, 8, "l1", [8, 8], [4, 4], pad="VALID"))
             layer_2 = tf.nn.relu(tf_utils.conv2d(layer_1, 16, "l2", [4, 4], [2, 2], pad="VALID"))
             layer_2 = tf_utils.flattenallbut0(layer_2)
-            layer_3 = tf.nn.relu(tf.layers.dense(layer_2, 128, name='lin', kernel_initializer=tf_utils.normc_initializer(1.0)))
-            self.vpred = tf.layers.dense(layer_3, 1, name='value', kernel_initializer=tf_utils.normc_initializer(1.0))
+            layer_3 = tf.nn.relu(tf.layers.dense(layer_2, 128, name='lin',
+                                                 kernel_initializer=tf_utils.normc_initializer(1.0)))
+            self.vpred = tf.layers.dense(layer_3, 1, name='value',
+                                         kernel_initializer=tf_utils.normc_initializer(1.0))
             self.vpredz = self.vpred
 
         self.state_in = []

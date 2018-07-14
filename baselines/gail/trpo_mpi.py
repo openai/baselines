@@ -188,15 +188,15 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     observation = tf_util.get_placeholder_cached(name="ob")
     action = policy.pdtype.sample_placeholder([None])
 
-    kloldnew = old_policy.pd.kl(policy.pd)
-    ent = policy.pd.entropy()
+    kloldnew = old_policy.proba_distribution.kl(policy.pd)
+    ent = policy.proba_distribution.entropy()
     meankl = tf.reduce_mean(kloldnew)
     meanent = tf.reduce_mean(ent)
     entbonus = entcoeff * meanent
 
     vferr = tf.reduce_mean(tf.square(policy.vpred - ret))
 
-    ratio = tf.exp(policy.pd.logp(action) - old_policy.pd.logp(action))  # advantage * pnew / pold
+    ratio = tf.exp(policy.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))  # advantage * pnew / pold
     surrgain = tf.reduce_mean(ratio * atarg)
 
     optimgain = surrgain + entbonus
