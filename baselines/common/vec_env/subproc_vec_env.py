@@ -13,13 +13,13 @@ def _worker(remote, parent_remote, env_fn_wrapper):
         try:
             cmd, data = remote.recv()
             if cmd == 'step':
-                ob, reward, done, info = env.step(data)
+                observation, reward, done, info = env.step(data)
                 if done:
-                    ob = env.reset()
-                remote.send((ob, reward, done, info))
+                    observation = env.reset()
+                remote.send((observation, reward, done, info))
             elif cmd == 'reset':
-                ob = env.reset()
-                remote.send(ob)
+                observation = env.reset()
+                remote.send(observation)
             elif cmd == 'render':
                 remote.send(env.render(mode='rgb_array'))
             elif cmd == 'close':
@@ -44,11 +44,11 @@ class SubprocVecEnv(VecEnv):
         self.closed = False
         nenvs = len(env_fns)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
-        self.ps = [Process(target=_worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
-                   for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
-        for p in self.ps:
-            p.daemon = True  # if the main process crashes, we should not cause things to hang
-            p.start()
+        self.processes = [Process(target=_worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
+                          for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
+        for process in self.processes:
+            process.daemon = True  # if the main process crashes, we should not cause things to hang
+            process.start()
         for remote in self.work_remotes:
             remote.close()
 
@@ -80,8 +80,8 @@ class SubprocVecEnv(VecEnv):
                 remote.recv()
         for remote in self.remotes:
             remote.send(('close', None))
-        for p in self.ps:
-            p.join()
+        for process in self.processes:
+            process.join()
         self.closed = True
 
     def render(self, mode='human'):

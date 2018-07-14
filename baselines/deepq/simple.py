@@ -91,7 +91,7 @@ def load(path):
     return ActWrapper.load(path)
 
 
-def learn(env, q_func, lr=5e-4, max_timesteps=100000, buffer_size=50000, exploration_fraction=0.1,
+def learn(env, q_func, learning_rate=5e-4, max_timesteps=100000, buffer_size=50000, exploration_fraction=0.1,
           exploration_final_eps=0.02, train_freq=1, batch_size=32, print_freq=100, checkpoint_freq=10000,
           checkpoint_path=None, learning_starts=1000, gamma=1.0, target_network_update_freq=500,
           prioritized_replay=False, prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4,
@@ -107,7 +107,7 @@ def learn(env, q_func, lr=5e-4, max_timesteps=100000, buffer_size=50000, explora
             - scope: (str)
             - reuse: (bool) should be passed to outer variable scope
         and returns a tensor of shape (batch_size, num_actions) with values of every action.
-    :param lr: (float) learning rate for adam optimizer
+    :param learning_rate: (float) learning rate for adam optimizer
     :param max_timesteps: (int) number of env steps to optimizer for
     :param buffer_size: (int) size of the replay buffer
     :param exploration_fraction: (float) fraction of entire training period over which the exploration rate is annealed
@@ -153,7 +153,7 @@ def learn(env, q_func, lr=5e-4, max_timesteps=100000, buffer_size=50000, explora
         make_obs_ph=make_obs_ph,
         q_func=q_func,
         num_actions=env.action_space.n,
-        optimizer=tf.train.AdamOptimizer(learning_rate=lr),
+        optimizer=tf.train.AdamOptimizer(learning_rate=learning_rate),
         gamma=gamma,
         grad_norm_clipping=10,
         param_noise=param_noise

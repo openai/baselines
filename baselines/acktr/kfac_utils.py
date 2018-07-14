@@ -101,27 +101,28 @@ def detect_min_val(input_mat, var, threshold=1e-6, name='', debug=False):
     return input_mat_clipped
 
 
-def factor_reshape(Q, e, grad, facIndx=0, ftype='act'):
+def factor_reshape(eigen_vectors, eigen_values, grad, fac_idx=0, f_type='act'):
     """
     factor and reshape input eigen values
 
-    :param Q: ([TensorFlow Tensor]) eigen value
-    :param e: ([TensorFlow Tensor]) eigen value
+    :param eigen_vectors: ([TensorFlow Tensor]) eigen vectors
+    :param eigen_values: ([TensorFlow Tensor]) eigen values
     :param grad: ([TensorFlow Tensor]) gradiant
-    :param facIndx: (int) index that should be factored
-    :param ftype: (str) function type to factor and reshape
-    :return: ([TensorFlow Tensor], [TensorFlow Tensor]) factored and reshaped Q and e
+    :param fac_idx: (int) index that should be factored
+    :param f_type: (str) function type to factor and reshape
+    :return: ([TensorFlow Tensor], [TensorFlow Tensor]) factored and reshaped eigen vectors
+            and eigen values
     """
     grad_shape = grad.get_shape()
-    if ftype == 'act':
-        assert e.get_shape()[0] == grad_shape[facIndx]
+    if f_type == 'act':
+        assert eigen_values.get_shape()[0] == grad_shape[fac_idx]
         expanded_shape = [1, ] * len(grad_shape)
-        expanded_shape[facIndx] = -1
-        e = tf.reshape(e, expanded_shape)
-    if ftype == 'grad':
-        assert e.get_shape()[0] == grad_shape[len(grad_shape) - facIndx - 1]
+        expanded_shape[fac_idx] = -1
+        eigen_values = tf.reshape(eigen_values, expanded_shape)
+    if f_type == 'grad':
+        assert eigen_values.get_shape()[0] == grad_shape[len(grad_shape) - fac_idx - 1]
         expanded_shape = [1, ] * len(grad_shape)
-        expanded_shape[len(grad_shape) - facIndx - 1] = -1
-        e = tf.reshape(e, expanded_shape)
+        expanded_shape[len(grad_shape) - fac_idx - 1] = -1
+        eigen_values = tf.reshape(eigen_values, expanded_shape)
 
-    return Q, e
+    return eigen_vectors, eigen_values

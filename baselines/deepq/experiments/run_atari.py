@@ -37,7 +37,7 @@ def main():
         deepq.learn(
             env,
             q_func=model,
-            lr=1e-4,
+            learning_rate=1e-4,
             max_timesteps=args.num_timesteps,
             buffer_size=10000,
             exploration_fraction=0.1,

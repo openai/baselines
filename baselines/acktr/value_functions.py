@@ -19,17 +19,20 @@ class NeuralNetValueFunction(object):
         obs_ph = tf.placeholder(tf.float32, shape=[None, ob_dim * 2 + ac_dim * 2 + 2])  # batch of observations
         vtarg_n = tf.placeholder(tf.float32, shape=[None], name='vtarg')
         wd_dict = {}
-        h1 = tf.nn.elu(
-            dense(obs_ph, 64, "h1", weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
-        h2 = tf.nn.elu(
-            dense(h1, 64, "h2", weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
-        vpred_n = dense(h2, 1, "hfinal", weight_init=tf_util.normc_initializer(1.0), bias_init=0,
+        layer_1 = tf.nn.elu(dense(obs_ph, 64, "h1",
+                             weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
+        layer_2 = tf.nn.elu(dense(layer_1, 64, "h2",
+                             weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
+        vpred_n = dense(layer_2, 1, "hfinal",
+                        weight_init=tf_util.normc_initializer(1.0), bias_init=0,
                         weight_loss_dict=wd_dict)[:, 0]
         sample_vpred_n = vpred_n + tf.random_normal(tf.shape(vpred_n))
         wd_loss = tf.get_collection("vf_losses", None)
         loss = tf.reduce_mean(tf.square(vpred_n - vtarg_n)) + tf.add_n(wd_loss)
         loss_sampled = tf.reduce_mean(tf.square(vpred_n - tf.stop_gradient(sample_vpred_n)))
+
         self._predict = tf_util.function([obs_ph], vpred_n)
+
         optim = kfac.KfacOptimizer(learning_rate=0.001, cold_lr=0.001 * (1 - 0.9), momentum=0.9,
                                    clip_kl=0.3, epsilon=0.1, stats_decay=0.95,
                                    async=1, kfac_update=2, cold_iter=50,
@@ -54,8 +57,7 @@ class NeuralNetValueFunction(object):
         length = path["reward"].shape[0]
         al = np.arange(length).reshape(-1, 1) / 10.0
         act = path["action_dist"].astype('float32')
-        X = np.concatenate([path['observation'], act, al, np.ones((length, 1))], axis=1)
-        return X
+        return np.concatenate([path['observation'], act, al, np.ones((length, 1))], axis=1)
 
     def predict(self, path):
         """
@@ -73,11 +75,11 @@ class NeuralNetValueFunction(object):
         :param paths: ({TensorFlow Tensor}) the history of the network
         :param targvals: ([TensorFlow Tensor]) the expected value
         """
-        X = np.concatenate([self._preproc(p) for p in paths])
-        y = np.concatenate(targvals)
-        logger.record_tabular("EVBefore", common.explained_variance(self._predict(X), y))
+        _input = np.concatenate([self._preproc(p) for p in paths])
+        targets = np.concatenate(targvals)
+        logger.record_tabular("EVBefore", common.explained_variance(self._predict(_input), targets))
         for _ in range(25):
-            self.do_update(X, y)
-        logger.record_tabular("EVAfter", common.explained_variance(self._predict(X), y))
+            self.do_update(_input, targets)
+        logger.record_tabular("EVAfter", common.explained_variance(self._predict(_input), targets))
 
 

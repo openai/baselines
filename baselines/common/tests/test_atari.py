@@ -24,7 +24,7 @@ def clear_tf_session():
     clears the Tensorflow session, this is needed for sequential testing of the baselines
     """
     tf.reset_default_graph()
-    # FIXME: remove these in the hole code base, as they cause issues when running many baselines in a row.
+    # FIXME: remove these in the whole code base,as they cause issues when running many baselines in a row.
     tf_util._PLACEHOLDER_CACHE = {}
     tf_util.ALREADY_INITIALIZED = set()
 
@@ -77,7 +77,7 @@ def test_deepq():
     env = deepq.wrap_atari_dqn(env)
     model = deepq.models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[256], dueling=True)
 
-    deepq.learn(env, q_func=model, lr=1e-4, max_timesteps=NUM_TIMESTEPS, buffer_size=10000,
+    deepq.learn(env, q_func=model, learning_rate=1e-4, max_timesteps=NUM_TIMESTEPS, buffer_size=10000,
                 exploration_fraction=0.1, exploration_final_eps=0.01, train_freq=4, learning_starts=10000,
                 target_network_update_freq=1000, gamma=0.99, prioritized_replay=True, prioritized_replay_alpha=0.6,
                 checkpoint_freq=10000)

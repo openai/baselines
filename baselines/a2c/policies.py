@@ -115,7 +115,8 @@ class FeedForwardPolicy(A2CPolicy):
                 vf_h2 = activ(linear(vf_h1, 'vf_fc2', n_hidden=64, init_scale=np.sqrt(2)))
                 value_fn = linear(vf_h2, 'vf', 1)[:, 0]
                 extracted_features = pi_h2
-            self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(extracted_features, init_scale=0.01)
+            self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(extracted_features,
+                                                                                              init_scale=0.01)
 
         self.action_0 = self.proba_distribution.sample()
         self.neglogp0 = self.proba_distribution.neglogp(self.action_0)

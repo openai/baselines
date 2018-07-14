@@ -17,7 +17,7 @@ def main(args):
     act = deepq.learn(
         env,
         q_func=model,
-        lr=1e-3,
+        learning_rate=1e-3,
         max_timesteps=args.max_timesteps,
         buffer_size=50000,
         exploration_fraction=0.1,

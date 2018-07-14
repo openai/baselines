@@ -18,8 +18,8 @@ def test_runningmeanstd():
         (np.random.randn(3, 2), np.random.randn(4, 2), np.random.randn(5, 2))]:
         rms = RunningMeanStd(epsilon=0.0, shape=x_1.shape[1:])
 
-        x = np.concatenate([x_1, x_2, x_3], axis=0)
-        moments_1 = [x.mean(axis=0), x.var(axis=0)]
+        x_cat = np.concatenate([x_1, x_2, x_3], axis=0)
+        moments_1 = [x_cat.mean(axis=0), x_cat.var(axis=0)]
         rms.update(x_1)
         rms.update(x_2)
         rms.update(x_3)

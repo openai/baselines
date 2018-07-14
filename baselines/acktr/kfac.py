@@ -51,7 +51,7 @@ class KfacOptimizer:
         self._epsilon = epsilon
         self._stats_decay = stats_decay
         self._blockdiag_bias = blockdiag_bias
-        self._approxT2 = approx_t2
+        self._approx_t2 = approx_t2
         self._use_float64 = use_float64
         self._factored_damping = factored_damping
         self._cold_iter = cold_iter
@@ -404,7 +404,7 @@ class KfacOptimizer:
                             patches = tf.extract_image_patches(fprop_factor, ksizes=[1, convkernel_size[
                                 0], convkernel_size[1], 1], strides=strides, rates=[1, 1, 1, 1], padding=padding)
 
-                            if self._approxT2:
+                            if self._approx_t2:
                                 if KFAC_DEBUG:
                                     print(('approxT2 act fisher for %s' % var.name))
                                 # T^2 terms * 1/T^2, size: B x C
@@ -415,7 +415,7 @@ class KfacOptimizer:
                                     patches, [-1, flatten_size]) / operator_height / operator_width
                     fprop_factor_size = int(fprop_factor.get_shape()[-1])
                     if stats_var_dim == (fprop_factor_size + 1) and not self._blockdiag_bias:
-                        if op_type == 'Conv2D' and not self._approxT2:
+                        if op_type == 'Conv2D' and not self._approx_t2:
                             # correct padding for numerical stability (we
                             # divided out OhxOw from activations for T1 approx)
                             fprop_factor = tf.concat([fprop_factor, tf.ones(
@@ -443,7 +443,7 @@ class KfacOptimizer:
                     chan = int(bprop_factor_shape[-1])  # num channels
                     if op_type == 'Conv2D' or len(bprop_factor_shape) == 4:
                         if fprop_factor is not None:
-                            if self._approxT2:
+                            if self._approx_t2:
                                 if KFAC_DEBUG:
                                     print(('approxT2 grad fisher for %s' % var.name))
                                 bprop_factor = tf.reduce_sum(
@@ -714,7 +714,7 @@ class KfacOptimizer:
                                          'e'], var, name='act', debug=KFAC_DEBUG)
 
                     eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values,
-                                                                 grad, facIndx=idx, ftype='act')
+                                                                 grad, fac_idx=idx, f_type='act')
                     eig_vals.append(eigen_values)
                     grad = gmatmul(eigen_vectors, grad, transpose_a=True, reduce_dim=idx)
 
@@ -724,7 +724,7 @@ class KfacOptimizer:
                                          'e'], var, name='grad', debug=KFAC_DEBUG)
 
                     eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values,
-                                                                 grad, facIndx=idx, ftype='grad')
+                                                                 grad, fac_idx=idx, f_type='grad')
                     eig_vals.append(eigen_values)
                     grad = gmatmul(grad, eigen_vectors, transpose_b=False, reduce_dim=idx)
 

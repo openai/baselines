@@ -179,19 +179,19 @@ def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_in
         'exploit': False,
         'use_target_net': False,
         'use_demo_states': True,
-        'compute_Q': False,
-        'T': params['T'],
+        'compute_q': False,
+        'time_horizon': params['time_horizon'],
     }
 
     eval_params = {
         'exploit': True,
         'use_target_net': params['test_with_polyak'],
         'use_demo_states': False,
-        'compute_Q': True,
-        'T': params['T'],
+        'compute_q': True,
+        'time_horizon': params['time_horizon'],
     }
 
-    for name in ['T', 'rollout_batch_size', 'gamma', 'noise_eps', 'random_eps']:
+    for name in ['time_horizon', 'rollout_batch_size', 'gamma', 'noise_eps', 'random_eps']:
         rollout_params[name] = params[name]
         eval_params[name] = params[name]
 

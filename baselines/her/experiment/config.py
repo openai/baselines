@@ -20,7 +20,7 @@ DEFAULT_PARAMS = {
     'layers': 3,  # number of layers in the critic/actor networks
     'hidden': 256,  # number of neurons in each hidden layers
     'network_class': 'baselines.her.actor_critic:ActorCritic',
-    'Q_lr': 0.001,  # critic learning rate
+    'q_lr': 0.001,  # critic learning rate
     'pi_lr': 0.001,  # actor learning rate
     'buffer_size': int(1E6),  # for experience replay
     'polyak': 0.95,  # polyak averaging coefficient
@@ -82,18 +82,18 @@ def prepare_params(kwargs):
     kwargs['make_env'] = make_env
     tmp_env = cached_make_env(kwargs['make_env'])
     assert hasattr(tmp_env, '_max_episode_steps')
-    kwargs['T'] = tmp_env._max_episode_steps
+    kwargs['time_horizon'] = tmp_env._max_episode_steps
     tmp_env.reset()
     kwargs['max_u'] = np.array(kwargs['max_u']) if isinstance(kwargs['max_u'], list) else kwargs['max_u']
-    kwargs['gamma'] = 1. - 1. / kwargs['T']
+    kwargs['gamma'] = 1. - 1. / kwargs['time_horizon']
     if 'lr' in kwargs:
         kwargs['pi_lr'] = kwargs['lr']
-        kwargs['Q_lr'] = kwargs['lr']
+        kwargs['q_lr'] = kwargs['lr']
         del kwargs['lr']
     for name in ['buffer_size', 'hidden', 'layers',
                  'network_class',
                  'polyak',
-                 'batch_size', 'Q_lr', 'pi_lr',
+                 'batch_size', 'q_lr', 'pi_lr',
                  'norm_eps', 'norm_clip', 'max_u',
                  'action_l2', 'clip_obs', 'scope', 'relative_goals']:
         ddpg_params[name] = kwargs[name]
@@ -176,7 +176,7 @@ def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):
     env = cached_make_env(params['make_env'])
     env.reset()
     ddpg_params.update({'input_dims': input_dims,  # agent takes an input observations
-                        'T': params['T'],
+                        'time_horizon': params['time_horizon'],
                         'clip_pos_returns': True,  # clip positive returns
                         'clip_return': (1. / (1. - gamma)) if clip_return else np.inf,  # max abs of return
                         'rollout_batch_size': rollout_batch_size,

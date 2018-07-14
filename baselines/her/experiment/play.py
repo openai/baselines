@@ -43,14 +43,14 @@ def main(policy_file, seed, n_test_rollouts, render):
     eval_params = {
         'exploit': True,
         'use_target_net': params['test_with_polyak'],
-        'compute_Q': True,
+        'compute_q': True,
         'rollout_batch_size': 1,
         'render': bool(render),
     }
 
-    for name in ['T', 'gamma', 'noise_eps', 'random_eps']:
+    for name in ['time_horizon', 'gamma', 'noise_eps', 'random_eps']:
         eval_params[name] = params[name]
-    
+
     evaluator = RolloutWorker(params['make_env'], policy, dims, logger, **eval_params)
     evaluator.seed(seed)
 

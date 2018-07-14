@@ -54,10 +54,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
     max_action = env.action_space.high
     logger.info('scaling actions by {} before executing in env'.format(max_action))
-    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape, gamma=gamma, tau=tau,
-                 normalize_returns=normalize_returns, normalize_observations=normalize_observations,
-                 batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
-                 actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
+    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape, param_noise=param_noise,
+                 action_noise=action_noise, gamma=gamma, tau=tau, normalize_returns=normalize_returns,
+                 enable_popart=popart, normalize_observations=normalize_observations, batch_size=batch_size,
+                 critic_l2_reg=critic_l2_reg, actor_lr=actor_lr, critic_lr=critic_lr, clip_norm=clip_norm,
                  reward_scale=reward_scale)
     logger.info('Using agent with the following configuration:')
     logger.info(str(agent.__dict__.items()))
@@ -80,7 +80,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         episode_reward = 0.
         episode_step = 0
         episodes = 0
-        t = 0
+        step = 0
 
         start_time = time.time()
 
@@ -90,11 +90,11 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         epoch_qs = []
         epoch_episodes = 0
         for epoch in range(nb_epochs):
-            for cycle in range(nb_epoch_cycles):
+            for _ in range(nb_epoch_cycles):
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
                     # Predict next action.
-                    action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
+                    action, q_value = agent.policy(obs, apply_noise=True, compute_q=True)
                     assert action.shape == env.action_space.shape
 
                     # Execute next action.
@@ -102,17 +102,17 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         env.render()
                     assert max_action.shape == action.shape
                     # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                    new_obs, r, done, _ = env.step(max_action * action)
-                    t += 1
+                    new_obs, reward, done, _ = env.step(max_action * action)
+                    step += 1
                     if rank == 0 and render:
                         env.render()
-                    episode_reward += r
+                    episode_reward += reward
                     episode_step += 1
 
                     # Book-keeping.
                     epoch_actions.append(action)
-                    epoch_qs.append(q)
-                    agent.store_transition(obs, action, r, new_obs, done)
+                    epoch_qs.append(q_value)
+                    agent.store_transition(obs, action, reward, new_obs, done)
                     obs = new_obs
 
                     if done:
@@ -138,9 +138,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         distance = agent.adapt_param_noise()
                         epoch_adaptive_distances.append(distance)
 
-                    cl, al = agent.train()
-                    epoch_critic_losses.append(cl)
-                    epoch_actor_losses.append(al)
+                    critic_loss, actor_loss = agent.train()
+                    epoch_critic_losses.append(critic_loss)
+                    epoch_actor_losses.append(actor_loss)
                     agent.update_target_net()
 
                 # Evaluate.
@@ -149,7 +149,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 if eval_env is not None:
                     eval_episode_reward = 0.
                     for t_rollout in range(nb_eval_steps):
-                        eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
+                        eval_action, eval_q = agent.policy(eval_obs, apply_noise=False, compute_q=True)
                         # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         eval_obs, eval_r, eval_done, _ = eval_env.step(max_action * eval_action)
                         if render_eval:
@@ -178,7 +178,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
             combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
             combined_stats['total/duration'] = duration
-            combined_stats['total/steps_per_second'] = float(t) / float(duration)
+            combined_stats['total/steps_per_second'] = float(step) / float(duration)
             combined_stats['total/episodes'] = episodes
             combined_stats['rollout/episodes'] = epoch_episodes
             combined_stats['rollout/actions_std'] = np.std(epoch_actions)
@@ -189,26 +189,26 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 combined_stats['eval/Q'] = eval_qs
                 combined_stats['eval/episodes'] = len(eval_episode_rewards)
 
-            def as_scalar(x):
+            def as_scalar(scalar):
                 """
                 check and return the input if it is a scalar, otherwise raise ValueError
 
-                :param x: (Any) the object to check
+                :param scalar: (Any) the object to check
                 :return: (Number) the scalar if x is a scalar
                 """
-                if isinstance(x, np.ndarray):
-                    assert x.size == 1
-                    return x[0]
-                elif np.isscalar(x):
-                    return x
+                if isinstance(scalar, np.ndarray):
+                    assert scalar.size == 1
+                    return scalar[0]
+                elif np.isscalar(scalar):
+                    return scalar
                 else:
-                    raise ValueError('expected scalar, got %s' % x)
+                    raise ValueError('expected scalar, got %s' % scalar)
             combined_stats_sums = MPI.COMM_WORLD.allreduce(np.array([as_scalar(x) for x in combined_stats.values()]))
             combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
 
             # Total statistics.
             combined_stats['total/epochs'] = epoch + 1
-            combined_stats['total/steps'] = t
+            combined_stats['total/steps'] = step
 
             for key in sorted(combined_stats.keys()):
                 logger.record_tabular(key, combined_stats[key])
@@ -217,8 +217,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             logdir = logger.get_dir()
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):
-                    with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:
-                        pickle.dump(env.get_state(), f)
+                    with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as file_handler:
+                        pickle.dump(env.get_state(), file_handler)
                 if eval_env and hasattr(eval_env, 'get_state'):
-                    with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
-                        pickle.dump(eval_env.get_state(), f)
+                    with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
+                        pickle.dump(eval_env.get_state(), file_handler)

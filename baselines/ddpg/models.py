@@ -80,7 +80,8 @@ class Critic(Model):
             layer_1 = self.fc_with_relu(obs)
             layer_2 = tf.concat([layer_1, action], axis=-1)
             layer_3 = self.fc_with_relu(layer_2)
-            value = tf.layers.dense(layer_3, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
+            value = tf.layers.dense(layer_3, 1,
+                                    kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
         return value
 
     @property

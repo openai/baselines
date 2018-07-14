@@ -17,7 +17,7 @@ def dims_to_shapes(input_dims):
 
 class DDPG(object):
     def __init__(self, input_dims, buffer_size, hidden, layers, network_class, polyak, batch_size,
-                 Q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, T,
+                 q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, time_horizon,
                  rollout_batch_size, subtract_goals, relative_goals, clip_pos_returns, clip_return,
                  sample_transitions, gamma, reuse=False, **kwargs):
         """
@@ -30,7 +30,7 @@ class DDPG(object):
         :param network_class: (str) the network class that should be used (e.g. 'baselines.her.ActorCritic')
         :param polyak: (float) coefficient for Polyak-averaging of the target network
         :param batch_size: (int) batch size for training
-        :param Q_lr: (float) learning rate for the Q (critic) network
+        :param q_lr: (float) learning rate for the Q (critic) network
         :param pi_lr: (float) learning rate for the pi (actor) network
         :param norm_eps: (float) a small value used in the normalizer to avoid numerical instabilities
         :param norm_clip: (float) normalized inputs are clipped to be in [-norm_clip, norm_clip]
@@ -38,7 +38,7 @@ class DDPG(object):
         :param action_l2: (float) coefficient for L2 penalty on the actions
         :param clip_obs: (float) clip observations before normalization to be in [-clip_obs, clip_obs]
         :param scope: (str) the scope used for the TensorFlow graph
-        :param T: (int) the time horizon for rollouts
+        :param time_horizon: (int) the time horizon for rollouts
         :param rollout_batch_size: (int) number of parallel rollouts per DDPG agent
         :param subtract_goals: (function (numpy Number, numpy Number): numpy Number) function that subtracts goals
             from each other
@@ -49,6 +49,7 @@ class DDPG(object):
         :param gamma: (float) gamma used for Q learning updates
         :param reuse: (boolean) whether or not the networks should be reused
         """
+        # Updated in experiments/config.py
         self.input_dims = input_dims
         self.buffer_size = buffer_size
         self.hidden = hidden
@@ -56,7 +57,7 @@ class DDPG(object):
         self.network_class = network_class
         self.polyak = polyak
         self.batch_size = batch_size
-        self.Q_lr = Q_lr
+        self.q_lr = q_lr
         self.pi_lr = pi_lr
         self.norm_eps = norm_eps
         self.norm_clip = norm_clip
@@ -64,7 +65,7 @@ class DDPG(object):
         self.action_l2 = action_l2
         self.clip_obs = clip_obs
         self.scope = scope
-        self.T = T
+        self.time_horizon = time_horizon
         self.rollout_batch_size = rollout_batch_size
         self.subtract_goals = subtract_goals
         self.relative_goals = relative_goals
@@ -107,13 +108,13 @@ class DDPG(object):
             self._create_network(reuse=reuse)
 
         # Configure the replay buffer.
-        buffer_shapes = {key: (self.T if key != 'o' else self.T+1, *input_shapes[key])
+        buffer_shapes = {key: (self.time_horizon if key != 'o' else self.time_horizon + 1, *input_shapes[key])
                          for key, val in input_shapes.items()}
         buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
-        buffer_shapes['ag'] = (self.T+1, self.dimg)
+        buffer_shapes['ag'] = (self.time_horizon + 1, self.dimg)
 
         buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
-        self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions)
+        self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.time_horizon, self.sample_transitions)
 
     def _random_action(self, n):
         return np.random.uniform(low=-self.max_u, high=self.max_u, size=(n, self.dimu))
@@ -210,21 +211,21 @@ class DDPG(object):
         return self.buffer.get_current_size()
 
     def _sync_optimizers(self):
-        self.Q_adam.sync()
+        self.q_adam.sync()
         self.pi_adam.sync()
 
     def _grads(self):
         # Avoid feed_dict here for performance!
-        critic_loss, actor_loss, Q_grad, pi_grad = self.sess.run([
-            self.Q_loss_tf,
+        critic_loss, actor_loss, q_grad, pi_grad = self.sess.run([
+            self.q_loss_tf,
             self.main.Q_pi_tf,
             self.Q_grad_tf,
             self.pi_grad_tf
         ])
-        return critic_loss, actor_loss, Q_grad, pi_grad
+        return critic_loss, actor_loss, q_grad, pi_grad
 
-    def _update(self, Q_grad, pi_grad):
-        self.Q_adam.update(Q_grad, self.Q_lr)
+    def _update(self, q_grad, pi_grad):
+        self.q_adam.update(q_grad, self.q_lr)
         self.pi_adam.update(pi_grad, self.pi_lr)
 
     def sample_batch(self):
@@ -262,8 +263,8 @@ class DDPG(object):
         """
         if stage:
             self.stage_batch()
-        critic_loss, actor_loss, Q_grad, pi_grad = self._grads()
-        self._update(Q_grad, pi_grad)
+        critic_loss, actor_loss, q_grad, pi_grad = self._grads()
+        self._update(q_grad, pi_grad)
         return critic_loss, actor_loss
 
     def _init_target_net(self):
@@ -334,10 +335,10 @@ class DDPG(object):
         target_q_pi_tf = self.target.Q_pi_tf
         clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
         target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_q_pi_tf, *clip_range)
-        self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
+        self.q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
         self.pi_loss_tf = -tf.reduce_mean(self.main.Q_pi_tf)
         self.pi_loss_tf += self.action_l2 * tf.reduce_mean(tf.square(self.main.pi_tf / self.max_u))
-        q_grads_tf = tf.gradients(self.Q_loss_tf, self._vars('main/Q'))
+        q_grads_tf = tf.gradients(self.q_loss_tf, self._vars('main/Q'))
         pi_grads_tf = tf.gradients(self.pi_loss_tf, self._vars('main/pi'))
         assert len(self._vars('main/Q')) == len(q_grads_tf)
         assert len(self._vars('main/pi')) == len(pi_grads_tf)
@@ -347,7 +348,7 @@ class DDPG(object):
         self.pi_grad_tf = flatten_grads(grads=pi_grads_tf, var_list=self._vars('main/pi'))
 
         # optimizers
-        self.Q_adam = MpiAdam(self._vars('main/Q'), scale_grad_by_procs=False)
+        self.q_adam = MpiAdam(self._vars('main/Q'), scale_grad_by_procs=False)
         self.pi_adam = MpiAdam(self._vars('main/pi'), scale_grad_by_procs=False)
 
         # polyak averaging
