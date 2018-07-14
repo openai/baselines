@@ -28,7 +28,7 @@ class CnnPolicy(BasePolicy):
                                                  kernel_initializer=tf_utils.normc_initializer(1.0)))
             logits = tf.layers.dense(layer_3, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_utils.normc_initializer(0.01))
-            self.pd = pdtype.proba_distribution_from_flat(logits)
+            self.proba_distribution = pdtype.proba_distribution_from_flat(logits)
         with tf.variable_scope(self.name + "/vf", reuse=self.reuse):
             layer_1 = tf.nn.relu(tf_utils.conv2d(obs_normalized, 8, "l1", [8, 8], [4, 4], pad="VALID"))
             layer_2 = tf.nn.relu(tf_utils.conv2d(layer_1, 16, "l2", [4, 4], [2, 2], pad="VALID"))
@@ -43,5 +43,5 @@ class CnnPolicy(BasePolicy):
         self.state_out = []
 
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
-        action = self.pd.sample()
+        action = self.proba_distribution.sample()
         self._act = tf_utils.function([stochastic, obs], [action, self.vpred])
