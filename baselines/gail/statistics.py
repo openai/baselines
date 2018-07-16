@@ -29,15 +29,15 @@ class Stats:
         self.histogram_summaries = []
         with tf.variable_scope('summary'):
             for k in scalar_keys:
-                ph = tf.placeholder('float32', None, name=k + '.scalar.summary')
-                sm = tf.summary.scalar(k + '.scalar.summary', ph)
-                self.scalar_summaries_ph.append(ph)
-                self.scalar_summaries.append(sm)
+                place_holder = tf.placeholder('float32', None, name=k + '.scalar.summary')
+                string_summary = tf.summary.scalar(k + '.scalar.summary', place_holder)
+                self.scalar_summaries_ph.append(place_holder)
+                self.scalar_summaries.append(string_summary)
             for k in histogram_keys:
-                ph = tf.placeholder('float32', None, name=k + '.histogram.summary')
-                sm = tf.summary.scalar(k + '.histogram.summary', ph)
-                self.histogram_summaries_ph.append(ph)
-                self.histogram_summaries.append(sm)
+                place_holder = tf.placeholder('float32', None, name=k + '.histogram.summary')
+                string_summary = tf.summary.scalar(k + '.histogram.summary', place_holder)
+                self.histogram_summaries_ph.append(place_holder)
+                self.histogram_summaries.append(string_summary)
 
         self.summaries = tf.summary.merge(self.scalar_summaries + self.histogram_summaries)
 
@@ -55,7 +55,7 @@ class Stats:
         sess = tf_util.get_session()
         keys = self.scalar_summaries_ph + self.histogram_summaries_ph
         feed_dict = {}
-        for k, v in zip(keys, values):
-            feed_dict.update({k: v})
+        for key, value in zip(keys, values):
+            feed_dict.update({key: value})
         summaries_str = sess.run(self.summaries, feed_dict)
         writer.add_summary(summaries_str, _iter)

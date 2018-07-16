@@ -15,10 +15,10 @@ def conjugate_gradient(f_ax, b, cg_iters=10, callback=None, verbose=False, resid
     :param residual_tol: (float) the break point if the residual is below this value
     :return: (numpy float) vector x, where Ax = b
     """
-    p = b.copy()  # the first basis vector
-    r = b.copy()  # the residual
-    x = np.zeros_like(b)  # vector x, where Ax = b
-    rdotr = r.dot(r)  # L2 norm of the residual
+    first_basis_vect = b.copy()  # the first basis vector
+    residual = b.copy()  # the residual
+    x_var = np.zeros_like(b)  # vector x, where Ax = b
+    residual_dot_residual = residual.dot(residual)  # L2 norm of the residual
 
     fmtstr = "%10i %10.3g %10.3g"
     titlestr = "%10s %10s %10s"
@@ -27,23 +27,23 @@ def conjugate_gradient(f_ax, b, cg_iters=10, callback=None, verbose=False, resid
 
     for i in range(cg_iters):
         if callback is not None:
-            callback(x)
+            callback(x_var)
         if verbose:
-            print(fmtstr % (i, rdotr, np.linalg.norm(x)))
-        z = f_ax(p)
-        v = rdotr / p.dot(z)
-        x += v * p
-        r -= v * z
-        newrdotr = r.dot(r)
-        mu = newrdotr / rdotr
-        p = r + mu * p
+            print(fmtstr % (i, residual_dot_residual, np.linalg.norm(x_var)))
+        z_var = f_ax(first_basis_vect)
+        v_var = residual_dot_residual / first_basis_vect.dot(z_var)
+        x_var += v_var * first_basis_vect
+        residual -= v_var * z_var
+        new_residual_dot_residual = residual.dot(residual)
+        mu_val = new_residual_dot_residual / residual_dot_residual
+        first_basis_vect = residual + mu_val * first_basis_vect
 
-        rdotr = newrdotr
-        if rdotr < residual_tol:
+        residual_dot_residual = new_residual_dot_residual
+        if residual_dot_residual < residual_tol:
             break
 
     if callback is not None:
-        callback(x)
+        callback(x_var)
     if verbose:
-        print(fmtstr % (i + 1, rdotr, np.linalg.norm(x)))
-    return x
+        print(fmtstr % (i + 1, residual_dot_residual, np.linalg.norm(x_var)))
+    return x_var

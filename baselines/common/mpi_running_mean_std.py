@@ -42,19 +42,19 @@ class RunningMeanStd(object):
                                                        tf.assign_add(self._sumsq, newsumsq),
                                                        tf.assign_add(self._count, newcount)])
 
-    def update(self, x):
+    def update(self, data):
         """
         update the running mean and std
 
-        :param x: (numpy Number) the data
+        :param data: (numpy Number) the data
         """
-        x = x.astype('float64')
-        n = int(np.prod(self.shape))
-        totalvec = np.zeros(n * 2 + 1, 'float64')
-        addvec = np.concatenate([x.sum(axis=0).ravel(), np.square(x).sum(axis=0).ravel(),
-                                 np.array([len(x)], dtype='float64')])
+        data = data.astype('float64')
+        data_size = int(np.prod(self.shape))
+        totalvec = np.zeros(data_size * 2 + 1, 'float64')
+        addvec = np.concatenate([data.sum(axis=0).ravel(), np.square(data).sum(axis=0).ravel(),
+                                 np.array([len(data)], dtype='float64')])
         MPI.COMM_WORLD.Allreduce(addvec, totalvec, op=MPI.SUM)
-        self.incfiltparams(totalvec[0: n].reshape(self.shape), totalvec[n: 2 * n].reshape(self.shape), totalvec[2 * n])
+        self.incfiltparams(totalvec[0: data_size].reshape(self.shape), totalvec[data_size: 2 * data_size].reshape(self.shape), totalvec[2 * data_size])
 
 
 @tf_util.in_session
@@ -63,30 +63,30 @@ def test_dist():
     test the running mean std
     """
     np.random.seed(0)
-    p1, p2, p3 = (np.random.randn(3, 1), np.random.randn(4, 1), np.random.randn(5, 1))
-    q1, q2, q3 = (np.random.randn(6, 1), np.random.randn(7, 1), np.random.randn(8, 1))
+    p_1, p_2, p_3 = (np.random.randn(3, 1), np.random.randn(4, 1), np.random.randn(5, 1))
+    q_1, q_2, q_3 = (np.random.randn(6, 1), np.random.randn(7, 1), np.random.randn(8, 1))
 
     comm = MPI.COMM_WORLD
     assert comm.Get_size() == 2
     if comm.Get_rank() == 0:
-        x1, x2, x3 = p1, p2, p3
+        x_1, x_2, x_3 = p_1, p_2, p_3
     elif comm.Get_rank() == 1:
-        x1, x2, x3 = q1, q2, q3
+        x_1, x_2, x_3 = q_1, q_2, q_3
     else:
         assert False
 
     rms = RunningMeanStd(epsilon=0.0, shape=(1,))
     tf_util.initialize()
 
-    rms.update(x1)
-    rms.update(x2)
-    rms.update(x3)
+    rms.update(x_1)
+    rms.update(x_2)
+    rms.update(x_3)
 
-    bigvec = np.concatenate([p1, p2, p3, q1, q2, q3])
+    bigvec = np.concatenate([p_1, p_2, p_3, q_1, q_2, q_3])
 
-    def checkallclose(x, y):
-        print(x, y)
-        return np.allclose(x, y)
+    def checkallclose(var_1, var_2):
+        print(var_1, var_2)
+        return np.allclose(var_1, var_2)
 
     assert checkallclose(
         bigvec.mean(axis=0),

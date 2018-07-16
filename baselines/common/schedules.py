@@ -10,11 +10,11 @@ of the parameter given the timestep t of the optimization procedure.
 
 
 class Schedule(object):
-    def value(self, t):
+    def value(self, t_time):
         """
         Value of the schedule at time t
 
-        :param t: (int) the time
+        :param t_time: (int) the time
         :return: (float) the output value for the given time
         """
         raise NotImplementedError

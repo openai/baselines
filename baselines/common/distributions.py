@@ -294,21 +294,21 @@ class CategoricalProbabilityDistribution(ProbabilityDistribution):
             labels=one_hot_actions)
 
     def kl(self, other):
-        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
-        a1 = other.logits - tf.reduce_max(other.logits, axis=-1, keep_dims=True)
-        ea0 = tf.exp(a0)
-        ea1 = tf.exp(a1)
-        z0 = tf.reduce_sum(ea0, axis=-1, keep_dims=True)
-        z1 = tf.reduce_sum(ea1, axis=-1, keep_dims=True)
-        p0 = ea0 / z0
-        return tf.reduce_sum(p0 * (a0 - tf.log(z0) - a1 + tf.log(z1)), axis=-1)
+        a_0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
+        a_1 = other.logits - tf.reduce_max(other.logits, axis=-1, keep_dims=True)
+        exp_a_0 = tf.exp(a_0)
+        exp_a_1 = tf.exp(a_1)
+        z_0 = tf.reduce_sum(exp_a_0, axis=-1, keep_dims=True)
+        z_1 = tf.reduce_sum(exp_a_1, axis=-1, keep_dims=True)
+        p0 = exp_a_0 / z_0
+        return tf.reduce_sum(p0 * (a_0 - tf.log(z_0) - a_1 + tf.log(z_1)), axis=-1)
 
     def entropy(self):
-        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
-        ea0 = tf.exp(a0)
-        z0 = tf.reduce_sum(ea0, axis=-1, keep_dims=True)
-        p0 = ea0 / z0
-        return tf.reduce_sum(p0 * (tf.log(z0) - a0), axis=-1)
+        a_0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
+        exp_a_0 = tf.exp(a_0)
+        z_0 = tf.reduce_sum(exp_a_0, axis=-1, keep_dims=True)
+        p0 = exp_a_0 / z_0
+        return tf.reduce_sum(p0 * (tf.log(z_0) - a_0), axis=-1)
 
     def sample(self):
         uniform = tf.random_uniform(tf.shape(self.logits))
@@ -419,28 +419,28 @@ class BernoulliProbabilityDistribution(ProbabilityDistribution):
         :param logits: ([float]) the bernoulli input data
         """
         self.logits = logits
-        self.ps = tf.sigmoid(logits)
+        self.probabilities = tf.sigmoid(logits)
 
     def flatparam(self):
         return self.logits
 
     def mode(self):
-        return tf.round(self.ps)
+        return tf.round(self.probabilities)
 
     def neglogp(self, x):
         return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=tf.to_float(x)),
                              axis=-1)
 
     def kl(self, other):
-        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=other.logits, labels=self.ps), axis=-1) - \
-            tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.ps), axis=-1)
+        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=other.logits, labels=self.probabilities), axis=-1) - \
+            tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.probabilities), axis=-1)
 
     def entropy(self):
-        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.ps), axis=-1)
+        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.probabilities), axis=-1)
 
     def sample(self):
-        u = tf.random_uniform(tf.shape(self.ps))
-        return tf.to_float(math_ops.less(u, self.ps))
+        samples_from_uniform = tf.random_uniform(tf.shape(self.probabilities))
+        return tf.to_float(math_ops.less(samples_from_uniform, self.probabilities))
 
     @classmethod
     def fromflat(cls, flat):

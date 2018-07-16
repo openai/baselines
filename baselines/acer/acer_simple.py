@@ -61,7 +61,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
 
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, nstack, num_procs, ent_coef, q_coef, gamma,
-                 max_grad_norm, lr, rprop_alpha, rprop_epsilon, total_timesteps, lrschedule, c, trust_region, alpha,
+                 max_grad_norm, learning_rate, rprop_alpha, rprop_epsilon, total_timesteps, lrschedule, c, trust_region, alpha,
                  delta):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
@@ -77,7 +77,7 @@ class Model(object):
         :param q_coef: (float) The weight for the loss on the Q value
         :param gamma: (float) The discount value
         :param max_grad_norm: (float) The clipping value for the maximum gradient
-        :param lr: (float) The initial learning rate for the RMS prop optimizer
+        :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
         :param rprop_alpha: (float) RMS prop optimizer decay rate
         :param rprop_epsilon: (float) RMS prop optimizer epsilon
         :param total_timesteps: (int) The total number of timesteps for training the model
@@ -177,8 +177,10 @@ class Model(object):
         loss = loss_policy + q_coef * loss_q - ent_coef * entropy
 
         if trust_region:
-            g = tf.gradients(- (loss_policy - ent_coef * entropy) * nsteps * nenvs, distribution_f)  # [nenvs * nsteps, nact]
-            k = - f_pol / (distribution_f + eps)  # [nenvs * nsteps, nact] # Directly computed gradient of KL divergence wrt f
+            # [nenvs * nsteps, nact]
+            g = tf.gradients(- (loss_policy - ent_coef * entropy) * nsteps * nenvs, distribution_f)
+            # [nenvs * nsteps, nact] # Directly computed gradient of KL divergence wrt f
+            k = - f_pol / (distribution_f + eps)
             k_dot_g = tf.reduce_sum(k * g, axis=-1)
             adj = tf.maximum(0.0, (tf.reduce_sum(k * g, axis=-1) - delta) / (
                         tf.reduce_sum(tf.square(k), axis=-1) + eps))  # [nenvs * nsteps]
@@ -212,7 +214,7 @@ class Model(object):
         with tf.control_dependencies([_opt_op]):
             _train = tf.group(ema_apply_op)
 
-        lr = Scheduler(initial_value=lr, n_values=total_timesteps, schedule=lrschedule)
+        lr = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
 
         # Ops/Summaries to run, and their names for logging
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, explained_variance, norm_grads]
@@ -265,13 +267,13 @@ class Runner(AbstractEnvRunner):
         """
         super().__init__(env=env, model=model, nsteps=nsteps)
         self.nstack = nstack
-        nh, nw, nc = env.observation_space.shape
-        self.nc = nc  # nc = 1 for atari, but just in case
+        obs_height, obs_width, obs_num_channels = env.observation_space.shape
+        self.num_channels = obs_num_channels  # obs_num_channels = 1 for atari, but just in case
         self.nenv = nenv = env.num_envs
         self.nact = env.action_space.n
         self.nbatch = nenv * nsteps
-        self.batch_ob_shape = (nenv * (nsteps + 1), nh, nw, nc * nstack)
-        self.obs = np.zeros((nenv, nh, nw, nc * nstack), dtype=np.uint8)
+        self.batch_ob_shape = (nenv * (nsteps + 1), obs_height, obs_width, obs_num_channels * nstack)
+        self.obs = np.zeros((nenv, obs_height, obs_width, obs_num_channels * nstack), dtype=np.uint8)
         obs = env.reset()
         self.update_obs(obs)
 
@@ -284,8 +286,8 @@ class Runner(AbstractEnvRunner):
         """
         if dones is not None:
             self.obs *= (1 - dones.astype(np.uint8))[:, None, None, None]
-        self.obs = np.roll(self.obs, shift=-self.nc, axis=3)
-        self.obs[:, :, :, -self.nc:] = obs[:, :, :, :]
+        self.obs = np.roll(self.obs, shift=-self.num_channels, axis=3)
+        self.obs[:, :, :, -self.num_channels:] = obs[:, :, :, :]
 
     def run(self):
         """
@@ -388,7 +390,7 @@ class Acer(object):
 
 
 def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
-          max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
+          max_grad_norm=10, learning_rate=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
           trust_region=True, alpha=0.99, delta=1):
     """
@@ -403,7 +405,7 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
     :param q_coef: (float) Q function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
     :param max_grad_norm: (float) The maximum value for the gradient clipping
-    :param lr: (float) The learning rate
+    :param learning_rate: (float) The learning rate
     :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
     :param rprop_epsilon: (float) RMS prop optimizer epsilon
@@ -429,7 +431,8 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
     num_procs = len(env.remotes)  # HACK
     model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, nstack=nstack,
                   num_procs=num_procs, ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
-                  max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
+                  max_grad_norm=max_grad_norm, learning_rate=learning_rate, rprop_alpha=rprop_alpha,
+                  rprop_epsilon=rprop_epsilon,
                   total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                   trust_region=trust_region, alpha=alpha, delta=delta)
 
@@ -445,8 +448,8 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
                             nbatch):  # nbatch samples, 1 on_policy call and multiple off-policy calls
         acer.call(on_policy=True)
         if replay_ratio > 0 and buffer.has_atleast(replay_start):
-            n = np.random.poisson(replay_ratio)
-            for _ in range(n):
+            samples_number = np.random.poisson(replay_ratio)
+            for _ in range(samples_number):
                 acer.call(on_policy=False)  # no simulation steps in this
 
     env.close()
