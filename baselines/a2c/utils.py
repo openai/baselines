@@ -24,11 +24,11 @@ def calc_entropy(logits):
     :return: (TensorFlow Tensor) The Entropy of the output values of the network
     """
     # Compute softmax
-    a0 = logits - tf.reduce_max(logits, 1, keep_dims=True)
-    ea0 = tf.exp(a0)
-    z0 = tf.reduce_sum(ea0, 1, keep_dims=True)
-    p0 = ea0 / z0
-    return tf.reduce_sum(p0 * (tf.log(z0) - a0), 1)
+    a_0 = logits - tf.reduce_max(logits, 1, keep_dims=True)
+    exp_a_0 = tf.exp(a_0)
+    z_0 = tf.reduce_sum(exp_a_0, 1, keep_dims=True)
+    p_0 = exp_a_0 / z_0
+    return tf.reduce_sum(p_0 * (tf.log(z_0) - a_0), 1)
 
 
 def calc_entropy_softmax(action_proba):
@@ -173,7 +173,7 @@ def seq_to_batch(tensor_sequence, flat=False):
     """
     shape = tensor_sequence[0].get_shape().as_list()
     if not flat:
-        assert (len(shape) > 1)
+        assert len(shape) > 1
         n_hidden = tensor_sequence[0].get_shape()[-1].value
         return tf.reshape(tf.concat(axis=1, values=tensor_sequence), [-1, n_hidden])
     else:

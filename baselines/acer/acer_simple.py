@@ -45,15 +45,15 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
     reward_seq = batch_to_seq(rewards, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
     done_seq = batch_to_seq(dones, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
     q_is = batch_to_seq(q_i, nenvs, nsteps, True)
-    vs = batch_to_seq(values, nenvs, nsteps + 1, True)
-    v_final = vs[-1]
-    qret = v_final
+    value_sequence = batch_to_seq(values, nenvs, nsteps + 1, True)
+    final_value = value_sequence[-1]
+    qret = final_value
     qrets = []
     for i in range(nsteps - 1, -1, -1):
-        check_shape([qret, done_seq[i], reward_seq[i], rho_bar[i], q_is[i], vs[i]], [[nenvs]] * 6)
+        check_shape([qret, done_seq[i], reward_seq[i], rho_bar[i], q_is[i], value_sequence[i]], [[nenvs]] * 6)
         qret = reward_seq[i] + gamma * qret * (1.0 - done_seq[i])
         qrets.append(qret)
-        qret = (rho_bar[i] * (qret - q_is[i])) + vs[i]
+        qret = (rho_bar[i] * (qret - q_is[i])) + value_sequence[i]
     qrets = qrets[::-1]
     qret = seq_to_batch(qrets, flat=True)
     return qret
@@ -122,53 +122,54 @@ class Model(object):
             polyak_model = policy(sess, ob_space, ac_space, nenvs, nsteps + 1, nstack, reuse=True)
 
         # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
-        v = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [nenvs * (nsteps + 1)]
+        value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [nenvs * (nsteps + 1)]
 
         # strip off last step
         # f is a distribution, chosen to be Gaussian distributions
         # with fixed diagonal covariance and mean \phi(x)
         # in the paper
-        f, f_pol, q = map(lambda variables: strip(variables, nenvs, nsteps),
+        distribution_f, f_pol, q = map(lambda variables: strip(variables, nenvs, nsteps),
                           [train_model.policy, polyak_model.policy, train_model.q_value])
         # Get pi and q values for actions taken
-        f_i = get_by_index(f, action_ph)
+        f_i = get_by_index(distribution_f, action_ph)
         q_i = get_by_index(q, action_ph)
 
         # Compute ratios for importance truncation
-        rho = f / (mu_ph + eps)
+        rho = distribution_f / (mu_ph + eps)
         rho_i = get_by_index(rho, action_ph)
 
         # Calculate Q_retrace targets
-        qret = q_retrace(reward_ph, done_ph, q_i, v, rho_i, nenvs, nsteps, gamma)
+        qret = q_retrace(reward_ph, done_ph, q_i, value, rho_i, nenvs, nsteps, gamma)
 
         # Calculate losses
         # Entropy
-        entropy = tf.reduce_mean(calc_entropy_softmax(f))
+        entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
 
-        # Policy Graident loss, with truncated importance sampling & bias correction
-        v = strip(v, nenvs, nsteps, True)
-        check_shape([qret, v, rho_i, f_i], [[nenvs * nsteps]] * 4)
-        check_shape([rho, f, q], [[nenvs * nsteps, nact]] * 2)
+        # Policy Gradient loss, with truncated importance sampling & bias correction
+        value = strip(value, nenvs, nsteps, True)
+        check_shape([qret, value, rho_i, f_i], [[nenvs * nsteps]] * 4)
+        check_shape([rho, distribution_f, q], [[nenvs * nsteps, nact]] * 2)
 
         # Truncated importance sampling
-        adv = qret - v
-        logf = tf.log(f_i + eps)
-        gain_f = logf * tf.stop_gradient(adv * tf.minimum(c, rho_i))  # [nenvs * nsteps]
+        adv = qret - value
+        log_f = tf.log(f_i + eps)
+        gain_f = log_f * tf.stop_gradient(adv * tf.minimum(c, rho_i))  # [nenvs * nsteps]
         loss_f = -tf.reduce_mean(gain_f)
 
         # Bias correction for the truncation
-        adv_bc = (q - tf.reshape(v, [nenvs * nsteps, 1]))  # [nenvs * nsteps, nact]
-        logf_bc = tf.log(f + eps)  # / (f_old + eps)
-        check_shape([adv_bc, logf_bc], [[nenvs * nsteps, nact]] * 2)
-        gain_bc = tf.reduce_sum(logf_bc * tf.stop_gradient(adv_bc * tf.nn.relu(1.0 - (c / (rho + eps))) * f),
-                                axis=1)  # IMP: This is sum, as expectation wrt f
+        adv_bc = (q - tf.reshape(value, [nenvs * nsteps, 1]))  # [nenvs * nsteps, nact]
+        log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
+        check_shape([adv_bc, log_f_bc], [[nenvs * nsteps, nact]] * 2)
+        gain_bc = tf.reduce_sum(log_f_bc *
+                                tf.stop_gradient(adv_bc * tf.nn.relu(1.0 - (c / (rho + eps))) * distribution_f), axis=1)
+                                # IMP: This is sum, as expectation wrt f
         loss_bc = -tf.reduce_mean(gain_bc)
 
         loss_policy = loss_f + loss_bc
 
         # Value/Q function loss, and explained variance
         check_shape([qret, q_i], [[nenvs * nsteps]] * 2)
-        ev = q_explained_variance(tf.reshape(q_i, [nenvs, nsteps]), tf.reshape(qret, [nenvs, nsteps]))
+        explained_variance = q_explained_variance(tf.reshape(q_i, [nenvs, nsteps]), tf.reshape(qret, [nenvs, nsteps]))
         loss_q = tf.reduce_mean(tf.square(tf.stop_gradient(qret) - q_i) * 0.5)
 
         # Net loss
@@ -176,9 +177,8 @@ class Model(object):
         loss = loss_policy + q_coef * loss_q - ent_coef * entropy
 
         if trust_region:
-            g = tf.gradients(- (loss_policy - ent_coef * entropy) * nsteps * nenvs, f)  # [nenvs * nsteps, nact]
-            # k = tf.gradients(KL(f_pol || f), f)
-            k = - f_pol / (f + eps)  # [nenvs * nsteps, nact] # Directly computed gradient of KL divergence wrt f
+            g = tf.gradients(- (loss_policy - ent_coef * entropy) * nsteps * nenvs, distribution_f)  # [nenvs * nsteps, nact]
+            k = - f_pol / (distribution_f + eps)  # [nenvs * nsteps, nact] # Directly computed gradient of KL divergence wrt f
             k_dot_g = tf.reduce_sum(k * g, axis=-1)
             adj = tf.maximum(0.0, (tf.reduce_sum(k * g, axis=-1) - delta) / (
                         tf.reduce_sum(tf.square(k), axis=-1) + eps))  # [nenvs * nsteps]
@@ -192,7 +192,7 @@ class Model(object):
             g = g - tf.reshape(adj, [nenvs * nsteps, 1]) * k
             grads_f = -g / (
                         nenvs * nsteps)  # These are turst region adjusted gradients wrt f ie statistics of policy pi
-            grads_policy = tf.gradients(f, params, grads_f)
+            grads_policy = tf.gradients(distribution_f, params, grads_f)
             grads_q = tf.gradients(loss_q * q_coef, params)
             grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, params)]
 
@@ -215,7 +215,7 @@ class Model(object):
         lr = Scheduler(initial_value=lr, n_values=total_timesteps, schedule=lrschedule)
 
         # Ops/Summaries to run, and their names for logging
-        run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
+        run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, explained_variance, norm_grads]
         names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
                      'norm_grads']
         if trust_region:
@@ -240,9 +240,9 @@ class Model(object):
             return names_ops, sess.run(run_ops, td_map)[1:]  # strip off _train
 
         def save(save_path):
-            ps = sess.run(params)
+            session_params = sess.run(params)
             make_path(os.path.dirname(save_path))
-            joblib.dump(ps, save_path)
+            joblib.dump(session_params, save_path)
 
         self.train = train
         self.save = save
