@@ -50,7 +50,7 @@ class ReplayBuffer(object):
             dones.append(done)
         return np.array(obses_t), np.array(actions), np.array(rewards), np.array(obses_tp1), np.array(dones)
 
-    def sample(self, batch_size):
+    def sample(self, batch_size, **_kwargs):
         """
         Sample a batch of experiences.
 
@@ -90,7 +90,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self._it_min = MinSegmentTree(it_capacity)
         self._max_priority = 1.0
 
-    def add(self, *args, **kwargs):
+    def add(self, obs_t, action, reward, obs_tp1, done):
         """
         add a new transition to the buffer
 
@@ -101,7 +101,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         :param done: (bool) is the episode done
         """
         idx = self._next_idx
-        super().add(*args, **kwargs)
+        super().add(obs_t, action, reward, obs_tp1, done)
         self._it_sum[idx] = self._max_priority ** self._alpha
         self._it_min[idx] = self._max_priority ** self._alpha
 

@@ -19,7 +19,7 @@ class DDPG(object):
     def __init__(self, input_dims, buffer_size, hidden, layers, network_class, polyak, batch_size,
                  q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, time_horizon,
                  rollout_batch_size, subtract_goals, relative_goals, clip_pos_returns, clip_return,
-                 sample_transitions, gamma, reuse=False, **kwargs):
+                 sample_transitions, gamma, reuse=False):
         """
         Implementation of DDPG that is used in combination with Hindsight Experience Replay (HER).
 
@@ -81,9 +81,9 @@ class DDPG(object):
         self.create_actor_critic = import_function(self.network_class)
 
         input_shapes = dims_to_shapes(self.input_dims)
-        self.dimo = self.input_dims['o']
-        self.dimg = self.input_dims['g']
-        self.dimu = self.input_dims['u']
+        self.dim_obs = self.input_dims['o']
+        self.dim_goal = self.input_dims['g']
+        self.dim_action = self.input_dims['u']
 
         # Prepare staging area for feeding data to the model.
         stage_shapes = OrderedDict()
@@ -110,64 +110,64 @@ class DDPG(object):
         # Configure the replay buffer.
         buffer_shapes = {key: (self.time_horizon if key != 'o' else self.time_horizon + 1, *input_shapes[key])
                          for key, val in input_shapes.items()}
-        buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
-        buffer_shapes['ag'] = (self.time_horizon + 1, self.dimg)
+        buffer_shapes['g'] = (buffer_shapes['g'][0], self.dim_goal)
+        buffer_shapes['ag'] = (self.time_horizon + 1, self.dim_goal)
 
         buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
         self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.time_horizon, self.sample_transitions)
 
     def _random_action(self, n):
-        return np.random.uniform(low=-self.max_u, high=self.max_u, size=(n, self.dimu))
+        return np.random.uniform(low=-self.max_u, high=self.max_u, size=(n, self.dim_action))
 
-    def _preprocess_og(self, o, ag, g):
+    def _preprocess_obs_goal(self, obs, achieved_goal, goal):
         if self.relative_goals:
-            g_shape = g.shape
-            g = g.reshape(-1, self.dimg)
-            ag = ag.reshape(-1, self.dimg)
-            g = self.subtract_goals(g, ag)
-            g = g.reshape(*g_shape)
-        o = np.clip(o, -self.clip_obs, self.clip_obs)
-        g = np.clip(g, -self.clip_obs, self.clip_obs)
-        return o, g
+            g_shape = goal.shape
+            goal = goal.reshape(-1, self.dim_goal)
+            achieved_goal = achieved_goal.reshape(-1, self.dim_goal)
+            goal = self.subtract_goals(goal, achieved_goal)
+            goal = goal.reshape(*g_shape)
+        obs = np.clip(obs, -self.clip_obs, self.clip_obs)
+        goal = np.clip(goal, -self.clip_obs, self.clip_obs)
+        return obs, goal
 
-    def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False, compute_q=False):
+    def get_actions(self, obs, achieved_goal, goal, noise_eps=0., random_eps=0., use_target_net=False, compute_q=False):
         """
         return the action from an observation and goal
 
-        :param o: (numpy Number) the observation
-        :param ag: (numpy Number) the action goal
-        :param g: (numpy Number) the goal
+        :param obs: (numpy Number) the observation
+        :param achieved_goal: (numpy Number) the achieved goal
+        :param goal: (numpy Number) the goal
         :param noise_eps: (float) the noise epsilon
         :param random_eps: (float) the random epsilon
         :param use_target_net: (bool) whether or not to use the target network
         :param compute_q: (bool) whether or not to compute Q value
         :return: (numpy float or float) the actions
         """
-        o, g = self._preprocess_og(o, ag, g)
+        obs, goal = self._preprocess_obs_goal(obs, achieved_goal, goal)
         policy = self.target if use_target_net else self.main
         # values to compute
         vals = [policy.pi_tf]
         if compute_q:
-            vals += [policy.Q_pi_tf]
+            vals += [policy.q_pi_tf]
         # feed
         feed = {
-            policy.o_tf: o.reshape(-1, self.dimo),
-            policy.g_tf: g.reshape(-1, self.dimg),
-            policy.u_tf: np.zeros((o.size // self.dimo, self.dimu), dtype=np.float32)
+            policy.o_tf: obs.reshape(-1, self.dim_obs),
+            policy.g_tf: goal.reshape(-1, self.dim_goal),
+            policy.u_tf: np.zeros((obs.size // self.dim_obs, self.dim_action), dtype=np.float32)
         }
 
         ret = self.sess.run(vals, feed_dict=feed)
         # action postprocessing
-        u = ret[0]
-        noise = noise_eps * self.max_u * np.random.randn(*u.shape)  # gaussian noise
-        u += noise
-        u = np.clip(u, -self.max_u, self.max_u)
+        action = ret[0]
+        noise = noise_eps * self.max_u * np.random.randn(*action.shape)  # gaussian noise
+        action += noise
+        action = np.clip(action, -self.max_u, self.max_u)
         # eps-greedy
-        u += np.random.binomial(1, random_eps, u.shape[0]).reshape(-1, 1) * (self._random_action(u.shape[0]) - u)
-        if u.shape[0] == 1:
-            u = u[0]
-        u = u.copy()
-        ret[0] = u
+        action += np.random.binomial(1, random_eps, action.shape[0]).reshape(-1, 1) * (self._random_action(action.shape[0]) - action)
+        if action.shape[0] == 1:
+            action = action[0]
+        action = action.copy()
+        ret[0] = action
 
         if len(ret) == 1:
             return ret[0]
@@ -192,8 +192,8 @@ class DDPG(object):
             num_normalizing_transitions = transitions_in_episode_batch(episode_batch)
             transitions = self.sample_transitions(episode_batch, num_normalizing_transitions)
 
-            o, o_2, g, ag = transitions['o'], transitions['o_2'], transitions['g'], transitions['ag']
-            transitions['o'], transitions['g'] = self._preprocess_og(o, ag, g)
+            obs, _, goal, achieved_goal = transitions['o'], transitions['o_2'], transitions['g'], transitions['ag']
+            transitions['o'], transitions['g'] = self._preprocess_obs_goal(obs, achieved_goal, goal)
             # No need to preprocess the o_2 and g_2 since this is only used for stats
 
             self.o_stats.update(transitions['o'])
@@ -218,7 +218,7 @@ class DDPG(object):
         # Avoid feed_dict here for performance!
         critic_loss, actor_loss, q_grad, pi_grad = self.sess.run([
             self.q_loss_tf,
-            self.main.Q_pi_tf,
+            self.main.q_pi_tf,
             self.q_grad_tf,
             self.pi_grad_tf
         ])
@@ -235,10 +235,10 @@ class DDPG(object):
         :return: (dict) the batch
         """
         transitions = self.buffer.sample(self.batch_size)
-        o, o_2, g = transitions['o'], transitions['o_2'], transitions['g']
-        ag, ag_2 = transitions['ag'], transitions['ag_2']
-        transitions['o'], transitions['g'] = self._preprocess_og(o, ag, g)
-        transitions['o_2'], transitions['g_2'] = self._preprocess_og(o_2, ag_2, g)
+        obs, obs_2, goal = transitions['o'], transitions['o_2'], transitions['g']
+        achieved_goal, achieved_goal_2 = transitions['ag'], transitions['ag_2']
+        transitions['o'], transitions['g'] = self._preprocess_obs_goal(obs, achieved_goal, goal)
+        transitions['o_2'], transitions['g_2'] = self._preprocess_obs_goal(obs_2, achieved_goal_2, goal)
 
         transitions_batch = [transitions[key] for key in self.stage_shapes.keys()]
         return transitions_batch
@@ -292,21 +292,21 @@ class DDPG(object):
         return res
 
     def _create_network(self, reuse=False):
-        logger.info("Creating a DDPG agent with action space %d x %s..." % (self.dimu, self.max_u))
+        logger.info("Creating a DDPG agent with action space %d x %s..." % (self.dim_action, self.max_u))
 
         self.sess = tf.get_default_session()
         if self.sess is None:
             self.sess = tf.InteractiveSession()
 
         # running averages
-        with tf.variable_scope('o_stats') as vs:
+        with tf.variable_scope('o_stats') as scope:
             if reuse:
-                vs.reuse_variables()
-            self.o_stats = Normalizer(self.dimo, self.norm_eps, self.norm_clip, sess=self.sess)
-        with tf.variable_scope('g_stats') as vs:
+                scope.reuse_variables()
+            self.o_stats = Normalizer(self.dim_obs, self.norm_eps, self.norm_clip, sess=self.sess)
+        with tf.variable_scope('g_stats') as scope:
             if reuse:
-                vs.reuse_variables()
-            self.g_stats = Normalizer(self.dimg, self.norm_eps, self.norm_clip, sess=self.sess)
+                scope.reuse_variables()
+            self.g_stats = Normalizer(self.dim_goal, self.norm_eps, self.norm_clip, sess=self.sess)
 
         # mini-batch sampling.
         batch = self.staging_tf.get()
@@ -315,33 +315,37 @@ class DDPG(object):
         batch_tf['r'] = tf.reshape(batch_tf['r'], [-1, 1])
 
         # networks
-        with tf.variable_scope('main') as vs:
+        with tf.variable_scope('main') as scope:
             if reuse:
-                vs.reuse_variables()
+                scope.reuse_variables()
             self.main = self.create_actor_critic(batch_tf, net_type='main', **self.__dict__)
-            vs.reuse_variables()
-        with tf.variable_scope('target') as vs:
+            scope.reuse_variables()
+        with tf.variable_scope('target') as scope:
             if reuse:
-                vs.reuse_variables()
+                scope.reuse_variables()
             target_batch_tf = batch_tf.copy()
             target_batch_tf['o'] = batch_tf['o_2']
             target_batch_tf['g'] = batch_tf['g_2']
             self.target = self.create_actor_critic(
                 target_batch_tf, net_type='target', **self.__dict__)
-            vs.reuse_variables()
+            scope.reuse_variables()
         assert len(self._vars("main")) == len(self._vars("target"))
 
         # loss functions
-        target_q_pi_tf = self.target.Q_pi_tf
+        target_q_pi_tf = self.target.q_pi_tf
         clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
         target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_q_pi_tf, *clip_range)
-        self.q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
-        self.pi_loss_tf = -tf.reduce_mean(self.main.Q_pi_tf)
+
+        self.q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.q_tf))
+        self.pi_loss_tf = -tf.reduce_mean(self.main.q_pi_tf)
         self.pi_loss_tf += self.action_l2 * tf.reduce_mean(tf.square(self.main.pi_tf / self.max_u))
+
         q_grads_tf = tf.gradients(self.q_loss_tf, self._vars('main/Q'))
         pi_grads_tf = tf.gradients(self.pi_loss_tf, self._vars('main/pi'))
+
         assert len(self._vars('main/Q')) == len(q_grads_tf)
         assert len(self._vars('main/pi')) == len(pi_grads_tf)
+
         self.q_grads_vars_tf = zip(q_grads_tf, self._vars('main/Q'))
         self.pi_grads_vars_tf = zip(pi_grads_tf, self._vars('main/pi'))
         self.q_grad_tf = flatten_grads(grads=q_grads_tf, var_list=self._vars('main/Q'))

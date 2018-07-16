@@ -237,12 +237,13 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
             for var, perturbed_var in zip(all_vars, all_perturbed_vars):
                 if param_noise_filter_func(perturbed_var):
                     # Perturb this variable.
-                    op = tf.assign(perturbed_var,
-                                   var + tf.random_normal(shape=tf.shape(var), mean=0., stddev=param_noise_scale))
+                    operation = tf.assign(perturbed_var,
+                                          var + tf.random_normal(shape=tf.shape(var), mean=0.,
+                                                                 stddev=param_noise_scale))
                 else:
                     # Do not perturb, just assign.
-                    op = tf.assign(perturbed_var, var)
-                perturb_ops.append(op)
+                    operation = tf.assign(perturbed_var, var)
+                perturb_ops.append(operation)
             assert len(perturb_ops) == len(all_vars)
             return tf.group(*perturb_ops)
 
@@ -270,7 +271,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
             return update_scale_expr
 
         # Functionality to update the threshold for parameter space noise.
-        update_param_noise_threshold_expr = param_noise_threshold.assign(
+        update_param_noise_thres_expr = param_noise_threshold.assign(
             tf.cond(update_param_noise_threshold_ph >= 0, lambda: update_param_noise_threshold_ph,
                     lambda: param_noise_threshold))
 
@@ -288,7 +289,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
             tf.cond(reset_ph, lambda: perturb_vars(original_scope="q_func", perturbed_scope="perturbed_q_func"),
                     lambda: tf.group(*[])),
             tf.cond(update_param_noise_scale_ph, lambda: update_scale(), lambda: tf.Variable(0., trainable=False)),
-            update_param_noise_threshold_expr,
+            update_param_noise_thres_expr,
         ]
         _act = tf_utils.function(
             inputs=[observations_ph, stochastic_ph, update_eps_ph, reset_ph, update_param_noise_threshold_ph,

@@ -30,7 +30,7 @@ def mpi_average(value):
 
 
 def train(policy, rollout_worker, evaluator, n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
-          save_policies, **kwargs):
+          save_policies):
     """
     train the given policy
 

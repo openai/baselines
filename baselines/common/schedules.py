@@ -17,7 +17,7 @@ class Schedule(object):
         :param t: (int) the time
         :return: (float) the output value for the given time
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class ConstantSchedule(Schedule):

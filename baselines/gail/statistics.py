@@ -29,28 +29,28 @@ class Stats:
         self.histogram_summaries = []
         with tf.variable_scope('summary'):
             for k in scalar_keys:
-                ph = tf.placeholder('float32', None, name=k+'.scalar.summary')
-                sm = tf.summary.scalar(k+'.scalar.summary', ph)
+                ph = tf.placeholder('float32', None, name=k + '.scalar.summary')
+                sm = tf.summary.scalar(k + '.scalar.summary', ph)
                 self.scalar_summaries_ph.append(ph)
                 self.scalar_summaries.append(sm)
             for k in histogram_keys:
-                ph = tf.placeholder('float32', None, name=k+'.histogram.summary')
-                sm = tf.summary.scalar(k+'.histogram.summary', ph)
+                ph = tf.placeholder('float32', None, name=k + '.histogram.summary')
+                sm = tf.summary.scalar(k + '.histogram.summary', ph)
                 self.histogram_summaries_ph.append(ph)
                 self.histogram_summaries.append(sm)
 
-        self.summaries = tf.summary.merge(self.scalar_summaries+self.histogram_summaries)
+        self.summaries = tf.summary.merge(self.scalar_summaries + self.histogram_summaries)
 
-    def add_all_summary(self, writer, values, iter):
+    def add_all_summary(self, writer, values, _iter):
         """
         Note that the order of the incoming ```values``` should be the same as the that of the
                    ```scalar_keys``` given in ```__init__```
 
         :param writer: (TensorFlow FileWriter) the writer
         :param values: (TensorFlow Tensor or numpy Number) the input for the summary run
-        :param iter: (Number) the global step value
+        :param _iter: (Number) the global step value
         """
-        if np.sum(np.isnan(values)+0) != 0:
+        if np.sum(np.isnan(values) + 0) != 0:
             return
         sess = tf_util.get_session()
         keys = self.scalar_summaries_ph + self.histogram_summaries_ph
@@ -58,4 +58,4 @@ class Stats:
         for k, v in zip(keys, values):
             feed_dict.update({k: v})
         summaries_str = sess.run(self.summaries, feed_dict)
-        writer.add_summary(summaries_str, iter)
+        writer.add_summary(summaries_str, _iter)

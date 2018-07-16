@@ -90,7 +90,8 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_e
     else:
         savedir_fname = os.path.join(ckpt_dir, task_name)
     # FIXME: Incorrect call argument...
-    tf_util.save_state(savedir_fname, var_list=pi.get_variables())
+    # commented for now
+    # tf_util.save_state(savedir_fname, var_list=pi.get_variables())
     return savedir_fname
 
 

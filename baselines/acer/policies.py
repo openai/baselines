@@ -40,7 +40,7 @@ class AcerPolicy(object):
         :param kwargs:
         :return: ([float], [float], [float], [float]) action, mu, states
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def out(self, obs, state, mask, *args, **kwargs):
         """
@@ -53,7 +53,7 @@ class AcerPolicy(object):
         :param kwargs:
         :return: ([float], [float]) pi, q
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def act(self, obs, state, mask, *args, **kwargs):
         """
@@ -66,7 +66,7 @@ class AcerPolicy(object):
         :param kwargs:
         :return: ([float]) The action
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class AcerCnnPolicy(AcerPolicy):

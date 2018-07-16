@@ -12,7 +12,9 @@ from baselines.common import explained_variance, zipsame, dataset, fmt_row, colo
 from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import conjugate_gradient
-from baselines.gail.statistics import Stats
+
+
+# from baselines.gail.statistics import Stats
 
 
 def traj_segment_generator(policy, env, horizon, stochastic, reward_giver=None, gail=False):
@@ -196,7 +198,8 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
 
     vferr = tf.reduce_mean(tf.square(policy.vpred - ret))
 
-    ratio = tf.exp(policy.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))  # advantage * pnew / pold
+    # advantage * pnew / pold
+    ratio = tf.exp(policy.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))
     surrgain = tf.reduce_mean(ratio * atarg)
 
     optimgain = surrgain + entbonus
@@ -230,7 +233,8 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         var_size = tf_util.intprod(shape)
         tangents.append(tf.reshape(flat_tangent[start: start + var_size], shape))
         start += var_size
-    gvp = tf.add_n([tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
+    gvp = tf.add_n(
+        [tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
     fvp = tf_util.flatgrad(gvp, var_list)
 
     assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
@@ -293,13 +297,17 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
 
     if using_gail:
         true_rewbuffer = deque(maxlen=40)
-        g_loss_stats = Stats(loss_names)
-        d_loss_stats = Stats(reward_giver.loss_name)
-        ep_stats = Stats(["True_rewards", "Rewards", "Episode_length"])
+        #  Stats not used for now
+        #  g_loss_stats = Stats(loss_names)
+        #  d_loss_stats = Stats(reward_giver.loss_name)
+        #  ep_stats = Stats(["True_rewards", "Rewards", "Episode_length"])
+
         # if provide pretrained weight
         if pretrained_weight is not None:
+            raise NotImplementedError
             # FIXME: Incorrect call argument...
-            tf_util.load_state(pretrained_weight, var_list=policy.get_variables())
+            # commented for now
+            # tf_util.load_state(pretrained_weight, var_list=policy.get_variables())
 
     while True:
         if callback:

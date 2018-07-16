@@ -25,7 +25,7 @@ class TfInput(object):
 
         :return: (TensorFlow Tensor) the placeholder
         """
-        raise NotImplemented()
+        raise NotImplementedError
 
     def make_feed_dict(self, data):
         """
@@ -33,7 +33,7 @@ class TfInput(object):
 
         :return: (dict) the given data input
         """
-        raise NotImplemented()
+        raise NotImplementedError
 
 
 class PlaceholderTfInput(TfInput):

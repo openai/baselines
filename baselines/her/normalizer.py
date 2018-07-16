@@ -61,48 +61,48 @@ class Normalizer:
         )
         self.lock = threading.Lock()
 
-    def update(self, v):
+    def update(self, arr):
         """
         update the parameters from the input
 
-        :param x: (numpy Number) the input
+        :param arr: (numpy Number) the input
         """
-        v = v.reshape(-1, self.size)
+        arr = arr.reshape(-1, self.size)
 
         with self.lock:
-            self.local_sum += v.sum(axis=0)
-            self.local_sumsq += (np.square(v)).sum(axis=0)
-            self.local_count[0] += v.shape[0]
+            self.local_sum += arr.sum(axis=0)
+            self.local_sumsq += (np.square(arr)).sum(axis=0)
+            self.local_count[0] += arr.shape[0]
 
-    def normalize(self, v, clip_range=None):
+    def normalize(self, arr, clip_range=None):
         """
         normalize the input
 
-        :param v: (numpy Number) the input
+        :param arr: (numpy Number) the input
         :param clip_range: (float) the range to clip to [-clip_range, clip_range]
         :return: (numpy Number) normalized input
         """
         if clip_range is None:
             clip_range = self.default_clip_range
-        mean = reshape_for_broadcasting(self.mean, v)
-        std = reshape_for_broadcasting(self.std,  v)
-        return tf.clip_by_value((v - mean) / std, -clip_range, clip_range)
+        mean = reshape_for_broadcasting(self.mean, arr)
+        std = reshape_for_broadcasting(self.std, arr)
+        return tf.clip_by_value((arr - mean) / std, -clip_range, clip_range)
 
-    def denormalize(self, v):
+    def denormalize(self, arr):
         """
         denormalize the input
 
-        :param v: (numpy Number) the normalized input
+        :param arr: (numpy Number) the normalized input
         :return: (numpy Number) original input
         """
-        mean = reshape_for_broadcasting(self.mean, v)
-        std = reshape_for_broadcasting(self.std,  v)
-        return mean + v * std
+        mean = reshape_for_broadcasting(self.mean, arr)
+        std = reshape_for_broadcasting(self.std, arr)
+        return mean + arr * std
 
     @classmethod
-    def _mpi_average(cls, x):
-        buf = np.zeros_like(x)
-        MPI.COMM_WORLD.Allreduce(x, buf, op=MPI.SUM)
+    def _mpi_average(cls, arr):
+        buf = np.zeros_like(arr)
+        MPI.COMM_WORLD.Allreduce(arr, buf, op=MPI.SUM)
         buf /= MPI.COMM_WORLD.Get_size()
         return buf
 
@@ -160,32 +160,31 @@ class IdentityNormalizer:
         self.mean = tf.zeros(self.size, tf.float32)
         self.std = std * tf.ones(self.size, tf.float32)
 
-    def update(self, x):
+    def update(self, arr):
         """
         update the parameters from the input
 
-        :param x: (numpy Number) the input
+        :param arr: (numpy Number) the input
         """
         pass
 
-    def normalize(self, x, clip_range=None):
+    def normalize(self, arr, **_kwargs):
         """
         normalize the input
 
-        :param x: (numpy Number) the input
-        :param clip_range: (float) the range to clip to [-clip_range, clip_range]
+        :param arr: (numpy Number) the input
         :return: (numpy Number) normalized input
         """
-        return x / self.std
+        return arr / self.std
 
-    def denormalize(self, x):
+    def denormalize(self, arr):
         """
         denormalize the input
 
-        :param x: (numpy Number) the normalized input
+        :param arr: (numpy Number) the normalized input
         :return: (numpy Number) original input
         """
-        return self.std * x
+        return self.std * arr
 
     def synchronize(self):
         """

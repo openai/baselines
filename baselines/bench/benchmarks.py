@@ -62,7 +62,7 @@ def get_task(benchmark, env_id):
     return next(filter(lambda task: task['env_id'] == env_id, benchmark['tasks']), None)
 
 
-def find_task_for_env_id_in_benchmarks(env_id):
+def find_task_in_benchmarks(env_id):
     """
     Get the first task and benchmark, that has the corresponding environment id
 

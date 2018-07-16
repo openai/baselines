@@ -125,8 +125,8 @@ def configure_her(params):
     env = cached_make_env(params['make_env'])
     env.reset()
 
-    def reward_fun(ag_2, g, info):  # vectorized
-        return env.compute_reward(achieved_goal=ag_2, desired_goal=g, info=info)
+    def reward_fun(achieved_goal, goal, info):  # vectorized
+        return env.compute_reward(achieved_goal=achieved_goal, desired_goal=goal, info=info)
 
     # Prepare configuration for HER.
     her_params = {
@@ -141,16 +141,16 @@ def configure_her(params):
     return sample_her_transitions
 
 
-def simple_goal_subtract(a, b):
+def simple_goal_subtract(vec_a, vec_b):
     """
     checks if a and b have the same shape, and does a - b
 
-    :param a: (numpy Number)
-    :param b: (numpy Number)
-    :return: (numpy Number) a - b
+    :param vec_a: (numpy array)
+    :param vec_b: (numpy array)
+    :return: (numpy array) a - b
     """
-    assert a.shape == b.shape
-    return a - b
+    assert vec_a.shape == vec_b.shape
+    return vec_a - vec_b
 
 
 def configure_ddpg(dims, params, reuse=False, use_mpi=True, clip_return=True):

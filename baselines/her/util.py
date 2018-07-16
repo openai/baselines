@@ -19,8 +19,8 @@ def import_function(spec):
     """
     mod_name, fn_name = spec.split(':')
     module = importlib.import_module(mod_name)
-    fn = getattr(module, fn_name)
-    return fn
+    func = getattr(module, fn_name)
+    return func
 
 
 def flatten_grads(var_list, grads):
@@ -35,11 +35,11 @@ def flatten_grads(var_list, grads):
                       for (v, grad) in zip(var_list, grads)], 0)
 
 
-def nn(input, layers_sizes, reuse=None, flatten=False, name=""):
+def nn(_input, layers_sizes, reuse=None, flatten=False, name=""):
     """
     Creates a simple neural network
 
-    :param input: (TensorFlow Tensor) the input
+    :param _input: (TensorFlow Tensor) the input
     :param layers_sizes: ([int]) the hidden layers
     :param reuse: (bool) Enable reuse of the network
     :param flatten: (bool) flatten the network output
@@ -48,17 +48,17 @@ def nn(input, layers_sizes, reuse=None, flatten=False, name=""):
     """
     for i, size in enumerate(layers_sizes):
         activation = tf.nn.relu if i < len(layers_sizes) - 1 else None
-        input = tf.layers.dense(inputs=input,
-                                units=size,
-                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                                reuse=reuse,
-                                name=name + '_' + str(i))
+        _input = tf.layers.dense(inputs=_input,
+                                 units=size,
+                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                 reuse=reuse,
+                                 name=name + '_' + str(i))
         if activation:
-            input = activation(input)
+            _input = activation(_input)
     if flatten:
         assert layers_sizes[-1] == 1
-        input = tf.reshape(input, [-1])
-    return input
+        _input = tf.reshape(_input, [-1])
+    return _input
 
 
 def install_mpi_excepthook():
@@ -72,22 +72,23 @@ def install_mpi_excepthook():
         sys.stdout.flush()
         sys.stderr.flush()
         MPI.COMM_WORLD.Abort()
+
     sys.excepthook = new_hook
 
 
-def mpi_fork(n, extra_mpi_args=None):
+def mpi_fork(rank, extra_mpi_args=None):
     """
     Re-launches the current script with workers
     Returns "parent" for original parent, "child" for MPI children
 
-    :param n: (int) the thread rank
+    :param rank: (int) the thread rank
     :param extra_mpi_args: (dict) extra arguments for MPI
     :return: (str) the correct type of thread name
     """
     if extra_mpi_args is None:
         extra_mpi_args = []
 
-    if n <= 1:
+    if rank <= 1:
         return "child"
     if os.getenv("IN_MPI") is None:
         env = os.environ.copy()
@@ -97,9 +98,9 @@ def mpi_fork(n, extra_mpi_args=None):
             IN_MPI="1"
         )
         # "-bind-to core" is crucial for good performance
-        args = ["mpirun", "-np", str(n)] + \
-            extra_mpi_args + \
-            [sys.executable]
+        args = ["mpirun", "-np", str(rank)] + \
+               extra_mpi_args + \
+               [sys.executable]
 
         args += sys.argv
         subprocess.check_call(args, env=env)

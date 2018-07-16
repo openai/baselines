@@ -20,9 +20,9 @@ class NeuralNetValueFunction(object):
         vtarg_n = tf.placeholder(tf.float32, shape=[None], name='vtarg')
         wd_dict = {}
         layer_1 = tf.nn.elu(dense(obs_ph, 64, "h1",
-                             weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
+                                  weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
         layer_2 = tf.nn.elu(dense(layer_1, 64, "h2",
-                             weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
+                                  weight_init=tf_util.normc_initializer(1.0), bias_init=0, weight_loss_dict=wd_dict))
         vpred_n = dense(layer_2, 1, "hfinal",
                         weight_init=tf_util.normc_initializer(1.0), bias_init=0,
                         weight_loss_dict=wd_dict)[:, 0]
@@ -81,5 +81,3 @@ class NeuralNetValueFunction(object):
         for _ in range(25):
             self.do_update(_input, targets)
         logger.record_tabular("EVAfter", common.explained_variance(self._predict(_input), targets))
-
-

@@ -84,11 +84,11 @@ class KfacOptimizer:
         self.stats = {}
         self.stats_eigen = {}
 
-    def get_factors(self, g, varlist):
+    def get_factors(self, gradients, varlist):
         """
         get factors to update
 
-        :param g: ([TensorFlow Tensor]) The gradients
+        :param gradients: ([TensorFlow Tensor]) The gradients
         :param varlist: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) The factors to update
         """
@@ -159,10 +159,10 @@ class KfacOptimizer:
 
             return {'opName': fprop_op_name, 'op': fprop_op, 'fpropFactors': f_tensors, 'bpropFactors': b_tensors}
 
-        for t, param in zip(g, varlist):
+        for _grad, param in zip(gradients, varlist):
             if KFAC_DEBUG:
                 print(('get factor for ' + param.name))
-            found_factors = _search_factors(t, default_graph)
+            found_factors = _search_factors(_grad, default_graph)
             factor_tensors[param] = found_factors
 
         # check associated weights and bias for homogeneous coordinate representation
@@ -182,7 +182,6 @@ class KfacOptimizer:
                             factor_tensors[item]['assnBias'] = param
                             factor_tensors[param]['bpropFactors'] = factor_tensors[
                                 item]['bpropFactors']
-
 
         # concatenate the additive gradients along the batch dimension, i.e. assuming independence structure
         for key in ['fpropFactors', 'bpropFactors']:
@@ -495,7 +494,7 @@ class KfacOptimizer:
                 return tf.group(
                     *self._apply_stats(stats_updates, accumulate=True, accumulate_coeff=1. / self._stats_accum_iter))
 
-        def _update_running_avg_stats(stats_updates, fac_iter=1):
+        def _update_running_avg_stats(stats_updates):
             return tf.group(*self._apply_stats(stats_updates))
 
         if self._async_stats:
@@ -711,7 +710,7 @@ class KfacOptimizer:
                 for idx, stats in enumerate(self.stats[var]['fprop_concat_stats']):
                     eigen_vectors = self.stats_eigen[stats]['Q']
                     eigen_values = detect_min_val(self.stats_eigen[stats][
-                                         'e'], var, name='act', debug=KFAC_DEBUG)
+                                                      'e'], var, name='act', debug=KFAC_DEBUG)
 
                     eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values,
                                                                  grad, fac_idx=idx, f_type='act')
@@ -721,7 +720,7 @@ class KfacOptimizer:
                 for idx, stats in enumerate(self.stats[var]['bprop_concat_stats']):
                     eigen_vectors = self.stats_eigen[stats]['Q']
                     eigen_values = detect_min_val(self.stats_eigen[stats][
-                                         'e'], var, name='grad', debug=KFAC_DEBUG)
+                                                      'e'], var, name='grad', debug=KFAC_DEBUG)
 
                     eigen_vectors, eigen_values = factor_reshape(eigen_vectors, eigen_values,
                                                                  grad, fac_idx=idx, f_type='grad')

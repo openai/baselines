@@ -53,7 +53,7 @@ class A2CPolicy(object):
         :param mask: ([float]) The last masks (used in reccurent policies)
         :return: ([float], [float], [float], [float]) actions, values, states, neglogp0
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def value(self, obs, state=None, mask=None):
         """
@@ -64,7 +64,7 @@ class A2CPolicy(object):
         :param mask: ([float]) The last masks (used in reccurent policies)
         :return: ([float]) The associated value of the action
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class LstmPolicy(A2CPolicy):

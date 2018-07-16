@@ -10,7 +10,7 @@ from baselines.her.util import convert_episode_to_batch_major
 class RolloutWorker:
     def __init__(self, make_env, policy, dims, logger, time_horizon, rollout_batch_size=1,
                  exploit=False, use_target_net=False, compute_q=False, noise_eps=0,
-                 random_eps=0, history_len=100, render=False, **kwargs):
+                 random_eps=0, history_len=100, render=False):
         """
         Rollout worker generates experience by interacting with one or many environments.
 
@@ -52,30 +52,30 @@ class RolloutWorker:
         self.q_history = deque(maxlen=history_len)
 
         self.n_episodes = 0
-        self.g = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # goals
-        self.initial_o = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)  # observations
+        self.goals = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # goals
+        self.initial_obs = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)  # observations
         self.initial_ag = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # achieved goals
         self.reset_all_rollouts()
         self.clear_history()
 
-    def reset_rollout(self, i):
+    def reset_rollout(self, index):
         """
         Resets the `i`-th rollout environment, re-samples a new goal, and updates the `initial_o` and `g` arrays
         accordingly.
 
-        :param i: (int) the index to reset
+        :param index: (int) the index to reset
         """
-        obs = self.envs[i].reset()
-        self.initial_o[i] = obs['observation']
-        self.initial_ag[i] = obs['achieved_goal']
-        self.g[i] = obs['desired_goal']
+        obs = self.envs[index].reset()
+        self.initial_obs[index] = obs['observation']
+        self.initial_ag[index] = obs['achieved_goal']
+        self.goals[index] = obs['desired_goal']
 
     def reset_all_rollouts(self):
         """
         Resets all `rollout_batch_size` rollout workers.
         """
-        for i in range(self.rollout_batch_size):
-            self.reset_rollout(i)
+        for step in range(self.rollout_batch_size):
+            self.reset_rollout(step)
 
     def generate_rollouts(self):
         """
@@ -87,51 +87,51 @@ class RolloutWorker:
         self.reset_all_rollouts()
 
         # compute observations
-        o = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)  # observations
-        ag = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # achieved goals
-        o[:] = self.initial_o
-        ag[:] = self.initial_ag
+        observations = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)  # observations
+        achieved_goals = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # achieved goals
+        observations[:] = self.initial_obs
+        achieved_goals[:] = self.initial_ag
 
         # generate episodes
         obs, achieved_goals, acts, goals, successes = [], [], [], [], []
         info_values = [np.empty((self.time_horizon, self.rollout_batch_size, self.dims['info_' + key]), np.float32)
                        for key in self.info_keys]
-        Qs = []
-        for t in range(self.time_horizon):
+        q_values = []
+        for step in range(self.time_horizon):
             policy_output = self.policy.get_actions(
-                o, ag, self.g,
-                compute_Q=self.compute_q,
+                observations, achieved_goals, self.goals,
+                compute_q=self.compute_q,
                 noise_eps=self.noise_eps if not self.exploit else 0.,
                 random_eps=self.random_eps if not self.exploit else 0.,
                 use_target_net=self.use_target_net)
 
             if self.compute_q:
-                u, Q = policy_output
-                Qs.append(Q)
+                action, q_value = policy_output
+                q_values.append(q_value)
             else:
-                u = policy_output
+                action = policy_output
 
-            if u.ndim == 1:
+            if action.ndim == 1:
                 # The non-batched case should still have a reasonable shape.
-                u = u.reshape(1, -1)
+                action = action.reshape(1, -1)
 
             o_new = np.empty((self.rollout_batch_size, self.dims['o']))
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
             # compute new states and observations
-            for i in range(self.rollout_batch_size):
+            for batch_idx in range(self.rollout_batch_size):
                 try:
                     # We fully ignore the reward here because it will have to be re-computed
                     # for HER.
-                    curr_o_new, _, _, info = self.envs[i].step(u[i])
+                    curr_o_new, _, _, info = self.envs[batch_idx].step(action[batch_idx])
                     if 'is_success' in info:
-                        success[i] = info['is_success']
-                    o_new[i] = curr_o_new['observation']
-                    ag_new[i] = curr_o_new['achieved_goal']
+                        success[batch_idx] = info['is_success']
+                    o_new[batch_idx] = curr_o_new['observation']
+                    ag_new[batch_idx] = curr_o_new['achieved_goal']
                     for idx, key in enumerate(self.info_keys):
-                        info_values[idx][t, i] = info[key]
+                        info_values[idx][step, batch_idx] = info[key]
                     if self.render:
-                        self.envs[i].render()
+                        self.envs[batch_idx].render()
                 except MujocoException:
                     return self.generate_rollouts()
 
@@ -140,16 +140,16 @@ class RolloutWorker:
                 self.reset_all_rollouts()
                 return self.generate_rollouts()
 
-            obs.append(o.copy())
-            achieved_goals.append(ag.copy())
+            obs.append(observations.copy())
+            achieved_goals.append(achieved_goals.copy())
             successes.append(success.copy())
-            acts.append(u.copy())
-            goals.append(self.g.copy())
-            o[...] = o_new
-            ag[...] = ag_new
-        obs.append(o.copy())
-        achieved_goals.append(ag.copy())
-        self.initial_o[:] = o
+            acts.append(action.copy())
+            goals.append(self.goals.copy())
+            observations[...] = o_new
+            achieved_goals[...] = ag_new
+        obs.append(observations.copy())
+        achieved_goals.append(achieved_goals.copy())
+        self.initial_obs[:] = observations
 
         episode = dict(o=obs,
                        u=acts,
@@ -163,8 +163,9 @@ class RolloutWorker:
         assert successful.shape == (self.rollout_batch_size,)
         success_rate = np.mean(successful)
         self.success_history.append(success_rate)
+
         if self.compute_q:
-            self.q_history.append(np.mean(Qs))
+            self.q_history.append(np.mean(q_values))
         self.n_episodes += self.rollout_batch_size
 
         return convert_episode_to_batch_major(episode)
@@ -196,8 +197,8 @@ class RolloutWorker:
 
         :param path: (str) the save location
         """
-        with open(path, 'wb') as f:
-            pickle.dump(self.policy, f)
+        with open(path, 'wb') as file_handler:
+            pickle.dump(self.policy, file_handler)
 
     def logs(self, prefix='worker'):
         """
@@ -209,7 +210,7 @@ class RolloutWorker:
         logs = []
         logs += [('success_rate', np.mean(self.success_history))]
         if self.compute_q:
-            logs += [('mean_Q', np.mean(self.q_history))]
+            logs += [('mean_q', np.mean(self.q_history))]
         logs += [('episode', self.n_episodes)]
 
         if prefix is not '' and not prefix.endswith('/'):
