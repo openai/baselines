@@ -38,17 +38,17 @@ class ActWrapper(object):
         :param path: (str) the save location
         :return: (ActWrapper) a loaded actor model
         """
-        with open(path, "rb") as f:
-            model_data, act_params = cloudpickle.load(f)
+        with open(path, "rb") as file_handler:
+            model_data, act_params = cloudpickle.load(file_handler)
         act = deepq.build_act(**act_params)
         sess = tf_util.make_session()
-        with tempfile.TemporaryDirectory() as td:
-            arc_path = os.path.join(td, "packed.zip")
-            with open(arc_path, "wb") as f:
-                f.write(model_data)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            arc_path = os.path.join(temp_dir, "packed.zip")
+            with open(arc_path, "wb") as file_handler:
+                file_handler.write(model_data)
 
-            zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
-            load_state(os.path.join(td, "model"), sess)
+            zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(temp_dir)
+            load_state(os.path.join(temp_dir, "model"), sess)
 
         return ActWrapper(act, act_params, sess=sess)
 
@@ -65,19 +65,19 @@ class ActWrapper(object):
         if path is None:
             path = os.path.join(logger.get_dir(), "model.pkl")
 
-        with tempfile.TemporaryDirectory() as td:
-            save_state(os.path.join(td, "model"), self.sess)
-            arc_name = os.path.join(td, "packed.zip")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            save_state(os.path.join(temp_dir, "model"), self.sess)
+            arc_name = os.path.join(temp_dir, "packed.zip")
             with zipfile.ZipFile(arc_name, 'w') as zipf:
-                for root, dirs, files in os.walk(td):
+                for root, dirs, files in os.walk(temp_dir):
                     for fname in files:
                         file_path = os.path.join(root, fname)
                         if file_path != arc_name:
-                            zipf.write(file_path, os.path.relpath(file_path, td))
-            with open(arc_name, "rb") as f:
-                model_data = f.read()
-        with open(path, "wb") as f:
-            cloudpickle.dump((model_data, self._act_params), f)
+                            zipf.write(file_path, os.path.relpath(file_path, temp_dir))
+            with open(arc_name, "rb") as file_handler:
+                model_data = file_handler.read()
+        with open(path, "wb") as file_handler:
+            cloudpickle.dump((model_data, self._act_params), file_handler)
 
 
 def load(path):

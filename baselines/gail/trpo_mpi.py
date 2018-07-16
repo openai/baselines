@@ -149,7 +149,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     :param gamma: (float) the discount value
     :param lam: (float) GAE factor
     :param entcoeff: (float) the weight for the entropy loss
-    :param cg_damping: (float) the compute gradiant dampening factor
+    :param cg_damping: (float) the compute gradient dampening factor
     :param vf_stepsize: (float) the value function stepsize
     :param vf_iters: (int) the value function's number iterations for learning
     :param max_timesteps: (int) the maximum number of timesteps before halting

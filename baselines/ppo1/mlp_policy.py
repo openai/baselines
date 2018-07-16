@@ -25,8 +25,8 @@ class BasePolicy(object):
                                       shape=[sequence_length] + list(ob_space.shape))
         return obs, pdtype
 
-    def act(self, stochastic, ob):
-        ac1, vpred1 = self._act(stochastic, ob[None], sess=self.sess)
+    def act(self, stochastic, obs):
+        ac1, vpred1 = self._act(stochastic, obs[None], sess=self.sess)
         return ac1[0], vpred1[0]
 
     def get_variables(self):
@@ -81,11 +81,11 @@ class MlpPolicy(BasePolicy):
                 pdparam = tf.layers.dense(last_out, pdtype.param_shape()[0], name='final',
                                           kernel_initializer=tf_util.normc_initializer(0.01))
 
-        self.pd = pdtype.proba_distribution_from_flat(pdparam)
+        self.proba_distribution = pdtype.proba_distribution_from_flat(pdparam)
 
         self.state_in = []
         self.state_out = []
 
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
-        ac = tf_util.switch(stochastic, self.pd.sample(), self.pd.mode())
-        self._act = tf_util.function([stochastic, obs], [ac, self.vpred])
+        action = tf_util.switch(stochastic, self.proba_distribution.sample(), self.proba_distribution.mode())
+        self._act = tf_util.function([stochastic, obs], [action, self.vpred])

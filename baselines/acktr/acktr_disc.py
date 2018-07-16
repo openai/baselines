@@ -33,8 +33,8 @@ class Model(object):
         :param vf_coef: (float) The weight for the loss on the value function
         :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
         :param lr: (float) The initial learning rate for the RMS prop optimizer
-        :param max_grad_norm: (float) The clipping value for the maximum gradiant
-        :param kfac_clip: (float) gradiant clipping for Kullback leiber
+        :param max_grad_norm: (float) The clipping value for the maximum gradient
+        :param kfac_clip: (float) gradient clipping for Kullback leiber
         :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
         """
@@ -83,7 +83,7 @@ class Model(object):
             optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads, params)))
         self.q_runner = q_runner
-        self.learning_rate = Scheduler(initial_value=lr, nvalues=total_timesteps, schedule=lrschedule)
+        self.learning_rate = Scheduler(initial_value=lr, n_values=total_timesteps, schedule=lrschedule)
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values
@@ -141,8 +141,8 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     :param vf_coef: (float) The weight for the loss on the value function
     :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
     :param lr: (float) The learning rate
-    :param max_grad_norm: (float) The maximum value for the gradiant clipping
-    :param kfac_clip: (float) gradiant clipping for Kullback leiber
+    :param max_grad_norm: (float) The maximum value for the gradient clipping
+    :param kfac_clip: (float) gradient clipping for Kullback leiber
     :param save_interval: (int) The number of timesteps before saving.
     :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
@@ -161,7 +161,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
             file_handler.write(cloudpickle.dumps(make_model))
     model = make_model()
 
-    runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
+    runner = Runner(env, model, n_steps=nsteps, gamma=gamma)
     nbatch = nenvs * nsteps
     tstart = time.time()
     coord = tf.train.Coordinator()

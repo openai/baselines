@@ -28,7 +28,7 @@ class Model(object):
         :param nsteps: (int) The number of steps to run for each environment
         :param ent_coef: (float) Entropy coefficient for the loss caculation
         :param vf_coef: (float) Value function coefficient for the loss calculation
-        :param max_grad_norm: (float) The maximum value for the gradiant clipping
+        :param max_grad_norm: (float) The maximum value for the gradient clipping
         """
 
         ncpu = multiprocessing.cpu_count()
@@ -232,7 +232,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
     :param ent_coef: (float) Entropy coefficient for the loss caculation
     :param learning_rate: (float or callable) The learning rate, it can a function
     :param vf_coef: (float) Value function coefficient for the loss calculation
-    :param max_grad_norm: (float) The maximum value for the gradiant clipping
+    :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param gamma: (float) Discount factor
     :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
     :param nminibatches: (int) Number of minibatches ?

@@ -178,7 +178,7 @@ def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_in
     rollout_params = {
         'exploit': False,
         'use_target_net': False,
-        'use_demo_states': True,
+        # 'use_demo_states': True,
         'compute_q': False,
         'time_horizon': params['time_horizon'],
     }
@@ -186,7 +186,7 @@ def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_in
     eval_params = {
         'exploit': True,
         'use_target_net': params['test_with_polyak'],
-        'use_demo_states': False,
+        # 'use_demo_states': False,
         'compute_q': True,
         'time_horizon': params['time_horizon'],
     }
@@ -202,7 +202,7 @@ def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_in
     evaluator.seed(rank_seed)
 
     train(
-        logdir=logdir, policy=policy, rollout_worker=rollout_worker,
+        policy=policy, rollout_worker=rollout_worker,
         evaluator=evaluator, n_epochs=n_epochs, n_test_rollouts=params['n_test_rollouts'],
         n_cycles=params['n_cycles'], n_batches=params['n_batches'],
         policy_save_interval=policy_save_interval, save_policies=save_policies)

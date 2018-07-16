@@ -14,7 +14,7 @@ class Dataset(object):
         self.data_map = data_map
         self.deterministic = deterministic
         self.enable_shuffle = shuffle
-        self.n = next(iter(data_map.values())).shape[0]
+        self.n_samples = next(iter(data_map.values())).shape[0]
         self._next_id = 0
         self.shuffle()
 
@@ -24,7 +24,7 @@ class Dataset(object):
         """
         if self.deterministic:
             return
-        perm = np.arange(self.n)
+        perm = np.arange(self.n_samples)
         np.random.shuffle(perm)
 
         for key in self.data_map:
@@ -37,13 +37,13 @@ class Dataset(object):
         :param batch_size: (int) the size of the batch
         :return: (dict) a batch of the input data of size 'batch_size'
         """
-        if self._next_id >= self.n:
+        if self._next_id >= self.n_samples:
             self._next_id = 0
             if self.enable_shuffle:
                 self.shuffle()
 
         cur_id = self._next_id
-        cur_batch_size = min(batch_size, self.n - self._next_id)
+        cur_batch_size = min(batch_size, self.n_samples - self._next_id)
         self._next_id += cur_batch_size
 
         data_map = dict()
@@ -61,7 +61,7 @@ class Dataset(object):
         if self.enable_shuffle:
             self.shuffle()
 
-        while self._next_id <= self.n - batch_size:
+        while self._next_id <= self.n_samples - batch_size:
             yield self.next_batch(batch_size)
         self._next_id = 0
 
@@ -92,12 +92,12 @@ def iterbatches(arrays, *, num_batches=None, batch_size=None, shuffle=True, incl
     """
     assert (num_batches is None) != (batch_size is None), 'Provide num_batches or batch_size, but not both'
     arrays = tuple(map(np.asarray, arrays))
-    n = arrays[0].shape[0]
-    assert all(a.shape[0] == n for a in arrays[1:])
-    inds = np.arange(n)
+    n_samples = arrays[0].shape[0]
+    assert all(a.shape[0] == n_samples for a in arrays[1:])
+    inds = np.arange(n_samples)
     if shuffle:
         np.random.shuffle(inds)
-    sections = np.arange(0, n, batch_size)[1:] if num_batches is None else num_batches
+    sections = np.arange(0, n_samples, batch_size)[1:] if num_batches is None else num_batches
     for batch_inds in np.array_split(inds, sections):
         if include_final_partial_batch or len(batch_inds) == batch_size:
             yield tuple(a[batch_inds] for a in arrays)

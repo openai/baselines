@@ -321,12 +321,12 @@ def intprod(tensor):
 
 def flatgrad(loss, var_list, clip_norm=None):
     """
-    calculates the gradiant and flattens it
+    calculates the gradient and flattens it
 
     :param loss: (float) the loss value
     :param var_list: ([TensorFlow Tensor]) the variables
-    :param clip_norm: (float) clip the gradiants (disabled if None)
-    :return: ([TensorFlow Tensor]) flattend gradiant
+    :param clip_norm: (float) clip the gradients (disabled if None)
+    :return: ([TensorFlow Tensor]) flattend gradient
     """
     grads = tf.gradients(loss, var_list)
     if clip_norm is not None:

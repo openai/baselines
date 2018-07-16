@@ -39,7 +39,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
     :param popart: (bool) enable pop-art normalization of the critic output
         (https://arxiv.org/pdf/1602.07714.pdf)
     :param gamma: (float) the discount rate
-    :param clip_norm: (float) clip the gradiants (disabled if None)
+    :param clip_norm: (float) clip the gradients (disabled if None)
     :param nb_train_steps: (int) the number of training steps
     :param nb_rollout_steps: (int) the number of rollout steps
     :param nb_eval_steps: (int) the number of evalutation steps

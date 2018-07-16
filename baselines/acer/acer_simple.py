@@ -76,7 +76,7 @@ class Model(object):
         :param ent_coef: (float) The weight for the entropic loss
         :param q_coef: (float) The weight for the loss on the Q value
         :param gamma: (float) The discount value
-        :param max_grad_norm: (float) The clipping value for the maximum gradiant
+        :param max_grad_norm: (float) The clipping value for the maximum gradient
         :param lr: (float) The initial learning rate for the RMS prop optimizer
         :param rprop_alpha: (float) RMS prop optimizer decay rate
         :param rprop_epsilon: (float) RMS prop optimizer epsilon
@@ -121,10 +121,13 @@ class Model(object):
         with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
             polyak_model = policy(sess, ob_space, ac_space, nenvs, nsteps + 1, nstack, reuse=True)
 
-        # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
+        # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
         v = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [nenvs * (nsteps + 1)]
 
         # strip off last step
+        # f is a distribution, chosen to be Gaussian distributions
+        # with fixed diagonal covariance and mean \phi(x)
+        # in the paper
         f, f_pol, q = map(lambda variables: strip(variables, nenvs, nsteps),
                           [train_model.policy, polyak_model.policy, train_model.q_value])
         # Get pi and q values for actions taken
@@ -209,7 +212,7 @@ class Model(object):
         with tf.control_dependencies([_opt_op]):
             _train = tf.group(ema_apply_op)
 
-        lr = Scheduler(initial_value=lr, nvalues=total_timesteps, schedule=lrschedule)
+        lr = Scheduler(initial_value=lr, n_values=total_timesteps, schedule=lrschedule)
 
         # Ops/Summaries to run, and their names for logging
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, ev, norm_grads]
@@ -399,7 +402,7 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
     :param total_timesteps: (int) The total number of samples
     :param q_coef: (float) Q function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
-    :param max_grad_norm: (float) The maximum value for the gradiant clipping
+    :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param lr: (float) The learning rate
     :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')

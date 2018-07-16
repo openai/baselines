@@ -35,9 +35,9 @@ def flatten_grads(var_list, grads):
                       for (v, grad) in zip(var_list, grads)], 0)
 
 
-def nn(_input, layers_sizes, reuse=None, flatten=False, name=""):
+def mlp(_input, layers_sizes, reuse=None, flatten=False, name=""):
     """
-    Creates a simple neural network
+    Creates a simple fully-connected neural network
 
     :param _input: (TensorFlow Tensor) the input
     :param layers_sizes: ([int]) the hidden layers

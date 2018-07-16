@@ -36,7 +36,7 @@ class MpiAdam(object):
         """
         update the values of the graph
 
-        :param localg: (numpy float) the gradiant
+        :param localg: (numpy float) the gradient
         :param stepsize: (float) the stepsize for the update
         """
         if self.t % 100 == 0:

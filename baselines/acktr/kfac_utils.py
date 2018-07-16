@@ -107,7 +107,7 @@ def factor_reshape(eigen_vectors, eigen_values, grad, fac_idx=0, f_type='act'):
 
     :param eigen_vectors: ([TensorFlow Tensor]) eigen vectors
     :param eigen_values: ([TensorFlow Tensor]) eigen values
-    :param grad: ([TensorFlow Tensor]) gradiant
+    :param grad: ([TensorFlow Tensor]) gradient
     :param fac_idx: (int) index that should be factored
     :param f_type: (str) function type to factor and reshape
     :return: ([TensorFlow Tensor], [TensorFlow Tensor]) factored and reshaped eigen vectors

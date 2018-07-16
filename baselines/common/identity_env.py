@@ -19,16 +19,16 @@ class IdentityEnv(Env):
         self.observation_space = self.action_space
         return self.state
 
-    def step(self, actions):
-        rew = self._get_reward(actions)
+    def step(self, action):
+        reward = self._get_reward(action)
         self._choose_next_state()
-        return self.state, rew, False, {}
+        return self.state, reward, False, {}
 
     def _choose_next_state(self):
         self.state = self.action_space.sample()
 
-    def _get_reward(self, actions):
-        return 1 if self.state == actions else 0
+    def _get_reward(self, action):
+        return 1 if self.state == action else 0
 
     def render(self, mode='human'):
         pass

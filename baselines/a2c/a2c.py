@@ -13,7 +13,7 @@ from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_
 
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, nenvs, nsteps,
-                 ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
+                 ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, learning_rate=7e-4,
                  alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
@@ -25,8 +25,8 @@ class Model(object):
         :param nsteps: (int) The number of steps to run for each environment
         :param ent_coef: (float) Entropy coefficient for the loss caculation
         :param vf_coef: (float) Value function coefficient for the loss calculation
-        :param max_grad_norm: (float) The maximum value for the gradiant clipping
-        :param lr: (float) The learning rate
+        :param max_grad_norm: (float) The maximum value for the gradient clipping
+        :param learning_rate: (float) The learning rate
         :param alpha: (float) RMS prop optimizer decay
         :param epsilon: (float) RMS prop optimizer epsilon
         :param total_timesteps: (int) The total number of samples
@@ -59,12 +59,12 @@ class Model(object):
         trainer = tf.train.RMSPropOptimizer(learning_rate=learning_rate_ph, decay=alpha, epsilon=epsilon)
         _train = trainer.apply_gradients(grads)
 
-        lr = Scheduler(initial_value=lr, nvalues=total_timesteps, schedule=lrschedule)
+        learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values
             for step in range(len(obs)):
-                cur_lr = lr.value()
+                cur_lr = learning_rate.value()
             td_map = {train_model.obs_ph: obs, actions_ph: actions, advs_ph: advs,
                       rewards_ph: rewards, learning_rate_ph: cur_lr}
             if states is not None:
@@ -77,15 +77,15 @@ class Model(object):
             return policy_loss, value_loss, policy_entropy
 
         def save(save_path):
-            ps = sess.run(params)
+            parameters = sess.run(params)
             make_path(os.path.dirname(save_path))
-            joblib.dump(ps, save_path)
+            joblib.dump(parameters, save_path)
 
         def load(load_path):
             loaded_params = joblib.load(load_path)
             restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
+            for param, loaded_p in zip(params, loaded_params):
+                restores.append(param.assign(loaded_p))
             sess.run(restores)
 
         self.train = train
@@ -100,16 +100,16 @@ class Model(object):
 
 
 class Runner(AbstractEnvRunner):
-    def __init__(self, env, model, nsteps=5, gamma=0.99):
+    def __init__(self, env, model, n_steps=5, gamma=0.99):
         """
         A runner to learn the policy of an environment for a model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_steps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         """
-        super(Runner, self).__init__(env=env, model=model, nsteps=nsteps)
+        super(Runner, self).__init__(env=env, model=model, nsteps=n_steps)
         self.gamma = gamma
 
     def run(self):
@@ -173,7 +173,7 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     :param total_timesteps: (int) The total number of samples
     :param vf_coef: (float) Value function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
-    :param max_grad_norm: (float) The maximum value for the gradiant clipping
+    :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param learning_rate: (float) The learning rate
     :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
@@ -189,10 +189,10 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     ob_space = env.observation_space
     ac_space = env.action_space
     model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef,
-                  vf_coef=vf_coef, max_grad_norm=max_grad_norm, lr=learning_rate,
+                  vf_coef=vf_coef, max_grad_norm=max_grad_norm, learning_rate=learning_rate,
                   alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
                   lrschedule=lrschedule)
-    runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
+    runner = Runner(env, model, n_steps=nsteps, gamma=gamma)
 
     nbatch = nenvs * nsteps
     tstart = time.time()
@@ -202,13 +202,13 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
         nseconds = time.time() - tstart
         fps = int((update * nbatch) / nseconds)
         if update % log_interval == 0 or update == 1:
-            ev = explained_variance(values, rewards)
+            explained_var = explained_variance(values, rewards)
             logger.record_tabular("nupdates", update)
             logger.record_tabular("total_timesteps", update * nbatch)
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))
-            logger.record_tabular("explained_variance", float(ev))
+            logger.record_tabular("explained_variance", float(explained_var))
             logger.dump_tabular()
     env.close()
     return model

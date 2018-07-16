@@ -49,7 +49,7 @@ class GaussianMlpPolicy(object):
             2.0 * np.pi) * ac_dim - 0.5 * tf.reduce_sum(
             tf.square(ac_dist[:, :ac_dim] - oldac_na) / (tf.square(ac_dist[:, ac_dim:])),
             axis=1)  # Logprob of previous actions under CURRENT policy (whereas oldlogprob_n is under OLD policy)
-        kl = tf.reduce_mean(kl_div(oldac_dist, ac_dist, ac_dim))
+        kl_loss = tf.reduce_mean(kl_div(oldac_dist, ac_dist, ac_dim))
         # kl = .5 * tf.reduce_mean(tf.square(logprob_n - oldlogprob_n))
         # Approximation of KL divergence between old policy used to generate actions,
         # and new policy used to compute logprob_n
@@ -59,17 +59,17 @@ class GaussianMlpPolicy(object):
         self._act = tf_util.function([ob_no], [sampled_ac_na, ac_dist, logprobsampled_n])
         # self.compute_kl = U.function([ob_no, oldac_na, oldlogprob_n], kl)
         #  Compute (approximate) KL divergence between old policy and new policy
-        self.compute_kl = tf_util.function([ob_no, oldac_dist], kl)
+        self.compute_kl = tf_util.function([ob_no, oldac_dist], kl_loss)
         # Input and output variables needed for computing loss
         self.update_info = ((ob_no, oldac_na, adv_n), surr, surr_sampled)
         tf_util.initialize()  # Initialize uninitialized TF variables
 
-    def act(self, ob):
+    def act(self, obs):
         """
         get the action from an observation
 
-        :param ob: ([float]) observation
+        :param obs: ([float]) observation
         :return: ([float], [float], [float]) action, action_proba, logp
         """
-        action, ac_dist, logp = self._act(ob[None])
+        action, ac_dist, logp = self._act(obs[None])
         return action[0], ac_dist[0], logp[0]

@@ -56,11 +56,24 @@ def ortho_init(scale=1.0):
     """
     Orthogonal initialization for the policy weights
 
-    :param scale: (float) The output scale
+    :param scale: (float) Scaling factor for the weights.
     :return: (function) an initialization function for the weights
     """
     # _ortho_init(shape, dtype, partition_info=None)
     def _ortho_init(shape, *_, **_kwargs):
+        """Intialize weights as Orthogonal matrix.
+
+        Orthogonal matrix initialization [1]_. For n-dimensional shapes where
+        n > 2, the n-1 trailing axes are flattened. For convolutional layers, this
+        corresponds to the fan-in, so this makes the initialization usable for
+        both dense and convolutional layers.
+
+        References
+        ----------
+        .. [1] Saxe, Andrew M., James L. McClelland, and Surya Ganguli.
+               "Exact solutions to the nonlinear dynamics of learning in deep
+               linear
+        """
         # lasagne ortho init for tf
         shape = tuple(shape)
         if len(shape) == 2:
@@ -71,21 +84,22 @@ def ortho_init(scale=1.0):
             raise NotImplementedError
         a = np.random.normal(0.0, 1.0, flat_shape)
         u, _, v = np.linalg.svd(a, full_matrices=False)
-        q = u if u.shape == flat_shape else v  # pick the one with the correct shape
-        q = q.reshape(shape)
-        return (scale * q[:shape[0], :shape[1]]).astype(np.float32)
+        weights = u if u.shape == flat_shape else v  # pick the one with the correct shape
+        weights = weights.reshape(shape)
+        return (scale * weights[:shape[0], :shape[1]]).astype(np.float32)
 
     return _ortho_init
 
 
-def conv(input_tensor, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
+def conv(input_tensor, scope, *, n_filters, filter_size, stride,
+         pad='VALID', init_scale=1.0, data_format='NHWC', one_dim_bias=False):
     """
     Creates a 2d convolutional layer for TensorFlow
 
     :param input_tensor: (TensorFlow Tensor) The input tensor for the convolution
     :param scope: (str) The TensorFlow variable scope
-    :param nf: (int) The number of filters
-    :param rf: (int) The filter size
+    :param n_filters: (int) The number of filters
+    :param filter_size: (int) The filter size
     :param stride: (int) The stride of the convolution
     :param pad: (str) The padding type ('VALID' or 'SAME')
     :param init_scale: (int) The initialization scale
@@ -96,16 +110,16 @@ def conv(input_tensor, scope, *, nf, rf, stride, pad='VALID', init_scale=1.0, da
     if data_format == 'NHWC':
         channel_ax = 3
         strides = [1, stride, stride, 1]
-        bshape = [1, 1, 1, nf]
+        bshape = [1, 1, 1, n_filters]
     elif data_format == 'NCHW':
         channel_ax = 1
         strides = [1, 1, stride, stride]
-        bshape = [1, nf, 1, 1]
+        bshape = [1, n_filters, 1, 1]
     else:
         raise NotImplementedError
-    bias_var_shape = [nf] if one_dim_bias else [1, nf, 1, 1]
+    bias_var_shape = [n_filters] if one_dim_bias else [1, n_filters, 1, 1]
     nin = input_tensor.get_shape()[channel_ax].value
-    wshape = [rf, rf, nin, nf]
+    wshape = [filter_size, filter_size, nin, n_filters]
     with tf.variable_scope(scope):
         weight = tf.get_variable("w", wshape, initializer=ortho_init(init_scale))
         bias = tf.get_variable("b", bias_var_shape, initializer=tf.constant_initializer(0.0))
@@ -367,7 +381,7 @@ def double_middle_drop(progress):
     return 1 - progress
 
 
-schedules = {
+SCHEDULES = {
     'linear': linear_schedule,
     'constant': constant,
     'double_linear_con': double_linear_con,
@@ -377,18 +391,18 @@ schedules = {
 
 
 class Scheduler(object):
-    def __init__(self, initial_value, nvalues, schedule):
+    def __init__(self, initial_value, n_values, schedule):
         """
         Update a value every iteration, with a specific curve
 
         :param initial_value: (float) initial value
-        :param nvalues: (int) the total number of iterations
+        :param n_values: (int) the total number of iterations
         :param schedule: (function) the curve you wish to follow for your value
         """
-        self.n = 0.
+        self.step = 0.
         self.initial_value = initial_value
-        self.nvalues = nvalues
-        self.schedule = schedules[schedule]
+        self.nvalues = n_values
+        self.schedule = SCHEDULES[schedule]
 
     def value(self):
         """
@@ -396,8 +410,8 @@ class Scheduler(object):
 
         :return: (float) the current value
         """
-        current_value = self.initial_value * self.schedule(self.n / self.nvalues)
-        self.n += 1.
+        current_value = self.initial_value * self.schedule(self.step / self.nvalues)
+        self.step += 1.
         return current_value
 
     def value_steps(self, steps):
@@ -411,20 +425,20 @@ class Scheduler(object):
 
 
 class EpisodeStats:
-    def __init__(self, nsteps, nenvs):
+    def __init__(self, n_steps, n_envs):
         """
         Calculates the episode statistics
 
-        :param nsteps: (int) The number of steps to run for each environment
-        :param nenvs: (int) The number of environments
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_envs: (int) The number of environments
         """
         self.episode_rewards = []
-        for _ in range(nenvs):
+        for _ in range(n_envs):
             self.episode_rewards.append([])
-        self.lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
+        self.len_buffer = deque(maxlen=40)  # rolling buffer for episode lengths
         self.rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
-        self.nsteps = nsteps
-        self.nenvs = nenvs
+        self.n_steps = n_steps
+        self.n_envs = n_envs
 
     def feed(self, rewards, masks):
         """
@@ -433,15 +447,15 @@ class EpisodeStats:
         :param rewards: ([float]) The new rewards for the new step
         :param masks: ([float]) The new masks for the new step
         """
-        rewards = np.reshape(rewards, [self.nenvs, self.nsteps])
-        masks = np.reshape(masks, [self.nenvs, self.nsteps])
-        for i in range(0, self.nenvs):
-            for j in range(0, self.nsteps):
+        rewards = np.reshape(rewards, [self.n_envs, self.n_steps])
+        masks = np.reshape(masks, [self.n_envs, self.n_steps])
+        for i in range(0, self.n_envs):
+            for j in range(0, self.n_steps):
                 self.episode_rewards[i].append(rewards[i][j])
                 if masks[i][j]:
                     reward_length = len(self.episode_rewards[i])
                     reward_sum = sum(self.episode_rewards[i])
-                    self.lenbuffer.append(reward_length)
+                    self.len_buffer.append(reward_length)
                     self.rewbuffer.append(reward_sum)
                     self.episode_rewards[i] = []
 
@@ -451,8 +465,8 @@ class EpisodeStats:
 
         :return: (float)
         """
-        if self.lenbuffer:
-            return np.mean(self.lenbuffer)
+        if self.len_buffer:
+            return np.mean(self.len_buffer)
         else:
             return 0  # on the first params dump, no episodes are finished
 
@@ -469,20 +483,20 @@ class EpisodeStats:
 
 
 # For ACER
-def get_by_index(x, idx):
+def get_by_index(input_tensor, idx):
     """
     Return the input tensor, offset by a certain value
 
-    :param x: (TensorFlow Tensor) The input tensor
+    :param input_tensor: (TensorFlow Tensor) The input tensor
     :param idx: (int) The index offset
     :return: (TensorFlow Tensor) the offset tensor
     """
-    assert len(x.get_shape()) == 2
+    assert len(input_tensor.get_shape()) == 2
     assert len(idx.get_shape()) == 1
-    idx_flattened = tf.range(0, x.shape[0]) * x.shape[1] + idx
-    y = tf.gather(tf.reshape(x, [-1]),  # flatten input
+    idx_flattened = tf.range(0, input_tensor.shape[0]) * input_tensor.shape[1] + idx
+    offset_tensor = tf.gather(tf.reshape(input_tensor, [-1]),  # flatten input
                   idx_flattened)  # use flattened indices
-    return y
+    return offset_tensor
 
 
 def check_shape(tensors, shapes):
@@ -498,44 +512,44 @@ def check_shape(tensors, shapes):
         i += 1
 
 
-def avg_norm(t):
+def avg_norm(tensor):
     """
     Return an average of the L2 normalization of the batch
 
-    :param t: (TensorFlow Tensor) The input tensor
+    :param tensor: (TensorFlow Tensor) The input tensor
     :return: (TensorFlow Tensor) Average L2 normalization of the batch
     """
-    return tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(t), axis=-1)))
+    return tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(tensor), axis=-1)))
 
 
-def gradient_add(g1, g2, param):
+def gradient_add(grad_1, grad_2, param):
     """
-    Sum two gradiants
+    Sum two gradients
 
-    :param g1: (TensorFlow Tensor) The first gradiant
-    :param g2: (TensorFlow Tensor) The second gradiant
+    :param grad_1: (TensorFlow Tensor) The first gradient
+    :param grad_2: (TensorFlow Tensor) The second gradient
     :param param: (TensorFlow parameters) The trainable parameters
-    :return: (TensorFlow Tensor) the sum of the gradiants
+    :return: (TensorFlow Tensor) the sum of the gradients
     """
-    print([g1, g2, param.name])
-    assert (not (g1 is None and g2 is None)), param.name
-    if g1 is None:
-        return g2
-    elif g2 is None:
-        return g1
+    print([grad_1, grad_2, param.name])
+    assert (not (grad_1 is None and grad_2 is None)), param.name
+    if grad_1 is None:
+        return grad_2
+    elif grad_2 is None:
+        return grad_1
     else:
-        return g1 + g2
+        return grad_1 + grad_2
 
 
-def q_explained_variance(qpred, q):
+def q_explained_variance(q_pred, q_true):
     """
     Calculates the explained variance of the Q value
 
-    :param qpred: (TensorFlow Tensor) The predicted Q value
-    :param q: (TensorFlow Tensor) The expected Q value
+    :param q_pred: (TensorFlow Tensor) The predicted Q value
+    :param q_true: (TensorFlow Tensor) The expected Q value
     :return: (TensorFlow Tensor) the explained variance of the Q value
     """
-    _, vary = tf.nn.moments(q, axes=[0, 1])
-    _, varpred = tf.nn.moments(q - qpred, axes=[0, 1])
-    check_shape([vary, varpred], [[]] * 2)
-    return 1.0 - (varpred / vary)
+    _, var_y = tf.nn.moments(q_true, axes=[0, 1])
+    _, var_pred = tf.nn.moments(q_true - q_pred, axes=[0, 1])
+    check_shape([var_y, var_pred], [[]] * 2)
+    return 1.0 - (var_pred / var_y)

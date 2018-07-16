@@ -33,10 +33,10 @@ class CnnPolicy(BasePolicy):
         :param architecture_size: (str) size of the policy's architecture
                (small as in A3C paper, large as in Nature DQN)
         """
-        ob, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
+        obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
         with tf.variable_scope(self.name, reuse=self.reuse):
-            normalized_obs = ob / 255.0
+            normalized_obs = obs / 255.0
             if architecture_size == 'small':  # from A3C paper
                 layer_1 = tf.nn.relu(tf_util.conv2d(normalized_obs, 16, "l1", [8, 8], [4, 4], pad="VALID"))
                 layer_2 = tf.nn.relu(tf_util.conv2d(layer_1, 32, "l2", [4, 4], [2, 2], pad="VALID"))
@@ -56,12 +56,13 @@ class CnnPolicy(BasePolicy):
             logits = tf.layers.dense(last_layer, pdtype.param_shape()[0], name='logits',
                                      kernel_initializer=tf_util.normc_initializer(0.01))
 
-            self.pd = pdtype.proba_distribution_from_flat(logits)
-            self.vpred = tf.layers.dense(last_layer, 1, name='value', kernel_initializer=tf_util.normc_initializer(1.0))[:, 0]
+            self.proba_distribution = pdtype.proba_distribution_from_flat(logits)
+            self.vpred = tf.layers.dense(last_layer, 1,
+                                         name='value', kernel_initializer=tf_util.normc_initializer(1.0))[:, 0]
 
         self.state_in = []
         self.state_out = []
 
         stochastic = tf.placeholder(dtype=tf.bool, shape=())
-        ac = self.pd.sample()
-        self._act = tf_util.function([stochastic, ob], [ac, self.vpred])
+        action = self.proba_distribution.sample()
+        self._act = tf_util.function([stochastic, obs], [action, self.vpred])

@@ -9,25 +9,25 @@ class RunningStat(object):
 
         :param shape: (tuple) the shape of the data stream's output
         """
-        self._n = 0
-        self._M = np.zeros(shape)
-        self._S = np.zeros(shape)
+        self._step = 0
+        self._mean = np.zeros(shape)
+        self._std = np.zeros(shape)
 
-    def push(self, x):
+    def push(self, value):
         """
         update the running mean and std
 
-        :param x: (numpy Number) the data
+        :param value: (numpy Number) the data
         """
-        x = np.asarray(x)
-        assert x.shape == self._M.shape
-        self._n += 1
-        if self._n == 1:
-            self._M[...] = x
+        value = np.asarray(value)
+        assert value.shape == self._mean.shape
+        self._step += 1
+        if self._step == 1:
+            self._mean[...] = value
         else:
-            old_m = self._M.copy()
-            self._M[...] = old_m + (x - old_m) / self._n
-            self._S[...] = self._S + (x - old_m) * (x - self._M)
+            old_m = self._mean.copy()
+            self._mean[...] = old_m + (value - old_m) / self._step
+            self._std[...] = self._std + (value - old_m) * (value - self._mean)
 
     @property
     def n(self):
@@ -36,7 +36,7 @@ class RunningStat(object):
 
         :return: (int)
         """
-        return self._n
+        return self._step
 
     @property
     def mean(self):
@@ -45,7 +45,7 @@ class RunningStat(object):
 
         :return: (float)
         """
-        return self._M
+        return self._mean
 
     @property
     def var(self):
@@ -54,7 +54,7 @@ class RunningStat(object):
 
         :return: (float)
         """
-        return self._S / (self._n - 1) if self._n > 1 else np.square(self._M)
+        return self._std / (self._step - 1) if self._step > 1 else np.square(self._mean)
 
     @property
     def std(self):
@@ -72,21 +72,4 @@ class RunningStat(object):
 
         :return: (tuple)
         """
-        return self._M.shape
-
-
-def test_running_stat():
-    """
-    test RunningStat object
-    """
-    for shp in ((), (3,), (3, 4)):
-        li = []
-        rs = RunningStat(shp)
-        for _ in range(5):
-            val = np.random.randn(*shp)
-            rs.push(val)
-            li.append(val)
-            m = np.mean(li, axis=0)
-            assert np.allclose(rs.mean, m)
-            v = np.square(m) if (len(li) == 1) else np.var(li, ddof=1, axis=0)
-            assert np.allclose(rs.var, v)
+        return self._mean.shape

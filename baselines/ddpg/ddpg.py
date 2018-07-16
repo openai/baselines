@@ -141,7 +141,7 @@ class DDPG(object):
         :param critic_l2_reg: (float) l2 regularizer coefficient
         :param actor_lr: (float) the actor learning rate
         :param critic_lr: (float) the critic learning rate
-        :param clip_norm: (float) clip the gradiants (disabled if None)
+        :param clip_norm: (float) clip the gradients (disabled if None)
         :param reward_scale: (float) the value the reward should be scaled by
         """
         # Inputs.

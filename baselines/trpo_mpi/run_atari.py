@@ -24,7 +24,7 @@ def train(env_id, num_timesteps, seed):
     env = make_atari(env_id)
 
     def policy_fn(name, ob_space, ac_space, sess=None):  # pylint: disable=W0613
-        return CnnPolicy(name=name, ob_space=env.observation_space, ac_space=env.action_space, sess=sess)
+        return CnnPolicy(name=name, ob_space=ob_space, ac_space=ac_space, sess=sess)
 
     env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
     env.seed(workerseed)

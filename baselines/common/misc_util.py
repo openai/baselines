@@ -34,16 +34,16 @@ def unpack(seq, sizes):
     :return: ([Any] or Any) the unpacked sequence
     """
     seq = list(seq)
-    it = iter(seq)
+    iterator = iter(seq)
     assert sum(1 if s is None else s for s in sizes) == len(seq), "Trying to unpack %s into %s" % (seq, sizes)
     for size in sizes:
         if size is None:
-            yield it.__next__()
+            yield iterator.__next__()
         else:
-            li = []
+            _list = []
             for _ in range(size):
-                li.append(it.__next__())
-            yield li
+                _list.append(iterator.__next__())
+            yield _list
 
 
 class EzPickle(object):
@@ -75,8 +75,8 @@ class EzPickle(object):
     def __getstate__(self):
         return {"_ezpickle_args": self._ezpickle_args, "_ezpickle_kwargs": self._ezpickle_kwargs}
 
-    def __setstate__(self, d):
-        out = type(self)(*d["_ezpickle_args"], **d["_ezpickle_kwargs"])
+    def __setstate__(self, _dict):
+        out = type(self)(*_dict["_ezpickle_args"], **_dict["_ezpickle_kwargs"])
         self.__dict__.update(out.__dict__)
 
 
@@ -220,8 +220,8 @@ def relatively_safe_pickle_dump(obj, path, compression=False):
             with zipfile.ZipFile(temp_storage, "w", compression=zipfile.ZIP_DEFLATED) as myzip:
                 myzip.write(uncompressed_file.name, "data")
     else:
-        with open(temp_storage, "wb") as f:
-            pickle.dump(obj, f)
+        with open(temp_storage, "wb") as file_handler:
+            pickle.dump(obj, file_handler)
     os.rename(temp_storage, path)
 
 
@@ -236,8 +236,8 @@ def pickle_load(path, compression=False):
 
     if compression:
         with zipfile.ZipFile(path, "r", compression=zipfile.ZIP_DEFLATED) as myzip:
-            with myzip.open("data") as f:
-                return pickle.load(f)
+            with myzip.open("data") as file_handler:
+                return pickle.load(file_handler)
     else:
-        with open(path, "rb") as f:
-            return pickle.load(f)
+        with open(path, "rb") as file_handler:
+            return pickle.load(file_handler)
