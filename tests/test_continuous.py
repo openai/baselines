@@ -1,6 +1,6 @@
 import subprocess
 
-from baselines.common.tests.test_common import _assert_eq
+from .test_common import _assert_eq
 
 ENV_ID = 'Pendulum-v0'
 
