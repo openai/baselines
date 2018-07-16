@@ -54,5 +54,5 @@ def test_mpi_moments():
     """
     test running mean std function
     """
-    subprocess.check_call(['mpirun', '-np', '3', 'python', '-c',
+    subprocess.check_call(['mpirun', '--allow-run-as-root', '-np', '3', 'python', '-c',
                            'from baselines.common.mpi_moments import _helper_runningmeanstd; _helper_runningmeanstd()'])

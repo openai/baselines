@@ -3,7 +3,6 @@ from tensorflow.python.ops import math_ops
 import numpy as np
 from gym import spaces
 
-import baselines.common.tf_util as tf_util
 from baselines.a2c.utils import linear
 
 

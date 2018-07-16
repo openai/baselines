@@ -1,5 +1,3 @@
-import subprocess
-
 from mpi4py import MPI
 import numpy as np
 
@@ -71,4 +69,3 @@ def _helper_runningmeanstd():
             print(res_1, res_2)
             assert np.allclose(res_1, res_2)
             print("ok!")
-

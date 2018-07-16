@@ -69,7 +69,7 @@ class ActWrapper(object):
             save_state(os.path.join(temp_dir, "model"), self.sess)
             arc_name = os.path.join(temp_dir, "packed.zip")
             with zipfile.ZipFile(arc_name, 'w') as zipf:
-                for root, dirs, files in os.walk(temp_dir):
+                for root, _, files in os.walk(temp_dir):
                     for fname in files:
                         file_path = os.path.join(root, fname)
                         if file_path != arc_name:
