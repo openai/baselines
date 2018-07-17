@@ -45,7 +45,7 @@ def fmt_item(item, min_width):
     return " " * (min_width - len(rep)) + rep
 
 
-color2num = dict(
+COLOR_TO_NUM = dict(
     gray=30,
     red=31,
     green=32,
@@ -69,7 +69,7 @@ def colorize(string, color, bold=False, highlight=False):
     :return: (str) the stylized output string
     """
     attr = []
-    num = color2num[color]
+    num = COLOR_TO_NUM[color]
     if highlight:
         num += 10
     attr.append(str(num))

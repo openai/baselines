@@ -257,10 +257,10 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         else:
             yield
 
-    def allmean(x):
-        assert isinstance(x, np.ndarray)
-        out = np.empty_like(x)
-        MPI.COMM_WORLD.Allreduce(x, out, op=MPI.SUM)
+    def allmean(arr):
+        assert isinstance(arr, np.ndarray)
+        out = np.empty_like(arr)
+        MPI.COMM_WORLD.Allreduce(arr, out, op=MPI.SUM)
         out /= nworkers
         return out
 

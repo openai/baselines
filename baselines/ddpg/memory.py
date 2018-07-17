@@ -32,11 +32,11 @@ class RingBuffer(object):
         """
         return self.data[(self.start + idxs) % self.maxlen]
 
-    def append(self, v):
+    def append(self, var):
         """
         Append an object to the buffer
 
-        :param v: (numpy Any) the object you wish to add
+        :param var: (numpy Any) the object you wish to add
         """
         if self.length < self.maxlen:
             # We have space, simply increase the length.
@@ -47,20 +47,20 @@ class RingBuffer(object):
         else:
             # This should never happen.
             raise RuntimeError()
-        self.data[(self.start + self.length - 1) % self.maxlen] = v
+        self.data[(self.start + self.length - 1) % self.maxlen] = var
 
 
-def array_min2d(x):
+def array_min2d(arr):
     """
     cast to numpy array, and make sure it is of 2 dim
 
-    :param x: ([Any]) the array to clean
+    :param arr: ([Any]) the array to clean
     :return: (numpy Any) the cleaned array
     """
-    x = np.array(x)
-    if x.ndim >= 2:
-        return x
-    return x.reshape(-1, 1)
+    arr = np.array(arr)
+    if arr.ndim >= 2:
+        return arr
+    return arr.reshape(-1, 1)
 
 
 class Memory(object):

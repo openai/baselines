@@ -1,10 +1,10 @@
-import gym
 import os
 import pickle
 import random
 import tempfile
 import zipfile
 
+import gym
 import numpy as np
 import tensorflow as tf
 

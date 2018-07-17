@@ -1,12 +1,12 @@
 import tensorflow as tf
 
 
-def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
+def gmatmul(tensor_a, tensor_b, transpose_a=False, transpose_b=False, reduce_dim=None):
     """
     Do a matrix multiplication with tensor 'a' and 'b', even when their shape do not match
 
-    :param a: (TensorFlow Tensor)
-    :param b: (TensorFlow Tensor)
+    :param tensor_a: (TensorFlow Tensor)
+    :param tensor_b: (TensorFlow Tensor)
     :param transpose_a: (bool) If 'a' needs transposing
     :param transpose_b: (bool) If 'b' needs transposing
     :param reduce_dim: (int) the multiplication over the dim
@@ -15,17 +15,17 @@ def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
     assert reduce_dim is not None
 
     # weird batch matmul
-    if len(a.get_shape()) == 2 and len(b.get_shape()) > 2:
+    if len(tensor_a.get_shape()) == 2 and len(tensor_b.get_shape()) > 2:
         # reshape reduce_dim to the left most dim in b
-        b_shape = b.get_shape()
+        b_shape = tensor_b.get_shape()
         if reduce_dim != 0:
             b_dims = list(range(len(b_shape)))
             b_dims.remove(reduce_dim)
             b_dims.insert(0, reduce_dim)
-            b = tf.transpose(b, b_dims)
-        b_t_shape = b.get_shape()
-        b = tf.reshape(b, [int(b_shape[reduce_dim]), -1])
-        result = tf.matmul(a, b, transpose_a=transpose_a,
+            tensor_b = tf.transpose(tensor_b, b_dims)
+        b_t_shape = tensor_b.get_shape()
+        tensor_b = tf.reshape(tensor_b, [int(b_shape[reduce_dim]), -1])
+        result = tf.matmul(tensor_a, tensor_b, transpose_a=transpose_a,
                            transpose_b=transpose_b)
         result = tf.reshape(result, b_t_shape)
         if reduce_dim != 0:
@@ -35,19 +35,19 @@ def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
             result = tf.transpose(result, b_dims)
         return result
 
-    elif len(a.get_shape()) > 2 and len(b.get_shape()) == 2:
+    elif len(tensor_a.get_shape()) > 2 and len(tensor_b.get_shape()) == 2:
         # reshape reduce_dim to the right most dim in a
-        a_shape = a.get_shape()
+        a_shape = tensor_a.get_shape()
         outter_dim = len(a_shape) - 1
         reduce_dim = len(a_shape) - reduce_dim - 1
         if reduce_dim != outter_dim:
             a_dims = list(range(len(a_shape)))
             a_dims.remove(reduce_dim)
             a_dims.insert(outter_dim, reduce_dim)
-            a = tf.transpose(a, a_dims)
-        a_t_shape = a.get_shape()
-        a = tf.reshape(a, [-1, int(a_shape[reduce_dim])])
-        result = tf.matmul(a, b, transpose_a=transpose_a,
+            tensor_a = tf.transpose(tensor_a, a_dims)
+        a_t_shape = tensor_a.get_shape()
+        tensor_a = tf.reshape(tensor_a, [-1, int(a_shape[reduce_dim])])
+        result = tf.matmul(tensor_a, tensor_b, transpose_a=transpose_a,
                            transpose_b=transpose_b)
         result = tf.reshape(result, a_t_shape)
         if reduce_dim != outter_dim:
@@ -57,8 +57,8 @@ def gmatmul(a, b, transpose_a=False, transpose_b=False, reduce_dim=None):
             result = tf.transpose(result, a_dims)
         return result
 
-    elif len(a.get_shape()) == 2 and len(b.get_shape()) == 2:
-        return tf.matmul(a, b, transpose_a=transpose_a, transpose_b=transpose_b)
+    elif len(tensor_a.get_shape()) == 2 and len(tensor_b.get_shape()) == 2:
+        return tf.matmul(tensor_a, tensor_b, transpose_a=transpose_a, transpose_b=transpose_b)
 
     assert False, 'something went wrong'
 
