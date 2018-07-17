@@ -7,9 +7,11 @@ from baselines.common.distributions import make_proba_dist_type
 
 
 class BasePolicy(object):
-    def __init__(self):
+    def __init__(self, placeholders=None):
         """
         A base policy object for PPO1
+
+        :param placeholders: (dict) To feed existing placeholders if needed
         """
         super(BasePolicy, self).__init__()
         self.sess = None
@@ -17,6 +19,11 @@ class BasePolicy(object):
         self._act = None
         self.scope = None
         self.obs_ph = None
+        self.stochastic_ph = None
+
+        if placeholders is not None:
+            self.obs_ph = placeholders.get("obs", None)
+            self.stochastic_ph = placeholders.get("stochastic", None)
 
     def get_obs_and_pdtype(self, ob_space, ac_space):
         """
@@ -75,7 +82,7 @@ class BasePolicy(object):
 class MlpPolicy(BasePolicy):
     recurrent = False
 
-    def __init__(self, name, *args, sess=None, reuse=False, **kwargs):
+    def __init__(self, name, *args, sess=None, reuse=False, placeholders=None, **kwargs):
         """
         A MLP policy object for PPO1
 
@@ -86,9 +93,10 @@ class MlpPolicy(BasePolicy):
         :param num_hid_layers: (int) the number of hidden layers
         :param sess: (TensorFlow session) The current TensorFlow session containing the variables.
         :param reuse: (bool) If the policy is reusable or not
+        :param placeholders: (dict) To feed existing placeholders if needed
         :param gaussian_fixed_var: (bool) enable gaussian sampling with fixed variance, when using continuous actions
         """
-        super(MlpPolicy, self).__init__()
+        super(MlpPolicy, self).__init__(placeholders=placeholders)
         self.reuse = reuse
         self.name = name
         self._init(*args, **kwargs)
@@ -138,6 +146,7 @@ class MlpPolicy(BasePolicy):
         self.state_in = []
         self.state_out = []
 
-        stochastic = tf.placeholder(dtype=tf.bool, shape=())
-        action = tf_util.switch(stochastic, self.proba_distribution.sample(), self.proba_distribution.mode())
-        self._act = tf_util.function([stochastic, obs], [action, self.vpred])
+        if self.stochastic_ph is None:
+            self.stochastic_ph = tf.placeholder(dtype=tf.bool, shape=())
+        action = tf_util.switch(self.stochastic_ph, self.proba_distribution.sample(), self.proba_distribution.mode())
+        self._act = tf_util.function([self.stochastic_ph, obs], [action, self.vpred])

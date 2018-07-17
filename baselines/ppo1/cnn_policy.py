@@ -7,7 +7,7 @@ from baselines.ppo1.mlp_policy import BasePolicy
 class CnnPolicy(BasePolicy):
     recurrent = False
 
-    def __init__(self, name, ob_space, ac_space, architecture_size='large', sess=None, reuse=False):
+    def __init__(self, name, ob_space, ac_space, architecture_size='large', sess=None, reuse=False, placeholders=None):
         """
         A CNN policy object for PPO1
 
@@ -18,8 +18,9 @@ class CnnPolicy(BasePolicy):
                (small as in A3C paper, large as in Nature DQN)
         :param sess: (TensorFlow session) The current TensorFlow session containing the variables.
         :param reuse: (bool) If the policy is reusable or not
+        :param placeholders: (dict) To feed existing placeholders if needed
         """
-        super(CnnPolicy, self).__init__()
+        super(CnnPolicy, self).__init__(placeholders=placeholders)
         self.reuse = reuse
         self.name = name
         self._init(ob_space, ac_space, architecture_size)
@@ -64,6 +65,7 @@ class CnnPolicy(BasePolicy):
         self.state_in = []
         self.state_out = []
 
-        stochastic = tf.placeholder(dtype=tf.bool, shape=())
+        if self.stochastic_ph is None:
+            self.stochastic_ph = tf.placeholder(dtype=tf.bool, shape=())
         action = self.proba_distribution.sample()
-        self._act = tf_util.function([stochastic, obs], [action, self.vpred])
+        self._act = tf_util.function([self.stochastic_ph, obs], [action, self.vpred])

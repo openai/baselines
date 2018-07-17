@@ -179,10 +179,12 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     ac_space = env.action_space
     if using_gail:
         policy = policy_func("pi", ob_space, ac_space, reuse=(pretrained_weight is not None))
-        old_policy = policy_func("oldpi", ob_space, ac_space)
+        old_policy = policy_func("oldpi", ob_space, ac_space,
+                                 placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
     else:
         policy = policy_func("pi", ob_space, ac_space, sess=sess)
-        old_policy = policy_func("oldpi", ob_space, ac_space, sess=sess)
+        old_policy = policy_func("oldpi", ob_space, ac_space, sess=sess,
+                                 placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return

@@ -82,7 +82,7 @@ def prepare_params(kwargs):
     kwargs['make_env'] = make_env
     tmp_env = cached_make_env(kwargs['make_env'])
     assert hasattr(tmp_env, '_max_episode_steps')
-    kwargs['time_horizon'] = tmp_env._max_episode_steps
+    kwargs['time_horizon'] = tmp_env.spec.max_episode_steps  # wrapped envs preserve their spec
     tmp_env.reset()
     kwargs['max_u'] = np.array(kwargs['max_u']) if isinstance(kwargs['max_u'], list) else kwargs['max_u']
     kwargs['gamma'] = 1. - 1. / kwargs['time_horizon']

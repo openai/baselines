@@ -49,7 +49,8 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
     policy = policy_fn("pi", ob_space, ac_space, sess=sess)
 
     # Network for old policy
-    oldpi = policy_fn("oldpi", ob_space, ac_space, sess=sess)
+    oldpi = policy_fn("oldpi", ob_space, ac_space, sess=sess,
+                      placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
     # Target advantage function (if applicable)
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])
