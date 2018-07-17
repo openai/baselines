@@ -3,9 +3,9 @@ import subprocess
 import gym
 import numpy as np
 
-from baselines.common.running_mean_std import RunningMeanStd
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.vec_env.vec_normalize import VecNormalize
+from stable_baselines.common.running_mean_std import RunningMeanStd
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.common.vec_env.vec_normalize import VecNormalize
 from .test_common import _assert_eq
 
 ENV_ID = 'BreakoutNoFrameskip-v4'
@@ -46,7 +46,7 @@ def test_vec_env():
 def test_mpi_runningmeanstd():
     """Test RunningMeanStd object for MPI"""
     return_code = subprocess.call(['mpirun', '--allow-run-as-root', '-np', '2',
-                                   'python', '-m', 'baselines.common.mpi_running_mean_std'])
+                                   'python', '-m', 'stable_baselines.common.mpi_running_mean_std'])
     _assert_eq(return_code, 0)
 
 
@@ -55,4 +55,4 @@ def test_mpi_moments():
     test running mean std function
     """
     subprocess.check_call(['mpirun', '--allow-run-as-root', '-np', '3', 'python', '-c',
-                           'from baselines.common.mpi_moments import _helper_runningmeanstd; _helper_runningmeanstd()'])
+                           'from stable_baselines.common.mpi_moments import _helper_runningmeanstd; _helper_runningmeanstd()'])

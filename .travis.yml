@@ -10,8 +10,8 @@ services:
 
 install:
     - pip install flake8
-    - docker build . -t baselines-test
+    - docker build . -t stable_baselines-test
 
 script:
-    - flake8 --select=F baselines/common
-    - docker run --env CODACY_PROJECT_TOKEN=$CODACY_PROJECT_TOKEN baselines-test sh -c 'pytest --cov-config .coveragerc --cov-report term --cov-report xml --cov=. && python-codacy-coverage -r coverage.xml --token=$CODACY_PROJECT_TOKEN'
+    - flake8 --select=F stable_baselines/common
+    - docker run --env CODACY_PROJECT_TOKEN=$CODACY_PROJECT_TOKEN stable_baselines-test sh -c 'pytest --cov-config .coveragerc --cov-report term --cov-report xml --cov=. && python-codacy-coverage -r coverage.xml --token=$CODACY_PROJECT_TOKEN'

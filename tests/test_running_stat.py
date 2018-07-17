@@ -1,6 +1,6 @@
 import numpy as np
 
-from baselines.common.running_stat import RunningStat
+from stable_baselines.common.running_stat import RunningStat
 
 
 def test_running_stat():

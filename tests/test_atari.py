@@ -2,15 +2,15 @@ import pytest
 
 import tensorflow as tf
 
-from baselines import deepq, bench, logger
-from baselines.common import set_global_seeds
-from baselines.common.atari_wrappers import make_atari
-import baselines.a2c.run_atari as a2c_atari
-import baselines.acer.run_atari as acer_atari
-import baselines.acktr.run_atari as acktr_atari
-import baselines.ppo1.run_atari as ppo1_atari
-import baselines.ppo2.run_atari as ppo2_atari
-import baselines.trpo_mpi.run_atari as trpo_atari
+from stable_baselines import deepq, bench, logger
+from stable_baselines.common import set_global_seeds
+from stable_baselines.common.atari_wrappers import make_atari
+import stable_baselines.a2c.run_atari as a2c_atari
+import stable_baselines.acer.run_atari as acer_atari
+import stable_baselines.acktr.run_atari as acktr_atari
+import stable_baselines.ppo1.run_atari as ppo1_atari
+import stable_baselines.ppo2.run_atari as ppo2_atari
+import stable_baselines.trpo_mpi.run_atari as trpo_atari
 
 
 ENV_ID = 'BreakoutNoFrameskip-v4'
@@ -21,7 +21,7 @@ NUM_CPU = 4
 
 def clear_tf_session():
     """
-    clears the Tensorflow session, this is needed for sequential testing of the baselines
+    clears the Tensorflow session, this is needed for sequential testing of the stable_baselines
     """
     tf.reset_default_graph()
 

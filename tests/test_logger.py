@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from baselines.logger import make_output_format, read_tb, read_csv, read_json
+from stable_baselines.logger import make_output_format, read_tb, read_csv, read_json
 
 KEY_VALUES = {'test': 1, 'b': -3.14, '8': 9.9}
 LOG_DIR = '/tmp/openai_baselines/'
@@ -18,9 +18,9 @@ def _assert_neq(left, right):
 
 def test_main():
     """
-    Dry-run python -m baselines.logger
+    Dry-run python -m stable_baselines.logger
     """
-    return_code = subprocess.call(['python', 'baselines/logger.py'])
+    return_code = subprocess.call(['python', 'stable_baselines/logger.py'])
     _assert_eq(return_code, 0)
 
 

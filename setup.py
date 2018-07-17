@@ -8,7 +8,7 @@ if sys.version_info.major != 3:
 
 setup(name='stable_baselines',
       packages=[package for package in find_packages()
-                if package.startswith('baselines')],
+                if package.startswith('stable_baselines')],
       install_requires=[
           'gym[mujoco,atari,classic_control,robotics]',
           'scipy',
@@ -31,6 +31,6 @@ setup(name='stable_baselines',
       ],
       description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms ',
       author='OpenAI',
-      url='https://github.com/openai/baselines',
+      url='https://github.com/openai/stable_baselines',
       author_email='gym@openai.com',
       version='0.1.5')

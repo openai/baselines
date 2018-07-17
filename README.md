@@ -64,16 +64,16 @@ pytest
 
 ## Subpackages
 
-- [A2C](baselines/a2c)
-- [ACER](baselines/acer)
-- [ACKTR](baselines/acktr)
-- [DDPG](baselines/ddpg)
-- [DQN](baselines/deepq)
-- [GAIL](baselines/gail)
-- [HER](baselines/her)
-- [PPO1](baselines/ppo1) (Multi-CPU using MPI)
-- [PPO2](baselines/ppo2) (Optimized for GPU)
-- [TRPO](baselines/trpo_mpi)
+- [A2C](stable_baselines/a2c)
+- [ACER](stable_baselines/acer)
+- [ACKTR](stable_baselines/acktr)
+- [DDPG](stable_baselines/ddpg)
+- [DQN](stable_baselines/deepq)
+- [GAIL](stable_baselines/gail)
+- [HER](stable_baselines/her)
+- [PPO1](stable_baselines/ppo1) (Multi-CPU using MPI)
+- [PPO2](stable_baselines/ppo2) (Optimized for GPU)
+- [TRPO](stable_baselines/trpo_mpi)
 
 To cite this repository in publications:
 

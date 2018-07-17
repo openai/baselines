@@ -5,11 +5,11 @@ import tensorflow as tf
 import numpy as np
 from gym.spaces.prng import np_random
 
-from baselines.a2c import a2c
-from baselines.ppo2 import ppo2
-from baselines.common.identity_env import IdentityEnv
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.a2c.policies import MlpPolicy
+from stable_baselines.a2c import a2c
+from stable_baselines.ppo2 import ppo2
+from stable_baselines.common.identity_env import IdentityEnv
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.a2c.policies import MlpPolicy
 
 
 learn_func_list = [

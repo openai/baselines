@@ -1,6 +1,6 @@
 import numpy as np
 
-from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
+from stable_baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 
 
 def test_tree_set():
