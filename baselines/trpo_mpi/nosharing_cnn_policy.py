@@ -8,6 +8,15 @@ class CnnPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, ob_space, ac_space, sess=None, reuse=False):
+        """
+        A CNN policy object for TRPO
+
+        :param name: (str) type of the policy (lin, logits, value)
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param sess: (TensorFlow session) The current TensorFlow session containing the variables.
+        :param reuse: (bool) If the policy is reusable or not
+        """
         super(CnnPolicy, self).__init__()
         self.sess = sess
         self.reuse = reuse
@@ -16,6 +25,11 @@ class CnnPolicy(BasePolicy):
         self.scope = tf.get_variable_scope().name
 
     def _init(self, ob_space, ac_space):
+        """
+
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        """
         obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
         obs_normalized = obs / 255.0

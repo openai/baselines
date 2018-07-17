@@ -16,17 +16,38 @@ DISABLED = 50
 
 
 class KVWriter(object):
+    """
+    Key Value writer
+    """
     def writekvs(self, kvs):
+        """
+        write a dictionary to file
+
+        :param kvs: (dict)
+        """
         raise NotImplementedError
 
 
 class SeqWriter(object):
+    """
+    sequence writer
+    """
     def writeseq(self, seq):
+        """
+        write an array to file
+
+        :param seq: (list)
+        """
         raise NotImplementedError
 
 
 class HumanOutputFormat(KVWriter, SeqWriter):
     def __init__(self, filename_or_file):
+        """
+        log to a file, in a human readable format
+
+        :param filename_or_file: (str or File) the file to write the log to
+        """
         if isinstance(filename_or_file, str):
             self.file = open(filename_or_file, 'wt')
             self.own_file = True
@@ -83,12 +104,20 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         self.file.flush()
 
     def close(self):
+        """
+        closes the file
+        """
         if self.own_file:
             self.file.close()
 
 
 class JSONOutputFormat(KVWriter):
     def __init__(self, filename):
+        """
+        log to a file, in the JSON format
+
+        :param filename: (str) the file to write the log to
+        """
         self.file = open(filename, 'wt')
 
     def writekvs(self, kvs):
@@ -100,11 +129,19 @@ class JSONOutputFormat(KVWriter):
         self.file.flush()
 
     def close(self):
+        """
+        closes the file
+        """
         self.file.close()
 
 
 class CSVOutputFormat(KVWriter):
     def __init__(self, filename):
+        """
+        log to a file, in a CSV format
+
+        :param filename: (str) the file to write the log to
+        """
         self.file = open(filename, 'w+t')
         self.keys = []
         self.sep = ','
@@ -136,15 +173,19 @@ class CSVOutputFormat(KVWriter):
         self.file.flush()
 
     def close(self):
+        """
+        closes the file
+        """
         self.file.close()
 
 
 class TensorBoardOutputFormat(KVWriter):
-    """
-    Dumps key/value pairs into TensorBoard's numeric format.
-    """
-
     def __init__(self, folder):
+        """
+        Dumps key/value pairs into TensorBoard's numeric format.
+
+        :param folder: (str) the folder to write the log to
+        """
         os.makedirs(folder, exist_ok=True)
         self.dir = folder
         self.step = 1
@@ -172,12 +213,23 @@ class TensorBoardOutputFormat(KVWriter):
         self.step += 1
 
     def close(self):
+        """
+        closes the file
+        """
         if self.writer:
             self.writer.Close()
             self.writer = None
 
 
 def make_output_format(_format, ev_dir, log_suffix=''):
+    """
+    return a logger for the requested format
+
+    :param _format: (str) the requested format to log to ('stdout', 'log', 'json', 'csv' or 'tensorboard')
+    :param ev_dir: (str) the logging directory
+    :param log_suffix: (str) the suffix for the log file
+    :return: (KVWrite) the logger
+    """
     os.makedirs(ev_dir, exist_ok=True)
     if _format == 'stdout':
         return HumanOutputFormat(sys.stdout)
@@ -202,6 +254,9 @@ def logkv(key, val):
     Log a value of some diagnostic
     Call this once for each diagnostic quantity, each iteration
     If called many times, last value will be used.
+
+    :param key: (Any) save to log this key
+    :param val: (Any) save to log this value
     """
     Logger.CURRENT.logkv(key, val)
 
@@ -209,6 +264,9 @@ def logkv(key, val):
 def logkv_mean(key, val):
     """
     The same as logkv(), but if called many times, values averaged.
+
+    :param key: (Any) save to log this key
+    :param val: (Number) save to log this value
     """
     Logger.CURRENT.logkv_mean(key, val)
 
@@ -216,6 +274,8 @@ def logkv_mean(key, val):
 def logkvs(key_values):
     """
     Log a dictionary of key-value pairs
+
+    :param key_values: (dict) the list of keys and values to save to log
     """
     for key, value in key_values.items():
         logkv(key, value)
@@ -224,14 +284,16 @@ def logkvs(key_values):
 def dumpkvs():
     """
     Write all of the diagnostics from the current iteration
-
-    level: int. (see logger.py docs) If the global logger level is higher than
-                the level argument here, don't print to stdout.
     """
     Logger.CURRENT.dumpkvs()
 
 
 def getkvs():
+    """
+    get the key values logs
+
+    :return: (dict) the logged values
+    """
     return Logger.CURRENT.name2val
 
 
@@ -239,29 +301,65 @@ def log(*args, level=INFO):
     """
     Write the sequence of args, with no separators,
     to the console and output files (if you've configured an output file).
+
+    level: int. (see logger.py docs) If the global logger level is higher than
+                the level argument here, don't print to stdout.
+
+    :param args: (list) log the arguments
+    :param level: (int) the logging level (can be DEBUG=10, INFO=20, WARN=30, ERROR=40, DISABLED=50)
     """
     Logger.CURRENT.log(*args, level=level)
 
 
 def debug(*args):
+    """
+    Write the sequence of args, with no separators,
+    to the console and output files (if you've configured an output file).
+    Using the DEBUG level.
+
+    :param args: (list) log the arguments
+    """
     log(*args, level=DEBUG)
 
 
 def info(*args):
+    """
+    Write the sequence of args, with no separators,
+    to the console and output files (if you've configured an output file).
+    Using the INFO level.
+
+    :param args: (list) log the arguments
+    """
     log(*args, level=INFO)
 
 
 def warn(*args):
+    """
+    Write the sequence of args, with no separators,
+    to the console and output files (if you've configured an output file).
+    Using the WARN level.
+
+    :param args: (list) log the arguments
+    """
     log(*args, level=WARN)
 
 
 def error(*args):
+    """
+    Write the sequence of args, with no separators,
+    to the console and output files (if you've configured an output file).
+    Using the ERROR level.
+
+    :param args: (list) log the arguments
+    """
     log(*args, level=ERROR)
 
 
 def set_level(level):
     """
     Set logging threshold on current logger.
+
+    :param level: (int) the logging level (can be DEBUG=10, INFO=20, WARN=30, ERROR=40, DISABLED=50)
     """
     Logger.CURRENT.set_level(level)
 
@@ -270,6 +368,8 @@ def get_dir():
     """
     Get directory that log files are being written to.
     will be None if there is no output directory (i.e., if you didn't call start)
+
+    :return: (str) the logging directory
     """
     return Logger.CURRENT.get_dir()
 
@@ -279,13 +379,14 @@ dump_tabular = dumpkvs
 
 
 class ProfileKV:
-    """
-    Usage:
-    with logger.ProfileKV("interesting_scope"):
-        code
-    """
-
     def __init__(self, name):
+        """
+        Usage:
+        with logger.ProfileKV("interesting_scope"):
+            code
+
+        :param name: (str) the profiling name
+        """
         self.name = "wait_" + name
 
     def __enter__(self):
@@ -300,8 +401,10 @@ def profile(name):
     Usage:
     @profile("my_func")
     def my_func(): code
-    """
 
+    :param name: (str) the profiling name
+    :return: (function) the wrapped function
+    """
     def decorator_with_name(func):
         def func_wrapper(*args, **kwargs):
             with ProfileKV(name):
@@ -323,6 +426,12 @@ class Logger(object):
     CURRENT = None  # Current logger being used by the free functions above
 
     def __init__(self, folder, output_formats):
+        """
+        the logger class
+
+        :param folder: (str) the logging location
+        :param output_formats: ([str]) the list of output format
+        """
         self.name2val = defaultdict(float)  # values this iteration
         self.name2cnt = defaultdict(int)
         self.level = INFO
@@ -332,9 +441,23 @@ class Logger(object):
     # Logging API, forwarded
     # ----------------------------------------
     def logkv(self, key, val):
+        """
+        Log a value of some diagnostic
+        Call this once for each diagnostic quantity, each iteration
+        If called many times, last value will be used.
+
+        :param key: (Any) save to log this key
+        :param val: (Any) save to log this value
+        """
         self.name2val[key] = val
 
     def logkv_mean(self, key, val):
+        """
+        The same as logkv(), but if called many times, values averaged.
+
+        :param key: (Any) save to log this key
+        :param val: (Number) save to log this value
+        """
         if val is None:
             self.name2val[key] = None
             return
@@ -343,6 +466,9 @@ class Logger(object):
         self.name2cnt[key] = cnt + 1
 
     def dumpkvs(self):
+        """
+        Write all of the diagnostics from the current iteration
+        """
         if self.level == DISABLED:
             return
         for fmt in self.output_formats:
@@ -352,24 +478,53 @@ class Logger(object):
         self.name2cnt.clear()
 
     def log(self, *args, level=INFO):
+        """
+        Write the sequence of args, with no separators,
+        to the console and output files (if you've configured an output file).
+
+        level: int. (see logger.py docs) If the global logger level is higher than
+                    the level argument here, don't print to stdout.
+
+        :param args: (list) log the arguments
+        :param level: (int) the logging level (can be DEBUG=10, INFO=20, WARN=30, ERROR=40, DISABLED=50)
+        """
         if self.level <= level:
             self._do_log(args)
 
     # Configuration
     # ----------------------------------------
     def set_level(self, level):
+        """
+        Set logging threshold on current logger.
+
+        :param level: (int) the logging level (can be DEBUG=10, INFO=20, WARN=30, ERROR=40, DISABLED=50)
+        """
         self.level = level
 
     def get_dir(self):
+        """
+        Get directory that log files are being written to.
+        will be None if there is no output directory (i.e., if you didn't call start)
+
+        :return: (str) the logging directory
+        """
         return self.dir
 
     def close(self):
+        """
+        closes the file
+        """
         for fmt in self.output_formats:
             fmt.close()
 
     # Misc
     # ----------------------------------------
     def _do_log(self, args):
+        """
+        log to the requested format outputs
+
+        :param args: (list) the arguments to log
+        """
         for fmt in self.output_formats:
             if isinstance(fmt, SeqWriter):
                 fmt.writeseq(map(str, args))
@@ -379,6 +534,13 @@ Logger.DEFAULT = Logger.CURRENT = Logger(folder=None, output_formats=[HumanOutpu
 
 
 def configure(folder=None, format_strs=None):
+    """
+    configure the current logger
+
+    :param folder: (str) the save location (if None, $OPENAI_LOGDIR, if still None, tempdir/openai-[date & time])
+    :param format_strs: (list) the output logging format
+        (if None, $OPENAI_LOG_FORMAT, if still None, ['stdout', 'log', 'csv'])
+    """
     if folder is None:
         folder = os.getenv('OPENAI_LOGDIR')
     if folder is None:
@@ -405,6 +567,9 @@ def configure(folder=None, format_strs=None):
 
 
 def reset():
+    """
+    reset the current logger
+    """
     if Logger.CURRENT is not Logger.DEFAULT:
         Logger.CURRENT.close()
         Logger.CURRENT = Logger.DEFAULT
@@ -415,8 +580,13 @@ class ScopedConfigure(object):
     def __init__(self, folder=None, format_strs=None):
         """
         Class for using context manager while logging
-        :param folder: (str)
-        :param format_strs: ([str])
+
+        usage:
+        with ScopedConfigure(folder=None, format_strs=None):
+            {code}
+
+        :param folder: (str) the logging folder
+        :param format_strs: ([str]) the list of output logging format
         """
         self.dir = folder
         self.format_strs = format_strs
@@ -434,6 +604,9 @@ class ScopedConfigure(object):
 # ================================================================
 
 def _demo():
+    """
+    tests for the logger module
+    """
     info("hi")
     debug("shouldn't appear")
     set_level(DEBUG)
@@ -473,6 +646,12 @@ def _demo():
 # ================================================================
 
 def read_json(fname):
+    """
+    read a json file using pandas
+
+    :param fname: (str) the file path to read
+    :return: (pandas DataFrame) the data in the json
+    """
     import pandas
     data = []
     with open(fname, 'rt') as file_handler:
@@ -482,14 +661,22 @@ def read_json(fname):
 
 
 def read_csv(fname):
+    """
+    read a csv file using pandas
+
+    :param fname: (str) the file path to read
+    :return: (pandas DataFrame) the data in the csv
+    """
     import pandas
     return pandas.read_csv(fname, index_col=None, comment='#')
 
 
 def read_tb(path):
     """
-    path : a tensorboard file OR a directory, where we will find all TB files
-           of the form events.*
+    read a tensorboard output
+
+    :param path: (str) a tensorboard file OR a directory, where we will find all TB files of the form events.
+    :return: (pandas DataFrame) the tensorboad data
     """
     import pandas
     import numpy as np

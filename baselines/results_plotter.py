@@ -19,9 +19,11 @@ COLORS = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple'
 
 def rolling_window(array, window):
     """
-    :param array: (ndarray) Array
+    apply a rolling window to a numpy array
+
+    :param array: (numpy Any) the input Array
     :param window: (int) length of the rolling window
-    :return: (view : ndarray) rolling window on the input array
+    :return: (numpy Any) rolling window on the input array
     """
     shape = array.shape[:-1] + (array.shape[-1] - window + 1, window)
     strides = array.strides + (array.strides[-1],)
@@ -30,11 +32,13 @@ def rolling_window(array, window):
 
 def window_func(var_1, var_2, window, func):
     """
-    :param var_1: variable 1
-    :param var_2: variable 2
+    apply a function to the rolling window of 2 arrays
+
+    :param var_1: (numpy Any) variable 1
+    :param var_2: (numpy Any) variable 2
     :param window: (int) length of the rolling window
     :param func: (numpy function) function to apply on the rolling window on variable 2 (such as np.mean)
-    :return:
+    :return: (numpy Any, numpy Any)  the rolling output with applied function
     """
     var_2_window = rolling_window(var_2, window)
     function_on_var2 = func(var_2_window, axis=-1)
@@ -43,10 +47,12 @@ def window_func(var_1, var_2, window, func):
 
 def ts2xy(timesteps, xaxis):
     """
-    Decompose a timesteps variable to x an ys
-    :param timesteps:
-    :param xaxis:
-    :return:
+    Decompose a timesteps variable to x ans ys
+
+    :param timesteps: (Pandas DataFrame) the input data
+    :param xaxis: (str) the axis for the x and y output
+        (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
+    :return: (numpy Number, numpy Number) the x and y output
     """
     if xaxis == X_TIMESTEPS:
         x_var = np.cumsum(timesteps.l.values)
@@ -63,6 +69,14 @@ def ts2xy(timesteps, xaxis):
 
 
 def plot_curves(xy_list, xaxis, title):
+    """
+    plot the curves
+
+    :param xy_list: ([(numpy Number, numpy Number)]) the x and y coordinates to plot
+    :param xaxis: (str) the axis for the x and y output
+        (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
+    :param title: (str) the title of the plot
+    """
 
     plt.figure(figsize=(8, 2))
     maxx = max(xy[0][-1] for xy in xy_list)
@@ -80,6 +94,15 @@ def plot_curves(xy_list, xaxis, title):
 
 
 def plot_results(dirs, num_timesteps, xaxis, task_name):
+    """
+    plot the results
+
+    :param dirs: (str) the save location of the results to plot
+    :param num_timesteps: (int) only plot the points below this value
+    :param xaxis: (str) the axis for the x and y output
+        (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
+    :param task_name: (str) the title of the task to plot
+    """
 
     tslist = []
     for folder in dirs:

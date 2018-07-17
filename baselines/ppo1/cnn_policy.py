@@ -9,6 +9,7 @@ class CnnPolicy(BasePolicy):
 
     def __init__(self, name, ob_space, ac_space, architecture_size='large', sess=None, reuse=False):
         """
+        A CNN policy object for PPO1
 
         :param name: (str) type of the policy (lin, logits, value)
         :param ob_space: (Gym Space) The observation space of the environment

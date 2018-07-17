@@ -20,7 +20,7 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
     Learning PPO with Stochastic Gradient Descent
 
     :param env: (Gym Environment) environment to train on
-    :param policy_fn: (function (str, Gym Space, Gym Space): TensorFlow Tensor) creates the policy
+    :param policy_fn: (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) creates the policy
     :param timesteps_per_actorbatch: (int) timesteps per actor per update
     :param clip_param: (float) clipping parameter epsilon
     :param entcoeff: (float) the entropy loss weight
@@ -29,12 +29,12 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
     :param optim_batchsize: (int) the optimizer's the batch size
     :param gamma: (float) discount factor
     :param lam: (float) advantage estimation
-    :param max_timesteps:  (int) number of env steps to optimizer for
+    :param max_timesteps: (int) number of env steps to optimizer for
     :param max_episodes: (int) the maximum number of epochs
     :param max_iters: (int) the maximum number of iterations
     :param max_seconds: (int) the maximal duration
     :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
-        If callback returns true training stops. It takes the local and global variables.
+        It takes the local and global variables.
     :param adam_epsilon: (float) the epsilon value for the adam optimizer
     :param schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')

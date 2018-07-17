@@ -12,6 +12,13 @@ from baselines.trpo_mpi import trpo_mpi
 
 
 def train(env_id, num_timesteps, seed):
+    """
+    Train TRPO model for the atari environment, for testing purposes
+
+    :param env_id: (str) Environment ID
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    """
     rank = MPI.COMM_WORLD.Get_rank()
 
     if rank == 0:
@@ -39,6 +46,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
+    """
+    Runs the test
+    """
     args = atari_arg_parser().parse_args()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 

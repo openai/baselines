@@ -21,9 +21,9 @@ class Model(object):
         It shares policies with A2C.
 
         :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param ob_space: (Gym Space) Observation space
-        :param ac_space: (Gym Space) Action space
-        :param nbatch_act: (int) Minibatch size during test ?
+        :param ob_space: (Gym Spaces) Observation space
+        :param ac_space: (Gym Spaces) Action space
+        :param nbatch_act: (int) Minibatch size for the actor policy, used mostly for reccurent policies
         :param nbatch_train: (int) Minibatch size during training
         :param nsteps: (int) The number of steps to run for each environment
         :param ent_coef: (float) Entropy coefficient for the loss caculation
@@ -86,13 +86,13 @@ class Model(object):
             :param cliprange: (float) Clipping factor
             :param obs: (numpy array) The current observation of the environment
             :param returns: (numpy array) the rewards
-            :param masks: (numpy array) The last masks (used in reccurent policies)
+            :param masks: (numpy array) The last masks for done episodes (used in recurent policies)
             :param actions: (numpy array) the actions
             :param values: (numpy array) the values
             :param neglogpacs: (numpy array) Negative Log-likelihood probability of Actions
-            :param states: (numpy array) For recurrent policies
+            :param states: (numpy array) For recurrent policies, the internal state of the recurrent model
             :return: policy gradient loss, value function loss, policy entropy,
-                    approximation of kl divergence, clip fraction ?, _train (?)
+                    approximation of kl divergence, updated clipping range, training update operation
             """
             advs = returns - values
             advs = (advs - advs.mean()) / (advs.std() + 1e-8)
@@ -107,10 +107,20 @@ class Model(object):
         self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
         def save(save_path):
+            """
+            Save the policy to a file
+
+            :param save_path: (str) the location to save the policy
+            """
             saved_params = sess.run(params)
             joblib.dump(saved_params, save_path)
 
         def load(load_path):
+            """
+            load a policy from the file
+
+            :param load_path: (str) the saved location of the policy
+            """
             loaded_params = joblib.load(load_path)
             restores = []
             for param, loaded_p in zip(params, loaded_params):
@@ -148,7 +158,15 @@ class Runner(AbstractEnvRunner):
         """
         Run a learning step of the model
 
-        :return: observations, rewards, masks, actions, values, negative log probabilities, states, infos
+        :return:
+            - observations: (numpy Number) the observations
+            - rewards: (numpy Number) the rewards
+            - masks: (numpy bool) whether an episode is over or not
+            - actions: (numpy Number) the actions
+            - values: (numpy Number) the value function output
+            - negative log probabilities: (numpy Number)
+            - states: (numpy Number) the internal states of the recurrent policies
+            - infos: (dict) the extra information of the model
         """
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
         mb_states = self.states
@@ -230,14 +248,14 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
     :param nsteps: (int) The number of steps to run for each environment
     :param total_timesteps: (int) The total number of samples
     :param ent_coef: (float) Entropy coefficient for the loss caculation
-    :param learning_rate: (float or callable) The learning rate, it can a function
+    :param learning_rate: (float or callable) The learning rate, it can be a function
     :param vf_coef: (float) Value function coefficient for the loss calculation
     :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param gamma: (float) Discount factor
     :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
-    :param nminibatches: (int) Number of minibatches ?
+    :param nminibatches: (int) Number of minibatches for the policies
     :param noptepochs: (int) Number of epoch when optimizing the surrogate
-    :param cliprange: (float) Clipping parameter
+    :param cliprange: (float or callable) Clipping parameter, it can be a function
     :param log_interval: (int) The number of timesteps before logging.
     :param save_interval: (int) The number of timesteps before saving.
     :param load_path: (str) Path to a trained ppo2 model, set to None, it will learn from scratch

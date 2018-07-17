@@ -10,7 +10,13 @@ import baselines.common.tf_util as tf_util
 
 
 def train(env_id, num_timesteps, seed):
+    """
+    Train TRPO model for the mujoco environment, for testing purposes
 
+    :param env_id: (str) Environment ID
+    :param num_timesteps: (int) The total number of samples
+    :param seed: (int) The initial seed for training
+    """
     with tf_util.single_threaded_session():
         rank = MPI.COMM_WORLD.Get_rank()
         if rank == 0:
@@ -30,6 +36,9 @@ def train(env_id, num_timesteps, seed):
 
 
 def main():
+    """
+    Runs the test
+    """
     args = mujoco_arg_parser().parse_args()
     train(args.env, num_timesteps=args.num_timesteps, seed=args.seed)
 

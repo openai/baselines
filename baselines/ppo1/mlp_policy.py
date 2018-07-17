@@ -8,6 +8,9 @@ from baselines.common.distributions import make_proba_dist_type
 
 class BasePolicy(object):
     def __init__(self):
+        """
+        A base policy object for PPO1
+        """
         super(BasePolicy, self).__init__()
         self.sess = None
         self.pdtype = None
@@ -15,7 +18,12 @@ class BasePolicy(object):
         self.scope = None
 
     def get_obs_and_pdtype(self, ob_space, ac_space):
-        """Initialize probability distribution and get observation placeholder."""
+        """
+        Initialize probability distribution and get observation placeholder.
+
+        :param ob_space: (Gym Spaces) the observation space
+        :param ac_space: (Gym Spaces) the action space
+        """
         assert isinstance(ob_space, gym.spaces.Box)
 
         self.pdtype = pdtype = make_proba_dist_type(ac_space)
@@ -26,17 +34,39 @@ class BasePolicy(object):
         return obs, pdtype
 
     def act(self, stochastic, obs):
+        """
+        Get the action from the policy, using the observation
+
+        :param stochastic: (bool) whether or not to use a stochastic or deterministic policy
+        :param obs: (TensorFlow Tensor or numpy Number) the observation
+        :return: (numpy Number, numpy Number) the action and value function
+        """
         ac1, vpred1 = self._act(stochastic, obs[None], sess=self.sess)
         return ac1[0], vpred1[0]
 
     def get_variables(self):
+        """
+        Get all the policy's variables
+
+        :return: ([TensorFlow Tensor]) the variables of the network
+        """
         return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
 
     def get_trainable_variables(self):
+        """
+        Get the policy's trainable variables
+
+        :return: ([TensorFlow Tensor]) the trainable variables of the network
+        """
         return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
 
     @classmethod
     def get_initial_state(cls):
+        """
+        Get the initial state
+
+        :return: ([numpy Number]) the initial state
+        """
         return []
 
 
@@ -44,6 +74,18 @@ class MlpPolicy(BasePolicy):
     recurrent = False
 
     def __init__(self, name, *args, sess=None, reuse=False, **kwargs):
+        """
+        A MLP policy object for PPO1
+
+        :param name: (str) type of the policy (lin, logits, value)
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param hid_size: (int) the size of the hidden layers
+        :param num_hid_layers: (int) the number of hidden layers
+        :param sess: (TensorFlow session) The current TensorFlow session containing the variables.
+        :param reuse: (bool) If the policy is reusable or not
+        :param gaussian_fixed_var: (bool) enable gaussian sampling with fixed variance, when using continuous actions
+        """
         super(MlpPolicy, self).__init__()
         self.reuse = reuse
         self.name = name
@@ -52,6 +94,14 @@ class MlpPolicy(BasePolicy):
         self.sess = sess
 
     def _init(self, ob_space, ac_space, hid_size, num_hid_layers, gaussian_fixed_var=True):
+        """
+
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param hid_size: (int) the size of the hidden layers
+        :param num_hid_layers: (int) the number of hidden layers
+        :param gaussian_fixed_var: (bool) enable gaussian sampling with fixed variance, when using continuous actions
+        """
         obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
         with tf.variable_scope(self.name + "/obfilter", reuse=self.reuse):
