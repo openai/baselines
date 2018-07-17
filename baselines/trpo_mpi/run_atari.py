@@ -30,8 +30,8 @@ def train(env_id, num_timesteps, seed):
     set_global_seeds(workerseed)
     env = make_atari(env_id)
 
-    def policy_fn(name, ob_space, ac_space, sess=None):  # pylint: disable=W0613
-        return CnnPolicy(name=name, ob_space=ob_space, ac_space=ac_space, sess=sess)
+    def policy_fn(name, ob_space, ac_space, sess=None, placeholders=None):  # pylint: disable=W0613
+        return CnnPolicy(name=name, ob_space=ob_space, ac_space=ac_space, sess=sess, placeholders=placeholders)
 
     env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
     env.seed(workerseed)

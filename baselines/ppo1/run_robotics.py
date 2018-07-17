@@ -23,8 +23,9 @@ def train(env_id, num_timesteps, seed):
         set_global_seeds(workerseed)
         env = make_robotics_env(env_id, workerseed, rank=rank)
 
-        def policy_fn(name, ob_space, ac_space):
-            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=256, num_hid_layers=3)
+        def policy_fn(name, ob_space, ac_space, sess=None, placeholders=None):
+            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=256, num_hid_layers=3,
+                                        sess=sess, placeholders=placeholders)
 
         pposgd_simple.learn(env, policy_fn,
                             max_timesteps=num_timesteps,

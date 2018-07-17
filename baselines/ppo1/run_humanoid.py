@@ -19,8 +19,9 @@ def train(num_timesteps, seed, model_path=None):
     """
     env_id = 'Humanoid-v2'
 
-    def policy_fn(name, ob_space, ac_space):
-        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2)
+    def policy_fn(name, ob_space, ac_space, sess=None, placeholders=None):
+        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2,
+                                    sess=sess, placeholders=placeholders)
 
     env = make_mujoco_env(env_id, seed)
 

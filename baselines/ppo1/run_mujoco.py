@@ -13,8 +13,9 @@ def train(env_id, num_timesteps, seed):
     :param num_timesteps: (int) The total number of samples
     :param seed: (int) The initial seed for training
     """
-    def policy_fn(name, ob_space, ac_space):
-        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2)
+    def policy_fn(name, ob_space, ac_space, sess=None, placeholders=None):
+        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2,
+                                    sess=sess, placeholders=placeholders)
 
     env = make_mujoco_env(env_id, seed)
     pposgd_simple.learn(env, policy_fn,

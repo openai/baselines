@@ -55,9 +55,12 @@ class NeuralNetValueFunction(object):
         :return: ([TensorFlow Tensor]) processed input
         """
         length = path["reward"].shape[0]
-        al = np.arange(length).reshape(-1, 1) / 10.0
+        # used to be named 'al', unfortunalty we cant seem to know why it was called 'al' or what it means.
+        # Feel free to fix it if you know what is meant here.
+        # Could mean 'array_length', but even then we are not sure how this array is useful for the network.
+        al_capone = np.arange(length).reshape(-1, 1) / 10.0
         act = path["action_dist"].astype('float32')
-        return np.concatenate([path['observation'], act, al, np.ones((length, 1))], axis=1)
+        return np.concatenate([path['observation'], act, al_capone, np.ones((length, 1))], axis=1)
 
     def predict(self, path):
         """
