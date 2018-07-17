@@ -10,12 +10,12 @@ of the parameter given the timestep t of the optimization procedure.
 
 
 class Schedule(object):
-    def value(self, t_time):
+    def value(self, step):
         """
-        Value of the schedule at time t
+        Value of the schedule for a given timestep
 
-        :param t_time: (int) the time
-        :return: (float) the output value for the given time
+        :param step: (int) the timestep
+        :return: (float) the output value for the given timestep
         """
         raise NotImplementedError
 
@@ -27,14 +27,14 @@ class ConstantSchedule(Schedule):
 
         :param value: (float) Constant value of the schedule
         """
-        self._v = value
+        self._value = value
 
-    def value(self, t):
-        return self._v
+    def value(self, step):
+        return self._value
 
 
-def linear_interpolation(l, r, alpha):
-    return l + alpha * (r - l)
+def linear_interpolation(start, end, alpha):
+    return start + alpha * (end - start)
 
 
 class PiecewiseSchedule(Schedule):
@@ -64,10 +64,10 @@ class PiecewiseSchedule(Schedule):
         self._outside_value = outside_value
         self._endpoints = endpoints
 
-    def value(self, t):
+    def value(self, step):
         for (l_t, l), (r_t, r) in zip(self._endpoints[:-1], self._endpoints[1:]):
-            if l_t <= t < r_t:
-                alpha = float(t - l_t) / (r_t - l_t)
+            if l_t <= step < r_t:
+                alpha = float(step - l_t) / (r_t - l_t)
                 return self._interpolation(l, r, alpha)
 
         # t does not belong to any of the pieces, so doom.

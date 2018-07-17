@@ -25,33 +25,39 @@ class MpiAdam(object):
         self.epsilon = epsilon
         self.scale_grad_by_procs = scale_grad_by_procs
         size = sum(tf_utils.numel(v) for v in var_list)
-        self.m = np.zeros(size, 'float32')
-        self.v = np.zeros(size, 'float32')
-        self.t = 0
+        # Exponential moving average of gradient values
+        # "first moment estimate" m in the paper
+        self.exp_avg = np.zeros(size, 'float32')
+        # Exponential moving average of squared gradient values
+        # "second raw moment estimate" v in the paper
+        self.exp_avg_sq = np.zeros(size, 'float32')
+        self.step = 0
         self.setfromflat = tf_utils.SetFromFlat(var_list, sess=sess)
         self.getflat = tf_utils.GetFlat(var_list, sess=sess)
         self.comm = MPI.COMM_WORLD if comm is None else comm
 
-    def update(self, localg, stepsize):
+    def update(self, local_grad, learning_rate):
         """
         update the values of the graph
 
-        :param localg: (numpy float) the gradient
-        :param stepsize: (float) the stepsize for the update
+        :param local_grad: (numpy float) the gradient
+        :param learning_rate: (float) the learning_rate for the update
         """
-        if self.t % 100 == 0:
+        if self.step % 100 == 0:
             self.check_synced()
-        localg = localg.astype('float32')
-        globalg = np.zeros_like(localg)
-        self.comm.Allreduce(localg, globalg, op=MPI.SUM)
+        local_grad = local_grad.astype('float32')
+        global_grad = np.zeros_like(local_grad)
+        self.comm.Allreduce(local_grad, global_grad, op=MPI.SUM)
         if self.scale_grad_by_procs:
-            globalg /= self.comm.Get_size()
+            global_grad /= self.comm.Get_size()
 
-        self.t += 1
-        a = stepsize * np.sqrt(1 - self.beta2**self.t)/(1 - self.beta1**self.t)
-        self.m = self.beta1 * self.m + (1 - self.beta1) * globalg
-        self.v = self.beta2 * self.v + (1 - self.beta2) * (globalg * globalg)
-        step = (- a) * self.m / (np.sqrt(self.v) + self.epsilon)
+        self.step += 1
+        # Learning rate with bias correction
+        step_size = learning_rate * np.sqrt(1 - self.beta2 ** self.step) / (1 - self.beta1 ** self.step)
+        # Decay the first and second moment running average coefficient
+        self.exp_avg = self.beta1 * self.exp_avg + (1 - self.beta1) * global_grad
+        self.exp_avg_sq = self.beta2 * self.exp_avg_sq + (1 - self.beta2) * (global_grad * global_grad)
+        step = (- step_size) * self.exp_avg / (np.sqrt(self.exp_avg_sq) + self.epsilon)
         self.setfromflat(self.getflat() + step)
 
     def sync(self):
@@ -84,26 +90,31 @@ def test_mpi_adam():
     np.random.seed(0)
     tf.set_random_seed(0)
 
-    a = tf.Variable(np.random.randn(3).astype('float32'))
-    b = tf.Variable(np.random.randn(2, 5).astype('float32'))
-    loss = tf.reduce_sum(tf.square(a)) + tf.reduce_sum(tf.sin(b))
+    a_var = tf.Variable(np.random.randn(3).astype('float32'))
+    b_var = tf.Variable(np.random.randn(2, 5).astype('float32'))
+    loss = tf.reduce_sum(tf.square(a_var)) + tf.reduce_sum(tf.sin(b_var))
 
-    stepsize = 1e-2
-    update_op = tf.train.AdamOptimizer(stepsize).minimize(loss)
+    learning_rate = 1e-2
+    update_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
     do_update = tf_utils.function([], loss, updates=[update_op])
 
     tf.get_default_session().run(tf.global_variables_initializer())
-    for i in range(10):
-        print(i, do_update())
+    for step in range(10):
+        print(step, do_update())
 
     tf.set_random_seed(0)
     tf.get_default_session().run(tf.global_variables_initializer())
 
-    var_list = [a, b]
+    var_list = [a_var, b_var]
     lossandgrad = tf_utils.function([], [loss, tf_utils.flatgrad(loss, var_list)], updates=[update_op])
     adam = MpiAdam(var_list)
 
-    for i in range(10):
-        l, g = lossandgrad()
-        adam.update(g, stepsize)
-        print(i, l)
+    for step in range(10):
+        loss, grad = lossandgrad()
+        adam.update(grad, learning_rate)
+        print(step, loss)
+
+
+if __name__ == "__main__":
+    # Run with mpirun -np 2 python <filename>
+    test_mpi_adam()

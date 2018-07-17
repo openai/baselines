@@ -300,15 +300,15 @@ class CategoricalProbabilityDistribution(ProbabilityDistribution):
         exp_a_1 = tf.exp(a_1)
         z_0 = tf.reduce_sum(exp_a_0, axis=-1, keep_dims=True)
         z_1 = tf.reduce_sum(exp_a_1, axis=-1, keep_dims=True)
-        p0 = exp_a_0 / z_0
-        return tf.reduce_sum(p0 * (a_0 - tf.log(z_0) - a_1 + tf.log(z_1)), axis=-1)
+        p_0 = exp_a_0 / z_0
+        return tf.reduce_sum(p_0 * (a_0 - tf.log(z_0) - a_1 + tf.log(z_1)), axis=-1)
 
     def entropy(self):
         a_0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
         exp_a_0 = tf.exp(a_0)
         z_0 = tf.reduce_sum(exp_a_0, axis=-1, keep_dims=True)
-        p0 = exp_a_0 / z_0
-        return tf.reduce_sum(p0 * (tf.log(z_0) - a_0), axis=-1)
+        p_0 = exp_a_0 / z_0
+        return tf.reduce_sum(p_0 * (tf.log(z_0) - a_0), axis=-1)
 
     def sample(self):
         uniform = tf.random_uniform(tf.shape(self.logits))
@@ -432,11 +432,14 @@ class BernoulliProbabilityDistribution(ProbabilityDistribution):
                              axis=-1)
 
     def kl(self, other):
-        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=other.logits, labels=self.probabilities), axis=-1) - \
-            tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.probabilities), axis=-1)
+        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=other.logits,
+                                                                     labels=self.probabilities), axis=-1) - \
+            tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
+                                                                  labels=self.probabilities), axis=-1)
 
     def entropy(self):
-        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.probabilities), axis=-1)
+        return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
+                                                                     labels=self.probabilities), axis=-1)
 
     def sample(self):
         samples_from_uniform = tf.random_uniform(tf.shape(self.probabilities))

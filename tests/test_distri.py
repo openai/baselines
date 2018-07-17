@@ -2,7 +2,8 @@ import numpy as np
 import tensorflow as tf
 
 import baselines.common.tf_util as tf_util
-from baselines.common.distributions import DiagGaussianProbabilityDistributionType, CategoricalProbabilityDistributionType, \
+from baselines.common.distributions import DiagGaussianProbabilityDistributionType,\
+    CategoricalProbabilityDistributionType, \
     MultiCategoricalProbabilityDistributionType, BernoulliProbabilityDistributionType
 
 

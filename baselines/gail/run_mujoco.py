@@ -55,7 +55,7 @@ def argsparser():
     parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e6)
     # Behavior Cloning
     boolean_flag(parser, 'pretrained', default=False, help_msg='Use BC to pretrain')
-    parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e4)
+    parser.add_argument('--bc_max_iter', help='Max iteration for training BC', type=int, default=1e4)
     return parser.parse_args()
 
 
@@ -104,7 +104,7 @@ def main(args):
             reward_giver = TransitionClassifier(env, args.adversary_hidden_size, entcoeff=args.adversary_entcoeff)
             train(env, args.seed, policy_fn, reward_giver, dataset, args.algo, args.g_step, args.d_step,
                   args.policy_entcoeff, args.num_timesteps, args.save_per_iter, args.checkpoint_dir, args.pretrained,
-                  args.BC_max_iter, task_name)
+                  args.bc_max_iter, task_name)
         elif args.task == 'evaluate':
             runner(env,
                    policy_fn,
@@ -215,51 +215,51 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     return avg_len, avg_ret
 
 
-def traj_1_generator(pi, env, horizon, stochastic):
+def traj_1_generator(policy, env, horizon, stochastic):
     """
     Sample one trajectory (until trajectory end)
 
-    :param pi: (MLPPolicy) the policy
+    :param policy: (MLPPolicy) the policy
     :param env: (Gym Environment) the environment
     :param horizon: (int) the search horizon
     :param stochastic: (bool) use a stochastic policy
     :return: (dict) the trajectory
     """
 
-    t = 0
+    step = 0
     env.action_space.sample()  # not used, just so we have the datatype
     new = True  # marks if we're on first timestep of an episode
 
-    ob = env.reset()
+    observation = env.reset()
     cur_ep_ret = 0  # return in current episode
     cur_ep_len = 0  # len of current episode
 
     # Initialize history arrays
-    obs = []
-    rews = []
+    observations = []
+    rewards = []
     news = []
-    acs = []
+    actions = []
 
     while True:
-        ac, vpred = pi.act(stochastic, ob)
-        obs.append(ob)
+        acttion, _ = policy.act(stochastic, observation)
+        observations.append(observation)
         news.append(new)
-        acs.append(ac)
+        actions.append(acttion)
 
-        ob, rew, new, _ = env.step(ac)
-        rews.append(rew)
+        observation, reward, new, _ = env.step(acttion)
+        rewards.append(reward)
 
-        cur_ep_ret += rew
+        cur_ep_ret += reward
         cur_ep_len += 1
-        if new or t >= horizon:
+        if new or step >= horizon:
             break
-        t += 1
+        step += 1
 
-    obs = np.array(obs)
-    rews = np.array(rews)
+    observations = np.array(observations)
+    rewards = np.array(rewards)
     news = np.array(news)
-    acs = np.array(acs)
-    traj = {"ob": obs, "rew": rews, "new": news, "ac": acs,
+    actions = np.array(actions)
+    traj = {"ob": observations, "rew": rewards, "new": news, "ac": actions,
             "ep_ret": cur_ep_ret, "ep_len": cur_ep_len}
     return traj
 

@@ -163,8 +163,8 @@ class DDPG(object):
         action += noise
         action = np.clip(action, -self.max_u, self.max_u)
         # eps-greedy
-        n_actions = action.shape[0]
-        action += np.random.binomial(1, random_eps, n_actions).reshape(-1, 1) * (self._random_action(n_actions) - action)
+        n_ac = action.shape[0]
+        action += np.random.binomial(1, random_eps, n_ac).reshape(-1, 1) * (self._random_action(n_ac) - action)
         if action.shape[0] == 1:
             action = action[0]
         action = action.copy()

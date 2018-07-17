@@ -63,23 +63,23 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_e
     val_per_iter = int(max_iters/10)
     ob_space = env.observation_space
     ac_space = env.action_space
-    pi = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
+    policy = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
     # placeholder
-    observation = tf_util.get_placeholder_cached(name="ob")
-    action = pi.pdtype.sample_placeholder([None])
-    stochastic = tf_util.get_placeholder_cached(name="stochastic")
-    loss = tf.reduce_mean(tf.square(action - pi.ac))
-    var_list = pi.get_trainable_variables()
+    obs_ph = tf_util.get_placeholder_cached(name="ob")
+    action_ph = policy.pdtype.sample_placeholder([None])
+    stochastic_ph = tf_util.get_placeholder_cached(name="stochastic")
+    loss = tf.reduce_mean(tf.square(action_ph - policy.ac))
+    var_list = policy.get_trainable_variables()
     adam = MpiAdam(var_list, epsilon=adam_epsilon)
-    lossandgrad = tf_util.function([observation, action, stochastic], [loss] + [tf_util.flatgrad(loss, var_list)])
+    lossandgrad = tf_util.function([obs_ph, action_ph, stochastic_ph], [loss] + [tf_util.flatgrad(loss, var_list)])
 
     tf_util.initialize()
     adam.sync()
     logger.log("Pretraining with Behavior Cloning...")
     for iter_so_far in tqdm(range(int(max_iters))):
         ob_expert, ac_expert = dataset.get_next_batch(optim_batch_size, 'train')
-        train_loss, g = lossandgrad(ob_expert, ac_expert, True)
-        adam.update(g, optim_stepsize)
+        train_loss, grad = lossandgrad(ob_expert, ac_expert, True)
+        adam.update(grad, optim_stepsize)
         if verbose and iter_so_far % val_per_iter == 0:
             ob_expert, ac_expert = dataset.get_next_batch(-1, 'val')
             val_loss, _ = lossandgrad(ob_expert, ac_expert, True)

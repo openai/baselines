@@ -78,11 +78,11 @@ class Model(object):
         trainer = tf.train.AdamOptimizer(learning_rate=learning_rate_ph, epsilon=1e-5)
         _train = trainer.apply_gradients(grads)
 
-        def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
+        def train(learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
             """
             Training of PPO2 Algorithm
 
-            :param lr: (float) learning rate
+            :param learning_rate: (float) learning rate
             :param cliprange: (float) Clipping factor
             :param obs: (numpy array) The current observation of the environment
             :param returns: (numpy array) the rewards
@@ -97,7 +97,7 @@ class Model(object):
             advs = returns - values
             advs = (advs - advs.mean()) / (advs.std() + 1e-8)
             td_map = {train_model.obs_ph: obs, action_ph: actions, advs_ph: advs, rewards_ph: returns,
-                      learning_rate_ph: lr, clip_range_ph: cliprange, old_neglog_pac_ph: neglogpacs,
+                      learning_rate_ph: learning_rate, clip_range_ph: cliprange, old_neglog_pac_ph: neglogpacs,
                       old_vpred_ph: values}
             if states is not None:
                 td_map[train_model.states_ph] = states
@@ -168,6 +168,7 @@ class Runner(AbstractEnvRunner):
             - states: (numpy Number) the internal states of the recurrent policies
             - infos: (dict) the extra information of the model
         """
+        # mb stands for minibatch
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
         mb_states = self.states
         epinfos = []
@@ -194,16 +195,16 @@ class Runner(AbstractEnvRunner):
         last_values = self.model.value(self.obs, self.states, self.dones)
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)
-        lastgaelam = 0
-        for t in reversed(range(self.nsteps)):
-            if t == self.nsteps - 1:
+        last_gae_lam = 0
+        for step in reversed(range(self.nsteps)):
+            if step == self.nsteps - 1:
                 nextnonterminal = 1.0 - self.dones
                 nextvalues = last_values
             else:
-                nextnonterminal = 1.0 - mb_dones[t + 1]
-                nextvalues = mb_values[t + 1]
-            delta = mb_rewards[t] + self.gamma * nextvalues * nextnonterminal - mb_values[t]
-            mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
+                nextnonterminal = 1.0 - mb_dones[step + 1]
+                nextvalues = mb_values[step + 1]
+            delta = mb_rewards[step] + self.gamma * nextvalues * nextnonterminal - mb_values[step]
+            mb_advs[step] = last_gae_lam = delta + self.gamma * self.lam * nextnonterminal * last_gae_lam
         mb_returns = mb_advs + mb_values
         return (*map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states,
                 epinfos)
@@ -217,8 +218,8 @@ def swap_and_flatten(arr):
     :param arr: (numpy array)
     :return: (numpy array)
     """
-    s = arr.shape
-    return arr.swapaxes(0, 1).reshape(s[0] * s[1], *s[2:])
+    shape = arr.shape
+    return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])
 
 
 def constfn(val):
@@ -230,13 +231,13 @@ def constfn(val):
     :return: (function)
     """
 
-    def f(_):
+    def func(_):
         return val
 
-    return f
+    return func
 
 
-def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
+def learn(*, policy, env, n_steps, total_timesteps, ent_coef, learning_rate,
           vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
           log_interval=10, nminibatches=4, noptepochs=4,
           cliprange=0.2, save_interval=0, load_path=None):
@@ -245,7 +246,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
 
     :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
-    :param nsteps: (int) The number of steps to run for each environment
+    :param n_steps: (int) The number of steps to run for each environment
     :param total_timesteps: (int) The total number of samples
     :param ent_coef: (float) Entropy coefficient for the loss caculation
     :param learning_rate: (float or callable) The learning rate, it can be a function
@@ -271,14 +272,14 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
         assert callable(cliprange)
     total_timesteps = int(total_timesteps)
 
-    nenvs = env.num_envs
+    n_envs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
-    nbatch = nenvs * nsteps
+    nbatch = n_envs * n_steps
     nbatch_train = nbatch // nminibatches
 
-    make_model = lambda: Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs,
-                               nbatch_train=nbatch_train, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
+    make_model = lambda: Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=n_envs,
+                               nbatch_train=nbatch_train, nsteps=n_steps, ent_coef=ent_coef, vf_coef=vf_coef,
                                max_grad_norm=max_grad_norm)
     if save_interval and logger.get_dir():
         import cloudpickle
@@ -287,7 +288,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
     model = make_model()
     if load_path is not None:
         model.load(load_path)
-    runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
+    runner = Runner(env=env, model=model, nsteps=n_steps, gamma=gamma, lam=lam)
 
     epinfobuf = deque(maxlen=100)
     tfirststart = time.time()
@@ -298,7 +299,7 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
         nbatch_train = nbatch // nminibatches
         tstart = time.time()
         frac = 1.0 - (update - 1.0) / nupdates
-        lrnow = learning_rate(frac)
+        lr_now = learning_rate(frac)
         cliprangenow = cliprange(frac)
         obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run()  # pylint: disable=E0632
         epinfobuf.extend(epinfos)
@@ -311,34 +312,34 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
                     end = start + nbatch_train
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices))
+                    mblossvals.append(model.train(lr_now, cliprangenow, *slices))
         else:  # recurrent version
-            assert nenvs % nminibatches == 0
-            envinds = np.arange(nenvs)
-            flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
-            envsperbatch = nbatch_train // nsteps
+            assert n_envs % nminibatches == 0
+            envinds = np.arange(n_envs)
+            flatinds = np.arange(n_envs * n_steps).reshape(n_envs, n_steps)
+            envsperbatch = nbatch_train // n_steps
             for _ in range(noptepochs):
                 np.random.shuffle(envinds)
-                for start in range(0, nenvs, envsperbatch):
+                for start in range(0, n_envs, envsperbatch):
                     end = start + envsperbatch
                     mbenvinds = envinds[start:end]
                     mbflatinds = flatinds[mbenvinds].ravel()
                     slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                     mbstates = states[mbenvinds]
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
+                    mblossvals.append(model.train(lr_now, cliprangenow, *slices, mbstates))
 
         lossvals = np.mean(mblossvals, axis=0)
         tnow = time.time()
         fps = int(nbatch / (tnow - tstart))
         if update % log_interval == 0 or update == 1:
-            ev = explained_variance(values, returns)
-            logger.logkv("serial_timesteps", update * nsteps)
+            explained_var = explained_variance(values, returns)
+            logger.logkv("serial_timesteps", update * n_steps)
             logger.logkv("nupdates", update)
             logger.logkv("total_timesteps", update * nbatch)
             logger.logkv("fps", fps)
-            logger.logkv("explained_variance", float(ev))
-            logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
-            logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
+            logger.logkv("explained_variance", float(explained_var))
+            logger.logkv('eprewmean', safe_mean([epinfo['r'] for epinfo in epinfobuf]))
+            logger.logkv('eplenmean', safe_mean([epinfo['l'] for epinfo in epinfobuf]))
             logger.logkv('time_elapsed', tnow - tfirststart)
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
@@ -353,12 +354,12 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, learning_rate,
     return model
 
 
-def safemean(xs):
+def safe_mean(arr):
     """
     Compute the mean of an array if there is at least one element.
     For empty array, return zero. It is used for logging only.
 
-    :param xs: (numpy array)
+    :param arr: (numpy array)
     :return: (float)
     """
-    return np.nan if len(xs) == 0 else np.mean(xs)
+    return np.nan if len(arr) == 0 else np.mean(arr)

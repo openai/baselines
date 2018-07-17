@@ -18,7 +18,7 @@ def train(env_id, num_timesteps, seed, policy):
 
     env = VecFrameStack(make_atari_env(env_id, 8, seed), 4)
     policy = {'cnn': CnnPolicy, 'lstm': LstmPolicy, 'lnlstm': LnLstmPolicy, 'mlp': MlpPolicy}[policy]
-    ppo2.learn(policy=policy, env=env, nsteps=128, nminibatches=4,
+    ppo2.learn(policy=policy, env=env, n_steps=128, nminibatches=4,
                lam=0.95, gamma=0.99, noptepochs=4, log_interval=1,
                ent_coef=.01,
                learning_rate=lambda f: f * 2.5e-4,
