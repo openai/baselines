@@ -60,17 +60,17 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
 
 
 class Model(object):
-    def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, nstack, num_procs, ent_coef, q_coef, gamma,
-                 max_grad_norm, learning_rate, rprop_alpha, rprop_epsilon, total_timesteps, lrschedule, c, trust_region, alpha,
-                 delta):
+    def __init__(self, policy, ob_space, ac_space, n_envs, n_steps, nstack, num_procs, ent_coef, q_coef, gamma,
+                 max_grad_norm, learning_rate, rprop_alpha, rprop_epsilon,
+                 total_timesteps, lrschedule, correction_term, trust_region, alpha, delta):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
         :param policy: (AcerPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Space) The observation space
         :param ac_space: (Gym Space) The action space
-        :param nenvs: (int) The number of environments
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_envs: (int) The number of environments
+        :param n_steps: (int) The number of steps to run for each environment
         :param nstack: (int) The number of stacked frames
         :param num_procs: (int) The number of threads for TensorFlow operations
         :param ent_coef: (float) The weight for the entropic loss
@@ -82,7 +82,7 @@ class Model(object):
         :param rprop_epsilon: (float) RMS prop optimizer epsilon
         :param total_timesteps: (int) The total number of timesteps for training the model
         :param lrschedule: (str) The scheduler for a dynamic learning rate
-        :param c: (float) The correction term for the weights
+        :param correction_term: (float) The correction term for the weights
         :param trust_region: (bool) Enable Trust region policy optimization loss
         :param alpha: (float) The decay rate for the Exponential moving average of the parameters
         :param delta: (float) trust region delta value
@@ -92,7 +92,7 @@ class Model(object):
                                 inter_op_parallelism_threads=num_procs)
         sess = tf.Session(config=config)
         nact = ac_space.n
-        nbatch = nenvs * nsteps
+        nbatch = n_envs * n_steps
 
         action_ph = tf.placeholder(tf.int32, [nbatch])  # actions
         done_ph = tf.placeholder(tf.float32, [nbatch])  # dones
@@ -101,8 +101,8 @@ class Model(object):
         learning_rate_ph = tf.placeholder(tf.float32, [])
         eps = 1e-6
 
-        step_model = policy(sess, ob_space, ac_space, nenvs, 1, nstack, reuse=False)
-        train_model = policy(sess, ob_space, ac_space, nenvs, nsteps + 1, nstack, reuse=True)
+        step_model = policy(sess, ob_space, ac_space, n_envs, 1, nstack, reuse=False)
+        train_model = policy(sess, ob_space, ac_space, n_envs, n_steps + 1, nstack, reuse=True)
 
         params = find_trainable_variables("model")
         print("Params {}".format(len(params)))
@@ -119,7 +119,7 @@ class Model(object):
             return val
 
         with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
-            polyak_model = policy(sess, ob_space, ac_space, nenvs, nsteps + 1, nstack, reuse=True)
+            polyak_model = policy(sess, ob_space, ac_space, n_envs, n_steps + 1, nstack, reuse=True)
 
         # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
         value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [nenvs * (nsteps + 1)]
@@ -128,48 +128,51 @@ class Model(object):
         # f is a distribution, chosen to be Gaussian distributions
         # with fixed diagonal covariance and mean \phi(x)
         # in the paper
-        distribution_f, f_pol, q = map(lambda variables: strip(variables, nenvs, nsteps),
-                          [train_model.policy, polyak_model.policy, train_model.q_value])
+        distribution_f, f_polyak, q_value = map(lambda variables: strip(variables, n_envs, n_steps),
+                                                [train_model.policy, polyak_model.policy, train_model.q_value])
         # Get pi and q values for actions taken
         f_i = get_by_index(distribution_f, action_ph)
-        q_i = get_by_index(q, action_ph)
+        q_i = get_by_index(q_value, action_ph)
 
         # Compute ratios for importance truncation
         rho = distribution_f / (mu_ph + eps)
         rho_i = get_by_index(rho, action_ph)
 
         # Calculate Q_retrace targets
-        qret = q_retrace(reward_ph, done_ph, q_i, value, rho_i, nenvs, nsteps, gamma)
+        qret = q_retrace(reward_ph, done_ph, q_i, value, rho_i, n_envs, n_steps, gamma)
 
         # Calculate losses
         # Entropy
         entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
 
         # Policy Gradient loss, with truncated importance sampling & bias correction
-        value = strip(value, nenvs, nsteps, True)
-        check_shape([qret, value, rho_i, f_i], [[nenvs * nsteps]] * 4)
-        check_shape([rho, distribution_f, q], [[nenvs * nsteps, nact]] * 2)
+        value = strip(value, n_envs, n_steps, True)
+        check_shape([qret, value, rho_i, f_i], [[n_envs * n_steps]] * 4)
+        check_shape([rho, distribution_f, q_value], [[n_envs * n_steps, nact]] * 2)
 
         # Truncated importance sampling
         adv = qret - value
         log_f = tf.log(f_i + eps)
-        gain_f = log_f * tf.stop_gradient(adv * tf.minimum(c, rho_i))  # [nenvs * nsteps]
+        gain_f = log_f * tf.stop_gradient(adv * tf.minimum(correction_term, rho_i))  # [nenvs * nsteps]
         loss_f = -tf.reduce_mean(gain_f)
 
         # Bias correction for the truncation
-        adv_bc = (q - tf.reshape(value, [nenvs * nsteps, 1]))  # [nenvs * nsteps, nact]
+        adv_bc = (q_value - tf.reshape(value, [n_envs * n_steps, 1]))  # [nenvs * nsteps, nact]
         log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
-        check_shape([adv_bc, log_f_bc], [[nenvs * nsteps, nact]] * 2)
+        check_shape([adv_bc, log_f_bc], [[n_envs * n_steps, nact]] * 2)
         gain_bc = tf.reduce_sum(log_f_bc *
-                                tf.stop_gradient(adv_bc * tf.nn.relu(1.0 - (c / (rho + eps))) * distribution_f), axis=1)
-                                # IMP: This is sum, as expectation wrt f
+                                tf.stop_gradient(
+                                    adv_bc * tf.nn.relu(1.0 - (correction_term / (rho + eps))) * distribution_f),
+                                axis=1)
+        # IMP: This is sum, as expectation wrt f
         loss_bc = -tf.reduce_mean(gain_bc)
 
         loss_policy = loss_f + loss_bc
 
         # Value/Q function loss, and explained variance
-        check_shape([qret, q_i], [[nenvs * nsteps]] * 2)
-        explained_variance = q_explained_variance(tf.reshape(q_i, [nenvs, nsteps]), tf.reshape(qret, [nenvs, nsteps]))
+        check_shape([qret, q_i], [[n_envs * n_steps]] * 2)
+        explained_variance = q_explained_variance(tf.reshape(q_i, [n_envs, n_steps]),
+                                                  tf.reshape(qret, [n_envs, n_steps]))
         loss_q = tf.reduce_mean(tf.square(tf.stop_gradient(qret) - q_i) * 0.5)
 
         # Net loss
@@ -178,27 +181,27 @@ class Model(object):
 
         if trust_region:
             # [nenvs * nsteps, nact]
-            g = tf.gradients(- (loss_policy - ent_coef * entropy) * nsteps * nenvs, distribution_f)
+            grad = tf.gradients(- (loss_policy - ent_coef * entropy) * n_steps * n_envs, distribution_f)
             # [nenvs * nsteps, nact] # Directly computed gradient of KL divergence wrt f
-            k = - f_pol / (distribution_f + eps)
-            k_dot_g = tf.reduce_sum(k * g, axis=-1)
-            adj = tf.maximum(0.0, (tf.reduce_sum(k * g, axis=-1) - delta) / (
-                        tf.reduce_sum(tf.square(k), axis=-1) + eps))  # [nenvs * nsteps]
+            kl_grad = - f_polyak / (distribution_f + eps)
+            k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
+            adj = tf.maximum(0.0, (tf.reduce_sum(kl_grad * grad, axis=-1) - delta) / (
+                    tf.reduce_sum(tf.square(kl_grad), axis=-1) + eps))  # [nenvs * nsteps]
 
             # Calculate stats (before doing adjustment) for logging.
-            avg_norm_k = avg_norm(k)
-            avg_norm_g = avg_norm(g)
+            avg_norm_k = avg_norm(kl_grad)
+            avg_norm_g = avg_norm(grad)
             avg_norm_k_dot_g = tf.reduce_mean(tf.abs(k_dot_g))
             avg_norm_adj = tf.reduce_mean(tf.abs(adj))
 
-            g = g - tf.reshape(adj, [nenvs * nsteps, 1]) * k
-            grads_f = -g / (
-                        nenvs * nsteps)  # These are turst region adjusted gradients wrt f ie statistics of policy pi
+            grad = grad - tf.reshape(adj, [n_envs * n_steps, 1]) * kl_grad
+            grads_f = -grad / (
+                    n_envs * n_steps)  # These are turst region adjusted gradients wrt f ie statistics of policy pi
             grads_policy = tf.gradients(distribution_f, params, grads_f)
             grads_q = tf.gradients(loss_q * q_coef, params)
             grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, params)]
 
-            avg_norm_grads_f = avg_norm(grads_f) * (nsteps * nenvs)
+            avg_norm_grads_f = avg_norm(grads_f) * (n_steps * n_envs)
             norm_grads_q = tf.global_norm(grads_q)
             norm_grads_policy = tf.global_norm(grads_policy)
         else:
@@ -214,7 +217,7 @@ class Model(object):
         with tf.control_dependencies([_opt_op]):
             _train = tf.group(ema_apply_op)
 
-        lr = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
+        learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
 
         # Ops/Summaries to run, and their names for logging
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, explained_variance, norm_grads]
@@ -229,7 +232,7 @@ class Model(object):
                                      'avg_norm_k_dot_g', 'avg_norm_adj']
 
         def train(obs, actions, rewards, dones, mus, states, masks, steps):
-            cur_lr = lr.value_steps(steps)
+            cur_lr = learning_rate.value_steps(steps)
             td_map = {train_model.obs_ph: obs, polyak_model.obs_ph: obs, action_ph: actions, reward_ph: rewards,
                       done_ph: dones, mu_ph: mus, learning_rate_ph: cur_lr}
 
@@ -389,12 +392,15 @@ class Acer(object):
             logger.dump_tabular()
 
 
-def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
-          max_grad_norm=10, learning_rate=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
-          log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
+def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6),
+          q_coef=0.5, ent_coef=0.01,
+          max_grad_norm=10, learning_rate=7e-4, lrschedule='linear',
+          rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
+          log_interval=100, buffer_size=50000, replay_ratio=4,
+          replay_start=10000, correction_term=10.0,
           trust_region=True, alpha=0.99, delta=1):
     """
-    Traines an ACER model.
+    Train an ACER model.
 
     :param policy: (ACERPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
@@ -416,7 +422,7 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
     :param replay_ratio: (float) The number of replay learning per on policy learning on average,
                                  using a poisson distribution
     :param replay_start: (int) The minimum number of steps in the buffer, before learning replay
-    :param c: (float) The correction term for the weights
+    :param correction_term: (float) The correction term for the weights
     :param trust_region: (bool) Enable Trust region policy optimization loss
     :param alpha: (float) The decay rate for the Exponential moving average of the parameters
     :param delta: (float) trust region delta value
@@ -429,11 +435,11 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6), q_c
     ob_space = env.observation_space
     ac_space = env.action_space
     num_procs = len(env.remotes)  # HACK
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, nstack=nstack,
+    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=nenvs, n_steps=nsteps, nstack=nstack,
                   num_procs=num_procs, ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                   max_grad_norm=max_grad_norm, learning_rate=learning_rate, rprop_alpha=rprop_alpha,
                   rprop_epsilon=rprop_epsilon,
-                  total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
+                  total_timesteps=total_timesteps, lrschedule=lrschedule, correction_term=correction_term,
                   trust_region=trust_region, alpha=alpha, delta=delta)
 
     runner = Runner(env=env, model=model, nsteps=nsteps, nstack=nstack)

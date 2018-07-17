@@ -54,7 +54,8 @@ class RunningMeanStd(object):
         addvec = np.concatenate([data.sum(axis=0).ravel(), np.square(data).sum(axis=0).ravel(),
                                  np.array([len(data)], dtype='float64')])
         MPI.COMM_WORLD.Allreduce(addvec, totalvec, op=MPI.SUM)
-        self.incfiltparams(totalvec[0: data_size].reshape(self.shape), totalvec[data_size: 2 * data_size].reshape(self.shape), totalvec[2 * data_size])
+        self.incfiltparams(totalvec[0: data_size].reshape(self.shape),
+                           totalvec[data_size: 2 * data_size].reshape(self.shape), totalvec[2 * data_size])
 
 
 @tf_util.in_session

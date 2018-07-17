@@ -63,19 +63,20 @@ class Buffer(object):
         # returns stacked obs of shape [nenv, (nsteps + 1), nh, nw, nstack*nc]
         n_stack, n_env, n_steps = self.nstack, self.n_env, self.nsteps
         height, width, n_channels = self.height, self.width, self.n_channels
-        y = np.empty([n_steps + n_stack - 1, n_env, 1, 1, 1], dtype=np.float32)
+        y_var = np.empty([n_steps + n_stack - 1, n_env, 1, 1, 1], dtype=np.float32)
         obs = np.zeros([n_stack, n_steps + n_stack, n_env, height, width, n_channels], dtype=np.uint8)
         # [nsteps + nstack, nenv, nh, nw, nc]
-        x = np.reshape(enc_obs, [n_env, n_steps + n_stack, height, width, n_channels]).swapaxes(1, 0)
-        y[3:] = np.reshape(1.0 - dones, [n_env, n_steps, 1, 1, 1]).swapaxes(1, 0)  # keep
-        y[:3] = 1.0
+        x_var = np.reshape(enc_obs, [n_env, n_steps + n_stack, height, width, n_channels]).swapaxes(1, 0)
+        y_var[3:] = np.reshape(1.0 - dones, [n_env, n_steps, 1, 1, 1]).swapaxes(1, 0)  # keep
+        y_var[:3] = 1.0
         # y = np.reshape(1 - dones, [nenvs, nsteps, 1, 1, 1])
         for i in range(n_stack):
-            obs[-(i + 1), i:] = x
+            obs[-(i + 1), i:] = x_var
             # obs[:,i:,:,:,-(i+1),:] = x
-            x = x[:-1] * y
-            y = y[1:]
-        return np.reshape(obs[:, 3:].transpose((2, 1, 3, 4, 0, 5)), [n_env, (n_steps + 1), height, width, n_stack * n_channels])
+            x_var = x_var[:-1] * y_var
+            y_var = y_var[1:]
+        return np.reshape(obs[:, 3:].transpose((2, 1, 3, 4, 0, 5)),
+                          [n_env, (n_steps + 1), height, width, n_stack * n_channels])
 
     def put(self, enc_obs, actions, rewards, mus, dones, masks):
         """

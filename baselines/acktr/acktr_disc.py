@@ -1,5 +1,5 @@
 """
-Discreate acktr
+Discrete acktr
 """
 
 import os
@@ -17,7 +17,7 @@ from baselines.acktr import kfac
 
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=32, nsteps=20,
-                 ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
+                 ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
                  kfac_clip=0.001, lrschedule='linear'):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
@@ -32,7 +32,7 @@ class Model(object):
         :param ent_coef: (float) The weight for the entropic loss
         :param vf_coef: (float) The weight for the loss on the value function
         :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
-        :param lr: (float) The initial learning rate for the RMS prop optimizer
+        :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
         :param max_grad_norm: (float) The clipping value for the maximum gradient
         :param kfac_clip: (float) gradient clipping for Kullback leiber
         :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
@@ -83,11 +83,11 @@ class Model(object):
             optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads, params)))
         self.q_runner = q_runner
-        self.learning_rate = Scheduler(initial_value=lr, n_values=total_timesteps, schedule=lrschedule)
+        self.learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values
-            for step in range(len(obs)):
+            for _ in range(len(obs)):
                 cur_lr = self.learning_rate.value()
 
             td_map = {train_model.obs_ph: obs, action_ph: actions, advs_ph: advs, rewards_ph: rewards, pg_lr_ph: cur_lr}
@@ -102,14 +102,14 @@ class Model(object):
             return policy_loss, value_loss, policy_entropy
 
         def save(save_path):
-            ps = sess.run(params)
-            joblib.dump(ps, save_path)
+            session_params = sess.run(params)
+            joblib.dump(session_params, save_path)
 
         def load(load_path):
             loaded_params = joblib.load(load_path)
             restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
+            for param, loaded_p in zip(params, loaded_params):
+                restores.append(param.assign(loaded_p))
             sess.run(restores)
 
         self.train = train
@@ -124,7 +124,7 @@ class Model(object):
 
 
 def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
-          ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
+          ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
           kfac_clip=0.001, save_interval=None, lrschedule='linear'):
     """
     Traines an ACKTR model.
@@ -140,7 +140,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     :param ent_coef: (float) The weight for the entropic loss
     :param vf_coef: (float) The weight for the loss on the value function
     :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
-    :param lr: (float) The learning rate
+    :param learning_rate: (float) The learning rate
     :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param kfac_clip: (float) gradient clipping for Kullback leiber
     :param save_interval: (int) The number of timesteps before saving.
@@ -153,7 +153,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     ob_space = env.observation_space
     ac_space = env.action_space
     make_model = lambda: Model(policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=nprocs, nsteps=nsteps,
-                               ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef, lr=lr,
+                               ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef, learning_rate=learning_rate,
                                max_grad_norm=max_grad_norm, kfac_clip=kfac_clip, lrschedule=lrschedule)
     if save_interval and logger.get_dir():
         import cloudpickle
@@ -173,14 +173,14 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
         nseconds = time.time() - tstart
         fps = int((update * nbatch) / nseconds)
         if update % log_interval == 0 or update == 1:
-            ev = explained_variance(values, rewards)
+            explained_var = explained_variance(values, rewards)
             logger.record_tabular("nupdates", update)
             logger.record_tabular("total_timesteps", update * nbatch)
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("policy_loss", float(policy_loss))
             logger.record_tabular("value_loss", float(value_loss))
-            logger.record_tabular("explained_variance", float(ev))
+            logger.record_tabular("explained_variance", float(explained_var))
             logger.dump_tabular()
 
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():

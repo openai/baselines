@@ -77,7 +77,7 @@ class KfacOptimizer:
             0, name='KFAC/factor_step', trainable=False)
         self.stats_step = tf.Variable(
             0, name='KFAC/stats_step', trainable=False)
-        self.vFv = tf.Variable(0., name='KFAC/vFv', trainable=False)
+        self.v_f_v = tf.Variable(0., name='KFAC/vFv', trainable=False)
 
         self.factors = {}
         self.param_vars = []
@@ -657,7 +657,7 @@ class KfacOptimizer:
         :param varlist: ([TensorFlow Tensor]) The parameters
         :return: ([TensorFlow Tensor]) the update list
         """
-        vg = 0.
+        v_g = 0.
 
         assert len(self.stats) > 0
         assert len(self.stats_eigen) > 0
@@ -803,24 +803,24 @@ class KfacOptimizer:
 
         print(('projecting %d gradient matrices' % counter))
 
-        for g, var in zip(gradlist, varlist):
+        for grad_1, var in zip(gradlist, varlist):
             grad = grad_dict[var]
             # clipping
             if KFAC_DEBUG:
                 print(('apply clipping to %s' % var.name))
             tf.Print(grad, [tf.sqrt(tf.reduce_sum(tf.pow(grad, 2)))], "Euclidean norm of new grad")
-            local_vg = tf.reduce_sum(grad * g * (self._lr * self._lr))
-            vg += local_vg
+            local_vg = tf.reduce_sum(grad * grad_1 * (self._lr * self._lr))
+            v_g += local_vg
 
         # recale everything
         if KFAC_DEBUG:
             print('apply vFv clipping')
 
-        scaling = tf.minimum(1., tf.sqrt(self._clip_kl / vg))
+        scaling = tf.minimum(1., tf.sqrt(self._clip_kl / v_g))
         if KFAC_DEBUG:
             scaling = tf.Print(scaling, [tf.convert_to_tensor(
-                'clip: '), scaling, tf.convert_to_tensor(' vFv: '), vg])
-        with tf.control_dependencies([tf.assign(self.vFv, vg)]):
+                'clip: '), scaling, tf.convert_to_tensor(' vFv: '), v_g])
+        with tf.control_dependencies([tf.assign(self.v_f_v, v_g)]):
             updatelist = [grad_dict[var] for var in varlist]
             for i, item in enumerate(updatelist):
                 updatelist[i] = scaling * item
@@ -850,7 +850,7 @@ class KfacOptimizer:
         :param grads: ([TensorFlow Tensor]) the gradient
         :return: ([function], QueueRunner) Update functions, queue operation runner
         """
-        g, varlist = list(zip(*grads))
+        grad, varlist = list(zip(*grads))
 
         if len(self.stats_eigen) == 0:
             self.get_stats_eigen()
@@ -915,10 +915,10 @@ class KfacOptimizer:
 
                 with tf.control_dependencies([update_factor_ops]):
                     def grad_op():
-                        return list(g)
+                        return list(grad)
 
                     def get_kfac_grad_op():
-                        return self.get_kfac_precond_updates(g, varlist)
+                        return self.get_kfac_precond_updates(grad, varlist)
 
                     u = tf.cond(tf.greater(self.factor_step,
                                            tf.convert_to_tensor(0)), get_kfac_grad_op, grad_op)

@@ -14,7 +14,7 @@ from baselines.a2c.policies import MlpPolicy
 
 learn_func_list = [
     lambda e: a2c.learn(policy=MlpPolicy, env=e, seed=0, total_timesteps=50000),
-    lambda e: ppo2.learn(policy=MlpPolicy, env=e, total_timesteps=50000, learning_rate=1e-3, nsteps=128, ent_coef=0.01)
+    lambda e: ppo2.learn(policy=MlpPolicy, env=e, total_timesteps=50000, learning_rate=1e-3, n_steps=128, ent_coef=0.01)
 ]
 
 
@@ -38,10 +38,10 @@ def test_identity(learn_func):
         model = learn_func(env)
 
         n_trials = 1000
-        sum_rew = 0
+        reward_sum = 0
         obs = env.reset()
         for _ in range(n_trials):
-            obs, rew, done, _ = env.step(model.step(obs)[0])
-            sum_rew += rew
+            obs, reward, _, _ = env.step(model.step(obs)[0])
+            reward_sum += reward
 
-        assert sum_rew > 0.9 * n_trials
+        assert reward_sum > 0.9 * n_trials
