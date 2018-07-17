@@ -33,11 +33,11 @@ RUN \
     pip install glob2 && \
     pip install gym[mujoco,atari,classic_control,robotics]
 
-COPY . $CODE_DIR/baselines
+COPY . $CODE_DIR/stable_baselines
 RUN \
     . $VENV/bin/activate && \
     cd $CODE_DIR && \
-    pip install -e baselines
+    pip install -e stable_baselines
 
 ENV PATH=$VENV/bin:$PATH
 WORKDIR $CODE_DIR/baselines
