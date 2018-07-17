@@ -20,8 +20,8 @@ class AcerPolicy(object):
 
     def __init__(self, sess, ob_space, ac_space, nenv, nsteps, nstack, reuse=False, nlstm=256):
         self.nbatch = nenv * nsteps
-        nh, nw, nc = ob_space.shape
-        self.ob_shape = (self.nbatch, nh, nw, nc * nstack)
+        height, width, n_channels = ob_space.shape
+        self.ob_shape = (self.nbatch, height, width, n_channels * nstack)
         self.nact = ac_space.n
         self.obs_ph = tf.placeholder(tf.uint8, self.ob_shape)  # obs
         self.masks_ph = tf.placeholder(tf.float32, [self.nbatch])  # mask (done t-1)

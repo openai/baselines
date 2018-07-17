@@ -23,26 +23,26 @@ def fmt_row(width, row, header=False):
     return out
 
 
-def fmt_item(x, l):
+def fmt_item(item, min_width):
     """
     fits items to a given string length
 
-    :param x: (Any) the item you wish to get the string representation
-    :param l: (int) the minimum width of the string
+    :param item: (Any) the item you wish to get the string representation
+    :param min_width: (int) the minimum width of the string
     :return: (str) the string representation of 'x' of length >= 'l'
     """
-    if isinstance(x, np.ndarray):
-        assert x.ndim == 0
-        x = x.item()
-    if isinstance(x, (float, np.float32, np.float64)):
-        v = abs(x)
-        if (v < 1e-4 or v > 1e+4) and v > 0:
-            rep = "%7.2e" % x
+    if isinstance(item, np.ndarray):
+        assert item.ndim == 0
+        item = item.item()
+    if isinstance(item, (float, np.float32, np.float64)):
+        value = abs(item)
+        if (value < 1e-4 or value > 1e+4) and value > 0:
+            rep = "%7.2e" % item
         else:
-            rep = "%7.5f" % x
+            rep = "%7.5f" % item
     else:
-        rep = str(x)
-    return " " * (l - len(rep)) + rep
+        rep = str(item)
+    return " " * (min_width - len(rep)) + rep
 
 
 color2num = dict(

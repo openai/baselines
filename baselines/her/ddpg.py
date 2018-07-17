@@ -116,8 +116,8 @@ class DDPG(object):
         buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
         self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.time_horizon, self.sample_transitions)
 
-    def _random_action(self, n):
-        return np.random.uniform(low=-self.max_u, high=self.max_u, size=(n, self.dim_action))
+    def _random_action(self, num):
+        return np.random.uniform(low=-self.max_u, high=self.max_u, size=(num, self.dim_action))
 
     def _preprocess_obs_goal(self, obs, achieved_goal, goal):
         if self.relative_goals:

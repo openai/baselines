@@ -423,7 +423,6 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                             grad = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
                         vfadam.update(grad, vf_stepsize)
 
-        g_losses = meanlosses
         for (lossname, lossval) in zip(loss_names, meanlosses):
             logger.record_tabular(lossname, lossval)
 

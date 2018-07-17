@@ -4,25 +4,25 @@ import numpy as np
 from baselines.common import zipsame
 
 
-def mpi_mean(x, axis=0, comm=None, keepdims=False):
+def mpi_mean(arr, axis=0, comm=None, keepdims=False):
     """
     calculates the mean of an array, using MPI
 
-    :param x: (numpy Number)
+    :param arr: (numpy Number)
     :param axis: (int or tuple or list) the axis to run the means over
     :param comm: (MPI Communicators) if None, MPI.COMM_WORLD
     :param keepdims: (bool) keep the other dimentions intact
     :return: (numpy Number or Number) the result of the sum
     """
-    x = np.asarray(x)
-    assert x.ndim > 0
+    arr = np.asarray(arr)
+    assert arr.ndim > 0
     if comm is None:
         comm = MPI.COMM_WORLD
-    xsum = x.sum(axis=axis, keepdims=keepdims)
+    xsum = arr.sum(axis=axis, keepdims=keepdims)
     size = xsum.size
-    localsum = np.zeros(size+1, x.dtype)
+    localsum = np.zeros(size + 1, arr.dtype)
     localsum[:size] = xsum.ravel()
-    localsum[size] = x.shape[axis]
+    localsum[size] = arr.shape[axis]
     globalsum = np.zeros_like(localsum)
     comm.Allreduce(localsum, globalsum, op=MPI.SUM)
     return globalsum[:size].reshape(xsum.shape) / globalsum[size], globalsum[size]

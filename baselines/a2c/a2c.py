@@ -54,7 +54,7 @@ class Model(object):
         params = find_trainable_variables("model")
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
-            grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
+            grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
         grads = list(zip(grads, params))
         trainer = tf.train.RMSPropOptimizer(learning_rate=learning_rate_ph, decay=alpha, epsilon=epsilon)
         _train = trainer.apply_gradients(grads)
@@ -63,7 +63,7 @@ class Model(object):
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values
-            for step in range(len(obs)):
+            for _ in range(len(obs)):
                 cur_lr = learning_rate.value()
             td_map = {train_model.obs_ph: obs, actions_ph: actions, advs_ph: advs,
                       rewards_ph: rewards, learning_rate_ph: cur_lr}
@@ -198,7 +198,7 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     tstart = time.time()
     for update in range(1, total_timesteps // nbatch + 1):
         obs, states, rewards, masks, actions, values = runner.run()
-        policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
+        _, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
         nseconds = time.time() - tstart
         fps = int((update * nbatch) / nseconds)
         if update % log_interval == 0 or update == 1:

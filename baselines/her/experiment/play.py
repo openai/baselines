@@ -26,8 +26,8 @@ def main(policy_file, seed, n_test_rollouts, render):
     set_global_seeds(seed)
 
     # Load policy.
-    with open(policy_file, 'rb') as f:
-        policy = pickle.load(f)
+    with open(policy_file, 'rb') as file_handler:
+        policy = pickle.load(file_handler)
     env_name = policy.info['env_name']
 
     # Prepare params.

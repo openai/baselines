@@ -33,8 +33,8 @@ def load_results(file):
     """
     if not os.path.exists(file):
         return None
-    with open(file, 'r') as f:
-        lines = [line for line in f]
+    with open(file, 'r') as file_handler:
+        lines = [line for line in file_handler]
     if len(lines) < 2:
         return None
     keys = [name.strip() for name in lines[0].split(',')]

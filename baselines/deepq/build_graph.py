@@ -163,8 +163,8 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
                                  givens={update_eps_ph: -1.0, stochastic_ph: True},
                                  updates=[update_eps_expr])
 
-        def act(ob, stochastic=True, update_eps=-1):
-            return _act(ob, stochastic, update_eps)
+        def act(obs, stochastic=True, update_eps=-1):
+            return _act(obs, stochastic, update_eps)
 
         return act
 
