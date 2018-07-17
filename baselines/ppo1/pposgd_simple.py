@@ -63,7 +63,7 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
     # Annealed cliping parameter epislon
     clip_param = clip_param * lrmult
 
-    obs_ph = tf_util.get_placeholder_cached(name="ob")
+    observation = policy.obs_ph
     action_ph = policy.pdtype.sample_placeholder([None])
 
     kloldnew = oldpi.proba_distribution.kl(policy.proba_distribution)

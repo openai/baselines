@@ -67,7 +67,7 @@ class MlpPolicy(BasePolicy):
         self.state_out = []
 
         # change for BC
-        stochastic = tf_util.get_placeholder(name="stochastic", dtype=tf.bool, shape=())
-        action = tf_util.switch(stochastic, self.proba_distribution.sample(), self.proba_distribution.mode())
+        self.stochastic_ph = tf.placeholder(dtype=tf.bool, shape=(), name="stochastic")
+        action = tf_util.switch(self.stochastic_ph, self.proba_distribution.sample(), self.proba_distribution.mode())
         self.action = action
-        self._act = tf_util.function([stochastic, obs], [action, self.vpred])
+        self._act = tf_util.function([self.stochastic_ph, obs], [action, self.vpred])

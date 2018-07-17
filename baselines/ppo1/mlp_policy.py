@@ -16,6 +16,7 @@ class BasePolicy(object):
         self.pdtype = None
         self._act = None
         self.scope = None
+        self.obs_ph = None
 
     def get_obs_and_pdtype(self, ob_space, ac_space):
         """
@@ -29,9 +30,10 @@ class BasePolicy(object):
         self.pdtype = pdtype = make_proba_dist_type(ac_space)
         sequence_length = None
 
-        obs = tf_util.get_placeholder(name="ob", dtype=tf.float32,
-                                      shape=[sequence_length] + list(ob_space.shape))
-        return obs, pdtype
+        if self.obs_ph is None:
+            self.obs_ph = tf.placeholder(dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape), name="ob")
+
+        return self.obs_ph, pdtype
 
     def act(self, stochastic, obs):
         """

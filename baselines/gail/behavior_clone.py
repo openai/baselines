@@ -65,9 +65,9 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_e
     ac_space = env.action_space
     policy = policy_func("pi", ob_space, ac_space)  # Construct network for new policy
     # placeholder
-    obs_ph = tf_util.get_placeholder_cached(name="ob")
+    obs_ph = policy.obs_ph
     action_ph = policy.pdtype.sample_placeholder([None])
-    stochastic_ph = tf_util.get_placeholder_cached(name="stochastic")
+    stochastic_ph = policy.stochastic_ph
     loss = tf.reduce_mean(tf.square(action_ph - policy.ac))
     var_list = policy.get_trainable_variables()
     adam = MpiAdam(var_list, epsilon=adam_epsilon)

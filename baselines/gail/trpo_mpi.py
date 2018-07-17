@@ -187,7 +187,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-    observation = tf_util.get_placeholder_cached(name="ob")
+    observation = policy.obs_ph
     action = policy.pdtype.sample_placeholder([None])
 
     kloldnew = old_policy.proba_distribution.kl(policy.proba_distribution)

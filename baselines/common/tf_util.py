@@ -384,38 +384,6 @@ class GetFlat(object):
             return self.sess.run(self.op)
 
 
-_PLACEHOLDER_CACHE = {}  # name -> (placeholder, dtype, shape)
-
-
-def get_placeholder(name, dtype, shape):
-    """
-    get the placeholder from the placeholder cache if it exists, otherwise create one and save it to the cache.
-
-    :param name: (str) the name of the place holder
-    :param dtype: (type) the type for the placeholder
-    :param shape: (tuple or [int]) the shape for the placeholder
-    :return: (TensorFlow Tensor) the placeholder
-    """
-    if name in _PLACEHOLDER_CACHE:
-        out, dtype1, shape1 = _PLACEHOLDER_CACHE[name]
-        assert dtype1 == dtype and shape1 == shape
-        return out
-    else:
-        out = tf.placeholder(dtype=dtype, shape=shape, name=name)
-        _PLACEHOLDER_CACHE[name] = (out, dtype, shape)
-        return out
-
-
-def get_placeholder_cached(name):
-    """
-    get cacher placeholder
-
-    :param name: (str) the name of the place holder
-    :return: (TensorFlow Tensor) the placeholder
-    """
-    return _PLACEHOLDER_CACHE[name][0]
-
-
 def flattenallbut0(tensor):
     """
     flatten all the dimension, except from the first one

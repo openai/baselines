@@ -24,9 +24,6 @@ def clear_tf_session():
     clears the Tensorflow session, this is needed for sequential testing of the baselines
     """
     tf.reset_default_graph()
-    # FIXME: remove these in the whole code base,as they cause issues when running many baselines in a row.
-    tf_util._PLACEHOLDER_CACHE = {}
-    tf_util.ALREADY_INITIALIZED = set()
 
 
 @pytest.mark.slow
