@@ -131,16 +131,16 @@ class VecEnvWrapper(VecEnv):
 
 
 class CloudpickleWrapper(object):
-    def __init__(self, _var):
+    def __init__(self, var):
         """
         Uses cloudpickle to serialize contents (otherwise multiprocessing tries to use pickle)
         
-        :param _var: (Any) the variable you wish to wrap for pickling with cloudpickle
+        :param var: (Any) the variable you wish to wrap for pickling with cloudpickle
         """
-        self._var = _var
+        self.var = var
 
     def __getstate__(self):
-        return cloudpickle.dumps(self._var)
+        return cloudpickle.dumps(self.var)
 
     def __setstate__(self, obs):
-        self._var = pickle.loads(obs)
+        self.var = pickle.loads(obs)

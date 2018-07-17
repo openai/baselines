@@ -299,11 +299,11 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
                     update_param_noise_scale_ph: False},
             updates=updates)
 
-        def act(ob, reset, update_param_noise_threshold, update_param_noise_scale, stochastic=True, update_eps=-1):
+        def act(obs, reset, update_param_noise_threshold, update_param_noise_scale, stochastic=True, update_eps=-1):
             """
             get the action from the current observation
 
-            :param ob: (Any) Observation that can be feed into the output of make_obs_ph
+            :param obs: (Any) Observation that can be feed into the output of make_obs_ph
             :param reset: (bool) reset the perturbed policy by sampling a new perturbation
             :param update_param_noise_threshold: (float) the desired threshold for the difference between
                 non-perturbed and perturbed policy
@@ -315,7 +315,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
             :return: (TensorFlow Tensor) tensor of dtype tf.int64 and shape (BATCH_SIZE,) with an action to be
                 performed for every element of the batch.
             """
-            return _act(ob, stochastic, update_eps, reset, update_param_noise_threshold, update_param_noise_scale)
+            return _act(obs, stochastic, update_eps, reset, update_param_noise_threshold, update_param_noise_scale)
 
         return act
 

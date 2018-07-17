@@ -155,8 +155,8 @@ def launch(env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_in
     if env in config.DEFAULT_ENV_PARAMS:
         params.update(config.DEFAULT_ENV_PARAMS[env])  # merge env-specific parameters in
     params.update(**override_params)  # makes it possible to override any parameter
-    with open(os.path.join(logger.get_dir(), 'params.json'), 'w') as f:
-        json.dump(params, f)
+    with open(os.path.join(logger.get_dir(), 'params.json'), 'w') as file_handler:
+        json.dump(params, file_handler)
     params = config.prepare_params(params)
     config.log_params(params, logger_input=logger)
 

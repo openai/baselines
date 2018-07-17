@@ -149,7 +149,7 @@ def learn(env, q_func, learning_rate=5e-4, max_timesteps=100000, buffer_size=500
         """
         return ObservationInput(observation_space_shape, name=name)
 
-    act, train, update_target, debug = deepq.build_train(
+    act, train, update_target, _ = deepq.build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
         num_actions=env.action_space.n,

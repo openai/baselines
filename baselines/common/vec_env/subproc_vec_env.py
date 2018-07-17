@@ -8,7 +8,7 @@ from baselines.common.tile_images import tile_images
 
 def _worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
-    env = env_fn_wrapper.x()
+    env = env_fn_wrapper.var()
     while True:
         try:
             cmd, data = remote.recv()
@@ -37,7 +37,7 @@ class SubprocVecEnv(VecEnv):
     def __init__(self, env_fns):
         """
         Creates a multiprocess vectorized wrapper for multiple environments
-        
+
         :param env_fns: ([Gym Environment]) Environments to run in subprocesses
         """
         self.waiting = False
