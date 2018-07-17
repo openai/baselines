@@ -12,3 +12,4 @@ def test_discount_with_boundaries():
     episode_starts = [1.0, 0.0, 0.0, 1.0]
     discounted_rewards = discount_with_boundaries(rewards, episode_starts, gamma)
     assert np.allclose(discounted_rewards, [1 + gamma * 2 + gamma ** 2 * 3, 2 + gamma * 3, 3, 4])
+    return

@@ -3,7 +3,7 @@ import pytest
 import tensorflow as tf
 
 from baselines import deepq, bench, logger
-from baselines.common import set_global_seeds, tf_util
+from baselines.common import set_global_seeds
 from baselines.common.atari_wrappers import make_atari
 import baselines.a2c.run_atari as a2c_atari
 import baselines.acer.run_atari as acer_atari
