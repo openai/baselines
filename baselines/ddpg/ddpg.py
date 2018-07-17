@@ -441,8 +441,8 @@ class DDPG(object):
             self.actions: batch['actions'],
             self.critic_target: target_q,
         })
-        self.actor_optimizer.update(actor_grads, step_size=self.actor_lr)
-        self.critic_optimizer.update(critic_grads, step_size=self.critic_lr)
+        self.actor_optimizer.update(actor_grads, learning_rate=self.actor_lr)
+        self.critic_optimizer.update(critic_grads, learning_rate=self.critic_lr)
 
         return critic_loss, actor_loss
 

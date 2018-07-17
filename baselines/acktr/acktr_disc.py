@@ -153,7 +153,8 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     ob_space = env.observation_space
     ac_space = env.action_space
     make_model = lambda: Model(policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=nprocs, nsteps=nsteps,
-                               ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef, learning_rate=learning_rate,
+                               ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef,
+                               learning_rate=learning_rate,
                                max_grad_norm=max_grad_norm, kfac_clip=kfac_clip, lrschedule=lrschedule)
     if save_interval and logger.get_dir():
         import cloudpickle
