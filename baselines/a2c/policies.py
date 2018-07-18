@@ -24,7 +24,7 @@ def nature_cnn(unscaled_images, **kwargs):
 
 
 class A2CPolicy(object):
-    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, continuous=False):
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False):
         """
         Policy object for A2C
 
@@ -35,12 +35,7 @@ class A2CPolicy(object):
         :param n_steps: (int) The number of steps to run for each environment
         :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
         :param reuse: (bool) If the policy is reusable or not
-        :param continuous: (bool) enable continuous action
         """
-        if continuous:
-            self.actdim = ac_space.shape[0]
-        else:
-            self.actdim = ac_space.n
         self.n_env = n_batch // n_steps
         self.obs_ph, self.processed_x = observation_input(ob_space, n_batch)
         self.masks_ph = tf.placeholder(tf.float32, [n_batch])  # mask (done t-1)
@@ -74,8 +69,8 @@ class A2CPolicy(object):
 
 class LstmPolicy(A2CPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, layer_norm=False,
-                 _type="cnn", continuous=False, **kwargs):
-        super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, continuous=continuous)
+                 _type="cnn", **kwargs):
+        super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
             if _type == "cnn":
                 extracted_features = nature_cnn(self.obs_ph, **kwargs)
@@ -90,10 +85,6 @@ class LstmPolicy(A2CPolicy):
                                          layer_norm=layer_norm)
             rnn_output = seq_to_batch(rnn_output)
             value_fn = linear(rnn_output, 'v', 1)
-
-            if continuous:
-                logstd = tf.get_variable(name="logstd", shape=[1, self.actdim], initializer=tf.zeros_initializer())
-                rnn_output = tf.concat([rnn_output, rnn_output * 0.0 + logstd], axis=1)
 
             self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(rnn_output)
 
@@ -111,18 +102,10 @@ class LstmPolicy(A2CPolicy):
         return self.sess.run(self.value_0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
 
-class LnLstmPolicy(LstmPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, _type="cnn",
-                 continuous=False, **_):
-        super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, layer_norm=True,
-                                           _type=_type, continuous=continuous)
-
-
 class FeedForwardPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, _type="cnn", continuous=False,
-                 **kwargs):
-        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse,
-                                                continuous=continuous)
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, _type="cnn", **kwargs):
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse)
+        kwargs.pop("layer_norm")  # ignore lstm keyword
         with tf.variable_scope("model", reuse=reuse):
             if _type == "cnn":
                 extracted_features = nature_cnn(self.processed_x, **kwargs)
@@ -136,10 +119,6 @@ class FeedForwardPolicy(A2CPolicy):
                 vf_h2 = activ(linear(vf_h1, 'vf_fc2', n_hidden=64, init_scale=np.sqrt(2)))
                 value_fn = linear(vf_h2, 'vf', 1)[:, 0]
                 extracted_features = pi_h2
-
-            if continuous:
-                logstd = tf.get_variable(name="logstd", shape=[1, self.actdim], initializer=tf.zeros_initializer())
-                extracted_features = tf.concat([extracted_features, extracted_features * 0.0 + logstd], axis=1)
 
             self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(extracted_features,
                                                                                               init_scale=0.01)
@@ -157,14 +136,37 @@ class FeedForwardPolicy(A2CPolicy):
 
 
 class CnnPolicy(FeedForwardPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, continuous=False,
-                 **_kwargs):
-        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="cnn",
-                                        continuous=continuous)
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="cnn")
+
+
+class CnnLstmPolicy(LstmPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(CnnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, layer_norm=False,
+                                            _type="cnn")
+
+
+class CnnLnLstmPolicy(LstmPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(CnnLnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse,
+                                              layer_norm=True,
+                                              _type="cnn")
 
 
 class MlpPolicy(FeedForwardPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, continuous=False,
-                 **_kwargs):
-        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="mlp",
-                                        continuous=continuous)
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="mlp")
+
+
+class MlpLstmPolicy(LstmPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(MlpLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, layer_norm=False,
+                                            _type="mlp")
+
+
+class MlpLnLstmPolicy(LstmPolicy):
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(MlpLnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse,
+                                              layer_norm=True,
+                                              _type="mlp")
+

@@ -473,7 +473,9 @@ def make_proba_dist_type(ac_space):
     elif isinstance(ac_space, spaces.MultiBinary):
         return BernoulliProbabilityDistributionType(ac_space.n)
     else:
-        raise NotImplementedError
+        raise NotImplementedError("Error: probability distribution, not implemented for action space of type {}."
+                                  .format(type(ac_space)) +
+                                  " Must be of type Gym Spaces: Box, Discrete, MultiDiscrete or MultiBinary.")
 
 
 def shape_el(tensor, index):
