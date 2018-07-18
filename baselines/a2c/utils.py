@@ -59,6 +59,7 @@ def ortho_init(scale=1.0):
     :param scale: (float) Scaling factor for the weights.
     :return: (function) an initialization function for the weights
     """
+
     # _ortho_init(shape, dtype, partition_info=None)
     def _ortho_init(shape, *_, **_kwargs):
         """Intialize weights as Orthogonal matrix.
@@ -146,21 +147,21 @@ def linear(input_tensor, scope, n_hidden, *, init_scale=1.0, init_bias=0.0):
         return tf.matmul(input_tensor, weight) + bias
 
 
-def batch_to_seq(tensor_batch, nbatch, nsteps, flat=False):
+def batch_to_seq(tensor_batch, n_batch, n_steps, flat=False):
     """
     Transform a batch of Tensors, into a sequence of Tensors for reccurent policies
 
     :param tensor_batch: (TensorFlow Tensor) The input tensor to unroll
-    :param nbatch: (int) The number of batch to run (nenvs * nsteps)
-    :param nsteps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param n_steps: (int) The number of steps to run for each environment
     :param flat: (bool) If the input Tensor is flat
     :return: (TensorFlow Tensor) sequence of Tensors for reccurent policies
     """
     if flat:
-        tensor_batch = tf.reshape(tensor_batch, [nbatch, nsteps])
+        tensor_batch = tf.reshape(tensor_batch, [n_batch, n_steps])
     else:
-        tensor_batch = tf.reshape(tensor_batch, [nbatch, nsteps, -1])
-    return [tf.squeeze(v, [1]) for v in tf.split(axis=1, num_or_size_splits=nsteps, value=tensor_batch)]
+        tensor_batch = tf.reshape(tensor_batch, [n_batch, n_steps, -1])
+    return [tf.squeeze(v, [1]) for v in tf.split(axis=1, num_or_size_splits=n_steps, value=tensor_batch)]
 
 
 def seq_to_batch(tensor_sequence, flat=False):
@@ -215,16 +216,16 @@ def lstm(input_tensor, mask_tensor, cell_state_hidden, scope, n_hidden, init_sca
         cell_state = cell_state * (1 - mask)
         hidden = hidden * (1 - mask)
         if layer_norm:
-            gates = _ln(tf.matmul(_input, weight_x), gain_x, bias_x)\
+            gates = _ln(tf.matmul(_input, weight_x), gain_x, bias_x) \
                     + _ln(tf.matmul(hidden, weight_h), gain_h, bias_h) + bias
         else:
             gates = tf.matmul(_input, weight_x) + tf.matmul(hidden, weight_h) + bias
-        in_gate, forget_gate, out_gate, update_gate = tf.split(axis=1, num_or_size_splits=4, value=gates)
+        in_gate, forget_gate, out_gate, cell_candidate = tf.split(axis=1, num_or_size_splits=4, value=gates)
         in_gate = tf.nn.sigmoid(in_gate)
         forget_gate = tf.nn.sigmoid(forget_gate)
         out_gate = tf.nn.sigmoid(out_gate)
-        update_gate = tf.tanh(update_gate)
-        cell_state = forget_gate * cell_state + in_gate * update_gate
+        cell_candidate = tf.tanh(cell_candidate)
+        cell_state = forget_gate * cell_state + in_gate * cell_candidate
         if layer_norm:
             hidden = out_gate * tf.tanh(_ln(cell_state, gain_c, bias_c))
         else:
@@ -255,7 +256,7 @@ def _ln(input_tensor, gain, bias, epsilon=1e-5, axes=None):
 
 def lnlstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale=1.0):
     """
-    Creates a LSTM with Layer Normalization (LNLSTM) cell for TensorFlow
+    Creates a LSTM with Layer Normalization (lnlstm) cell for TensorFlow
 
     :param input_tensor: (TensorFlow Tensor) The input tensor for the LSTM cell
     :param mask_tensor: (TensorFlow Tensor) The mask tensor for the LSTM cell
@@ -263,7 +264,7 @@ def lnlstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale=1.
     :param scope: (str) The TensorFlow variable scope
     :param n_hidden: (int) The number of hidden neurons
     :param init_scale: (int) The initialization scale
-    :return: (TensorFlow Tensor) LNLSTM cell
+    :return: (TensorFlow Tensor) lnlstm cell
     """
     return lstm(input_tensor, mask_tensor, cell_state, scope, n_hidden, init_scale, layer_norm=True)
 
@@ -495,7 +496,7 @@ def get_by_index(input_tensor, idx):
     assert len(idx.get_shape()) == 1
     idx_flattened = tf.range(0, input_tensor.shape[0]) * input_tensor.shape[1] + idx
     offset_tensor = tf.gather(tf.reshape(input_tensor, [-1]),  # flatten input
-                  idx_flattened)  # use flattened indices
+                              idx_flattened)  # use flattened indices
     return offset_tensor
 
 

@@ -16,26 +16,26 @@ from baselines.acktr import kfac
 
 
 class Model(object):
-    def __init__(self, policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=32, nsteps=20,
+    def __init__(self, policy, ob_space, ac_space, n_envs, total_timesteps, nprocs=32, n_steps=20,
                  ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
-                 kfac_clip=0.001, lrschedule='linear'):
+                 kfac_clip=0.001, lr_schedule='linear'):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
 
         :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Space) The observation space
         :param ac_space: (Gym Space) The action space
-        :param nenvs: (int) The number of environments
+        :param n_envs: (int) The number of environments
         :param total_timesteps: (int) The total number of timesteps for training the model
         :param nprocs: (int) The number of threads for TensorFlow operations
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_steps: (int) The number of steps to run for each environment
         :param ent_coef: (float) The weight for the entropic loss
         :param vf_coef: (float) The weight for the loss on the value function
         :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
         :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
         :param max_grad_norm: (float) The clipping value for the maximum gradient
         :param kfac_clip: (float) gradient clipping for Kullback leiber
-        :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+        :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
         """
 
@@ -44,14 +44,14 @@ class Model(object):
                                 inter_op_parallelism_threads=nprocs)
         config.gpu_options.allow_growth = True
         self.sess = sess = tf.Session(config=config)
-        nbatch = nenvs * nsteps
-        action_ph = tf.placeholder(tf.int32, [nbatch])
-        advs_ph = tf.placeholder(tf.float32, [nbatch])
-        rewards_ph = tf.placeholder(tf.float32, [nbatch])
+        n_batch = n_envs * n_steps
+        action_ph = tf.placeholder(tf.int32, [n_batch])
+        advs_ph = tf.placeholder(tf.float32, [n_batch])
+        rewards_ph = tf.placeholder(tf.float32, [n_batch])
         pg_lr_ph = tf.placeholder(tf.float32, [])
 
-        self.model = step_model = policy(sess, ob_space, ac_space, nenvs, 1, reuse=False)
-        self.model2 = train_model = policy(sess, ob_space, ac_space, nenvs * nsteps, nsteps, reuse=True)
+        self.model = step_model = policy(sess, ob_space, ac_space, n_envs, 1, reuse=False)
+        self.model2 = train_model = policy(sess, ob_space, ac_space, n_envs * n_steps, n_steps, reuse=True)
 
         logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
         self.logits = train_model.policy
@@ -83,7 +83,7 @@ class Model(object):
             optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads, params)))
         self.q_runner = q_runner
-        self.learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
+        self.learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lr_schedule)
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values
@@ -123,9 +123,9 @@ class Model(object):
         tf.global_variables_initializer().run(session=sess)
 
 
-def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
+def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, n_steps=20,
           ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
-          kfac_clip=0.001, save_interval=None, lrschedule='linear'):
+          kfac_clip=0.001, save_interval=None, lr_schedule='linear'):
     """
     Traines an ACKTR model.
 
@@ -136,7 +136,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     :param gamma: (float) Discount factor
     :param log_interval: (int) The number of timesteps before logging.
     :param nprocs: (int) The number of threads for TensorFlow operations
-    :param nsteps: (int) The number of steps to run for each environment
+    :param n_steps: (int) The number of steps to run for each environment
     :param ent_coef: (float) The weight for the entropic loss
     :param vf_coef: (float) The weight for the loss on the value function
     :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
@@ -144,39 +144,39 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
     :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param kfac_clip: (float) gradient clipping for Kullback leiber
     :param save_interval: (int) The number of timesteps before saving.
-    :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+    :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
     """
     set_global_seeds(seed)
 
-    nenvs = env.num_envs
+    n_envs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
-    make_model = lambda: Model(policy, ob_space, ac_space, nenvs, total_timesteps, nprocs=nprocs, nsteps=nsteps,
+    make_model = lambda: Model(policy, ob_space, ac_space, n_envs, total_timesteps, nprocs=nprocs, n_steps=n_steps,
                                ent_coef=ent_coef, vf_coef=vf_coef, vf_fisher_coef=vf_fisher_coef,
                                learning_rate=learning_rate,
-                               max_grad_norm=max_grad_norm, kfac_clip=kfac_clip, lrschedule=lrschedule)
+                               max_grad_norm=max_grad_norm, kfac_clip=kfac_clip, lr_schedule=lr_schedule)
     if save_interval and logger.get_dir():
         import cloudpickle
         with open(os.path.join(logger.get_dir(), 'make_model.pkl'), 'wb') as file_handler:
             file_handler.write(cloudpickle.dumps(make_model))
     model = make_model()
 
-    runner = Runner(env, model, n_steps=nsteps, gamma=gamma)
-    nbatch = nenvs * nsteps
-    tstart = time.time()
+    runner = Runner(env, model, n_steps=n_steps, gamma=gamma)
+    n_batch = n_envs * n_steps
+    t_start = time.time()
     coord = tf.train.Coordinator()
     enqueue_threads = model.q_runner.create_threads(model.sess, coord=coord, start=True)
-    for update in range(1, total_timesteps // nbatch + 1):
+    for update in range(1, total_timesteps // n_batch + 1):
         obs, states, rewards, masks, actions, values = runner.run()
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
         model.old_obs = obs
-        nseconds = time.time() - tstart
-        fps = int((update * nbatch) / nseconds)
+        n_seconds = time.time() - t_start
+        fps = int((update * n_batch) / n_seconds)
         if update % log_interval == 0 or update == 1:
             explained_var = explained_variance(values, rewards)
             logger.record_tabular("nupdates", update)
-            logger.record_tabular("total_timesteps", update * nbatch)
+            logger.record_tabular("total_timesteps", update * n_batch)
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("policy_loss", float(policy_loss))

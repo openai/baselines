@@ -12,17 +12,17 @@ from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_
 
 
 class Model(object):
-    def __init__(self, policy, ob_space, ac_space, nenvs, nsteps,
+    def __init__(self, policy, ob_space, ac_space, n_envs, n_steps,
                  ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, learning_rate=7e-4,
-                 alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
+                 alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lr_schedule='linear'):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
         :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Space) Observation space
         :param ac_space: (Gym Space) Action space
-        :param nenvs: (int) The number of environments
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_envs: (int) The number of environments
+        :param n_steps: (int) The number of steps to run for each environment
         :param ent_coef: (float) Entropy coefficient for the loss caculation
         :param vf_coef: (float) Value function coefficient for the loss calculation
         :param max_grad_norm: (float) The maximum value for the gradient clipping
@@ -30,20 +30,20 @@ class Model(object):
         :param alpha: (float) RMS prop optimizer decay
         :param epsilon: (float) RMS prop optimizer epsilon
         :param total_timesteps: (int) The total number of samples
-        :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+        :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
         """
 
         sess = tf_util.make_session()
-        nbatch = nenvs * nsteps
+        n_batch = n_envs * n_steps
 
-        actions_ph = tf.placeholder(tf.int32, [nbatch])
-        advs_ph = tf.placeholder(tf.float32, [nbatch])
-        rewards_ph = tf.placeholder(tf.float32, [nbatch])
+        actions_ph = tf.placeholder(tf.int32, [n_batch])
+        advs_ph = tf.placeholder(tf.float32, [n_batch])
+        rewards_ph = tf.placeholder(tf.float32, [n_batch])
         learning_rate_ph = tf.placeholder(tf.float32, [])
 
-        step_model = policy(sess, ob_space, ac_space, nenvs, 1, reuse=False)
-        train_model = policy(sess, ob_space, ac_space, nenvs * nsteps, nsteps, reuse=True)
+        step_model = policy(sess, ob_space, ac_space, n_envs, 1, reuse=False)
+        train_model = policy(sess, ob_space, ac_space, n_envs * n_steps, n_steps, reuse=True)
 
         neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=actions_ph)
         pg_loss = tf.reduce_mean(advs_ph * neglogpac)
@@ -59,7 +59,7 @@ class Model(object):
         trainer = tf.train.RMSPropOptimizer(learning_rate=learning_rate_ph, decay=alpha, epsilon=epsilon)
         _train = trainer.apply_gradients(grads)
 
-        learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
+        learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lr_schedule)
 
         def train(obs, states, rewards, masks, actions, values):
             advs = rewards - values
@@ -109,7 +109,7 @@ class Runner(AbstractEnvRunner):
         :param n_steps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         """
-        super(Runner, self).__init__(env=env, model=model, nsteps=n_steps)
+        super(Runner, self).__init__(env=env, model=model, n_steps=n_steps)
         self.gamma = gamma
 
     def run(self):
@@ -121,7 +121,7 @@ class Runner(AbstractEnvRunner):
         """
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [], [], [], [], []
         mb_states = self.states
-        for _ in range(self.nsteps):
+        for _ in range(self.n_steps):
             actions, values, states, _ = self.model.step(self.obs, self.states, self.dones)
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
@@ -161,21 +161,21 @@ class Runner(AbstractEnvRunner):
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
 
 
-def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5,
-          learning_rate=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
+def learn(policy, env, seed, n_steps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5,
+          learning_rate=7e-4, lr_schedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
     """
     Return a trained A2C model.
 
     :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
     :param seed: (int) The initial seed for training
-    :param nsteps: (int) The number of steps to run for each environment
+    :param n_steps: (int) The number of steps to run for each environment
     :param total_timesteps: (int) The total number of samples
     :param vf_coef: (float) Value function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
     :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param learning_rate: (float) The learning rate
-    :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+    :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
     :param epsilon: (float) RMS prop optimizer epsilon
     :param alpha: (float) RMS prop optimizer decay
@@ -185,26 +185,26 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
     """
     set_global_seeds(seed)
 
-    nenvs = env.num_envs
+    n_envs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef,
+    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=n_envs, n_steps=n_steps, ent_coef=ent_coef,
                   vf_coef=vf_coef, max_grad_norm=max_grad_norm, learning_rate=learning_rate,
                   alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
-                  lrschedule=lrschedule)
-    runner = Runner(env, model, n_steps=nsteps, gamma=gamma)
+                  lr_schedule=lr_schedule)
+    runner = Runner(env, model, n_steps=n_steps, gamma=gamma)
 
-    nbatch = nenvs * nsteps
-    tstart = time.time()
-    for update in range(1, total_timesteps // nbatch + 1):
+    n_batch = n_envs * n_steps
+    t_start = time.time()
+    for update in range(1, total_timesteps // n_batch + 1):
         obs, states, rewards, masks, actions, values = runner.run()
         _, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
-        nseconds = time.time() - tstart
-        fps = int((update * nbatch) / nseconds)
+        n_seconds = time.time() - t_start
+        fps = int((update * n_batch) / n_seconds)
         if update % log_interval == 0 or update == 1:
             explained_var = explained_variance(values, rewards)
             logger.record_tabular("nupdates", update)
-            logger.record_tabular("total_timesteps", update * nbatch)
+            logger.record_tabular("total_timesteps", update * n_batch)
             logger.record_tabular("fps", fps)
             logger.record_tabular("policy_entropy", float(policy_entropy))
             logger.record_tabular("value_loss", float(value_loss))

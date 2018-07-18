@@ -42,8 +42,8 @@ class SubprocVecEnv(VecEnv):
         """
         self.waiting = False
         self.closed = False
-        nenvs = len(env_fns)
-        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
+        n_envs = len(env_fns)
+        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(n_envs)])
         self.processes = [Process(target=_worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                           for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for process in self.processes:

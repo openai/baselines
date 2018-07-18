@@ -24,22 +24,22 @@ def nature_cnn(unscaled_images, **kwargs):
 
 
 class A2CPolicy(object):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False):
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False):
         """
         Policy object for A2C
 
         :param sess: (TensorFlow session) The current TensorFlow session
         :param ob_space: (Gym Space) The observation space of the environment
         :param ac_space: (Gym Space) The action space of the environment
-        :param nbatch: (int) The number of batch to run (nenvs * nsteps)
-        :param nsteps: (int) The number of steps to run for each environment
-        :param nlstm: (int) The number of LSTM cells (for reccurent policies)
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
         :param reuse: (bool) If the policy is reusable or not
         """
-        self.nenv = nbatch // nsteps
-        self.obs_ph, self.processed_x = observation_input(ob_space, nbatch)
-        self.masks_ph = tf.placeholder(tf.float32, [nbatch])  # mask (done t-1)
-        self.states_ph = tf.placeholder(tf.float32, [self.nenv, nlstm * 2])  # states
+        self.n_env = n_batch // n_steps
+        self.obs_ph, self.processed_x = observation_input(ob_space, n_batch)
+        self.masks_ph = tf.placeholder(tf.float32, [n_batch])  # mask (done t-1)
+        self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2])  # states
         self.pdtype = make_proba_dist_type(ac_space)
         self.sess = sess
         self.reuse = reuse
@@ -68,13 +68,13 @@ class A2CPolicy(object):
 
 
 class LstmPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, layer_norm=False, **kwargs):
-        super(LstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, layer_norm=False, **kwargs):
+        super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
             extracted_features = nature_cnn(self.obs_ph, **kwargs)
-            input_sequence = batch_to_seq(extracted_features, self.nenv, nsteps)
-            masks = batch_to_seq(self.masks_ph, self.nenv, nsteps)
-            rnn_output, self.snew = lstm(input_sequence, masks, self.states_ph, 'lstm1', n_hidden=nlstm,
+            input_sequence = batch_to_seq(extracted_features, self.n_env, n_steps)
+            masks = batch_to_seq(self.masks_ph, self.n_env, n_steps)
+            rnn_output, self.snew = lstm(input_sequence, masks, self.states_ph, 'lstm1', n_hidden=n_lstm,
                                          layer_norm=layer_norm)
             rnn_output = seq_to_batch(rnn_output)
             value_fn = linear(rnn_output, 'v', 1)
@@ -83,7 +83,7 @@ class LstmPolicy(A2CPolicy):
         self.value_0 = value_fn[:, 0]
         self.action_0 = self.proba_distribution.sample()
         self.neglogp0 = self.proba_distribution.neglogp(self.action_0)
-        self.initial_state = np.zeros((self.nenv, nlstm * 2), dtype=np.float32)
+        self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self.value_fn = value_fn
 
     def step(self, obs, state=None, mask=None):
@@ -95,13 +95,13 @@ class LstmPolicy(A2CPolicy):
 
 
 class LnLstmPolicy(LstmPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **_):
-        super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse, layer_norm=True)
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_):
+        super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, layer_norm=True)
 
 
 class FeedForwardPolicy(A2CPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, _type="cnn", **kwargs):
-        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse)
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, _type="cnn", **kwargs):
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse)
         with tf.variable_scope("model", reuse=reuse):
             if _type == "cnn":
                 extracted_features = nature_cnn(self.processed_x, **kwargs)
@@ -132,10 +132,10 @@ class FeedForwardPolicy(A2CPolicy):
 
 
 class CnnPolicy(FeedForwardPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **_kwargs):
-        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse, _type="cnn")
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="cnn")
 
 
 class MlpPolicy(FeedForwardPolicy):
-    def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, nlstm=256, reuse=False, **_kwargs):
-        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, nbatch, nsteps, nlstm, reuse, _type="mlp")
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="mlp")

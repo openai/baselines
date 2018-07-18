@@ -2,22 +2,22 @@ import numpy as np
 
 
 class Buffer(object):
-    def __init__(self, env, nsteps, nstack, size=50000):
+    def __init__(self, env, n_steps, nstack, size=50000):
         """
         A buffer for observations, actions, rewards, mu's, states, masks and dones values
         
         :param env: (Gym environment) The environment to learn from
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_steps: (int) The number of steps to run for each environment
         :param nstack: (int) The number of stacked frames
         :param size: (int) The buffer size in number of steps
         """
         self.n_env = env.num_envs
-        self.nsteps = nsteps
+        self.n_steps = n_steps
         self.height, self.width, self.n_channels = env.observation_space.shape
         self.nstack = nstack
-        self.nbatch = self.n_env * self.nsteps
-        # Each loc contains nenv * nsteps frames, thus total buffer is nenv * size frames
-        self.size = size // self.nsteps
+        self.n_batch = self.n_env * self.n_steps
+        # Each loc contains n_env * n_steps frames, thus total buffer is n_env * size frames
+        self.size = size // self.n_steps
 
         # Memory
         self.enc_obs = None
@@ -38,9 +38,9 @@ class Buffer(object):
         :param frames: (int) The number of frames checked
         :return: (bool) number of frames in buffer >= number asked
         """
-        # Frames per env, so total (nenv * frames) Frames needed
-        # Each buffer loc has nenv * nsteps frames
-        return self.num_in_buffer >= (frames // self.nsteps)
+        # Frames per env, so total (n_env * frames) Frames needed
+        # Each buffer loc has n_env * n_steps frames
+        return self.num_in_buffer >= (frames // self.n_steps)
 
     def can_sample(self):
         """
@@ -58,18 +58,18 @@ class Buffer(object):
         :param dones: ([bool])
         :return: ([float]) the decoded observation
         """
-        # enc_obs has shape [nenvs, nsteps + nstack, nh, nw, nc]
-        # dones has shape [nenvs, nsteps, nh, nw, nc]
-        # returns stacked obs of shape [nenv, (nsteps + 1), nh, nw, nstack*nc]
-        n_stack, n_env, n_steps = self.nstack, self.n_env, self.nsteps
+        # enc_obs has shape [n_envs, n_steps + nstack, nh, nw, nc]
+        # dones has shape [n_envs, n_steps, nh, nw, nc]
+        # returns stacked obs of shape [n_env, (n_steps + 1), nh, nw, nstack*nc]
+        n_stack, n_env, n_steps = self.nstack, self.n_env, self.n_steps
         height, width, n_channels = self.height, self.width, self.n_channels
         y_var = np.empty([n_steps + n_stack - 1, n_env, 1, 1, 1], dtype=np.float32)
         obs = np.zeros([n_stack, n_steps + n_stack, n_env, height, width, n_channels], dtype=np.uint8)
-        # [nsteps + nstack, nenv, nh, nw, nc]
+        # [n_steps + nstack, n_env, nh, nw, nc]
         x_var = np.reshape(enc_obs, [n_env, n_steps + n_stack, height, width, n_channels]).swapaxes(1, 0)
         y_var[3:] = np.reshape(1.0 - dones, [n_env, n_steps, 1, 1, 1]).swapaxes(1, 0)  # keep
         y_var[:3] = 1.0
-        # y = np.reshape(1 - dones, [nenvs, nsteps, 1, 1, 1])
+        # y = np.reshape(1 - dones, [n_envs, n_steps, 1, 1, 1])
         for i in range(n_stack):
             obs[-(i + 1), i:] = x_var
             # obs[:,i:,:,:,-(i+1),:] = x
@@ -89,9 +89,9 @@ class Buffer(object):
         :param dones: ([bool])
         :param masks: ([bool])
         """
-        # enc_obs [nenv, (nsteps + nstack), nh, nw, nc]
-        # actions, rewards, dones [nenv, nsteps]
-        # mus [nenv, nsteps, nact]
+        # enc_obs [n_env, (n_steps + nstack), nh, nw, nc]
+        # actions, rewards, dones [n_env, n_steps]
+        # mus [n_env, n_steps, n_act]
 
         if self.enc_obs is None:
             self.enc_obs = np.empty([self.size] + list(enc_obs.shape), dtype=np.uint8)
@@ -134,9 +134,9 @@ class Buffer(object):
                  observations, actions, rewards, mus, dones, maskes
         """
         # returns
-        # obs [nenv, (nsteps + 1), nh, nw, nstack*nc]
-        # actions, rewards, dones [nenv, nsteps]
-        # mus [nenv, nsteps, nact]
+        # obs [n_env, (n_steps + 1), nh, nw, nstack*nc]
+        # actions, rewards, dones [n_env, n_steps]
+        # mus [n_env, n_steps, n_act]
         n_env = self.n_env
         assert self.can_sample()
 

@@ -14,7 +14,7 @@ from baselines.common.runners import AbstractEnvRunner
 
 
 class Model(object):
-    def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train, nsteps, ent_coef, vf_coef,
+    def __init__(self, *, policy, ob_space, ac_space, n_batch_act, n_batch_train, n_steps, ent_coef, vf_coef,
                  max_grad_norm):
         """
         The PPO (Proximal Policy Optimization) model class https://arxiv.org/abs/1707.06347.
@@ -23,27 +23,27 @@ class Model(object):
         :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param ob_space: (Gym Spaces) Observation space
         :param ac_space: (Gym Spaces) Action space
-        :param nbatch_act: (int) Minibatch size for the actor policy, used mostly for reccurent policies
-        :param nbatch_train: (int) Minibatch size during training
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_batch_act: (int) Minibatch size for the actor policy, used mostly for reccurent policies
+        :param n_batch_train: (int) Minibatch size during training
+        :param n_steps: (int) The number of steps to run for each environment
         :param ent_coef: (float) Entropy coefficient for the loss caculation
         :param vf_coef: (float) Value function coefficient for the loss calculation
         :param max_grad_norm: (float) The maximum value for the gradient clipping
         """
 
-        ncpu = multiprocessing.cpu_count()
+        n_cpu = multiprocessing.cpu_count()
         if sys.platform == 'darwin':
-            ncpu //= 2
+            n_cpu //= 2
 
         config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=ncpu,
-                                inter_op_parallelism_threads=ncpu)
+                                intra_op_parallelism_threads=n_cpu,
+                                inter_op_parallelism_threads=n_cpu)
         config.gpu_options.allow_growth = True  # pylint: disable=E1101
 
         sess = tf.Session(config=config)
 
-        act_model = policy(sess, ob_space, ac_space, nbatch_act, 1, reuse=False)
-        train_model = policy(sess, ob_space, ac_space, nbatch_train, nsteps, reuse=True)
+        act_model = policy(sess, ob_space, ac_space, n_batch_act, 1, reuse=False)
+        train_model = policy(sess, ob_space, ac_space, n_batch_train, n_steps, reuse=True)
 
         action_ph = train_model.pdtype.sample_placeholder([None])
         advs_ph = tf.placeholder(tf.float32, [None])
@@ -140,17 +140,17 @@ class Model(object):
 
 
 class Runner(AbstractEnvRunner):
-    def __init__(self, *, env, model, nsteps, gamma, lam):
+    def __init__(self, *, env, model, n_steps, gamma, lam):
         """
         A runner to learn the policy of an environment for a model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_steps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
         """
-        super().__init__(env=env, model=model, nsteps=nsteps)
+        super().__init__(env=env, model=model, n_steps=n_steps)
         self.lam = lam
         self.gamma = gamma
 
@@ -171,8 +171,8 @@ class Runner(AbstractEnvRunner):
         # mb stands for minibatch
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
         mb_states = self.states
-        epinfos = []
-        for _ in range(self.nsteps):
+        ep_infos = []
+        for _ in range(self.n_steps):
             actions, values, self.states, neglogpacs = self.model.step(self.obs, self.states, self.dones)
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
@@ -181,9 +181,9 @@ class Runner(AbstractEnvRunner):
             mb_dones.append(self.dones)
             self.obs[:], rewards, self.dones, infos = self.env.step(actions)
             for info in infos:
-                maybeepinfo = info.get('episode')
-                if maybeepinfo:
-                    epinfos.append(maybeepinfo)
+                maybeep_info = info.get('episode')
+                if maybeep_info:
+                    ep_infos.append(maybeep_info)
             mb_rewards.append(rewards)
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
@@ -196,8 +196,8 @@ class Runner(AbstractEnvRunner):
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)
         last_gae_lam = 0
-        for step in reversed(range(self.nsteps)):
-            if step == self.nsteps - 1:
+        for step in reversed(range(self.n_steps)):
+            if step == self.n_steps - 1:
                 nextnonterminal = 1.0 - self.dones
                 nextvalues = last_values
             else:
@@ -207,7 +207,7 @@ class Runner(AbstractEnvRunner):
             mb_advs[step] = last_gae_lam = delta + self.gamma * self.lam * nextnonterminal * last_gae_lam
         mb_returns = mb_advs + mb_values
         return (*map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states,
-                epinfos)
+                ep_infos)
 
 
 # obs, returns, masks, actions, values, neglogpacs, states = runner.run()
@@ -275,11 +275,11 @@ def learn(*, policy, env, n_steps, total_timesteps, ent_coef, learning_rate,
     n_envs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
-    nbatch = n_envs * n_steps
-    nbatch_train = nbatch // nminibatches
+    n_batch = n_envs * n_steps
+    n_batch_train = n_batch // nminibatches
 
-    make_model = lambda: Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=n_envs,
-                               nbatch_train=nbatch_train, nsteps=n_steps, ent_coef=ent_coef, vf_coef=vf_coef,
+    make_model = lambda: Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_batch_act=n_envs,
+                               n_batch_train=n_batch_train, n_steps=n_steps, ent_coef=ent_coef, vf_coef=vf_coef,
                                max_grad_norm=max_grad_norm)
     if save_interval and logger.get_dir():
         import cloudpickle
@@ -288,68 +288,68 @@ def learn(*, policy, env, n_steps, total_timesteps, ent_coef, learning_rate,
     model = make_model()
     if load_path is not None:
         model.load(load_path)
-    runner = Runner(env=env, model=model, nsteps=n_steps, gamma=gamma, lam=lam)
+    runner = Runner(env=env, model=model, n_steps=n_steps, gamma=gamma, lam=lam)
 
-    epinfobuf = deque(maxlen=100)
-    tfirststart = time.time()
+    ep_info_buf = deque(maxlen=100)
+    t_first_start = time.time()
 
-    nupdates = total_timesteps // nbatch
+    nupdates = total_timesteps // n_batch
     for update in range(1, nupdates + 1):
-        assert nbatch % nminibatches == 0
-        nbatch_train = nbatch // nminibatches
-        tstart = time.time()
+        assert n_batch % nminibatches == 0
+        n_batch_train = n_batch // nminibatches
+        t_start = time.time()
         frac = 1.0 - (update - 1.0) / nupdates
         lr_now = learning_rate(frac)
         cliprangenow = cliprange(frac)
-        obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run()  # pylint: disable=E0632
-        epinfobuf.extend(epinfos)
-        mblossvals = []
+        obs, returns, masks, actions, values, neglogpacs, states, ep_infos = runner.run()  # pylint: disable=E0632
+        ep_info_buf.extend(ep_infos)
+        mb_loss_vals = []
         if states is None:  # nonrecurrent version
-            inds = np.arange(nbatch)
+            inds = np.arange(n_batch)
             for _ in range(noptepochs):
                 np.random.shuffle(inds)
-                for start in range(0, nbatch, nbatch_train):
-                    end = start + nbatch_train
+                for start in range(0, n_batch, n_batch_train):
+                    end = start + n_batch_train
                     mbinds = inds[start:end]
                     slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mblossvals.append(model.train(lr_now, cliprangenow, *slices))
+                    mb_loss_vals.append(model.train(lr_now, cliprangenow, *slices))
         else:  # recurrent version
             assert n_envs % nminibatches == 0
             envinds = np.arange(n_envs)
             flatinds = np.arange(n_envs * n_steps).reshape(n_envs, n_steps)
-            envsperbatch = nbatch_train // n_steps
+            envsperbatch = n_batch_train // n_steps
             for _ in range(noptepochs):
                 np.random.shuffle(envinds)
                 for start in range(0, n_envs, envsperbatch):
                     end = start + envsperbatch
-                    mbenvinds = envinds[start:end]
-                    mbflatinds = flatinds[mbenvinds].ravel()
-                    slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mbstates = states[mbenvinds]
-                    mblossvals.append(model.train(lr_now, cliprangenow, *slices, mbstates))
+                    mb_env_inds = envinds[start:end]
+                    mb_flat_inds = flatinds[mb_env_inds].ravel()
+                    slices = (arr[mb_flat_inds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+                    mb_states = states[mb_env_inds]
+                    mb_loss_vals.append(model.train(lr_now, cliprangenow, *slices, mb_states))
 
-        lossvals = np.mean(mblossvals, axis=0)
-        tnow = time.time()
-        fps = int(nbatch / (tnow - tstart))
+        loss_vals = np.mean(mb_loss_vals, axis=0)
+        t_now = time.time()
+        fps = int(n_batch / (t_now - t_start))
         if update % log_interval == 0 or update == 1:
             explained_var = explained_variance(values, returns)
             logger.logkv("serial_timesteps", update * n_steps)
             logger.logkv("nupdates", update)
-            logger.logkv("total_timesteps", update * nbatch)
+            logger.logkv("total_timesteps", update * n_batch)
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(explained_var))
-            logger.logkv('eprewmean', safe_mean([epinfo['r'] for epinfo in epinfobuf]))
-            logger.logkv('eplenmean', safe_mean([epinfo['l'] for epinfo in epinfobuf]))
-            logger.logkv('time_elapsed', tnow - tfirststart)
-            for (lossval, lossname) in zip(lossvals, model.loss_names):
-                logger.logkv(lossname, lossval)
+            logger.logkv('ep_rewmean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
+            logger.logkv('eplenmean', safe_mean([ep_info['l'] for ep_info in ep_info_buf]))
+            logger.logkv('time_elapsed', t_start - t_first_start)
+            for (loss_val, loss_name) in zip(loss_vals, model.loss_names):
+                logger.logkv(loss_name, loss_val)
             logger.dumpkvs()
         if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
             checkdir = os.path.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
-            savepath = os.path.join(checkdir, '%.5i' % update)
-            print('Saving to', savepath)
-            model.save(savepath)
+            save_path = os.path.join(checkdir, '%.5i' % update)
+            print('Saving to', save_path)
+            model.save(save_path)
     env.close()
     return model
 

@@ -36,7 +36,7 @@ def test_a2c(policy):
     """
     clear_tf_session()
     a2c_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
-                    policy=policy, lrschedule='constant', num_env=NUM_CPU)
+                    policy=policy, lr_schedule='constant', num_env=NUM_CPU)
 
 
 @pytest.mark.slow
@@ -49,7 +49,7 @@ def test_acer(policy):
     """
     clear_tf_session()
     acer_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
-                     policy=policy, lrschedule='constant', num_cpu=NUM_CPU)
+                     policy=policy, lr_schedule='constant', num_cpu=NUM_CPU)
 
 
 @pytest.mark.slow
