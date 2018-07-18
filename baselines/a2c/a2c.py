@@ -78,18 +78,20 @@ class A2C(BaseRLModel):
         self.initial_state = step_model.initial_state
         tf.global_variables_initializer().run(session=sess)
 
-    def learn(self, seed=None, log_interval=100):
+    def learn(self, callback=None, seed=None, log_interval=100):
         """
         Return a trained model.
 
         :param seed: (int) The initial seed for training, if None: keep current seed
+        :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
+            It takes the local and global variables.
         :param log_interval: (int) The number of timesteps before logging.
         :return: (Model) A2C model
         """
         if seed is not None:
             set_global_seeds(seed)
 
-        runner = _Runner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
+        runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
 
         t_start = time.time()
         for update in range(1, self.total_timesteps // self.n_batch + 1):
@@ -97,6 +99,10 @@ class A2C(BaseRLModel):
             _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
             n_seconds = time.time() - t_start
             fps = int((update * self.n_batch) / n_seconds)
+
+            if callback is not None:
+                callback(locals(), globals())
+
             if update % log_interval == 0 or update == 1:
                 explained_var = explained_variance(values, rewards)
                 logger.record_tabular("nupdates", update)
@@ -112,7 +118,7 @@ class A2C(BaseRLModel):
     def _train_step(self, obs, states, rewards, masks, actions, values):
         """
         applies a training step to the model
-        , [float], [bool], [float], [float]) observations, states, rewards, masks, actions, values
+
         :param obs: ([float]) The input observations
         :param states: ([float]) The states (used for reccurent policies)
         :param rewards: ([float]) The rewards from the environment
@@ -150,17 +156,17 @@ class A2C(BaseRLModel):
         self.sess.run(restores)
 
 
-class _Runner(AbstractEnvRunner):
+class A2CRunner(AbstractEnvRunner):
     def __init__(self, env, model, n_steps=5, gamma=0.99):
         """
-        A runner to learn the policy of an environment for a model
+        A runner to learn the policy of an environment for an a2c model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param n_steps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         """
-        super(_Runner, self).__init__(env=env, model=model, n_steps=n_steps)
+        super(A2CRunner, self).__init__(env=env, model=model, n_steps=n_steps)
         self.gamma = gamma
 
     def run(self):

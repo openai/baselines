@@ -6,10 +6,13 @@ class BaseRLModel(ABC):
         super(BaseRLModel, self).__init__()
 
     @abstractmethod
-    def learn(self):
+    def learn(self, callback=None, seed=None):
         """
         Return a trained model.
 
+        :param seed: (int) The initial seed for training, if None: keep current seed
+        :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
+            It takes the local and global variables.
         :return: (BaseRLModel) the trained model
         """
         pass

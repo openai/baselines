@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from baselines import logger
-from baselines.acer.acer_simple import learn
+from baselines.acer import ACER
 from baselines.acer.policies import AcerCnnPolicy, AcerLstmPolicy
 from baselines.common.cmd_util import make_atari_env, atari_arg_parser
 
@@ -25,7 +25,9 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_cpu):
     else:
         print("Policy {} not implemented".format(policy))
         return
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule, buffer_size=5000)
+
+    model = ACER(policy_fn, env, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule, buffer_size=5000)
+    model.learn(seed=seed)
     env.close()
 
 

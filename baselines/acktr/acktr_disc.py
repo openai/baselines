@@ -10,7 +10,7 @@ import tensorflow as tf
 
 from baselines import logger
 from baselines.common import set_global_seeds, explained_variance
-from baselines.a2c.a2c import Runner
+from baselines.a2c.a2c import A2CRunner
 from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
 from baselines.acktr import kfac
 
@@ -162,7 +162,7 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
             file_handler.write(cloudpickle.dumps(make_model))
     model = make_model()
 
-    runner = Runner(env, model, n_steps=n_steps, gamma=gamma)
+    runner = A2CRunner(env, model, n_steps=n_steps, gamma=gamma)
     n_batch = n_envs * n_steps
     t_start = time.time()
     coord = tf.train.Coordinator()
