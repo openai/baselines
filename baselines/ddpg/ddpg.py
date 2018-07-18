@@ -1,5 +1,9 @@
 from copy import copy
 from functools import reduce
+import os
+import time
+from collections import deque
+import pickle
 
 import numpy as np
 import tensorflow as tf
@@ -8,8 +12,10 @@ from mpi4py import MPI
 
 from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
-import baselines.common.tf_util as tf_util
+from baselines.common import tf_util, BaseRLModel, set_global_seeds
 from baselines.common.mpi_running_mean_std import RunningMeanStd
+from baselines.ddpg.memory import Memory
+from baselines.ddpg.models import ActorMLP, ActorCNN, CriticMLP, CriticCNN
 
 
 def normalize(tensor, stats):
@@ -111,11 +117,14 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
     return tf.group(*updates)
 
 
-class DDPG(object):
-    def __init__(self, actor, critic, memory, observation_shape, action_shape, param_noise=None, action_noise=None,
-                 gamma=0.99, tau=0.001, normalize_returns=False, enable_popart=False, normalize_observations=True,
-                 batch_size=128, observation_range=(-5., 5.), action_range=(-1., 1.), return_range=(-np.inf, np.inf),
-                 critic_l2_reg=0., actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.):
+class DDPG(BaseRLModel):
+    def __init__(self, actor, critic, memory, env, gamma=0.99, total_timesteps=int(40e6), eval_env=None,
+                 nb_epochs=500, nb_epoch_cycles=20, nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100,
+                 param_noise=None, action_noise=None, param_noise_adaption_interval=50, tau=0.001,
+                 normalize_returns=False, enable_popart=False, normalize_observations=True, batch_size=128,
+                 observation_range=(-5., 5.), action_range=(-1., 1.), return_range=(-np.inf, np.inf), critic_l2_reg=0.,
+                 actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False,
+                 logging_level=logger.INFO):
         """
         Deep Deterministic Policy Gradien (DDPG) model
 
@@ -124,11 +133,18 @@ class DDPG(object):
         :param actor: (TensorFlow Tensor) the actor model
         :param critic: (TensorFlow Tensor) the critic model
         :param memory: (Memory) the replay buffer
-        :param observation_shape: (tuple) the observation space
-        :param action_shape: (tuple) the action space
+        :param env: (Gym Environment) the environment
+        :param gamma: (float) the discount rate
+        :param total_timesteps: (int) The total number of timesteps for training the model
+        :param eval_env: (Gym Environment) the evaluation environment (can be None)
+        :param nb_epochs: (int) the number of training epochs
+        :param nb_epoch_cycles: (int) the number cycles within each epoch
+        :param nb_train_steps: (int) the number of training steps
+        :param nb_rollout_steps: (int) the number of rollout steps
+        :param nb_eval_steps: (int) the number of evalutation steps
         :param param_noise: (AdaptiveParamNoiseSpec) the parameter noise type (can be None)
         :param action_noise: (ActionNoise) the action noise type (can be None)
-        :param gamma: (float) the discount rate
+        :param param_noise_adaption_interval: (int) apply param noise every N steps
         :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
         :param normalize_returns: (bool) should the critic output be normalized
         :param enable_popart: (bool) enable pop-art normalization of the critic output
@@ -143,7 +159,14 @@ class DDPG(object):
         :param critic_lr: (float) the critic learning rate
         :param clip_norm: (float) clip the gradients (disabled if None)
         :param reward_scale: (float) the value the reward should be scaled by
+        :param render: (bool) enable rendering of the environment
+        :param render_eval: (bool) enable rendering of the evalution environment
+        :param logging_level: (int) the logging level (can be DEBUG=10, INFO=20, WARN=30, ERROR=40, DISABLED=50)
         """
+        super(DDPG, self).__init__()
+        self.observation_shape = observation_shape = env.observation_space.shape
+        self.action_shape = action_shape = env.action_space.shape
+
         # Inputs.
         self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
         self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
@@ -180,6 +203,33 @@ class DDPG(object):
         self.critic_grads = None
         self.critic_optimizer = None
         self.sess = None
+        self.saver = None
+        self.logging_level = logging_level
+        self.env = env
+        self.eval_env = eval_env
+        self.nb_epochs = nb_epochs
+        self.nb_epoch_cycles = nb_epoch_cycles
+        self.render = render
+        self.total_timesteps = total_timesteps
+        self.render_eval = render_eval
+        self.nb_eval_steps = nb_eval_steps
+        self.param_noise_adaption_interval = param_noise_adaption_interval
+        self.nb_train_steps = nb_train_steps
+        self.nb_rollout_steps = nb_rollout_steps
+
+        # init
+        self.stats_ops = None
+        self.stats_names = None
+        self.perturbed_actor_tf = None
+        self.perturb_policy_ops = None
+        self.perturb_adaptive_policy_ops = None
+        self.adaptive_policy_distance = None
+        self.actor_loss = None
+        self.actor_grads = None
+        self.actor_optimizer = None
+        self.old_std = None
+        self.old_mean = None
+        self.renormalize_q_outputs_op = None
 
         # Observation normalization.
         if self.normalize_observations:
@@ -221,15 +271,15 @@ class DDPG(object):
 
         # Set up parts.
         if self.param_noise is not None:
-            self.setup_param_noise(normalized_obs0)
-        self.setup_actor_optimizer()
-        self.setup_critic_optimizer()
+            self._setup_param_noise(normalized_obs0)
+        self._setup_actor_optimizer()
+        self._setup_critic_optimizer()
         if self.normalize_returns and self.enable_popart:
-            self.setup_popart()
-        self.setup_stats()
-        self.setup_target_network_updates()
+            self._setup_popart()
+        self._setup_stats()
+        self._setup_target_network_updates()
 
-    def setup_target_network_updates(self):
+    def _setup_target_network_updates(self):
         """
         set the target update operations
         """
@@ -239,7 +289,7 @@ class DDPG(object):
         self.target_init_updates = [actor_init_updates, critic_init_updates]
         self.target_soft_updates = [actor_soft_updates, critic_soft_updates]
 
-    def setup_param_noise(self, normalized_obs0):
+    def _setup_param_noise(self, normalized_obs0):
         """
         set the parameter noise operations
         :param normalized_obs0: (TensorFlow Tensor) the normalized observation
@@ -261,7 +311,7 @@ class DDPG(object):
                                                                        self.param_noise_stddev)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
-    def setup_actor_optimizer(self):
+    def _setup_actor_optimizer(self):
         """
         setup the optimizer for the actor
         """
@@ -275,7 +325,7 @@ class DDPG(object):
         self.actor_optimizer = MpiAdam(var_list=self.actor.trainable_vars,
                                        beta1=0.9, beta2=0.999, epsilon=1e-08)
 
-    def setup_critic_optimizer(self):
+    def _setup_critic_optimizer(self):
         """
         setup the optimizer for the critic
         """
@@ -301,7 +351,7 @@ class DDPG(object):
         self.critic_grads = tf_util.flatgrad(self.critic_loss, self.critic.trainable_vars, clip_norm=self.clip_norm)
         self.critic_optimizer = MpiAdam(var_list=self.critic.trainable_vars, beta1=0.9, beta2=0.999, epsilon=1e-08)
 
-    def setup_popart(self):
+    def _setup_popart(self):
         """
         setup pop-art normalization of the critic output
 
@@ -325,7 +375,7 @@ class DDPG(object):
             self.renormalize_q_outputs_op += [weight.assign(weight * self.old_std / new_std)]
             self.renormalize_q_outputs_op += [bias.assign((bias * self.old_std + self.old_mean - new_mean) / new_std)]
 
-    def setup_stats(self):
+    def _setup_stats(self):
         """
         setup the running means and std of the inputs and outputs of the model
         """
@@ -364,7 +414,7 @@ class DDPG(object):
         self.stats_ops = ops
         self.stats_names = names
 
-    def policy(self, obs, apply_noise=True, compute_q=True):
+    def _policy(self, obs, apply_noise=True, compute_q=True):
         """
         Get the actions and critic output, from a given observation
 
@@ -391,7 +441,7 @@ class DDPG(object):
         action = np.clip(action, self.action_range[0], self.action_range[1])
         return action, q_value
 
-    def store_transition(self, obs0, action, reward, obs1, terminal1):
+    def _store_transition(self, obs0, action, reward, obs1, terminal1):
         """
         Store a transition in the replay buffer
 
@@ -406,9 +456,10 @@ class DDPG(object):
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
-    def train(self):
+    def train_step(self):
         """
         run a step of training from batch
+
         :return: (float, float) critic loss, actor loss
         """
         # Get a batch.
@@ -446,7 +497,7 @@ class DDPG(object):
 
         return critic_loss, actor_loss
 
-    def initialize(self, sess):
+    def _initialize(self, sess):
         """
         initialize the model parameters and optimizers
 
@@ -464,7 +515,7 @@ class DDPG(object):
         """
         self.sess.run(self.target_soft_updates)
 
-    def get_stats(self):
+    def _get_stats(self):
         """
         Get the mean and standard deviation of the model's inputs and outputs
 
@@ -488,7 +539,7 @@ class DDPG(object):
 
         return stats
 
-    def adapt_param_noise(self):
+    def _adapt_param_noise(self):
         """
         calculate the adaptation for the parameter noise
 
@@ -511,7 +562,7 @@ class DDPG(object):
         self.param_noise.adapt(mean_distance)
         return mean_distance
 
-    def reset(self):
+    def _reset(self):
         """
         Reset internal state after an episode is complete.
         """
@@ -521,3 +572,260 @@ class DDPG(object):
             self.sess.run(self.perturb_policy_ops, feed_dict={
                 self.param_noise_stddev: self.param_noise.current_stddev,
             })
+
+    def learn(self, callback=None, seed=None, log_interval=100):
+        rank = MPI.COMM_WORLD.Get_rank()
+
+        if seed is not None:
+            set_global_seeds(seed)
+
+        assert np.all(np.abs(self.env.action_space.low) == self.env.action_space.high)  # we assume symmetric actions.
+        max_action = self.env.action_space.high
+        logger.set_level(self.logging_level)
+        logger.log('scaling actions by {} before executing in env'.format(max_action))
+        logger.log('Using agent with the following configuration:')
+        logger.log(str(self.__dict__.items()))
+
+        # Set up logging stuff only for a single worker.
+        if rank == 0:
+            tf.train.Saver()
+
+        eval_episode_rewards_history = deque(maxlen=100)
+        episode_rewards_history = deque(maxlen=100)
+        with tf_util.single_threaded_session() as sess:
+            # Prepare everything.
+            self.saver = tf.train.Saver()
+            self._initialize(sess)
+            sess.graph.finalize()
+
+            self._reset()
+            obs = self.env.reset()
+            eval_obs = None
+            if self.eval_env is not None:
+                eval_obs = self.eval_env.reset()
+            episode_reward = 0.
+            episode_step = 0
+            episodes = 0
+            step = 0
+            total_steps = 0
+
+            start_time = time.time()
+
+            epoch_episode_rewards = []
+            epoch_episode_steps = []
+            epoch_actor_losses = []
+            epoch_critic_losses = []
+            epoch_adaptive_distances = []
+            eval_episode_rewards = []
+            eval_qs = []
+            epoch_start_time = time.time()
+            epoch_actions = []
+            epoch_qs = []
+            epoch_episodes = 0
+            for epoch in range(self.nb_epochs):
+                for _ in range(self.nb_epoch_cycles):
+                    # Perform rollouts.
+                    for t_rollout in range(self.nb_rollout_steps):
+                        if total_steps >= self.total_timesteps:
+                            return
+
+                        # Predict next action.
+                        action, q_value = self._policy(obs, apply_noise=True, compute_q=True)
+                        assert action.shape == self.env.action_space.shape
+
+                        # Execute next action.
+                        if rank == 0 and self.render:
+                            self.env.render()
+                        assert max_action.shape == action.shape
+                        # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                        new_obs, reward, done, _ = self.env.step(max_action * action)
+                        step += 1
+                        total_steps += 1
+                        if rank == 0 and self.render:
+                            self.env.render()
+                        episode_reward += reward
+                        episode_step += 1
+
+                        # Book-keeping.
+                        epoch_actions.append(action)
+                        epoch_qs.append(q_value)
+                        self._store_transition(obs, action, reward, new_obs, done)
+                        obs = new_obs
+                        if callback is not None:
+                            callback(locals(), globals())
+
+                        if done:
+                            # Episode done.
+                            epoch_episode_rewards.append(episode_reward)
+                            episode_rewards_history.append(episode_reward)
+                            epoch_episode_steps.append(episode_step)
+                            episode_reward = 0.
+                            episode_step = 0
+                            epoch_episodes += 1
+                            episodes += 1
+
+                            self._reset()
+                            obs = self.env.reset()
+
+                    # Train.
+                    epoch_actor_losses = []
+                    epoch_critic_losses = []
+                    epoch_adaptive_distances = []
+                    for t_train in range(self.nb_train_steps):
+                        # Adapt param noise, if necessary.
+                        if self.memory.nb_entries >= self.batch_size and \
+                                t_train % self.param_noise_adaption_interval == 0:
+                            distance = self._adapt_param_noise()
+                            epoch_adaptive_distances.append(distance)
+
+                        critic_loss, actor_loss = self.train_step()
+                        epoch_critic_losses.append(critic_loss)
+                        epoch_actor_losses.append(actor_loss)
+                        self.update_target_net()
+
+                    # Evaluate.
+                    eval_episode_rewards = []
+                    eval_qs = []
+                    if self.eval_env is not None:
+                        eval_episode_reward = 0.
+                        for t_rollout in range(self.nb_eval_steps):
+                            if total_steps >= self.total_timesteps:
+                                return
+
+                            eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
+                            # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                            eval_obs, eval_r, eval_done, _ = self.eval_env.step(max_action * eval_action)
+                            if self.render_eval:
+                                self.eval_env.render()
+                            eval_episode_reward += eval_r
+
+                            eval_qs.append(eval_q)
+                            if eval_done:
+                                eval_obs = self.eval_env.reset()
+                                eval_episode_rewards.append(eval_episode_reward)
+                                eval_episode_rewards_history.append(eval_episode_reward)
+                                eval_episode_reward = 0.
+
+                mpi_size = MPI.COMM_WORLD.Get_size()
+                # Log stats.
+                # XXX shouldn't call np.mean on variable length lists
+                duration = time.time() - start_time
+                stats = self._get_stats()
+                combined_stats = stats.copy()
+                combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
+                combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
+                combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
+                combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
+                combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
+                combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
+                combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
+                combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
+                combined_stats['total/duration'] = duration
+                combined_stats['total/steps_per_second'] = float(step) / float(duration)
+                combined_stats['total/episodes'] = episodes
+                combined_stats['rollout/episodes'] = epoch_episodes
+                combined_stats['rollout/actions_std'] = np.std(epoch_actions)
+                # Evaluation statistics.
+                if self.eval_env is not None:
+                    combined_stats['eval/return'] = eval_episode_rewards
+                    combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
+                    combined_stats['eval/Q'] = eval_qs
+                    combined_stats['eval/episodes'] = len(eval_episode_rewards)
+
+                def as_scalar(scalar):
+                    """
+                    check and return the input if it is a scalar, otherwise raise ValueError
+
+                    :param scalar: (Any) the object to check
+                    :return: (Number) the scalar if x is a scalar
+                    """
+                    if isinstance(scalar, np.ndarray):
+                        assert scalar.size == 1
+                        return scalar[0]
+                    elif np.isscalar(scalar):
+                        return scalar
+                    else:
+                        raise ValueError('expected scalar, got %s' % scalar)
+
+                combined_stats_sums = MPI.COMM_WORLD.allreduce(
+                    np.array([as_scalar(x) for x in combined_stats.values()]))
+                combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
+
+                # Total statistics.
+                combined_stats['total/epochs'] = epoch + 1
+                combined_stats['total/steps'] = step
+
+                for key in sorted(combined_stats.keys()):
+                    logger.record_tabular(key, combined_stats[key])
+                logger.dump_tabular()
+                logger.info('')
+                logdir = logger.get_dir()
+                if rank == 0 and logdir:
+                    if hasattr(self.env, 'get_state'):
+                        with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as file_handler:
+                            pickle.dump(self.env.get_state(), file_handler)
+                    if self.eval_env and hasattr(self.eval_env, 'get_state'):
+                        with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
+                            pickle.dump(self.eval_env.get_state(), file_handler)
+
+    def save(self, save_path):
+        # needed, otherwise tensorflow saver wont find the checkpoint files
+        save_path = save_path.replace("//", "/")
+
+        # params
+        data = {
+            "observation_shape": tuple([int(x) for x in self.obs0.shape[1:]]),
+            "action_shape": tuple([int(x) for x in self.actions.shape[1:]]),
+            "param_noise": self.param_noise,
+            "action_noise": self.action_noise,
+            "gamma": self.gamma,
+            "tau": self.tau,
+            "normalize_returns": self.normalize_returns,
+            "enable_popart": self.enable_popart,
+            "normalize_observations": self.normalize_observations,
+            "batch_size": self.batch_size,
+            "observation_range": self.observation_range,
+            "action_range": self.action_range,
+            "return_range": self.return_range,
+            "critic_l2_reg": self.critic_l2_reg,
+            "actor_lr": self.actor_lr,
+            "critic_lr": self.critic_lr,
+            "clip_norm": self.clip_norm,
+            "reward_scale": self.reward_scale
+        }
+        # used to reconstruct the actor and critic models
+        net = {
+            "actor_name": self.actor.__class__.__name__,
+            "critic_name": self.critic.__class__.__name__,
+            "n_actions": self.actor.n_actions,
+            "layer_norm": self.actor.layer_norm
+        }
+        with open(save_path, "wb") as f:
+            pickle.dump((data, net), f)
+
+        self.saver.save(self.sess, save_path.split('.')[0] + ".ckpl")
+
+    def load(self, load_path):
+        # needed, otherwise tensorflow saver wont find the checkpoint files
+        save_path = load_path.replace("//", "/")
+
+        with open(save_path, "rb") as f:
+            data, net = pickle.load(f)
+
+        self.memory = Memory(limit=100, action_shape=data["action_shape"], observation_shape=data["observation_shape"])
+        if net["actor_name"] == "DDPGActorMLP":
+            self.actor = ActorMLP(net["n_actions"], layer_norm=net["layer_norm"])
+        elif net["actor_name"] == "DDPGActorCNN":
+            self.actor = ActorCNN(net["n_actions"], layer_norm=net["layer_norm"])
+        else:
+            raise NotImplemented
+
+        if net["critic_name"] == "DDPGCriticMLP":
+            self.critic = CriticMLP(layer_norm=net["layer_norm"])
+        elif net["critic_name"] == "DDPGCriticCNN":
+            self.critic = CriticCNN(layer_norm=net["layer_norm"])
+        else:
+            raise NotImplemented
+
+        self.__dict__.update(data)
+        self.saver.restore(self.sess, save_path.split('.')[0] + ".ckpl")

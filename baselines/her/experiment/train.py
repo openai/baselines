@@ -60,7 +60,7 @@ def train(policy, rollout_worker, evaluator, n_epochs, n_test_rollouts, n_cycles
             episode = rollout_worker.generate_rollouts()
             policy.store_episode(episode)
             for _ in range(n_batches):
-                policy.train()
+                policy.train_step()
             policy.update_target_net()
 
         # test

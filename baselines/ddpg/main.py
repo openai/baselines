@@ -9,8 +9,8 @@ from mpi4py import MPI
 
 from baselines import logger, bench
 from baselines.common.misc_util import set_global_seeds, boolean_flag
-import baselines.ddpg.training as training
-from baselines.ddpg.models import Actor, Critic
+from baselines.ddpg import DDPG
+from baselines.ddpg.models import ActorMLP, CriticMLP
 from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
 
@@ -67,8 +67,8 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
 
     # Configure components.
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
-    critic = Critic(layer_norm=layer_norm)
-    actor = Actor(nb_actions, layer_norm=layer_norm)
+    critic = CriticMLP(layer_norm=layer_norm)
+    actor = ActorMLP(nb_actions, layer_norm=layer_norm)
 
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
@@ -80,10 +80,12 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
         eval_env.seed(seed)
 
     # Disable logging for rank != 0 to avoid noise.
+    start_time = 0
     if rank == 0:
         start_time = time.time()
-    training.train(env=env, eval_env=eval_env, param_noise=param_noise, action_noise=action_noise, actor=actor,
-                   critic=critic, memory=memory, **kwargs)
+    model = DDPG(actor=actor, critic=critic, memory=memory, env=env, eval_env=eval_env, param_noise=param_noise,
+                 action_noise=action_noise, **kwargs)
+    model.learn()
     env.close()
     if eval_env is not None:
         eval_env.close()
