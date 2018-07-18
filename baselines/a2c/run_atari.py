@@ -3,7 +3,7 @@
 from baselines import logger
 from baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.a2c.a2c import learn
+from baselines.a2c.a2c import A2C
 from baselines.a2c.policies import CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
 
 
@@ -30,7 +30,8 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):
         raise ValueError("Error: policy {} not implemented".format(policy))
 
     env = VecFrameStack(make_atari_env(env_id, num_env, seed), 4)
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule)
+    model = A2C(policy_fn, env, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule)
+    model.learn(seed)
     env.close()
 
 
