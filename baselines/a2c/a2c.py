@@ -188,7 +188,8 @@ def learn(policy, env, seed, n_steps=5, total_timesteps=int(80e6), vf_coef=0.5, 
     n_envs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=n_envs, n_steps=n_steps, ent_coef=ent_coef,
+    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=n_envs,
+                  n_steps=n_steps, ent_coef=ent_coef,
                   vf_coef=vf_coef, max_grad_norm=max_grad_norm, learning_rate=learning_rate,
                   alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps,
                   lr_schedule=lr_schedule)
