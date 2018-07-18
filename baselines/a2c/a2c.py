@@ -6,12 +6,12 @@ import numpy as np
 import tensorflow as tf
 
 from baselines import logger
-from baselines.common import set_global_seeds, explained_variance, tf_util
+from baselines.common import set_global_seeds, explained_variance, tf_util, BaseRLModel
 from baselines.common.runners import AbstractEnvRunner
 from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_trainable_variables, calc_entropy, mse
 
 
-class A2C(object):
+class A2C(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, n_steps=5, total_timesteps=int(80e6), vf_coef=0.25,
                  ent_coef=0.01, max_grad_norm=0.5, learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear'):
         """
@@ -31,6 +31,7 @@ class A2C(object):
         :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
         """
+        super(A2C, self).__init__()
         sess = tf_util.make_session()
         n_envs = env.num_envs
         n_batch = n_envs * n_steps
@@ -79,7 +80,7 @@ class A2C(object):
 
     def learn(self, seed=None, log_interval=100):
         """
-        Return a trained A2C model.
+        Return a trained model.
 
         :param seed: (int) The initial seed for training, if None: keep current seed
         :param log_interval: (int) The number of timesteps before logging.
@@ -88,12 +89,12 @@ class A2C(object):
         if seed is not None:
             set_global_seeds(seed)
 
-        runner = Runner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
+        runner = _Runner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
 
         t_start = time.time()
         for update in range(1, self.total_timesteps // self.n_batch + 1):
             obs, states, rewards, masks, actions, values = runner.run()
-            _, value_loss, policy_entropy = self.train_step(obs, states, rewards, masks, actions, values)
+            _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
             n_seconds = time.time() - t_start
             fps = int((update * self.n_batch) / n_seconds)
             if update % log_interval == 0 or update == 1:
@@ -105,9 +106,10 @@ class A2C(object):
                 logger.record_tabular("value_loss", float(value_loss))
                 logger.record_tabular("explained_variance", float(explained_var))
                 logger.dump_tabular()
+
         return self
 
-    def train_step(self, obs, states, rewards, masks, actions, values):
+    def _train_step(self, obs, states, rewards, masks, actions, values):
         """
         applies a training step to the model
         , [float], [bool], [float], [float]) observations, states, rewards, masks, actions, values
@@ -136,21 +138,11 @@ class A2C(object):
         return policy_loss, value_loss, policy_entropy
 
     def save(self, save_path):
-        """
-        Save the current parameters to file
-
-        :param save_path: (str) the save location
-        """
         parameters = self.sess.run(self.params)
         make_path(os.path.dirname(save_path))
         joblib.dump(parameters, save_path)
 
     def load(self, load_path):
-        """
-        Load the parameters from file
-
-        :param load_path: (str) the saved parameter location
-        """
         loaded_params = joblib.load(load_path)
         restores = []
         for param, loaded_p in zip(self.params, loaded_params):
@@ -158,7 +150,7 @@ class A2C(object):
         self.sess.run(restores)
 
 
-class Runner(AbstractEnvRunner):
+class _Runner(AbstractEnvRunner):
     def __init__(self, env, model, n_steps=5, gamma=0.99):
         """
         A runner to learn the policy of an environment for a model
@@ -168,7 +160,7 @@ class Runner(AbstractEnvRunner):
         :param n_steps: (int) The number of steps to run for each environment
         :param gamma: (float) Discount factor
         """
-        super(Runner, self).__init__(env=env, model=model, n_steps=n_steps)
+        super(_Runner, self).__init__(env=env, model=model, n_steps=n_steps)
         self.gamma = gamma
 
     def run(self):

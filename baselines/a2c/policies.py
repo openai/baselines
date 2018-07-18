@@ -105,7 +105,8 @@ class LstmPolicy(A2CPolicy):
 class FeedForwardPolicy(A2CPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, _type="cnn", **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse)
-        kwargs.pop("layer_norm")  # ignore lstm keyword
+        if "layer_norm" in kwargs:
+            kwargs.pop("layer_norm")  # ignore lstm keyword
         with tf.variable_scope("model", reuse=reuse):
             if _type == "cnn":
                 extracted_features = nature_cnn(self.processed_x, **kwargs)
