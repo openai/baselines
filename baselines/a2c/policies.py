@@ -112,9 +112,10 @@ class LstmPolicy(A2CPolicy):
 
 
 class LnLstmPolicy(LstmPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, continuous=False, **_):
+    def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, _type="cnn",
+                 continuous=False, **_):
         super(LnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, layer_norm=True,
-                                           continuous=continuous)
+                                           _type=_type, continuous=continuous)
 
 
 class FeedForwardPolicy(A2CPolicy):
