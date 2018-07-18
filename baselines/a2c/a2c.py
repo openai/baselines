@@ -13,7 +13,7 @@ from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_
 
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, n_envs, n_steps,
-                 ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, learning_rate=7e-4,
+                 ent_coef=0.01, vf_coef=0.25, max_grad_norm=0.5, learning_rate=7e-4,
                  alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lr_schedule='linear'):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783

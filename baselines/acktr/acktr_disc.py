@@ -17,7 +17,7 @@ from baselines.acktr import kfac
 
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, n_envs, total_timesteps, nprocs=32, n_steps=20,
-                 ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
+                 ent_coef=0.01, vf_coef=0.25, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
                  kfac_clip=0.001, lr_schedule='linear'):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
