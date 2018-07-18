@@ -286,15 +286,6 @@ class ACER(BaseRLModel):
         return self.names_ops, self.sess.run(self.run_ops, td_map)[1:]  # strip off _train
 
     def learn(self, callback=None, seed=None, log_interval=100):
-        """
-        Return a trained model.
-
-        :param seed: (int) The initial seed for training, if None: keep current seed
-        :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
-            It takes the local and global variables.
-        :param log_interval: (int) The number of timesteps before logging.
-        :return: (Model) ACER model
-        """
         if seed is not None:
             set_global_seeds(seed)
 

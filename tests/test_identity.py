@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 from gym.spaces.prng import np_random
 
-from baselines.a2c import a2c
+from baselines.a2c import A2C
 from baselines.ppo2 import ppo2
 from baselines.common.identity_env import IdentityEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -13,7 +13,7 @@ from baselines.a2c.policies import MlpPolicy
 
 
 learn_func_list = [
-    lambda e: a2c.learn(policy=MlpPolicy, env=e, seed=0, total_timesteps=50000),
+    lambda e: A2C(policy=MlpPolicy, env=e, total_timesteps=50000, learning_rate=1e-3, n_steps=128, ent_coef=0.01),
     lambda e: ppo2.learn(policy=MlpPolicy, env=e, total_timesteps=50000, learning_rate=1e-3, n_steps=128, ent_coef=0.01)
 ]
 

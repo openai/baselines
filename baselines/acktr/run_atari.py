@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from baselines import logger
-from baselines.acktr.acktr_disc import learn
+from baselines.acktr import ACKTR
 from baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.a2c.policies import CnnPolicy
@@ -17,7 +17,8 @@ def train(env_id, num_timesteps, seed, num_cpu):
     :param num_cpu: (int) The number of cpu to train on
     """
     env = VecFrameStack(make_atari_env(env_id, num_cpu, seed), 4)
-    learn(CnnPolicy, env, seed, total_timesteps=int(num_timesteps * 1.1), nprocs=num_cpu)
+    model = ACKTR(CnnPolicy, env, total_timesteps=int(num_timesteps * 1.1), nprocs=num_cpu)
+    model.learn(seed=seed)
     env.close()
 
 

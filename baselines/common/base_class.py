@@ -6,13 +6,14 @@ class BaseRLModel(ABC):
         super(BaseRLModel, self).__init__()
 
     @abstractmethod
-    def learn(self, callback=None, seed=None):
+    def learn(self, callback=None, seed=None, log_interval=100):
         """
         Return a trained model.
 
         :param seed: (int) The initial seed for training, if None: keep current seed
         :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
             It takes the local and global variables.
+        :param log_interval: (int) The number of timesteps before logging.
         :return: (BaseRLModel) the trained model
         """
         pass
