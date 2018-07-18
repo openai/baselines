@@ -333,11 +333,11 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         # TODO: Add session everywhere for GAIL
         # so we can remove duplicated code
         if using_gail:
-            def fisher_vector_product(p):
-                return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
+            def fisher_vector_product(vec):
+                return allmean(compute_fvp(vec, *fvpargs)) + cg_damping * vec
         else:
-            def fisher_vector_product(p):
-                return allmean(compute_fvp(p, *fvpargs, sess=sess)) + cg_damping * p
+            def fisher_vector_product(vec):
+                return allmean(compute_fvp(vec, *fvpargs, sess=sess)) + cg_damping * vec
         # ------------------ Update G ------------------
         logger.log("Optimizing Policy...")
         # g_step = 1 when not using GAIL
