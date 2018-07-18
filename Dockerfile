@@ -40,6 +40,6 @@ RUN \
     pip install -e stable_baselines
 
 ENV PATH=$VENV/bin:$PATH
-WORKDIR $CODE_DIR/baselines
+WORKDIR $CODE_DIR/stable_baselines
 
 CMD /bin/bash
