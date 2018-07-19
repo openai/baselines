@@ -2,7 +2,7 @@ import random
 
 import tensorflow as tf
 
-from baselines import deepq
+from baselines.deepq import DeepQ, models as deepq_models
 from baselines.common.identity_env import IdentityEnv
 
 
@@ -16,19 +16,19 @@ def test_identity():
     tf.set_random_seed(0)
 
     param_noise = False
-    model = deepq.models.mlp([32])
+    model = deepq_models.mlp([32])
 
-    act = deepq.learn(
-        env,
+    model = DeepQ(
+        env=env,
         q_func=model,
         learning_rate=1e-3,
         max_timesteps=10000,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
-        print_freq=10,
         param_noise=param_noise,
     )
+    model.learn()
 
     tf.set_random_seed(0)
 
@@ -36,7 +36,7 @@ def test_identity():
     sum_rew = 0
     obs = env.reset()
     for _ in range(n_trials):
-        obs, rew, _, _ = env.step(act([obs]))
+        obs, rew, _, _ = env.step(model.act([obs]))
         sum_rew += rew
 
     assert sum_rew > 0.9 * n_trials

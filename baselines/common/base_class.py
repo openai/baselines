@@ -27,11 +27,13 @@ class BaseRLModel(ABC):
         """
         pass
 
+    @classmethod
     @abstractmethod
-    def load(self, load_path):
+    def load(cls, load_path, env):
         """
-        Load the parameters from file
+        Load the model from file
 
         :param load_path: (str) the saved parameter location
+        :param env: (Gym Envrionment) the new environment to run the loaded model on
         """
         pass

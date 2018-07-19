@@ -1,6 +1,7 @@
 import gym
 
 from baselines import deepq
+from baselines.deepq import DeepQ
 
 
 def main():
@@ -9,14 +10,14 @@ def main():
     """
     env = gym.make("PongNoFrameskip-v4")
     env = deepq.wrap_atari_dqn(env)
-    act = deepq.load("pong_model.pkl")
+    model = DeepQ.load("pong_model.pkl", env)
 
     while True:
         obs, done = env.reset(), False
         episode_rew = 0
         while not done:
             env.render()
-            obs, rew, done, _ = env.step(act(obs[None])[0])
+            obs, rew, done, _ = env.step(model.act(obs[None])[0])
             episode_rew += rew
         print("Episode reward", episode_rew)
 

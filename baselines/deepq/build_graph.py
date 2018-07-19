@@ -276,12 +276,16 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
                     lambda: param_noise_threshold))
 
         # Put everything together.
-        deterministic_actions = tf.argmax(q_values_perturbed, axis=1)
+        perturbed_deterministic_actions = tf.argmax(q_values_perturbed, axis=1)
+        deterministic_actions = tf.argmax(q_values, axis=1)
         batch_size = tf.shape(observations_ph.get())[0]
         random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
         chose_random = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=1, dtype=tf.float32) < eps
+        perturbed_stochastic_actions = tf.where(chose_random, random_actions, perturbed_deterministic_actions)
         stochastic_actions = tf.where(chose_random, random_actions, deterministic_actions)
 
+        perturbed_output_actions = tf.cond(stochastic_ph, lambda: perturbed_stochastic_actions,
+                                           lambda: deterministic_actions)
         output_actions = tf.cond(stochastic_ph, lambda: stochastic_actions, lambda: deterministic_actions)
         update_eps_expr = eps.assign(tf.cond(update_eps_ph >= 0, lambda: update_eps_ph, lambda: eps))
         updates = [
@@ -291,15 +295,22 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
             tf.cond(update_param_noise_scale_ph, lambda: update_scale(), lambda: tf.Variable(0., trainable=False)),
             update_param_noise_thres_expr,
         ]
-        _act = tf_utils.function(
+
+        _act = tf_utils.function(inputs=[observations_ph, stochastic_ph, update_eps_ph],
+                                 outputs=output_actions,
+                                 givens={update_eps_ph: -1.0, stochastic_ph: True},
+                                 updates=[update_eps_expr])
+
+        _perturbed_act = tf_utils.function(
             inputs=[observations_ph, stochastic_ph, update_eps_ph, reset_ph, update_param_noise_threshold_ph,
                     update_param_noise_scale_ph],
-            outputs=output_actions,
+            outputs=perturbed_output_actions,
             givens={update_eps_ph: -1.0, stochastic_ph: True, reset_ph: False, update_param_noise_threshold_ph: False,
                     update_param_noise_scale_ph: False},
             updates=updates)
 
-        def act(obs, reset, update_param_noise_threshold, update_param_noise_scale, stochastic=True, update_eps=-1):
+        def act(obs, reset=None, update_param_noise_threshold=None, update_param_noise_scale=None, stochastic=True,
+                update_eps=-1):
             """
             get the action from the current observation
 
@@ -315,7 +326,11 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
             :return: (TensorFlow Tensor) tensor of dtype tf.int64 and shape (BATCH_SIZE,) with an action to be
                 performed for every element of the batch.
             """
-            return _act(obs, stochastic, update_eps, reset, update_param_noise_threshold, update_param_noise_scale)
+            if reset is None or update_param_noise_threshold is None or update_param_noise_scale is None:
+                return _act(obs, stochastic, update_eps)
+            else:
+                return _perturbed_act(obs, stochastic, update_eps, reset, update_param_noise_threshold,
+                                      update_param_noise_scale)
 
         return act
 

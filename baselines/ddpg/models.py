@@ -45,18 +45,12 @@ class Model(object):
         :return: (TensorFlow Tensor) nature CNN output tensor
         """
         layer_1 = tf.layers.conv2d(input_tensor, 32, (8, 8), (4, 4))
-        if self.layer_norm:
-            layer_1 = tc.layers.layer_norm(layer_1, center=True, scale=True)
         layer_1 = tf.nn.relu(layer_1)
 
         layer_2 = tf.layers.conv2d(layer_1, 64, (4, 4), (2, 2))
-        if self.layer_norm:
-            layer_2 = tc.layers.layer_norm(layer_2, center=True, scale=True)
         layer_2 = tf.nn.relu(layer_2)
 
         layer_3 = tf.layers.conv2d(layer_2, 64, (3, 3))
-        if self.layer_norm:
-            layer_3 = tc.layers.layer_norm(layer_3, center=True, scale=True)
         layer_3 = tf.nn.relu(layer_3)
 
         return tc.layers.flatten(layer_3)

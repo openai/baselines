@@ -5,6 +5,7 @@ import time
 from collections import deque
 import pickle
 
+import cloudpickle
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
@@ -124,7 +125,7 @@ class DDPG(BaseRLModel):
                  normalize_returns=False, enable_popart=False, normalize_observations=True, batch_size=128,
                  observation_range=(-5., 5.), action_range=(-1., 1.), return_range=(-np.inf, np.inf), critic_l2_reg=0.,
                  actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False,
-                 logging_level=logger.INFO):
+                 logging_level=logger.INFO, _init_setup_model=True):
         """
         Deep Deterministic Policy Gradien (DDPG) model
 
@@ -162,6 +163,7 @@ class DDPG(BaseRLModel):
         :param render: (bool) enable rendering of the environment
         :param render_eval: (bool) enable rendering of the evalution environment
         :param logging_level: (int) the logging level (can be DEBUG=10, INFO=20, WARN=30, ERROR=40, DISABLED=50)
+        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(DDPG, self).__init__()
         self.observation_shape = observation_shape = env.observation_space.shape
@@ -216,6 +218,9 @@ class DDPG(BaseRLModel):
         self.param_noise_adaption_interval = param_noise_adaption_interval
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
+        self.actor = actor
+        self.critic = critic
+        self.gamma = gamma
 
         # init
         self.stats_ops = None
@@ -231,10 +236,14 @@ class DDPG(BaseRLModel):
         self.old_mean = None
         self.renormalize_q_outputs_op = None
 
+        if _init_setup_model:
+            self._setup_model()
+
+    def _setup_model(self):
         # Observation normalization.
         if self.normalize_observations:
             with tf.variable_scope('obs_rms'):
-                self.obs_rms = RunningMeanStd(shape=observation_shape)
+                self.obs_rms = RunningMeanStd(shape=self.observation_shape)
         else:
             self.obs_rms = None
         normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms), self.observation_range[0],
@@ -250,24 +259,24 @@ class DDPG(BaseRLModel):
             self.ret_rms = None
 
         # Create target networks.
-        target_actor = copy(actor)
+        target_actor = copy(self.actor)
         target_actor.name = 'target_actor'
         self.target_actor = target_actor
-        target_critic = copy(critic)
+        target_critic = copy(self.critic)
         target_critic.name = 'target_critic'
         self.target_critic = target_critic
 
         # Create networks and core TF parts that are shared across setup parts.
-        self.actor_tf = actor(normalized_obs0)
-        self.normalized_critic_tf = critic(normalized_obs0, self.actions)
+        self.actor_tf = self.actor(normalized_obs0)
+        self.normalized_critic_tf = self.critic(normalized_obs0, self.actions)
         self.critic_tf = denormalize(
             tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
-        self.normalized_critic_with_actor_tf = critic(normalized_obs0, self.actor_tf, reuse=True)
+        self.normalized_critic_with_actor_tf = self.critic(normalized_obs0, self.actor_tf, reuse=True)
         self.critic_with_actor_tf = denormalize(
             tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]),
             self.ret_rms)
         q_obs1 = denormalize(target_critic(normalized_obs1, target_actor(normalized_obs1)), self.ret_rms)
-        self.target_q = self.rewards + (1. - self.terminals1) * gamma * q_obs1
+        self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
 
         # Set up parts.
         if self.param_noise is not None:
@@ -618,14 +627,13 @@ class DDPG(BaseRLModel):
             epoch_adaptive_distances = []
             eval_episode_rewards = []
             eval_qs = []
-            epoch_start_time = time.time()
             epoch_actions = []
             epoch_qs = []
             epoch_episodes = 0
             for epoch in range(self.nb_epochs):
                 for _ in range(self.nb_epoch_cycles):
                     # Perform rollouts.
-                    for t_rollout in range(self.nb_rollout_steps):
+                    for _ in range(self.nb_rollout_steps):
                         if total_steps >= self.total_timesteps:
                             return
 
@@ -791,41 +799,32 @@ class DDPG(BaseRLModel):
             "actor_lr": self.actor_lr,
             "critic_lr": self.critic_lr,
             "clip_norm": self.clip_norm,
-            "reward_scale": self.reward_scale
+            "reward_scale": self.reward_scale,
+            "actor": self.actor,
+            "critic": self.critic
         }
-        # used to reconstruct the actor and critic models
-        net = {
-            "actor_name": self.actor.__class__.__name__,
-            "critic_name": self.critic.__class__.__name__,
-            "n_actions": self.actor.n_actions,
-            "layer_norm": self.actor.layer_norm
-        }
-        with open(save_path, "wb") as f:
-            pickle.dump((data, net), f)
+        with open(save_path, "wb") as file:
+            cloudpickle.dump(data, file)
 
         self.saver.save(self.sess, save_path.split('.')[0] + ".ckpl")
 
-    def load(self, load_path):
+    @classmethod
+    def load(cls, load_path, env):
         # needed, otherwise tensorflow saver wont find the checkpoint files
         save_path = load_path.replace("//", "/")
 
-        with open(save_path, "rb") as f:
-            data, net = pickle.load(f)
+        with open(save_path, "rb") as file:
+            data = cloudpickle.load(file)
 
-        self.memory = Memory(limit=100, action_shape=data["action_shape"], observation_shape=data["observation_shape"])
-        if net["actor_name"] == "DDPGActorMLP":
-            self.actor = ActorMLP(net["n_actions"], layer_norm=net["layer_norm"])
-        elif net["actor_name"] == "DDPGActorCNN":
-            self.actor = ActorCNN(net["n_actions"], layer_norm=net["layer_norm"])
-        else:
-            raise NotImplemented
+        assert data["observation_space"] == env.observation_space, \
+            "Error: the environment passed must have at least the same observation space as the model was trained on."
+        assert data["action_space"] == env.action_space, \
+            "Error: the environment passed must have at least the same action space as the model was trained on."
 
-        if net["critic_name"] == "DDPGCriticMLP":
-            self.critic = CriticMLP(layer_norm=net["layer_norm"])
-        elif net["critic_name"] == "DDPGCriticCNN":
-            self.critic = CriticCNN(layer_norm=net["layer_norm"])
-        else:
-            raise NotImplemented
+        memory = Memory(limit=100, action_shape=data["action_shape"], observation_shape=data["observation_shape"])
+        model = cls(data.pop("actor"), data.pop("critic"), memory, env, _init_setup_model=False)
+        model.__dict__.update(data)
+        model._setup_model()
+        model.saver.restore(model.sess, save_path.split('.')[0] + ".ckpl")
 
-        self.__dict__.update(data)
-        self.saver.restore(self.sess, save_path.split('.')[0] + ".ckpl")
+        return model

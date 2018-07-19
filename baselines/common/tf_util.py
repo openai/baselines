@@ -443,6 +443,11 @@ def load_state(fname, sess=None):
     """
     if sess is None:
         sess = tf.get_default_session()
+
+    # avoir crashing when loading the direct name without explicitly adding the root folder
+    if os.path.dirname(fname) == '':
+        fname = os.path.join('./', fname)
+
     saver = tf.train.Saver()
     saver.restore(sess, fname)
 
@@ -456,6 +461,13 @@ def save_state(fname, sess=None):
     """
     if sess is None:
         sess = tf.get_default_session()
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
+
+    dir_name = os.path.dirname(fname)
+    # avoir crashing when saving the direct name without explicitly adding the root folder
+    if dir_name == '':
+        dir_name = './'
+        fname = os.path.join(dir_name, fname)
+    os.makedirs(dir_name, exist_ok=True)
+
     saver = tf.train.Saver()
     saver.save(sess, fname)

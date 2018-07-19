@@ -2,7 +2,7 @@ import argparse
 
 import gym
 
-from baselines import deepq
+from baselines.deepq import DeepQ
 
 
 def main(args):
@@ -12,7 +12,7 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("MountainCar-v0")
-    act = deepq.load("mountaincar_model.pkl")
+    model = DeepQ.load("mountaincar_model.pkl", env)
 
     while True:
         obs, done = env.reset(), False
@@ -20,7 +20,7 @@ def main(args):
         while not done:
             if not args.no_render:
                 env.render()
-            obs, rew, done, _ = env.step(act(obs[None])[0])
+            obs, rew, done, _ = env.step(model.act(obs[None])[0])
             episode_rew += rew
         print("Episode reward", episode_rew)
         # No render is only used for automatic testing
