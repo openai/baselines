@@ -1,13 +1,12 @@
 [run]
 branch = False
 omit =
-    baselines/common/tests/*
     # Mujoco requires a licence
-    baselines/*/run_mujoco.py
-    baselines/ppo1/run_humanoid.py
-    baselines/ppo1/run_robotics.py
+    stable_baselines/*/run_mujoco.py
+    stable_baselines/ppo1/run_humanoid.py
+    stable_baselines/ppo1/run_robotics.py
     # HER requires mpi and Mujoco
-    baselines/her/experiment/
+    stable_baselines/her/experiment/
 
 [report]
 exclude_lines =
