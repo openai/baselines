@@ -16,7 +16,6 @@ from baselines.common.mpi_adam import MpiAdam
 from baselines.common import tf_util, BaseRLModel, set_global_seeds
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.ddpg.memory import Memory
-from baselines.ddpg.models import ActorMLP, ActorCNN, CriticMLP, CriticCNN
 
 
 def normalize(tensor, stats):
@@ -235,11 +234,25 @@ class DDPG(BaseRLModel):
         self.old_std = None
         self.old_mean = None
         self.renormalize_q_outputs_op = None
+        self.obs_rms = None
+        self.ret_rms = None
+        self.target_actor = None
+        self.target_critic = None
+        self.actor_tf = None
+        self.normalized_critic_tf = None
+        self.critic_tf = None
+        self.normalized_critic_with_actor_tf = None
+        self.critic_with_actor_tf = None
+        self.target_q = None
 
         if _init_setup_model:
-            self._setup_model()
+            self.setup_model()
 
-    def _setup_model(self):
+    def setup_model(self):
+        """
+        Create all the functions and tensorflow graphs necessary to train the model
+        """
+
         # Observation normalization.
         if self.normalize_observations:
             with tf.variable_scope('obs_rms'):
@@ -696,7 +709,7 @@ class DDPG(BaseRLModel):
                     eval_qs = []
                     if self.eval_env is not None:
                         eval_episode_reward = 0.
-                        for t_rollout in range(self.nb_eval_steps):
+                        for _ in range(self.nb_eval_steps):
                             if total_steps >= self.total_timesteps:
                                 return
 
@@ -824,7 +837,7 @@ class DDPG(BaseRLModel):
         memory = Memory(limit=100, action_shape=data["action_shape"], observation_shape=data["observation_shape"])
         model = cls(data.pop("actor"), data.pop("critic"), memory, env, _init_setup_model=False)
         model.__dict__.update(data)
-        model._setup_model()
+        model.setup_model()
         model.saver.restore(model.sess, save_path.split('.')[0] + ".ckpl")
 
         return model

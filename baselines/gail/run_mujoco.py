@@ -11,7 +11,8 @@ from tqdm import tqdm
 import numpy as np
 import gym
 
-from baselines.gail import mlp_policy, behavior_clone, trpo_mpi
+from baselines.gail import mlp_policy, behavior_clone
+from baselines.gail.trpo_mpi import TRPO
 from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
 from baselines import bench, logger
@@ -88,8 +89,8 @@ def main(args):
         set_global_seeds(args.seed)
         env = gym.make(args.env_id)
 
-        def policy_fn(name, ob_space, ac_space, reuse=False, placeholders=None):
-            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, reuse=reuse,
+        def policy_fn(name, ob_space, ac_space, reuse=False, placeholders=None, sess=None):
+            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, reuse=reuse, sess=sess,
                                         hid_size=args.policy_hidden_size, num_hid_layers=2, placeholders=placeholders)
         env = bench.Monitor(env, logger.get_dir() and
                             os.path.join(logger.get_dir(), "monitor.json"))
@@ -154,11 +155,12 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo, g_step, d_step, pol
         workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
         set_global_seeds(workerseed)
         env.seed(workerseed)
-        trpo_mpi.learn(env, policy_fn, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, gamma=0.995, lam=0.97,
-                       entcoeff=policy_entcoeff, cg_damping=0.1, vf_stepsize=1e-3, vf_iters=5,
-                       max_timesteps=num_timesteps, pretrained_weight=pretrained_weight, reward_giver=reward_giver,
-                       expert_dataset=dataset, rank=rank, save_per_iter=save_per_iter, ckpt_dir=checkpoint_dir,
-                       g_step=g_step, d_step=d_step, task_name=task_name)
+        model = TRPO(policy_fn, env, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, gamma=0.995, lam=0.97,
+                     entcoeff=policy_entcoeff, cg_damping=0.1, vf_stepsize=1e-3, vf_iters=5,
+                     max_timesteps=num_timesteps, pretrained_weight=pretrained_weight, reward_giver=reward_giver,
+                     expert_dataset=dataset, rank=rank, save_per_iter=save_per_iter, checkpoint_dir=checkpoint_dir,
+                     g_step=g_step, d_step=d_step, task_name=task_name)
+        model.learn()
     else:
         raise NotImplementedError
 

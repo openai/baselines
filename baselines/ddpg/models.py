@@ -37,7 +37,8 @@ class Model(object):
             preactivation = tc.layers.layer_norm(preactivation, center=True, scale=True)
         return tf.nn.relu(preactivation)
 
-    def nature_cnn(self, input_tensor):
+    @classmethod
+    def nature_cnn(cls, input_tensor):
         """
         CNN from Nature paper.
 

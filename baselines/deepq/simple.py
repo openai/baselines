@@ -119,10 +119,12 @@ class DeepQ(BaseRLModel):
         self.q_func = q_func
 
         if _init_setup_model:
-            self._setup_model()
+            self.setup_model()
 
-    def _setup_model(self):
-        # Create all the functions necessary to train the model
+    def setup_model(self):
+        """
+        Create all the functions and tensorflow graphs necessary to train the model
+        """
 
         # capture the shape outside the closure so that the env object is not serialized
         # by cloudpickle when serializing make_obs_ph
@@ -311,7 +313,7 @@ class DeepQ(BaseRLModel):
 
         model = cls(q_func=data["q_func"], env=env, _init_setup_model=False)
         model.__dict__.update(data)
-        model._setup_model()
+        model.setup_model()
         model.act.load(load_path)
 
         return model
