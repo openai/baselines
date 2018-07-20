@@ -5,18 +5,18 @@ from baselines.common.vec_env import VecEnvWrapper
 
 
 class VecFrameStack(VecEnvWrapper):
-    def __init__(self, venv, nstack):
+    def __init__(self, venv, n_stack):
         """
         Vectorized environment base class
         
         :param venv: ([Gym Environment]) the list of environments to vectorize and normalize
-        :param nstack:
+        :param n_stack:
         """
         self.venv = venv
-        self.nstack = nstack
+        self.n_stack = n_stack
         wos = venv.observation_space  # wrapped ob space
-        low = np.repeat(wos.low, self.nstack, axis=-1)
-        high = np.repeat(wos.high, self.nstack, axis=-1)
+        low = np.repeat(wos.low, self.n_stack, axis=-1)
+        high = np.repeat(wos.high, self.n_stack, axis=-1)
         self.stackedobs = np.zeros((venv.num_envs,) + low.shape, low.dtype)
         observation_space = spaces.Box(low=low, high=high, dtype=venv.observation_space.dtype)
         VecEnvWrapper.__init__(self, venv, observation_space=observation_space)

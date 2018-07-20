@@ -13,15 +13,15 @@ class AcerPolicy(object):
     :param ac_space: (Gym Space) The action space of the environment
     :param n_env: (int) The number of environments
     :param n_steps: (int) The number of steps to run
-    :param nstack: (int) The number of frames stacked
+    :param n_stack: (int) The number of frames stacked
     :param reuse: (bool) If the policy is reusable or not
     :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, nstack, reuse=False, n_lstm=256):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_stack, reuse=False, n_lstm=256):
         self.n_batch = n_env * n_steps
         height, width, n_channels = ob_space.shape
-        self.ob_shape = (self.n_batch, height, width, n_channels * nstack)
+        self.ob_shape = (self.n_batch, height, width, n_channels * n_stack)
         self.n_act = ac_space.n
         self.obs_ph = tf.placeholder(tf.uint8, self.ob_shape)  # obs
         self.masks_ph = tf.placeholder(tf.float32, [self.n_batch])  # mask (done t-1)
@@ -70,8 +70,8 @@ class AcerPolicy(object):
 
 
 class AcerCnnPolicy(AcerPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, nstack, reuse=False):
-        super(AcerCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, nstack, reuse)
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_stack, reuse=False):
+        super(AcerCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_stack, reuse)
         with tf.variable_scope("model", reuse=reuse):
             extracted_features = nature_cnn(self.obs_ph)
             pi_logits = linear(extracted_features, 'pi', self.n_act, init_scale=0.01)
@@ -97,8 +97,8 @@ class AcerCnnPolicy(AcerPolicy):
 
 
 class AcerLstmPolicy(AcerPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, nstack, reuse=False, n_lstm=256):
-        super(AcerLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, nstack, reuse, n_lstm)
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_stack, reuse=False, n_lstm=256):
+        super(AcerLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_stack, reuse, n_lstm)
         with tf.variable_scope("model", reuse=reuse):
             extracted_features = nature_cnn(self.obs_ph)
 

@@ -2,19 +2,19 @@ import numpy as np
 
 
 class Buffer(object):
-    def __init__(self, env, n_steps, nstack, size=50000):
+    def __init__(self, env, n_steps, n_stack, size=50000):
         """
         A buffer for observations, actions, rewards, mu's, states, masks and dones values
         
         :param env: (Gym environment) The environment to learn from
         :param n_steps: (int) The number of steps to run for each environment
-        :param nstack: (int) The number of stacked frames
+        :param n_stack: (int) The number of stacked frames
         :param size: (int) The buffer size in number of steps
         """
         self.n_env = env.num_envs
         self.n_steps = n_steps
         self.height, self.width, self.n_channels = env.observation_space.shape
-        self.nstack = nstack
+        self.n_stack = n_stack
         self.n_batch = self.n_env * self.n_steps
         # Each loc contains n_env * n_steps frames, thus total buffer is n_env * size frames
         self.size = size // self.n_steps
@@ -58,14 +58,14 @@ class Buffer(object):
         :param dones: ([bool])
         :return: ([float]) the decoded observation
         """
-        # enc_obs has shape [n_envs, n_steps + nstack, nh, nw, nc]
+        # enc_obs has shape [n_envs, n_steps + n_stack, nh, nw, nc]
         # dones has shape [n_envs, n_steps, nh, nw, nc]
-        # returns stacked obs of shape [n_env, (n_steps + 1), nh, nw, nstack*nc]
-        n_stack, n_env, n_steps = self.nstack, self.n_env, self.n_steps
+        # returns stacked obs of shape [n_env, (n_steps + 1), nh, nw, n_stack*nc]
+        n_stack, n_env, n_steps = self.n_stack, self.n_env, self.n_steps
         height, width, n_channels = self.height, self.width, self.n_channels
         y_var = np.empty([n_steps + n_stack - 1, n_env, 1, 1, 1], dtype=np.float32)
         obs = np.zeros([n_stack, n_steps + n_stack, n_env, height, width, n_channels], dtype=np.uint8)
-        # [n_steps + nstack, n_env, nh, nw, nc]
+        # [n_steps + n_stack, n_env, nh, nw, nc]
         x_var = np.reshape(enc_obs, [n_env, n_steps + n_stack, height, width, n_channels]).swapaxes(1, 0)
         y_var[3:] = np.reshape(1.0 - dones, [n_env, n_steps, 1, 1, 1]).swapaxes(1, 0)  # keep
         y_var[:3] = 1.0
@@ -89,7 +89,7 @@ class Buffer(object):
         :param dones: ([bool])
         :param masks: ([bool])
         """
-        # enc_obs [n_env, (n_steps + nstack), nh, nw, nc]
+        # enc_obs [n_env, (n_steps + n_stack), nh, nw, nc]
         # actions, rewards, dones [n_env, n_steps]
         # mus [n_env, n_steps, n_act]
 
@@ -134,7 +134,7 @@ class Buffer(object):
                  observations, actions, rewards, mus, dones, maskes
         """
         # returns
-        # obs [n_env, (n_steps + 1), nh, nw, nstack*nc]
+        # obs [n_env, (n_steps + 1), nh, nw, n_stack*nc]
         # actions, rewards, dones [n_env, n_steps]
         # mus [n_env, n_steps, n_act]
         n_env = self.n_env
