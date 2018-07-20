@@ -343,7 +343,7 @@ class MultiCategoricalProbabilityDistribution(ProbabilityDistribution):
         return tf.cast(tf.stack([p.mode() for p in self.categoricals], axis=-1), tf.int32)
 
     def neglogp(self, x):
-        return tf.add_n([p.neglogp(px) for p, px in zip(self.categoricals, tf.unstack(x, axis=-1))])
+        return tf.add_n([p.neglogp(px) for p, px in zip(self.categoricals, tf.un_stack(x, axis=-1))])
 
     def kl(self, other):
         return tf.add_n([p.kl(q) for p, q in zip(self.categoricals, other.categoricals)])

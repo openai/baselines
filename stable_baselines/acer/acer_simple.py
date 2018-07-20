@@ -60,7 +60,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
 
 
 class Model(object):
-    def __init__(self, policy, ob_space, ac_space, n_envs, n_steps, nstack, num_procs, ent_coef, q_coef, gamma,
+    def __init__(self, policy, ob_space, ac_space, n_envs, n_steps, n_stack, num_procs, ent_coef, q_coef, gamma,
                  max_grad_norm, learning_rate, rprop_alpha, rprop_epsilon,
                  total_timesteps, lr_schedule, correction_term, trust_region, alpha, delta):
         """
@@ -71,7 +71,7 @@ class Model(object):
         :param ac_space: (Gym Space) The action space
         :param n_envs: (int) The number of environments
         :param n_steps: (int) The number of steps to run for each environment
-        :param nstack: (int) The number of stacked frames
+        :param n_stack: (int) The number of stacked frames
         :param num_procs: (int) The number of threads for TensorFlow operations
         :param ent_coef: (float) The weight for the entropic loss
         :param q_coef: (float) The weight for the loss on the Q value
@@ -101,8 +101,8 @@ class Model(object):
         learning_rate_ph = tf.placeholder(tf.float32, [])
         eps = 1e-6
 
-        step_model = policy(sess, ob_space, ac_space, n_envs, 1, nstack, reuse=False)
-        train_model = policy(sess, ob_space, ac_space, n_envs, n_steps + 1, nstack, reuse=True)
+        step_model = policy(sess, ob_space, ac_space, n_envs, 1, n_stack, reuse=False)
+        train_model = policy(sess, ob_space, ac_space, n_envs, n_steps + 1, n_stack, reuse=True)
 
         params = find_trainable_variables("model")
         print("Params {}".format(len(params)))
@@ -119,7 +119,7 @@ class Model(object):
             return val
 
         with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
-            polyak_model = policy(sess, ob_space, ac_space, n_envs, n_steps + 1, nstack, reuse=True)
+            polyak_model = policy(sess, ob_space, ac_space, n_envs, n_steps + 1, n_stack, reuse=True)
 
         # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
         value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [n_envs * (n_steps + 1)]
@@ -259,24 +259,24 @@ class Model(object):
 
 
 class Runner(AbstractEnvRunner):
-    def __init__(self, env, model, n_steps, nstack):
+    def __init__(self, env, model, n_steps, n_stack):
         """
         A runner to learn the policy of an environment for a model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param n_steps: (int) The number of steps to run for each environment
-        :param nstack: (int) The number of stacked frames
+        :param n_stack: (int) The number of stacked frames
         """
         super().__init__(env=env, model=model, n_steps=n_steps)
-        self.nstack = nstack
+        self.n_stack = n_stack
         obs_height, obs_width, obs_num_channels = env.observation_space.shape
         self.num_channels = obs_num_channels  # obs_num_channels = 1 for atari, but just in case
         self.n_env = n_env = env.num_envs
         self.n_act = env.action_space.n
         self.n_batch = n_env * n_steps
-        self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * nstack)
-        self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * nstack), dtype=np.uint8)
+        self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * n_stack)
+        self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * n_stack), dtype=np.uint8)
         obs = env.reset()
         self.update_obs(obs)
 
@@ -299,7 +299,7 @@ class Runner(AbstractEnvRunner):
         :return: ([float], [float], [float], [float], [float], [bool], [float])
                  encoded observation, observations, actions, rewards, mus, dones, masks
         """
-        enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
+        enc_obs = np.split(self.obs, self.n_stack, axis=3)  # so now list of obs steps
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.n_steps):
             actions, mus, states = self.model.step(self.obs, state=self.states, mask=self.dones)
@@ -392,7 +392,7 @@ class Acer(object):
             logger.dump_tabular()
 
 
-def learn(policy, env, seed, n_steps=20, nstack=4, total_timesteps=int(80e6),
+def learn(policy, env, seed, n_steps=20, n_stack=4, total_timesteps=int(80e6),
           q_coef=0.5, ent_coef=0.01,
           max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear',
           rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
@@ -406,7 +406,7 @@ def learn(policy, env, seed, n_steps=20, nstack=4, total_timesteps=int(80e6),
     :param env: (Gym environment) The environment to learn from
     :param seed: (int) The initial seed for training
     :param n_steps: (int) The number of steps to run for each environment
-    :param nstack: (int) The number of stacked frames
+    :param n_stack: (int) The number of stacked frames
     :param total_timesteps: (int) The total number of samples
     :param q_coef: (float) Q function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
@@ -435,16 +435,16 @@ def learn(policy, env, seed, n_steps=20, nstack=4, total_timesteps=int(80e6),
     ob_space = env.observation_space
     ac_space = env.action_space
     num_procs = len(env.remotes)  # HACK
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=n_envs, n_steps=n_steps, nstack=nstack,
+    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=n_envs, n_steps=n_steps, n_stack=n_stack,
                   num_procs=num_procs, ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                   max_grad_norm=max_grad_norm, learning_rate=learning_rate, rprop_alpha=rprop_alpha,
                   rprop_epsilon=rprop_epsilon,
                   total_timesteps=total_timesteps, lr_schedule=lr_schedule, correction_term=correction_term,
                   trust_region=trust_region, alpha=alpha, delta=delta)
 
-    runner = Runner(env=env, model=model, n_steps=n_steps, nstack=nstack)
+    runner = Runner(env=env, model=model, n_steps=n_steps, n_stack=n_stack)
     if replay_ratio > 0:
-        buffer = Buffer(env=env, n_steps=n_steps, nstack=nstack, size=buffer_size)
+        buffer = Buffer(env=env, n_steps=n_steps, n_stack=n_stack, size=buffer_size)
     else:
         buffer = None
     n_batch = n_envs * n_steps
