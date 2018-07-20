@@ -73,22 +73,22 @@ class MujocoDset(object):
         obs = traj_data['obs'][:traj_limitation]
         acs = traj_data['acs'][:traj_limitation]
 
-        def flatten(x):
+        def flatten(arr):
             """
             flatten numpy array over episodes
 
-            :param x: (numpy Number) the input array
-            :return: (numpy Number) the flattend array
+            :param arr: (numpy Number) the input array
+            :return: (numpy Number) the flattened array
             """
             # x.shape = (E,), or (E, L, D)
-            _, size = x[0].shape
-            episode_length = [len(i) for i in x]
-            y = np.zeros((sum(episode_length), size))
+            _, size = arr[0].shape
+            episode_length = [len(i) for i in arr]
+            flattened_arr = np.zeros((sum(episode_length), size))
             start_idx = 0
-            for l, x_i in zip(episode_length, x):
-                y[start_idx:(start_idx+l)] = x_i
-                start_idx += l
-                return y
+            for length, x_i in zip(episode_length, arr):
+                flattened_arr[start_idx:(start_idx+length)] = x_i
+                start_idx += length
+            return flattened_arr
         self.obs = np.array(flatten(obs))
         self.acs = np.array(flatten(acs))
         self.rets = traj_data['ep_rets'][:traj_limitation]

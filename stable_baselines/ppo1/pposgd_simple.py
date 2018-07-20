@@ -106,7 +106,7 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
     episodes_so_far = 0
     timesteps_so_far = 0
     iters_so_far = 0
-    tstart = time.time()
+    t_start = time.time()
 
     # rolling buffer for episode lengths
     lenbuffer = deque(maxlen=100)
@@ -125,7 +125,7 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
             break
         elif max_iters and iters_so_far >= max_iters:
             break
-        elif max_seconds and time.time() - tstart >= max_seconds:
+        elif max_seconds and time.time() - t_start >= max_seconds:
             break
 
         if schedule == 'constant':
@@ -177,10 +177,10 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
         for batch in dataset.iterate_once(optim_batchsize):
             newlosses = compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult, sess=sess)
             losses.append(newlosses)
-        meanlosses, _, _ = mpi_moments(losses, axis=0)
-        logger.log(fmt_row(13, meanlosses))
-        for (lossval, name) in zipsame(meanlosses, loss_names):
-            logger.record_tabular("loss_" + name, lossval)
+        mean_losses, _, _ = mpi_moments(losses, axis=0)
+        logger.log(fmt_row(13, mean_losses))
+        for (loss_val, name) in zipsame(mean_losses, loss_names):
+            logger.record_tabular("loss_" + name, loss_val)
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
 
         # local values
@@ -199,7 +199,7 @@ def learn(env, policy_fn, *, timesteps_per_actorbatch, clip_param, entcoeff, opt
         iters_so_far += 1
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-        logger.record_tabular("TimeElapsed", time.time() - tstart)
+        logger.record_tabular("TimeElapsed", time.time() - t_start)
         if MPI.COMM_WORLD.Get_rank() == 0:
             logger.dump_tabular()
 

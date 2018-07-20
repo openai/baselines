@@ -257,10 +257,10 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         else:
             yield
 
-    def allmean(x):
-        assert isinstance(x, np.ndarray)
-        out = np.empty_like(x)
-        MPI.COMM_WORLD.Allreduce(x, out, op=MPI.SUM)
+    def allmean(arr):
+        assert isinstance(arr, np.ndarray)
+        out = np.empty_like(arr)
+        MPI.COMM_WORLD.Allreduce(arr, out, op=MPI.SUM)
         out /= nworkers
         return out
 
@@ -291,7 +291,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     episodes_so_far = 0
     timesteps_so_far = 0
     iters_so_far = 0
-    tstart = time.time()
+    t_start = time.time()
     lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
 
@@ -333,11 +333,11 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         # TODO: Add session everywhere for GAIL
         # so we can remove duplicated code
         if using_gail:
-            def fisher_vector_product(p):
-                return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
+            def fisher_vector_product(vec):
+                return allmean(compute_fvp(vec, *fvpargs)) + cg_damping * vec
         else:
-            def fisher_vector_product(p):
-                return allmean(compute_fvp(p, *fvpargs, sess=sess)) + cg_damping * p
+            def fisher_vector_product(vec):
+                return allmean(compute_fvp(vec, *fvpargs, sess=sess)) + cg_damping * vec
         # ------------------ Update G ------------------
         logger.log("Optimizing Policy...")
         # g_step = 1 when not using GAIL
@@ -389,12 +389,12 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                     thnew = thbefore + fullstep * stepsize
                     set_from_flat(thnew)
                     if using_gail:
-                        meanlosses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args)))
+                        mean_losses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args)))
                     else:
-                        meanlosses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
+                        mean_losses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
                     improve = surr - surrbefore
                     logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
-                    if not np.isfinite(meanlosses).all():
+                    if not np.isfinite(mean_losses).all():
                         logger.log("Got non-finite value of losses -- bad!")
                     elif kl_loss > max_kl * 1.5:
                         logger.log("violated KL constraint. shrinking step.")
@@ -423,9 +423,8 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                             grad = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
                         vfadam.update(grad, vf_stepsize)
 
-        g_losses = meanlosses
-        for (lossname, lossval) in zip(loss_names, meanlosses):
-            logger.record_tabular(lossname, lossval)
+        for (loss_name, loss_val) in zip(loss_names, mean_losses):
+            logger.record_tabular(loss_name, loss_val)
 
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
 
@@ -470,7 +469,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
 
         logger.record_tabular("EpisodesSoFar", episodes_so_far)
         logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-        logger.record_tabular("TimeElapsed", time.time() - tstart)
+        logger.record_tabular("TimeElapsed", time.time() - t_start)
 
         if rank == 0:
             logger.dump_tabular()

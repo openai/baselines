@@ -8,7 +8,7 @@ from stable_baselines.common.tile_images import tile_images
 
 def _worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
-    env = env_fn_wrapper.x()
+    env = env_fn_wrapper.var()
     while True:
         try:
             cmd, data = remote.recv()
@@ -37,13 +37,13 @@ class SubprocVecEnv(VecEnv):
     def __init__(self, env_fns):
         """
         Creates a multiprocess vectorized wrapper for multiple environments
-        
+
         :param env_fns: ([Gym Environment]) Environments to run in subprocesses
         """
         self.waiting = False
         self.closed = False
-        nenvs = len(env_fns)
-        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
+        n_envs = len(env_fns)
+        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(n_envs)])
         self.processes = [Process(target=_worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                           for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for process in self.processes:

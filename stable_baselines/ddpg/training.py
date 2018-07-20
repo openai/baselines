@@ -92,7 +92,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         for epoch in range(nb_epochs):
             for _ in range(nb_epoch_cycles):
                 # Perform rollouts.
-                for t_rollout in range(nb_rollout_steps):
+                for _ in range(nb_rollout_steps):
                     # Predict next action.
                     action, q_value = agent.policy(obs, apply_noise=True, compute_q=True)
                     assert action.shape == env.action_space.shape
@@ -148,7 +148,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 eval_qs = []
                 if eval_env is not None:
                     eval_episode_reward = 0.
-                    for t_rollout in range(nb_eval_steps):
+                    for _ in range(nb_eval_steps):
                         eval_action, eval_q = agent.policy(eval_obs, apply_noise=False, compute_q=True)
                         # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                         eval_obs, eval_r, eval_done, _ = eval_env.step(max_action * eval_action)

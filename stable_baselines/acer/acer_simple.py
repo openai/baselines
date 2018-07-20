@@ -13,21 +13,21 @@ from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, ma
     calc_entropy_softmax, EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 
 
-def strip(var, nenvs, nsteps, flat=False):
+def strip(var, n_envs, n_steps, flat=False):
     """
     Removes the last step in the batch
 
     :param var: (TensorFlow Tensor) The input Tensor
-    :param nenvs: (int) The number of environments
-    :param nsteps: (int) The number of steps to run for each environment
+    :param n_envs: (int) The number of environments
+    :param n_steps: (int) The number of steps to run for each environment
     :param flat: (bool) If the input Tensor is flat
     :return: (TensorFlow Tensor) the input tensor, without the last step in the batch
     """
-    out_vars = batch_to_seq(var, nenvs, nsteps + 1, flat)
+    out_vars = batch_to_seq(var, n_envs, n_steps + 1, flat)
     return seq_to_batch(out_vars[:-1], flat)
 
 
-def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
+def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
     """
     Calculates the target Q-retrace
 
@@ -36,21 +36,21 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
     :param q_i: ([TensorFlow Tensor]) The Q values for actions taken
     :param values: ([TensorFlow Tensor]) The output of the value functions
     :param rho_i: ([TensorFlow Tensor]) The importance weight for each action
-    :param nenvs: (int) The number of environments
-    :param nsteps: (int) The number of steps to run for each environment
+    :param n_envs: (int) The number of environments
+    :param n_steps: (int) The number of steps to run for each environment
     :param gamma: (float) The discount value
     :return: ([TensorFlow Tensor]) the target Q-retrace
     """
-    rho_bar = batch_to_seq(tf.minimum(1.0, rho_i), nenvs, nsteps, True)  # list of len steps, shape [nenvs]
-    reward_seq = batch_to_seq(rewards, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
-    done_seq = batch_to_seq(dones, nenvs, nsteps, True)  # list of len steps, shape [nenvs]
-    q_is = batch_to_seq(q_i, nenvs, nsteps, True)
-    value_sequence = batch_to_seq(values, nenvs, nsteps + 1, True)
+    rho_bar = batch_to_seq(tf.minimum(1.0, rho_i), n_envs, n_steps, True)  # list of len steps, shape [n_envs]
+    reward_seq = batch_to_seq(rewards, n_envs, n_steps, True)  # list of len steps, shape [n_envs]
+    done_seq = batch_to_seq(dones, n_envs, n_steps, True)  # list of len steps, shape [n_envs]
+    q_is = batch_to_seq(q_i, n_envs, n_steps, True)
+    value_sequence = batch_to_seq(values, n_envs, n_steps + 1, True)
     final_value = value_sequence[-1]
     qret = final_value
     qrets = []
-    for i in range(nsteps - 1, -1, -1):
-        check_shape([qret, done_seq[i], reward_seq[i], rho_bar[i], q_is[i], value_sequence[i]], [[nenvs]] * 6)
+    for i in range(n_steps - 1, -1, -1):
+        check_shape([qret, done_seq[i], reward_seq[i], rho_bar[i], q_is[i], value_sequence[i]], [[n_envs]] * 6)
         qret = reward_seq[i] + gamma * qret * (1.0 - done_seq[i])
         qrets.append(qret)
         qret = (rho_bar[i] * (qret - q_is[i])) + value_sequence[i]
@@ -62,7 +62,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
 class Model(object):
     def __init__(self, policy, ob_space, ac_space, n_envs, n_steps, nstack, num_procs, ent_coef, q_coef, gamma,
                  max_grad_norm, learning_rate, rprop_alpha, rprop_epsilon,
-                 total_timesteps, lrschedule, correction_term, trust_region, alpha, delta):
+                 total_timesteps, lr_schedule, correction_term, trust_region, alpha, delta):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
@@ -81,7 +81,7 @@ class Model(object):
         :param rprop_alpha: (float) RMS prop optimizer decay rate
         :param rprop_epsilon: (float) RMS prop optimizer epsilon
         :param total_timesteps: (int) The total number of timesteps for training the model
-        :param lrschedule: (str) The scheduler for a dynamic learning rate
+        :param lr_schedule: (str) The scheduler for a dynamic learning rate
         :param correction_term: (float) The correction term for the weights
         :param trust_region: (bool) Enable Trust region policy optimization loss
         :param alpha: (float) The decay rate for the Exponential moving average of the parameters
@@ -91,13 +91,13 @@ class Model(object):
                                 intra_op_parallelism_threads=num_procs,
                                 inter_op_parallelism_threads=num_procs)
         sess = tf.Session(config=config)
-        nact = ac_space.n
-        nbatch = n_envs * n_steps
+        n_act = ac_space.n
+        n_batch = n_envs * n_steps
 
-        action_ph = tf.placeholder(tf.int32, [nbatch])  # actions
-        done_ph = tf.placeholder(tf.float32, [nbatch])  # dones
-        reward_ph = tf.placeholder(tf.float32, [nbatch])  # rewards, not returns
-        mu_ph = tf.placeholder(tf.float32, [nbatch, nact])  # mu's
+        action_ph = tf.placeholder(tf.int32, [n_batch])  # actions
+        done_ph = tf.placeholder(tf.float32, [n_batch])  # dones
+        reward_ph = tf.placeholder(tf.float32, [n_batch])  # rewards, not returns
+        mu_ph = tf.placeholder(tf.float32, [n_batch, n_act])  # mu's
         learning_rate_ph = tf.placeholder(tf.float32, [])
         eps = 1e-6
 
@@ -122,7 +122,7 @@ class Model(object):
             polyak_model = policy(sess, ob_space, ac_space, n_envs, n_steps + 1, nstack, reuse=True)
 
         # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
-        value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [nenvs * (nsteps + 1)]
+        value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [n_envs * (n_steps + 1)]
 
         # strip off last step
         # f is a distribution, chosen to be Gaussian distributions
@@ -148,18 +148,18 @@ class Model(object):
         # Policy Gradient loss, with truncated importance sampling & bias correction
         value = strip(value, n_envs, n_steps, True)
         check_shape([qret, value, rho_i, f_i], [[n_envs * n_steps]] * 4)
-        check_shape([rho, distribution_f, q_value], [[n_envs * n_steps, nact]] * 2)
+        check_shape([rho, distribution_f, q_value], [[n_envs * n_steps, n_act]] * 2)
 
         # Truncated importance sampling
         adv = qret - value
         log_f = tf.log(f_i + eps)
-        gain_f = log_f * tf.stop_gradient(adv * tf.minimum(correction_term, rho_i))  # [nenvs * nsteps]
+        gain_f = log_f * tf.stop_gradient(adv * tf.minimum(correction_term, rho_i))  # [n_envs * n_steps]
         loss_f = -tf.reduce_mean(gain_f)
 
         # Bias correction for the truncation
-        adv_bc = (q_value - tf.reshape(value, [n_envs * n_steps, 1]))  # [nenvs * nsteps, nact]
+        adv_bc = (q_value - tf.reshape(value, [n_envs * n_steps, 1]))  # [n_envs * n_steps, n_act]
         log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
-        check_shape([adv_bc, log_f_bc], [[n_envs * n_steps, nact]] * 2)
+        check_shape([adv_bc, log_f_bc], [[n_envs * n_steps, n_act]] * 2)
         gain_bc = tf.reduce_sum(log_f_bc *
                                 tf.stop_gradient(
                                     adv_bc * tf.nn.relu(1.0 - (correction_term / (rho + eps))) * distribution_f),
@@ -180,13 +180,13 @@ class Model(object):
         loss = loss_policy + q_coef * loss_q - ent_coef * entropy
 
         if trust_region:
-            # [nenvs * nsteps, nact]
+            # [n_envs * n_steps, n_act]
             grad = tf.gradients(- (loss_policy - ent_coef * entropy) * n_steps * n_envs, distribution_f)
-            # [nenvs * nsteps, nact] # Directly computed gradient of KL divergence wrt f
+            # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
             kl_grad = - f_polyak / (distribution_f + eps)
             k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
             adj = tf.maximum(0.0, (tf.reduce_sum(kl_grad * grad, axis=-1) - delta) / (
-                    tf.reduce_sum(tf.square(kl_grad), axis=-1) + eps))  # [nenvs * nsteps]
+                    tf.reduce_sum(tf.square(kl_grad), axis=-1) + eps))  # [n_envs * n_steps]
 
             # Calculate stats (before doing adjustment) for logging.
             avg_norm_k = avg_norm(kl_grad)
@@ -217,7 +217,7 @@ class Model(object):
         with tf.control_dependencies([_opt_op]):
             _train = tf.group(ema_apply_op)
 
-        learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lrschedule)
+        learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lr_schedule)
 
         # Ops/Summaries to run, and their names for logging
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, explained_variance, norm_grads]
@@ -259,24 +259,24 @@ class Model(object):
 
 
 class Runner(AbstractEnvRunner):
-    def __init__(self, env, model, nsteps, nstack):
+    def __init__(self, env, model, n_steps, nstack):
         """
         A runner to learn the policy of an environment for a model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
-        :param nsteps: (int) The number of steps to run for each environment
+        :param n_steps: (int) The number of steps to run for each environment
         :param nstack: (int) The number of stacked frames
         """
-        super().__init__(env=env, model=model, nsteps=nsteps)
+        super().__init__(env=env, model=model, n_steps=n_steps)
         self.nstack = nstack
         obs_height, obs_width, obs_num_channels = env.observation_space.shape
         self.num_channels = obs_num_channels  # obs_num_channels = 1 for atari, but just in case
-        self.nenv = nenv = env.num_envs
-        self.nact = env.action_space.n
-        self.nbatch = nenv * nsteps
-        self.batch_ob_shape = (nenv * (nsteps + 1), obs_height, obs_width, obs_num_channels * nstack)
-        self.obs = np.zeros((nenv, obs_height, obs_width, obs_num_channels * nstack), dtype=np.uint8)
+        self.n_env = n_env = env.num_envs
+        self.n_act = env.action_space.n
+        self.n_batch = n_env * n_steps
+        self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * nstack)
+        self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * nstack), dtype=np.uint8)
         obs = env.reset()
         self.update_obs(obs)
 
@@ -301,7 +301,7 @@ class Runner(AbstractEnvRunner):
         """
         enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
-        for _ in range(self.nsteps):
+        for _ in range(self.n_steps):
             actions, mus, states = self.model.step(self.obs, state=self.states, mask=self.dones)
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
@@ -328,7 +328,7 @@ class Runner(AbstractEnvRunner):
         mb_masks = mb_dones  # Used for statefull models like LSTM's to mask state when done
         mb_dones = mb_dones[:, 1:]  # Used for calculating returns. The dones array is now aligned with rewards
 
-        # shapes are now [nenv, nsteps, []]
+        # shapes are now [n_env, n_steps, []]
         # When pulling from buffer, arrays will now be reshaped in place, preventing a deep copy.
 
         return enc_obs, mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks
@@ -349,8 +349,8 @@ class Acer(object):
         self.model = model
         self.buffer = buffer
         self.log_interval = log_interval
-        self.tstart = None
-        self.episode_stats = EpisodeStats(runner.nsteps, runner.nenv)
+        self.t_start = None
+        self.episode_stats = EpisodeStats(runner.n_steps, runner.n_env)
         self.steps = None
 
     def call(self, on_policy):
@@ -371,17 +371,17 @@ class Acer(object):
 
         # reshape stuff correctly
         obs = obs.reshape(runner.batch_ob_shape)
-        actions = actions.reshape([runner.nbatch])
-        rewards = rewards.reshape([runner.nbatch])
-        mus = mus.reshape([runner.nbatch, runner.nact])
-        dones = dones.reshape([runner.nbatch])
+        actions = actions.reshape([runner.n_batch])
+        rewards = rewards.reshape([runner.n_batch])
+        mus = mus.reshape([runner.n_batch, runner.n_act])
+        dones = dones.reshape([runner.n_batch])
         masks = masks.reshape([runner.batch_ob_shape[0]])
 
         names_ops, values_ops = model.train(obs, actions, rewards, dones, mus, model.initial_state, masks, steps)
 
-        if on_policy and (int(steps / runner.nbatch) % self.log_interval == 0):
+        if on_policy and (int(steps / runner.n_batch) % self.log_interval == 0):
             logger.record_tabular("total_timesteps", steps)
-            logger.record_tabular("fps", int(steps / (time.time() - self.tstart)))
+            logger.record_tabular("fps", int(steps / (time.time() - self.t_start)))
             # IMP: In EpisodicLife env, during training, we get done=True at each loss of life,
             # not just at the terminal state. Thus, this is mean until end of life, not end of episode.
             # For true episode rewards, see the monitor files in the log folder.
@@ -392,9 +392,9 @@ class Acer(object):
             logger.dump_tabular()
 
 
-def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6),
+def learn(policy, env, seed, n_steps=20, nstack=4, total_timesteps=int(80e6),
           q_coef=0.5, ent_coef=0.01,
-          max_grad_norm=10, learning_rate=7e-4, lrschedule='linear',
+          max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear',
           rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4,
           replay_start=10000, correction_term=10.0,
@@ -405,14 +405,14 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6),
     :param policy: (ACERPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment) The environment to learn from
     :param seed: (int) The initial seed for training
-    :param nsteps: (int) The number of steps to run for each environment
+    :param n_steps: (int) The number of steps to run for each environment
     :param nstack: (int) The number of stacked frames
     :param total_timesteps: (int) The total number of samples
     :param q_coef: (float) Q function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
     :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param learning_rate: (float) The learning rate
-    :param lrschedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+    :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
     :param rprop_epsilon: (float) RMS prop optimizer epsilon
     :param rprop_alpha: (float) RMS prop optimizer decay
@@ -431,27 +431,27 @@ def learn(policy, env, seed, nsteps=20, nstack=4, total_timesteps=int(80e6),
     print(locals())
     set_global_seeds(seed)
 
-    nenvs = env.num_envs
+    n_envs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
     num_procs = len(env.remotes)  # HACK
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=nenvs, n_steps=nsteps, nstack=nstack,
+    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, n_envs=n_envs, n_steps=n_steps, nstack=nstack,
                   num_procs=num_procs, ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                   max_grad_norm=max_grad_norm, learning_rate=learning_rate, rprop_alpha=rprop_alpha,
                   rprop_epsilon=rprop_epsilon,
-                  total_timesteps=total_timesteps, lrschedule=lrschedule, correction_term=correction_term,
+                  total_timesteps=total_timesteps, lr_schedule=lr_schedule, correction_term=correction_term,
                   trust_region=trust_region, alpha=alpha, delta=delta)
 
-    runner = Runner(env=env, model=model, nsteps=nsteps, nstack=nstack)
+    runner = Runner(env=env, model=model, n_steps=n_steps, nstack=nstack)
     if replay_ratio > 0:
-        buffer = Buffer(env=env, nsteps=nsteps, nstack=nstack, size=buffer_size)
+        buffer = Buffer(env=env, n_steps=n_steps, nstack=nstack, size=buffer_size)
     else:
         buffer = None
-    nbatch = nenvs * nsteps
+    n_batch = n_envs * n_steps
     acer = Acer(runner, model, buffer, log_interval)
-    acer.tstart = time.time()
+    acer.t_start = time.time()
     for acer.steps in range(0, total_timesteps,
-                            nbatch):  # nbatch samples, 1 on_policy call and multiple off-policy calls
+                            n_batch):  # n_batch samples, 1 on_policy call and multiple off-policy calls
         acer.call(on_policy=True)
         if replay_ratio > 0 and buffer.has_atleast(replay_start):
             samples_number = np.random.poisson(replay_ratio)

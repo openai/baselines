@@ -1,6 +1,8 @@
-from .running_stat import RunningStat
 from collections import deque
+
 import numpy as np
+
+from .running_stat import RunningStat
 
 
 class Filter(object):
@@ -9,7 +11,7 @@ class Filter(object):
 
     Can pass kwarg: 'update' (bool) if the filter can update from the value
     """
-    def __call__(self, x, update=True):
+    def __call__(self, arr, update=True):
         raise NotImplementedError
 
     def reset(self):
@@ -36,15 +38,15 @@ class IdentityFilter(Filter):
 
     Can pass kwarg: 'update' (bool) if the filter can update from the value
     """
-    def __call__(self, x, update=True):
-        return x
+    def __call__(self, arr, update=True):
+        return arr
 
     def output_shape(self, input_space):
         return input_space.shape
 
 
 class CompositionFilter(Filter):
-    def __init__(self, fs):
+    def __init__(self, functions):
         """
         A filter that implements a composition with other functions
 
@@ -52,19 +54,19 @@ class CompositionFilter(Filter):
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
 
-        :param fs: ([function]) composition of these functions and the input
+        :param functions: ([function]) composition of these functions and the input
         """
-        self.fs = fs
+        self.functions = functions
 
-    def __call__(self, x, update=True):
-        for f in self.fs:
-            x = f(x)
-        return x
+    def __call__(self, arr, update=True):
+        for func in self.functions:
+            arr = func(arr)
+        return arr
 
     def output_shape(self, input_space):
         out = input_space.shape
-        for f in self.fs:
-            out = f.output_shape(out)
+        for func in self.functions:
+            out = func.output_shape(out)
         return out
 
 
@@ -88,18 +90,18 @@ class ZFilter(Filter):
         self.destd = destd
         self.clip = clip
 
-        self.rs = RunningStat(shape)
+        self.running_stat = RunningStat(shape)
 
-    def __call__(self, x, update=True):
+    def __call__(self, arr, update=True):
         if update:
-            self.rs.push(x)
+            self.running_stat.push(arr)
         if self.demean:
-            x = x - self.rs.mean
+            arr = arr - self.running_stat.mean
         if self.destd:
-            x = x / (self.rs.std + 1e-8)
+            arr = arr / (self.running_stat.std + 1e-8)
         if self.clip:
-            x = np.clip(x, -self.clip, self.clip)
-        return x
+            arr = np.clip(arr, -self.clip, self.clip)
+        return arr
 
     def output_shape(self, input_space):
         return input_space.shape
@@ -119,8 +121,8 @@ class AddClock(Filter):
     def reset(self):
         self.count = 0
 
-    def __call__(self, x, update=True):
-        return np.append(x, self.count / 100.0)
+    def __call__(self, arr, update=True):
+        return np.append(arr, self.count / 100.0)
 
     def output_shape(self, input_space):
         return input_space.shape[0] + 1,
@@ -134,15 +136,15 @@ class FlattenFilter(Filter):
 
     Can pass kwarg: 'update' (bool) if the filter can update from the value
     """
-    def __call__(self, x, update=True):
-        return x.ravel()
+    def __call__(self, arr, update=True):
+        return arr.ravel()
 
     def output_shape(self, input_space):
         return int(np.prod(input_space.shape)),
 
 
 class Ind2OneHotFilter(Filter):
-    def __init__(self, n):
+    def __init__(self, n_cat):
         """
         A filter that turns indices to onehot encoding
 
@@ -150,13 +152,13 @@ class Ind2OneHotFilter(Filter):
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
 
-        :param n: (int) the number of categories
+        :param n_cat: (int) the number of categories
         """
-        self.n = n
+        self.n_cat = n_cat
 
-    def __call__(self, x, update=True):
-        out = np.zeros(self.n)
-        out[x] = 1
+    def __call__(self, arr, update=True):
+        out = np.zeros(self.n_cat)
+        out[arr] = 1
         return out
 
     def output_shape(self, input_space):
@@ -176,8 +178,8 @@ class DivFilter(Filter):
         """
         self.divisor = divisor
 
-    def __call__(self, x, update=True):
-        return x / self.divisor
+    def __call__(self, arr, update=True):
+        return arr / self.divisor
 
     def output_shape(self, input_space):
         return input_space.shape
@@ -199,10 +201,10 @@ class StackFilter(Filter):
     def reset(self):
         self.stack.clear()
 
-    def __call__(self, x, update=True):
-        self.stack.append(x)
+    def __call__(self, arr, update=True):
+        self.stack.append(arr)
         while len(self.stack) < self.stack.maxlen:
-            self.stack.append(x)
+            self.stack.append(arr)
         return np.concatenate(self.stack, axis=-1)
 
     def output_shape(self, input_space):

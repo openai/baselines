@@ -27,7 +27,7 @@ class Monitor(Wrapper):
         :param info_keywords: (tuple) extra information to log, from the information return of environment.step
         """
         Wrapper.__init__(self, env=env)
-        self.tstart = time.time()
+        self.t_start = time.time()
         if filename is None:
             self.file_handler = None
             self.logger = None
@@ -38,7 +38,7 @@ class Monitor(Wrapper):
                 else:
                     filename = filename + "." + Monitor.EXT
             self.file_handler = open(filename, "wt")
-            self.file_handler.write('#%s\n' % json.dumps({"t_start": self.tstart, 'env_id': env.spec and env.spec.id}))
+            self.file_handler.write('#%s\n' % json.dumps({"t_start": self.t_start, 'env_id': env.spec and env.spec.id}))
             self.logger = csv.DictWriter(self.file_handler,
                                          fieldnames=('r', 'l', 't') + reset_keywords + info_keywords)
             self.logger.writeheader()
@@ -87,19 +87,19 @@ class Monitor(Wrapper):
         self.rewards.append(reward)
         if done:
             self.needs_reset = True
-            eprew = sum(self.rewards)
+            ep_rew = sum(self.rewards)
             eplen = len(self.rewards)
-            epinfo = {"r": round(eprew, 6), "l": eplen, "t": round(time.time() - self.tstart, 6)}
+            ep_info = {"r": round(ep_rew, 6), "l": eplen, "t": round(time.time() - self.t_start, 6)}
             for key in self.info_keywords:
-                epinfo[key] = info[key]
-            self.episode_rewards.append(eprew)
+                ep_info[key] = info[key]
+            self.episode_rewards.append(ep_rew)
             self.episode_lengths.append(eplen)
-            self.episode_times.append(time.time() - self.tstart)
-            epinfo.update(self.current_reset_info)
+            self.episode_times.append(time.time() - self.t_start)
+            ep_info.update(self.current_reset_info)
             if self.logger:
-                self.logger.writerow(epinfo)
+                self.logger.writerow(ep_info)
                 self.file_handler.flush()
-            info['episode'] = epinfo
+            info['episode'] = ep_info
         self.total_steps += 1
         return observation, reward, done, info
 
@@ -167,9 +167,8 @@ def load_results(path):
     :param path: (str) the path to the log file
     :return: (Pandas DataFrame) the logged data
     """
-    monitor_files = (
-            glob(os.path.join(path, "*monitor.json")) +
-            glob(os.path.join(path, "*monitor.csv")))  # get both csv and (old) json files
+    # get both csv and (old) json files
+    monitor_files = (glob(os.path.join(path, "*monitor.json")) + glob(os.path.join(path, "*monitor.csv")))
     if not monitor_files:
         raise LoadMonitorResultsError("no monitor files of the form *%s found in %s" % (Monitor.EXT, path))
     data_frames = []

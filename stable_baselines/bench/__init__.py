@@ -1,2 +1,1 @@
-from stable_baselines.bench.benchmarks import *
-from stable_baselines.bench.monitor import *
+from baselines.bench.monitor import Monitor, load_results

@@ -252,7 +252,7 @@ class _Function(object):
         :param givens: (dict) the values known for the output
         """
         for inpt in inputs:
-            if not hasattr(inpt, 'make_feed_dict') and not (type(inpt) is tf.Tensor and len(inpt.op.inputs) == 0):
+            if not hasattr(inpt, 'make_feed_dict') and not (isinstance(inpt, tf.Tensor)and len(inpt.op.inputs) == 0):
                 assert False, "inputs should all be placeholders, constants, or have a make_feed_dict method"
         self.inputs = inputs
         updates = updates or []
@@ -356,14 +356,14 @@ class SetFromFlat(object):
             size = intprod(shape)
             assigns.append(tf.assign(_var, tf.reshape(theta[start:start + size], shape)))
             start += size
-        self.op = tf.group(*assigns)
+        self.operation = tf.group(*assigns)
         self.sess = sess
 
     def __call__(self, theta):
         if self.sess is None:
-            return tf.get_default_session().run(self.op, feed_dict={self.theta: theta})
+            return tf.get_default_session().run(self.operation, feed_dict={self.theta: theta})
         else:
-            return self.sess.run(self.op, feed_dict={self.theta: theta})
+            return self.sess.run(self.operation, feed_dict={self.theta: theta})
 
 
 class GetFlat(object):
@@ -374,14 +374,14 @@ class GetFlat(object):
         :param var_list: ([TensorFlow Tensor]) the variables
         :param sess: (TensorFlow Session)
         """
-        self.op = tf.concat(axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list])
+        self.operation = tf.concat(axis=0, values=[tf.reshape(v, [numel(v)]) for v in var_list])
         self.sess = sess
 
     def __call__(self):
         if self.sess is None:
-            return tf.get_default_session().run(self.op)
+            return tf.get_default_session().run(self.operation)
         else:
-            return self.sess.run(self.op)
+            return self.sess.run(self.operation)
 
 
 def flattenallbut0(tensor):

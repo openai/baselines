@@ -4,6 +4,7 @@ import os
 
 import gym
 import tensorflow as tf
+import numpy as np
 from mpi4py import MPI
 
 from stable_baselines import logger, bench
@@ -11,7 +12,7 @@ from stable_baselines.common.misc_util import set_global_seeds, boolean_flag
 import stable_baselines.ddpg.training as training
 from stable_baselines.ddpg.models import Actor, Critic
 from stable_baselines.ddpg.memory import Memory
-from stable_baselines.ddpg.noise import *
+from stable_baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
 
 
 def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
@@ -126,7 +127,7 @@ def parse_args():
     # we don't directly specify timesteps for this script, so make sure that if we do specify them
     # they agree with the other parameters
     if args.num_timesteps is not None:
-        assert(args.num_timesteps == args.nb_epochs * args.nb_epoch_cycles * args.nb_rollout_steps)
+        assert args.num_timesteps == args.nb_epochs * args.nb_epoch_cycles * args.nb_rollout_steps
     dict_args = vars(args)
     del dict_args['num_timesteps']
     return dict_args
