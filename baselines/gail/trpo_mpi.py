@@ -140,7 +140,7 @@ class TRPO(BaseRLModel):
                  # GAIL Params
                  pretrained_weight=None, reward_giver=None, expert_dataset=None, rank=0, save_per_iter=1,
                  checkpoint_dir="/tmp/gail/ckpt/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4,
-                 using_gail=True):
+                 using_gail=False):
         """
         learns a GAIL policy using the given environment
 

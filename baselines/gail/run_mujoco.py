@@ -159,7 +159,7 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo, g_step, d_step, pol
                      entcoeff=policy_entcoeff, cg_damping=0.1, vf_stepsize=1e-3, vf_iters=5,
                      max_timesteps=num_timesteps, pretrained_weight=pretrained_weight, reward_giver=reward_giver,
                      expert_dataset=dataset, rank=rank, save_per_iter=save_per_iter, checkpoint_dir=checkpoint_dir,
-                     g_step=g_step, d_step=d_step, task_name=task_name)
+                     g_step=g_step, d_step=d_step, task_name=task_name, using_gail=True)
         model.learn()
     else:
         raise NotImplementedError
