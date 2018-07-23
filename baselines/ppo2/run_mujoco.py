@@ -6,7 +6,7 @@ from baselines.common.cmd_util import mujoco_arg_parser
 from baselines import bench, logger
 from baselines.common import set_global_seeds
 from baselines.common.vec_env.vec_normalize import VecNormalize
-from baselines.ppo2 import ppo2
+from baselines.ppo2 import PPO2
 from baselines.a2c.policies import MlpPolicy
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
@@ -29,12 +29,9 @@ def train(env_id, num_timesteps, seed):
 
     set_global_seeds(seed)
     policy = MlpPolicy
-    model = ppo2.learn(policy=policy, env=env, n_steps=2048, nminibatches=32,
-                       lam=0.95, gamma=0.99, noptepochs=10, log_interval=1,
-                       ent_coef=0.0,
-                       learning_rate=3e-4,
-                       cliprange=0.2,
-                       total_timesteps=num_timesteps)
+    model = PPO2(policy=policy, env=env, n_steps=2048, nminibatches=32, lam=0.95, gamma=0.99, noptepochs=10,
+                 ent_coef=0.0, learning_rate=3e-4, cliprange=0.2, total_timesteps=num_timesteps)
+    model.learn()
 
     return model, env
 
