@@ -15,7 +15,7 @@ from baselines.common.runners import AbstractEnvRunner
 
 class PPO2(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, total_timesteps=int(1e7 * 1.1), n_steps=128, ent_coef=0.01,
-                 learning_rate=2.5e-4,  vf_coef=0.5, max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4,
+                 learning_rate=2.5e-4, vf_coef=0.5, max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4,
                  cliprange=0.2, _init_setup_model=True):
         """
         Return a trained PPO2 model.
@@ -46,14 +46,14 @@ class PPO2(BaseRLModel):
         config.gpu_options.allow_growth = True  # pylint: disable=E1101
 
         if isinstance(learning_rate, float):
-            self.learning_rate = constfn(learning_rate)
+            learning_rate = constfn(learning_rate)
         else:
             assert callable(learning_rate)
         if isinstance(cliprange, float):
-            self.cliprange = constfn(cliprange)
+            cliprange = constfn(cliprange)
         else:
             assert callable(cliprange)
-            self.total_timesteps = int(total_timesteps)
+            total_timesteps = int(total_timesteps)
 
         self.n_envs = env.num_envs
         self.n_batch = self.n_envs * n_steps
@@ -65,6 +65,9 @@ class PPO2(BaseRLModel):
         self.policy = policy
         self.ob_space = env.observation_space
         self.ac_space = env.action_space
+        self.learning_rate = learning_rate
+        self.cliprange = cliprange
+        self.total_timesteps = total_timesteps
         self.n_steps = n_steps
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef
@@ -255,15 +258,15 @@ class PPO2(BaseRLModel):
             "ac_space": self.ac_space
         }
 
-        with open(save_path.split('.')[0] + "_class.pkl", "wb") as file:
+        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
             cloudpickle.dump(data, file)
 
         saved_params = self.sess.run(self.params)
         joblib.dump(saved_params, save_path)
 
     @classmethod
-    def load(cls, load_path, env):
-        with open(load_path.split('.')[0] + "_class.pkl", "rb") as file:
+    def load(cls, load_path, env, **kwargs):
+        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
             data = cloudpickle.load(file)
 
         assert data["ob_space"] == env.observation_space, \
@@ -273,6 +276,7 @@ class PPO2(BaseRLModel):
 
         model = cls(policy=data["policy"], env=env, _init_setup_model=False)
         model.__dict__.update(data)
+        model.__dict__.update(kwargs)
         model.setup_model()
 
         loaded_params = joblib.load(load_path)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from baselines.ppo1 import mlp_policy, pposgd_simple
+from baselines.ppo1 import mlp_policy, PPO1
 from baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
 from baselines import logger
 
@@ -18,12 +18,10 @@ def train(env_id, num_timesteps, seed):
                                     sess=sess, placeholders=placeholders)
 
     env = make_mujoco_env(env_id, seed)
-    pposgd_simple.learn(env, policy_fn,
-                        max_timesteps=num_timesteps,
-                        timesteps_per_actorbatch=2048,
-                        clip_param=0.2, entcoeff=0.0,
-                        optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64,
-                        gamma=0.99, lam=0.95, schedule='linear')
+    model = PPO1(policy_fn, env, max_timesteps=num_timesteps, timesteps_per_actorbatch=2048, clip_param=0.2,
+                 entcoeff=0.0, optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64, gamma=0.99, lam=0.95,
+                 schedule='linear')
+    model.learn()
     env.close()
 
 

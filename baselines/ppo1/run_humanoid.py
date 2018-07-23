@@ -3,7 +3,7 @@ import os
 
 import gym
 
-from baselines.ppo1 import mlp_policy, pposgd_simple
+from baselines.ppo1 import mlp_policy, PPO1
 from baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
 from baselines.common import tf_util
 from baselines import logger
@@ -29,21 +29,15 @@ def train(num_timesteps, seed, model_path=None):
     # these are good enough to make humanoid walk, but whether those are
     # an absolute best or not is not certain
     env = RewScale(env, 0.1)
-    policy = pposgd_simple.learn(env, policy_fn,
-                                 max_timesteps=num_timesteps,
-                                 timesteps_per_actorbatch=2048,
-                                 clip_param=0.2, entcoeff=0.0,
-                                 optim_epochs=10,
-                                 optim_stepsize=3e-4,
-                                 optim_batchsize=64,
-                                 gamma=0.99,
-                                 lam=0.95,
-                                 schedule='linear')
+    model = PPO1(policy_fn, env, max_timesteps=num_timesteps, timesteps_per_actorbatch=2048, clip_param=0.2,
+                 entcoeff=0.0, optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64, gamma=0.99, lam=0.95,
+                 schedule='linear')
+    model.learn()
     env.close()
     if model_path:
         tf_util.save_state(model_path)
 
-    return policy
+    return model
 
 
 class RewScale(gym.RewardWrapper):
@@ -71,13 +65,13 @@ def main():
         train(num_timesteps=args.num_timesteps, seed=args.seed, model_path=args.model_path)
     else:
         # construct the model object, load pre-trained model and render
-        policy = train(num_timesteps=1, seed=args.seed)
+        model = train(num_timesteps=1, seed=args.seed)
         tf_util.load_state(args.model_path)
         env = make_mujoco_env('Humanoid-v2', seed=0)
 
         obs = env.reset()
         while True:
-            action = policy.act(stochastic=False, obs=obs)[0]
+            action = model.policy.act(stochastic=False, obs=obs)[0]
             obs, _, done, _ = env.step(action)
             env.render()
             if done:

@@ -7,7 +7,7 @@ from baselines.common import set_global_seeds
 from baselines import bench, logger
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.cmd_util import atari_arg_parser
-from baselines.ppo1 import pposgd_simple, cnn_policy
+from baselines.ppo1 import PPO1, cnn_policy
 
 
 def train(env_id, num_timesteps, seed):
@@ -39,14 +39,10 @@ def train(env_id, num_timesteps, seed):
     env = wrap_deepmind(env)
     env.seed(workerseed)
 
-    pposgd_simple.learn(env, policy_fn,
-                        max_timesteps=int(num_timesteps * 1.1),
-                        timesteps_per_actorbatch=256,
-                        clip_param=0.2, entcoeff=0.01,
-                        optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64,
-                        gamma=0.99, lam=0.95,
-                        schedule='linear'
-                        )
+    model = PPO1(policy_fn, env, max_timesteps=int(num_timesteps * 1.1),  timesteps_per_actorbatch=256, clip_param=0.2,
+                 entcoeff=0.01, optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, gamma=0.99, lam=0.95,
+                 schedule='linear')
+    model.learn()
     env.close()
 
 

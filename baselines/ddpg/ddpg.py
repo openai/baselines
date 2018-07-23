@@ -816,17 +816,17 @@ class DDPG(BaseRLModel):
             "actor": self.actor,
             "critic": self.critic
         }
-        with open(save_path, "wb") as file:
+        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
             cloudpickle.dump(data, file)
 
-        self.saver.save(self.sess, save_path.split('.')[0] + ".ckpl")
+        self.saver.save(self.sess, save_path)
 
     @classmethod
-    def load(cls, load_path, env):
+    def load(cls, load_path, env, **kwargs):
         # needed, otherwise tensorflow saver wont find the checkpoint files
-        save_path = load_path.replace("//", "/")
+        load_path = load_path.replace("//", "/")
 
-        with open(save_path, "rb") as file:
+        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
             data = cloudpickle.load(file)
 
         assert data["observation_space"] == env.observation_space, \
@@ -837,7 +837,8 @@ class DDPG(BaseRLModel):
         memory = Memory(limit=100, action_shape=data["action_shape"], observation_shape=data["observation_shape"])
         model = cls(data.pop("actor"), data.pop("critic"), memory, env, _init_setup_model=False)
         model.__dict__.update(data)
+        model.__dict__.update(kwargs)
         model.setup_model()
-        model.saver.restore(model.sess, save_path.split('.')[0] + ".ckpl")
+        model.saver.restore(model.sess, load_path)
 
         return model

@@ -262,7 +262,7 @@ class PPO1(BaseRLModel):
             "ac_space": self.ac_space
         }
 
-        with open(save_path.split('.')[0] + "_class.pkl", "wb") as file:
+        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
             cloudpickle.dump(data, file)
 
         parameters = self.sess.run(self.params)
@@ -270,8 +270,8 @@ class PPO1(BaseRLModel):
         joblib.dump(parameters, save_path)
 
     @classmethod
-    def load(cls, load_path, env):
-        with open(load_path.split('.')[0] + "_class.pkl", "rb") as file:
+    def load(cls, load_path, env, **kwargs):
+        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
             data = cloudpickle.load(file)
 
         assert data["ob_space"] == env.observation_space, \
@@ -281,6 +281,7 @@ class PPO1(BaseRLModel):
 
         model = cls(policy_fn=data["policy_fn"], env=env, _init_setup_model=False)
         model.__dict__.update(data)
+        model.__dict__.update(kwargs)
         model.setup_model()
 
         loaded_params = joblib.load(load_path)

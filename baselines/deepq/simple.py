@@ -303,14 +303,14 @@ class DeepQ(BaseRLModel):
             "q_func": self.q_func,
         }
 
-        with open(save_path.split('.')[0] + "_class.pkl", "wb") as file:
+        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
             cloudpickle.dump(data, file)
 
         self.act.save(save_path)
 
     @classmethod
-    def load(cls, load_path, env):
-        with open(load_path.split('.')[0] + "_class.pkl", "rb") as file:
+    def load(cls, load_path, env, **kwargs):
+        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
             data = cloudpickle.load(file)
 
         assert data["observation_space"] == env.observation_space, \
@@ -320,6 +320,7 @@ class DeepQ(BaseRLModel):
 
         model = cls(q_func=data["q_func"], env=env, _init_setup_model=False)
         model.__dict__.update(data)
+        model.__dict__.update(kwargs)
         model.setup_model()
         model.act.load(load_path)
 
