@@ -118,6 +118,13 @@ class DeepQ(BaseRLModel):
         self.gamma = gamma
         self.q_func = q_func
 
+        self._train_step = None
+        self.update_target = None
+        self.act = None
+        self.replay_buffer = None
+        self.beta_schedule = None
+        self.exploration = None
+
         if _init_setup_model:
             self.setup_model()
 

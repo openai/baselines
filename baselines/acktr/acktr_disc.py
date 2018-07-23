@@ -4,20 +4,22 @@ Discrete acktr
 
 import time
 import joblib
+import os
 
 import tensorflow as tf
+import cloudpickle
 
 from baselines import logger
 from baselines.common import set_global_seeds, explained_variance, BaseRLModel
 from baselines.a2c.a2c import A2CRunner
-from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
+from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse, make_path
 from baselines.acktr import kfac
 
 
 class ACKTR(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, total_timesteps=int(40e6), nprocs=1, n_steps=20,
                  ent_coef=0.01, vf_coef=0.25, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
-                 kfac_clip=0.001, lr_schedule='linear'):
+                 kfac_clip=0.001, lr_schedule='linear', _init_setup_model=True):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
 
@@ -35,25 +37,71 @@ class ACKTR(BaseRLModel):
         :param kfac_clip: (float) gradient clipping for Kullback leiber
         :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
+
+        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(ACKTR, self).__init__()
         config = tf.ConfigProto(allow_soft_placement=True,
                                 intra_op_parallelism_threads=nprocs,
                                 inter_op_parallelism_threads=nprocs)
         config.gpu_options.allow_growth = True
-        self.sess = sess = tf.Session(config=config)
+        self.sess = tf.Session(config=config)
 
-        n_envs = env.num_envs
-        ob_space = env.observation_space
-        ac_space = env.action_space
-        self.n_batch = n_batch = n_envs * n_steps
-        self.action_ph = action_ph = tf.placeholder(tf.int32, [n_batch])
-        self.advs_ph = advs_ph = tf.placeholder(tf.float32, [n_batch])
-        self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [n_batch])
+        self.n_envs = env.num_envs
+        self.ob_space = env.observation_space
+        self.ac_space = env.action_space
+        self.n_batch = self.n_envs * n_steps
+        self.env = env
+        self.n_steps = n_steps
+        self.gamma = gamma
+        self.total_timesteps = total_timesteps
+        self.policy = policy
+        self.ent_coef = ent_coef
+        self.vf_coef = vf_coef
+        self.vf_fisher_coef = vf_fisher_coef
+        self.kfac_clip = kfac_clip
+        self.max_grad_norm = max_grad_norm
+        self.learning_rate_init = learning_rate
+        self.lr_schedule = lr_schedule
+        self.nprocs = nprocs
+
+        self.action_ph = None
+        self.advs_ph = None
+        self.rewards_ph = None
+        self.pg_lr_ph = None
+        self.model = None
+        self.model2 = None
+        self.logits = None
+        self.entropy = None
+        self.pg_loss = None
+        self.vf_loss = None
+        self.pg_fisher = None
+        self.vf_fisher = None
+        self.joint_fisher = None
+        self.params = None
+        self.grads_check = None
+        self.optim = None
+        self.train_op = None
+        self.q_runner = None
+        self.learning_rate = None
+        self.train_model = None
+        self.step_model = None
+        self.step = None
+        self.value = None
+        self.initial_state = None
+
+        if _init_setup_model:
+                self.setup_model()
+
+    def setup_model(self):
+        self.action_ph = action_ph = tf.placeholder(tf.int32, [self.n_batch])
+        self.advs_ph = advs_ph = tf.placeholder(tf.float32, [self.n_batch])
+        self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [self.n_batch])
         self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
 
-        self.model = step_model = policy(sess, ob_space, ac_space, n_envs, 1, reuse=False)
-        self.model2 = train_model = policy(sess, ob_space, ac_space, n_envs * n_steps, n_steps, reuse=True)
+        self.model = step_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_envs, 1, reuse=False)
+        self.model2 = train_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_envs * self.n_steps,
+                                                self.n_steps, reuse=True)
 
         logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
         self.logits = train_model.policy
@@ -61,14 +109,14 @@ class ACKTR(BaseRLModel):
         # training loss
         pg_loss = tf.reduce_mean(advs_ph * logpac)
         self.entropy = entropy = tf.reduce_mean(calc_entropy(train_model.policy))
-        self.pg_loss = pg_loss = pg_loss - ent_coef * entropy
+        self.pg_loss = pg_loss = pg_loss - self.ent_coef * entropy
         self.vf_loss = vf_loss = mse(tf.squeeze(train_model.value_fn), rewards_ph)
-        train_loss = pg_loss + vf_coef * vf_loss
+        train_loss = pg_loss + self.vf_coef * vf_loss
 
         # Fisher loss construction
         self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(logpac)
         sample_net = train_model.value_fn + tf.random_normal(tf.shape(train_model.value_fn))
-        self.vf_fisher = vf_fisher_loss = - vf_fisher_coef * tf.reduce_mean(
+        self.vf_fisher = vf_fisher_loss = - self.vf_fisher_coef * tf.reduce_mean(
             tf.pow(train_model.value_fn - tf.stop_gradient(sample_net), 2))
         self.joint_fisher = pg_fisher_loss + vf_fisher_loss
 
@@ -77,27 +125,23 @@ class ACKTR(BaseRLModel):
         self.grads_check = grads = tf.gradients(train_loss, params)
 
         with tf.device('/gpu:0'):
-            self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=kfac_clip,
+            self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=self.kfac_clip,
                                                     momentum=0.9, kfac_update=1, epsilon=0.01,
                                                     stats_decay=0.99, async=1, cold_iter=10,
-                                                    max_grad_norm=max_grad_norm)
+                                                    max_grad_norm=self.max_grad_norm)
 
             optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
             self.train_op, self.q_runner = optim.apply_gradients(list(zip(grads, params)))
 
-        self.learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lr_schedule)
+        self.learning_rate = Scheduler(initial_value=self.learning_rate_init, n_values=self.total_timesteps,
+                                       schedule=self.lr_schedule)
 
         self.train_model = train_model
         self.step_model = step_model
         self.step = step_model.step
         self.value = step_model.value
         self.initial_state = step_model.initial_state
-        tf.global_variables_initializer().run(session=sess)
-
-        self.env = env
-        self.n_steps = n_steps
-        self.gamma = gamma
-        self.total_timesteps = total_timesteps
+        tf.global_variables_initializer().run(session=self.sess)
 
     def _train_step(self, obs, states, rewards, masks, actions, values):
         """
@@ -163,12 +207,47 @@ class ACKTR(BaseRLModel):
         return self
 
     def save(self, save_path):
-        session_params = self.sess.run(self.params)
-        joblib.dump(session_params, save_path)
+        data = {
+            "gamma": self.gamma,
+            "nprocs": self.nprocs,
+            "n_steps": self.n_steps,
+            "vf_coef": self.vf_coef,
+            "ent_coef": self.ent_coef,
+            "vf_fisher_coef": self.vf_fisher_coef,
+            "max_grad_norm": self.max_grad_norm,
+            "learning_rate_init": self.learning_rate_init,
+            "kfac_clip": self.kfac_clip,
+            "lr_schedule": self.lr_schedule,
+            "policy": self.policy,
+            "ob_space": self.ob_space,
+            "ac_space": self.ac_space
+        }
 
-    def load(self, load_path):
+        with open(save_path.split('.')[0] + "_class.pkl", "wb") as file:
+            cloudpickle.dump(data, file)
+
+        parameters = self.sess.run(self.params)
+        make_path(os.path.dirname(save_path))
+        joblib.dump(parameters, save_path)
+
+    @classmethod
+    def load(cls, load_path, env):
+        with open(load_path.split('.')[0] + "_class.pkl", "rb") as file:
+            data = cloudpickle.load(file)
+
+        assert data["ob_space"] == env.observation_space, \
+            "Error: the environment passed must have at least the same observation space as the model was trained on."
+        assert data["ac_space"] == env.action_space, \
+            "Error: the environment passed must have at least the same action space as the model was trained on."
+
+        model = cls(policy=data["policy"], env=env, _init_setup_model=False)
+        model.__dict__.update(data)
+        model.setup_model()
+
         loaded_params = joblib.load(load_path)
         restores = []
-        for param, loaded_p in zip(self.params, loaded_params):
+        for param, loaded_p in zip(model.params, loaded_params):
             restores.append(param.assign(loaded_p))
-        self.sess.run(restores)
+        model.sess.run(restores)
+
+        return model

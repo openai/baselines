@@ -8,7 +8,7 @@ import tensorflow as tf
 import numpy as np
 
 import baselines.common.tf_util as tf_util
-from baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel
+from baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel, set_global_seeds
 from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import conjugate_gradient
@@ -310,6 +310,9 @@ class TRPO(BaseRLModel):
         self.timed = timed
 
     def learn(self, callback=None, seed=None, log_interval=100):
+        if seed is not None:
+            set_global_seeds(seed)
+
         if self.using_gail:
             seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True,
                                              reward_giver=self.reward_giver, gail=True)

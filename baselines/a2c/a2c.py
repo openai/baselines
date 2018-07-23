@@ -4,6 +4,7 @@ import joblib
 
 import numpy as np
 import tensorflow as tf
+import cloudpickle
 
 from baselines import logger
 from baselines.common import set_global_seeds, explained_variance, tf_util, BaseRLModel
@@ -12,8 +13,9 @@ from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_
 
 
 class A2C(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, n_steps=5, total_timesteps=int(80e6), vf_coef=0.25,
-                 ent_coef=0.01, max_grad_norm=0.5, learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear'):
+    def __init__(self, policy, env, gamma=0.99, n_steps=5, total_timesteps=int(80e6), vf_coef=0.25, ent_coef=0.01,
+                 max_grad_norm=0.5, learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear',
+                 _init_setup_model=True):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
@@ -30,53 +32,85 @@ class A2C(BaseRLModel):
         :param epsilon: (float) RMS prop optimizer epsilon
         :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
+        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(A2C, self).__init__()
         sess = tf_util.make_session()
-        n_envs = env.num_envs
-        n_batch = n_envs * n_steps
+
+        self.learning_rate_ph = tf.placeholder(tf.float32, [])
+
+        self.ob_space = env.observation_space
+        self.ac_space = env.action_space
+
+        self.policy = policy
+        self.env = env
+        self.n_steps = n_steps
+        self.gamma = gamma
+        self.total_timesteps = total_timesteps
+        self.sess = sess
+        self.vf_coef = vf_coef
+        self.ent_coef = ent_coef
+        self.max_grad_norm = max_grad_norm
+        self.alpha = alpha
+        self.epsilon = epsilon
+        self.lr_schedule = lr_schedule
+        self.learning_rate_val = learning_rate
+
+        self.n_envs = None
+        self.n_batch = None
+        self.actions_ph = None
+        self.advs_ph = None
+        self.rewards_ph = None
+        self.pg_loss = None
+        self.vf_loss = None
+        self.entropy = None
+        self.params = None
+        self.apply_backprop = None
+        self.train_model = None
+        self.step_model = None
+        self.step = None
+        self.value = None
+        self.initial_state = None
+        self.learning_rate = None
+
+        if _init_setup_model:
+            self.setup_model()
+
+    def setup_model(self):
+        self.n_envs = n_envs = self.env.num_envs
+        self.n_batch = n_batch = n_envs * self.n_steps
 
         self.actions_ph = tf.placeholder(tf.int32, [n_batch])
         self.advs_ph = tf.placeholder(tf.float32, [n_batch])
         self.rewards_ph = tf.placeholder(tf.float32, [n_batch])
-        self.learning_rate_ph = tf.placeholder(tf.float32, [])
 
-        ob_space = env.observation_space
-        ac_space = env.action_space
-
-        step_model = policy(sess, ob_space, ac_space, n_envs, 1, reuse=False)
-        train_model = policy(sess, ob_space, ac_space, n_envs * n_steps, n_steps, reuse=True)
+        step_model = self.policy(self.sess, self.ob_space, self.ac_space, n_envs, 1, reuse=False)
+        train_model = self.policy(self.sess, self.ob_space, self.ac_space, n_envs * self.n_steps, self.n_steps, 
+                                  reuse=True)
 
         neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=self.actions_ph)
         self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
         self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
         self.entropy = tf.reduce_mean(calc_entropy(train_model.policy))
-        loss = self.pg_loss - self.entropy * ent_coef + self.vf_loss * vf_coef
+        loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
 
         self.params = find_trainable_variables("model")
         grads = tf.gradients(loss, self.params)
-        if max_grad_norm is not None:
-            grads, _ = tf.clip_by_global_norm(grads, max_grad_norm)
+        if self.max_grad_norm is not None:
+            grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
         grads = list(zip(grads, self.params))
-        trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=alpha, epsilon=epsilon)
+        trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha, epsilon=self.epsilon)
         self.apply_backprop = trainer.apply_gradients(grads)
 
-        self.learning_rate = Scheduler(initial_value=learning_rate, n_values=total_timesteps, schedule=lr_schedule)
+        self.learning_rate = Scheduler(initial_value=self.learning_rate_val, n_values=self.total_timesteps,
+                                       schedule=self.lr_schedule)
 
-        self.env = env
-        self.n_envs = n_envs
-        self.n_steps = n_steps
-        self.n_batch = n_batch
-        self.gamma = gamma
-        self.total_timesteps = total_timesteps
-
-        self.sess = sess
         self.train_model = train_model
         self.step_model = step_model
         self.step = step_model.step
         self.value = step_model.value
         self.initial_state = step_model.initial_state
-        tf.global_variables_initializer().run(session=sess)
+        tf.global_variables_initializer().run(session=self.sess)
 
     def _train_step(self, obs, states, rewards, masks, actions, values):
         """
@@ -135,16 +169,49 @@ class A2C(BaseRLModel):
         return self
 
     def save(self, save_path):
+        data = {
+            "gamma": self.gamma,
+            "n_steps": self.n_steps,
+            "vf_coef": self.vf_coef,
+            "ent_coef": self.ent_coef,
+            "max_grad_norm": self.max_grad_norm,
+            "learning_rate_val": self.learning_rate_val,
+            "alpha": self.alpha,
+            "epsilon": self.epsilon,
+            "lr_schedule": self.lr_schedule,
+            "policy": self.policy,
+            "ob_space": self.ob_space,
+            "ac_space": self.ac_space
+        }
+
+        with open(save_path.split('.')[0] + "_class.pkl", "wb") as file:
+            cloudpickle.dump(data, file)
+
         parameters = self.sess.run(self.params)
         make_path(os.path.dirname(save_path))
         joblib.dump(parameters, save_path)
 
-    def load(self, load_path):
+    @classmethod
+    def load(cls, load_path, env):
+        with open(load_path.split('.')[0] + "_class.pkl", "rb") as file:
+            data = cloudpickle.load(file)
+
+        assert data["ob_space"] == env.observation_space, \
+            "Error: the environment passed must have at least the same observation space as the model was trained on."
+        assert data["ac_space"] == env.action_space, \
+            "Error: the environment passed must have at least the same action space as the model was trained on."
+
+        model = cls(policy=data["policy"], env=env, _init_setup_model=False)
+        model.__dict__.update(data)
+        model.setup_model()
+
         loaded_params = joblib.load(load_path)
         restores = []
-        for param, loaded_p in zip(self.params, loaded_params):
+        for param, loaded_p in zip(model.params, loaded_params):
             restores.append(param.assign(loaded_p))
-        self.sess.run(restores)
+        model.sess.run(restores)
+
+        return model
 
 
 class A2CRunner(AbstractEnvRunner):
