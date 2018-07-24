@@ -26,8 +26,8 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_cpu):
         print("Policy {} not implemented".format(policy))
         return
 
-    model = ACER(policy_fn, env, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule, buffer_size=5000)
-    model.learn(seed=seed)
+    model = ACER(policy_fn, env, lr_schedule=lr_schedule, buffer_size=5000)
+    model.learn(total_timesteps=int(num_timesteps * 1.1), seed=seed)
     env.close()
 
 

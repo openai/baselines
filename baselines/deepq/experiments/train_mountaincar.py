@@ -19,13 +19,12 @@ def main(args):
         q_func=q_func,
         env=env,
         learning_rate=1e-3,
-        max_timesteps=args.max_timesteps,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.1,
         param_noise=True
     )
-    model.learn()
+    model.learn(total_timesteps=args.max_timesteps)
 
     print("Saving model to mountaincar_model.pkl")
     model.save("mountaincar_model.pkl")

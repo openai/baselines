@@ -1,17 +1,14 @@
 import time
-import joblib
-import os
 
 import numpy as np
 import tensorflow as tf
-import cloudpickle
 
 from baselines import logger
-from baselines.common import set_global_seeds, BaseRLModel
+from baselines.common import BaseRLModel
 from baselines.common.runners import AbstractEnvRunner
 from baselines.acer.buffer import Buffer
-from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, make_path, find_trainable_variables, \
-    calc_entropy_softmax, EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
+from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, calc_entropy_softmax, \
+    EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 
 
 def strip(var, n_envs, n_steps, flat=False):
@@ -64,7 +61,7 @@ class ACER(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, n_steps=20, nstack=4, num_procs=1, q_coef=0.5, ent_coef=0.01,
                  max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5,
                  buffer_size=5000, replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True,
-                 alpha=0.99, delta=1, _init_setup_model=True):
+                 alpha=0.99, delta=1, verbose=0, _init_setup_model=True):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
@@ -90,21 +87,12 @@ class ACER(BaseRLModel):
         :param trust_region: (bool) Enable Trust region policy optimization loss
         :param alpha: (float) The decay rate for the Exponential moving average of the parameters
         :param delta: (float) trust region delta value
+        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(ACER, self).__init__()
-        config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=num_procs,
-                                inter_op_parallelism_threads=num_procs)
-        self.sess = tf.Session(config=config)
+        super(ACER, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
 
-        self.action_space = env.action_space
-        self.observation_space = env.observation_space
-        self.n_env = env.num_envs
-        self.n_act = self.action_space.n
-        self.n_batch = self.n_env * n_steps
         self.n_steps = n_steps
-        self.env = env
         self.replay_ratio = replay_ratio
         self.nstack = nstack
         self.buffer_size = buffer_size
@@ -122,7 +110,9 @@ class ACER(BaseRLModel):
         self.rprop_epsilon = rprop_epsilon
         self.learning_rate = learning_rate
         self.lr_schedule = lr_schedule
+        self.num_procs = num_procs
 
+        self.sess = None
         self.action_ph = None
         self.done_ph = None
         self.reward_ph = None
@@ -137,11 +127,23 @@ class ACER(BaseRLModel):
         self.step_model = None
         self.step = None
         self.initial_state = None
+        self.n_act = None
+        self.n_batch = None
 
         if _init_setup_model:
             self.setup_model()
 
     def setup_model(self):
+        super().setup_model()
+
+        self.n_act = self.action_space.n
+        self.n_batch = self.n_envs * self.n_steps
+
+        config = tf.ConfigProto(allow_soft_placement=True,
+                                intra_op_parallelism_threads=self.num_procs,
+                                inter_op_parallelism_threads=self.num_procs)
+        self.sess = tf.Session(config=config)
+
         self.action_ph = tf.placeholder(tf.int32, [self.n_batch])  # actions
         self.done_ph = tf.placeholder(tf.float32, [self.n_batch])  # dones
         self.reward_ph = tf.placeholder(tf.float32, [self.n_batch])  # rewards, not returns
@@ -149,9 +151,9 @@ class ACER(BaseRLModel):
         self.learning_rate_ph = tf.placeholder(tf.float32, [])
         eps = 1e-6
 
-        step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_env, 1, self.nstack,
+        step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, self.nstack,
                                  reuse=False)
-        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_env, self.n_steps + 1,
+        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, self.n_steps + 1,
                                   self.nstack, reuse=True)
 
         self.params = find_trainable_variables("model")
@@ -170,7 +172,7 @@ class ACER(BaseRLModel):
 
         with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
             self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                                           self.n_env, self.n_steps + 1, self.nstack, reuse=True)
+                                                           self.n_envs, self.n_steps + 1, self.nstack, reuse=True)
 
         # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
         value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [n_envs * (n_steps + 1)]
@@ -179,7 +181,7 @@ class ACER(BaseRLModel):
         # f is a distribution, chosen to be Gaussian distributions
         # with fixed diagonal covariance and mean \phi(x)
         # in the paper
-        distribution_f, f_polyak, q_value = map(lambda variables: strip(variables, self.n_env, self.n_steps),
+        distribution_f, f_polyak, q_value = map(lambda variables: strip(variables, self.n_envs, self.n_steps),
                                                 [train_model.policy, polyak_model.policy, train_model.q_value])
         # Get pi and q values for actions taken
         f_i = get_by_index(distribution_f, self.action_ph)
@@ -190,16 +192,16 @@ class ACER(BaseRLModel):
         rho_i = get_by_index(rho, self.action_ph)
 
         # Calculate Q_retrace targets
-        qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_env, self.n_steps, self.gamma)
+        qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_envs, self.n_steps, self.gamma)
 
         # Calculate losses
         # Entropy
         entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
 
         # Policy Gradient loss, with truncated importance sampling & bias correction
-        value = strip(value, self.n_env, self.n_steps, True)
-        check_shape([qret, value, rho_i, f_i], [[self.n_env * self.n_steps]] * 4)
-        check_shape([rho, distribution_f, q_value], [[self.n_env * self.n_steps, self.n_act]] * 2)
+        value = strip(value, self.n_envs, self.n_steps, True)
+        check_shape([qret, value, rho_i, f_i], [[self.n_envs * self.n_steps]] * 4)
+        check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.n_act]] * 2)
 
         # Truncated importance sampling
         adv = qret - value
@@ -208,9 +210,9 @@ class ACER(BaseRLModel):
         loss_f = -tf.reduce_mean(gain_f)
 
         # Bias correction for the truncation
-        adv_bc = (q_value - tf.reshape(value, [self.n_env * self.n_steps, 1]))  # [n_envs * n_steps, n_act]
+        adv_bc = (q_value - tf.reshape(value, [self.n_envs * self.n_steps, 1]))  # [n_envs * n_steps, n_act]
         log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
-        check_shape([adv_bc, log_f_bc], [[self.n_env * self.n_steps, self.n_act]] * 2)
+        check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
         gain_bc = tf.reduce_sum(log_f_bc *
                                 tf.stop_gradient(
                                     adv_bc * tf.nn.relu(1.0 - (self.correction_term / (rho + eps))) * distribution_f),
@@ -221,9 +223,9 @@ class ACER(BaseRLModel):
         loss_policy = loss_f + loss_bc
 
         # Value/Q function loss, and explained variance
-        check_shape([qret, q_i], [[self.n_env * self.n_steps]] * 2)
-        explained_variance = q_explained_variance(tf.reshape(q_i, [self.n_env, self.n_steps]),
-                                                  tf.reshape(qret, [self.n_env, self.n_steps]))
+        check_shape([qret, q_i], [[self.n_envs * self.n_steps]] * 2)
+        explained_variance = q_explained_variance(tf.reshape(q_i, [self.n_envs, self.n_steps]),
+                                                  tf.reshape(qret, [self.n_envs, self.n_steps]))
         loss_q = tf.reduce_mean(tf.square(tf.stop_gradient(qret) - q_i) * 0.5)
 
         # Net loss
@@ -234,7 +236,7 @@ class ACER(BaseRLModel):
             None, None, None, None, None, None, None
         if self.trust_region:
             # [n_envs * n_steps, n_act]
-            grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_env, distribution_f)
+            grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs, distribution_f)
             # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
             kl_grad = - f_polyak / (distribution_f + eps)
             k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
@@ -247,14 +249,14 @@ class ACER(BaseRLModel):
             avg_norm_k_dot_g = tf.reduce_mean(tf.abs(k_dot_g))
             avg_norm_adj = tf.reduce_mean(tf.abs(adj))
 
-            grad = grad - tf.reshape(adj, [self.n_env * self.n_steps, 1]) * kl_grad
+            grad = grad - tf.reshape(adj, [self.n_envs * self.n_steps, 1]) * kl_grad
             # These are turst region adjusted gradients wrt f ie statistics of policy pi
-            grads_f = -grad / (self.n_env * self.n_steps)
+            grads_f = -grad / (self.n_envs * self.n_steps)
             grads_policy = tf.gradients(distribution_f, self.params, grads_f)
             grads_q = tf.gradients(loss_q * self.q_coef, self.params)
             grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, self.params)]
 
-            avg_norm_grads_f = avg_norm(grads_f) * (self.n_steps * self.n_env)
+            avg_norm_grads_f = avg_norm(grads_f) * (self.n_steps * self.n_envs)
             norm_grads_q = tf.global_norm(grads_q)
             norm_grads_policy = tf.global_norm(grads_policy)
         else:
@@ -317,13 +319,12 @@ class ACER(BaseRLModel):
         return self.names_ops, self.sess.run(self.run_ops, td_map)[1:]  # strip off _train
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        if seed is not None:
-            set_global_seeds(seed)
+        self._setup_learn(seed)
 
         self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
                                                 schedule=self.lr_schedule)
 
-        episode_stats = EpisodeStats(self.n_steps, self.n_env)
+        episode_stats = EpisodeStats(self.n_steps, self.n_envs)
 
         runner = _Runner(env=self.env, model=self, n_steps=self.n_steps, nstack=self.nstack)
         if self.replay_ratio > 0:
@@ -355,7 +356,7 @@ class ACER(BaseRLModel):
             if callback is not None:
                 callback(locals(), globals())
 
-            if int(steps / runner.n_batch) % log_interval == 0:
+            if self.verbose >= 1 and (int(steps / runner.n_batch) % log_interval == 0):
                 logger.record_tabular("total_timesteps", steps)
                 logger.record_tabular("fps", int(steps / (time.time() - t_start)))
                 # IMP: In EpisodicLife env, during training, we get done=True at each loss of life,
@@ -399,36 +400,29 @@ class ACER(BaseRLModel):
             "rprop_epsilon": self.rprop_epsilon,
             "replay_ratio": self.replay_ratio,
             "replay_start": self.replay_start,
+            "verbose": self.verbose,
             "policy": self.policy,
             "observation_space": self.observation_space,
-            "action_space": self.action_space
+            "action_space": self.action_space,
+            "n_envs": self.n_envs
         }
 
-        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
-            cloudpickle.dump(data, file)
+        params = self.sess.run(self.params)
 
-        parameters = self.sess.run(self.params)
-        make_path(os.path.dirname(save_path))
-        joblib.dump(parameters, save_path)
+        self._save_to_file(save_path, data=data, params=params)
 
     @classmethod
-    def load(cls, load_path, env, **kwargs):
-        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
-            data = cloudpickle.load(file)
-
-        assert data["observation_space"] == env.observation_space, \
-            "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["action_space"] == env.action_space, \
-            "Error: the environment passed must have at least the same action space as the model was trained on."
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
 
         model = cls(policy=data["policy"], env=env, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
+        model.set_env(env)
         model.setup_model()
 
-        loaded_params = joblib.load(load_path)
         restores = []
-        for param, loaded_p in zip(model.params, loaded_params):
+        for param, loaded_p in zip(model.params, params):
             restores.append(param.assign(loaded_p))
         model.sess.run(restores)
 

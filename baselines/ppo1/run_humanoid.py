@@ -29,10 +29,9 @@ def train(num_timesteps, seed, model_path=None):
     # these are good enough to make humanoid walk, but whether those are
     # an absolute best or not is not certain
     env = RewScale(env, 0.1)
-    model = PPO1(policy_fn, env, max_timesteps=num_timesteps, timesteps_per_actorbatch=2048, clip_param=0.2,
-                 entcoeff=0.0, optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64, gamma=0.99, lam=0.95,
-                 schedule='linear')
-    model.learn()
+    model = PPO1(policy_fn, env, timesteps_per_actorbatch=2048, clip_param=0.2, entcoeff=0.0, optim_epochs=10,
+                 optim_stepsize=3e-4, optim_batchsize=64, gamma=0.99, lam=0.95, schedule='linear')
+    model.learn(total_timesteps=num_timesteps)
     env.close()
     if model_path:
         tf_util.save_state(model_path)

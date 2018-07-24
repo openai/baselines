@@ -3,22 +3,20 @@ Discrete acktr
 """
 
 import time
-import joblib
-import os
 
 import tensorflow as tf
-import cloudpickle
 
 from baselines import logger
-from baselines.common import set_global_seeds, explained_variance, BaseRLModel
+from baselines.common import explained_variance, BaseRLModel
 from baselines.a2c.a2c import A2CRunner
-from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse, make_path
+from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
 from baselines.acktr import kfac
 
 
 class ACKTR(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, nprocs=1, n_steps=20, ent_coef=0.01, vf_coef=0.25, vf_fisher_coef=1.0,
-                 learning_rate=0.25, max_grad_norm=0.5, kfac_clip=0.001, lr_schedule='linear', _init_setup_model=True):
+                 learning_rate=0.25, max_grad_norm=0.5, kfac_clip=0.001, lr_schedule='linear', verbose=0,
+                 _init_setup_model=True):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
 
@@ -35,21 +33,11 @@ class ACKTR(BaseRLModel):
         :param kfac_clip: (float) gradient clipping for Kullback leiber
         :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
-
+        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(ACKTR, self).__init__()
-        config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=nprocs,
-                                inter_op_parallelism_threads=nprocs)
-        config.gpu_options.allow_growth = True
-        self.sess = tf.Session(config=config)
+        super(ACKTR, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
 
-        self.n_envs = env.num_envs
-        self.ob_space = env.observation_space
-        self.ac_space = env.action_space
-        self.n_batch = self.n_envs * n_steps
-        self.env = env
         self.n_steps = n_steps
         self.gamma = gamma
         self.policy = policy
@@ -62,6 +50,7 @@ class ACKTR(BaseRLModel):
         self.lr_schedule = lr_schedule
         self.nprocs = nprocs
 
+        self.sess = None
         self.action_ph = None
         self.advs_ph = None
         self.rewards_ph = None
@@ -86,19 +75,31 @@ class ACKTR(BaseRLModel):
         self.step = None
         self.value = None
         self.initial_state = None
+        self.n_batch = None
 
         if _init_setup_model:
             self.setup_model()
 
     def setup_model(self):
+        super().setup_model()
+
+        self.n_batch = self.n_envs * self.n_steps
+
+        config = tf.ConfigProto(allow_soft_placement=True,
+                                intra_op_parallelism_threads=self.nprocs,
+                                inter_op_parallelism_threads=self.nprocs)
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
+
         self.action_ph = action_ph = tf.placeholder(tf.int32, [self.n_batch])
         self.advs_ph = advs_ph = tf.placeholder(tf.float32, [self.n_batch])
         self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [self.n_batch])
         self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
 
-        self.model = step_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_envs, 1, reuse=False)
-        self.model2 = train_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_envs * self.n_steps,
-                                                self.n_steps, reuse=True)
+        self.model = step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                              reuse=False)
+        self.model2 = train_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                                self.n_envs * self.n_steps, self.n_steps, reuse=True)
 
         logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
         self.logits = train_model.policy
@@ -168,8 +169,7 @@ class ACKTR(BaseRLModel):
         return policy_loss, value_loss, policy_entropy
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        if seed is not None:
-            set_global_seeds(seed)
+        self._setup_learn(seed)
 
         self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
                                                 schedule=self.lr_schedule)
@@ -188,7 +188,7 @@ class ACKTR(BaseRLModel):
             if callback is not None:
                 callback(locals(), globals())
 
-            if update % log_interval == 0 or update == 1:
+            if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
                 explained_var = explained_variance(values, rewards)
                 logger.record_tabular("nupdates", update)
                 logger.record_tabular("total_timesteps", update * self.n_batch)
@@ -215,36 +215,29 @@ class ACKTR(BaseRLModel):
             "learning_rate": self.learning_rate,
             "kfac_clip": self.kfac_clip,
             "lr_schedule": self.lr_schedule,
+            "verbose": self.verbose,
             "policy": self.policy,
             "observation_space": self.observation_space,
-            "action_space": self.action_space
+            "action_space": self.action_space,
+            "n_envs": self.n_envs
         }
 
-        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
-            cloudpickle.dump(data, file)
+        params = self.sess.run(self.params)
 
-        parameters = self.sess.run(self.params)
-        make_path(os.path.dirname(save_path))
-        joblib.dump(parameters, save_path)
+        self._save_to_file(save_path, data=data, params=params)
 
     @classmethod
-    def load(cls, load_path, env, **kwargs):
-        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
-            data = cloudpickle.load(file)
-
-        assert data["observation_space"] == env.observation_space, \
-            "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["action_space"] == env.action_space, \
-            "Error: the environment passed must have at least the same action space as the model was trained on."
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
 
         model = cls(policy=data["policy"], env=env, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
+        model.set_env(env)
         model.setup_model()
 
-        loaded_params = joblib.load(load_path)
         restores = []
-        for param, loaded_p in zip(model.params, loaded_params):
+        for param, loaded_p in zip(model.params, params):
             restores.append(param.assign(loaded_p))
         model.sess.run(restores)
 

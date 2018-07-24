@@ -1,29 +1,26 @@
 import time
-import joblib
 from collections import deque
 import sys
 import multiprocessing
 
 import numpy as np
 import tensorflow as tf
-import cloudpickle
 
 from baselines import logger
-from baselines.common import explained_variance, BaseRLModel, set_global_seeds
+from baselines.common import explained_variance, BaseRLModel
 from baselines.common.runners import AbstractEnvRunner
 
 
 class PPO2(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, total_timesteps=int(1e7 * 1.1), n_steps=128, ent_coef=0.01,
-                 learning_rate=2.5e-4, vf_coef=0.5, max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4,
-                 cliprange=0.2, _init_setup_model=True):
+    def __init__(self, policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, vf_coef=0.5,
+                 max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0,
+                 _init_setup_model=True):
         """
         Return a trained PPO2 model.
 
         :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param env: (Gym environment) The environment to learn from
         :param gamma: (float) Discount factor
-        :param total_timesteps: (int) The total number of samples
         :param n_steps: (int) The number of steps to run for each environment
         :param ent_coef: (float) Entropy coefficient for the loss caculation
         :param learning_rate: (float or callable) The learning rate, it can be a function
@@ -33,17 +30,10 @@ class PPO2(BaseRLModel):
         :param nminibatches: (int) Number of minibatches for the policies
         :param noptepochs: (int) Number of epoch when optimizing the surrogate
         :param cliprange: (float or callable) Clipping parameter, it can be a function
+        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(PPO2, self).__init__()
-        n_cpu = multiprocessing.cpu_count()
-        if sys.platform == 'darwin':
-            n_cpu //= 2
-
-        config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=n_cpu,
-                                inter_op_parallelism_threads=n_cpu)
-        config.gpu_options.allow_growth = True  # pylint: disable=E1101
+        super(PPO2, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
 
         if isinstance(learning_rate, float):
             learning_rate = constfn(learning_rate)
@@ -53,21 +43,9 @@ class PPO2(BaseRLModel):
             cliprange = constfn(cliprange)
         else:
             assert callable(cliprange)
-            total_timesteps = int(total_timesteps)
 
-        self.n_envs = env.num_envs
-        self.n_batch = self.n_envs * n_steps
-        self.n_batch_train = self.n_batch // nminibatches
-
-        self.sess = tf.Session(config=config)
-
-        self.env = env
-        self.policy = policy
-        self.ob_space = env.observation_space
-        self.ac_space = env.action_space
         self.learning_rate = learning_rate
         self.cliprange = cliprange
-        self.total_timesteps = total_timesteps
         self.n_steps = n_steps
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef
@@ -76,7 +54,9 @@ class PPO2(BaseRLModel):
         self.lam = lam
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
+        self.policy = policy
 
+        self.sess = None
         self.action_ph = None
         self.advs_ph = None
         self.rewards_ph = None
@@ -97,13 +77,31 @@ class PPO2(BaseRLModel):
         self.step = None
         self.value = None
         self.initial_state = None
+        self.n_batch = None
+        self.n_batch_train = None
 
         if _init_setup_model:
             self.setup_model()
 
     def setup_model(self):
-        act_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_envs, 1, reuse=False)
-        train_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_batch_train, self.n_steps, reuse=True)
+        super().setup_model()
+
+        self.n_batch = self.n_envs * self.n_steps
+        self.n_batch_train = self.n_batch // self.nminibatches
+
+        n_cpu = multiprocessing.cpu_count()
+        if sys.platform == 'darwin':
+            n_cpu //= 2
+
+        config = tf.ConfigProto(allow_soft_placement=True,
+                                intra_op_parallelism_threads=n_cpu,
+                                inter_op_parallelism_threads=n_cpu)
+        config.gpu_options.allow_growth = True  # pylint: disable=E1101
+        self.sess = tf.Session(config=config)
+
+        act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
+        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_batch_train,
+                                  self.n_steps, reuse=True)
 
         self.action_ph = train_model.pdtype.sample_placeholder([None])
         self.advs_ph = tf.placeholder(tf.float32, [None])
@@ -174,16 +172,15 @@ class PPO2(BaseRLModel):
         return self.sess.run([self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
                              td_map)[:-1]
 
-    def learn(self, callback=None, seed=None, log_interval=100):
-        if seed is not None:
-            set_global_seeds(seed)
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
+        self._setup_learn(seed)
 
         runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
 
         ep_info_buf = deque(maxlen=100)
         t_first_start = time.time()
 
-        nupdates = self.total_timesteps // self.n_batch
+        nupdates = total_timesteps // self.n_batch
         for update in range(1, nupdates + 1):
             assert self.n_batch % self.nminibatches == 0
             n_batch_train = self.n_batch // self.nminibatches
@@ -225,7 +222,7 @@ class PPO2(BaseRLModel):
             if callback is not None:
                 callback(locals(), globals())
 
-            if update % log_interval == 0 or update == 1:
+            if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
                 explained_var = explained_variance(values, returns)
                 logger.logkv("serial_timesteps", update * self.n_steps)
                 logger.logkv("nupdates", update)
@@ -253,38 +250,31 @@ class PPO2(BaseRLModel):
             "nminibatches": self.nminibatches,
             "noptepochs": self.noptepochs,
             "cliprange": self.cliprange,
+            "verbose": self.verbose,
             "policy": self.policy,
-            "ob_space": self.ob_space,
-            "ac_space": self.ac_space
+            "observation_space": self.observation_space,
+            "action_space": self.action_space,
+            "n_envs": self.n_envs
         }
 
-        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
-            cloudpickle.dump(data, file)
+        params = self.sess.run(self.params)
 
-        saved_params = self.sess.run(self.params)
-        joblib.dump(saved_params, save_path)
+        self._save_to_file(save_path, data=data, params=params)
 
     @classmethod
-    def load(cls, load_path, env, **kwargs):
-        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
-            data = cloudpickle.load(file)
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
 
-        assert data["ob_space"] == env.observation_space, \
-            "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["ac_space"] == env.action_space, \
-            "Error: the environment passed must have at least the same action space as the model was trained on."
-
-        model = cls(policy=data["policy"], env=env, _init_setup_model=False)
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
+        model.set_env(env)
         model.setup_model()
 
-        loaded_params = joblib.load(load_path)
         restores = []
-        for param, loaded_p in zip(model.params, loaded_params):
+        for param, loaded_p in zip(model.params, params):
             restores.append(param.assign(loaded_p))
         model.sess.run(restores)
-        # If you want to load weights, also save/load observation scaling inside VecNormalize
 
         return model
 

@@ -1,20 +1,17 @@
-import os
 import time
-import joblib
 
 import numpy as np
 import tensorflow as tf
-import cloudpickle
 
 from baselines import logger
-from baselines.common import set_global_seeds, explained_variance, tf_util, BaseRLModel
+from baselines.common import explained_variance, tf_util, BaseRLModel
 from baselines.common.runners import AbstractEnvRunner
-from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_trainable_variables, calc_entropy, mse
+from baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, calc_entropy, mse
 
 
 class A2C(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
-                 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', _init_setup_model=True):
+                 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0, _init_setup_model=True):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
@@ -30,21 +27,15 @@ class A2C(BaseRLModel):
         :param epsilon: (float) RMS prop optimizer epsilon
         :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
+        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+            (used only for loading)
         """
-        super(A2C, self).__init__()
-        sess = tf_util.make_session()
-
-        self.learning_rate_ph = tf.placeholder(tf.float32, [])
-
-        self.observation_space = env.observation_space
-        self.action_space = env.action_space
+        super(A2C, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
 
         self.policy = policy
-        self.env = env
         self.n_steps = n_steps
         self.gamma = gamma
-        self.sess = sess
         self.vf_coef = vf_coef
         self.ent_coef = ent_coef
         self.max_grad_norm = max_grad_norm
@@ -53,6 +44,8 @@ class A2C(BaseRLModel):
         self.lr_schedule = lr_schedule
         self.learning_rate = learning_rate
 
+        self.sess = None
+        self.learning_rate_ph = None
         self.n_envs = None
         self.n_batch = None
         self.actions_ph = None
@@ -70,19 +63,24 @@ class A2C(BaseRLModel):
         self.initial_state = None
         self.learning_rate_schedule = None
 
+        # if we are loading, it is possible the environment is not known, however the obs and action space are known
         if _init_setup_model:
             self.setup_model()
 
     def setup_model(self):
-        self.n_envs = n_envs = self.env.num_envs
-        self.n_batch = n_batch = n_envs * self.n_steps
+        super().setup_model()
+
+        self.sess = tf_util.make_session()
+
+        self.n_batch = n_batch = self.n_envs * self.n_steps
 
         self.actions_ph = tf.placeholder(tf.int32, [n_batch])
         self.advs_ph = tf.placeholder(tf.float32, [n_batch])
         self.rewards_ph = tf.placeholder(tf.float32, [n_batch])
+        self.learning_rate_ph = tf.placeholder(tf.float32, [])
 
-        step_model = self.policy(self.sess, self.observation_space, self.action_space, n_envs, 1, reuse=False)
-        train_model = self.policy(self.sess, self.observation_space, self.action_space, n_envs * self.n_steps,
+        step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
+        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs * self.n_steps,
                                   self.n_steps, reuse=True)
 
         neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=self.actions_ph)
@@ -135,8 +133,7 @@ class A2C(BaseRLModel):
         return policy_loss, value_loss, policy_entropy
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        if seed is not None:
-            set_global_seeds(seed)
+        self._setup_learn(seed)
 
         self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
                                                 schedule=self.lr_schedule)
@@ -153,7 +150,7 @@ class A2C(BaseRLModel):
             if callback is not None:
                 callback(locals(), globals())
 
-            if update % log_interval == 0 or update == 1:
+            if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
                 explained_var = explained_variance(values, rewards)
                 logger.record_tabular("nupdates", update)
                 logger.record_tabular("total_timesteps", update * self.n_batch)
@@ -176,36 +173,29 @@ class A2C(BaseRLModel):
             "alpha": self.alpha,
             "epsilon": self.epsilon,
             "lr_schedule": self.lr_schedule,
+            "verbose": self.verbose,
             "policy": self.policy,
-            "ob_space": self.observation_space,
-            "ac_space": self.action_space
+            "observation_space": self.observation_space,
+            "action_space": self.action_space,
+            "n_envs": self.n_envs
         }
 
-        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
-            cloudpickle.dump(data, file)
+        params = self.sess.run(self.params)
 
-        parameters = self.sess.run(self.params)
-        make_path(os.path.dirname(save_path))
-        joblib.dump(parameters, save_path)
+        self._save_to_file(save_path, data=data, params=params)
 
     @classmethod
-    def load(cls, load_path, env, **kwargs):
-        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
-            data = cloudpickle.load(file)
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
 
-        assert data["observation_space"] == env.observation_space, \
-            "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["action_space"] == env.action_space, \
-            "Error: the environment passed must have at least the same action space as the model was trained on."
-
-        model = cls(policy=data["policy"], env=env, _init_setup_model=False)
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
+        model.set_env(env)
         model.setup_model()
 
-        loaded_params = joblib.load(load_path)
         restores = []
-        for param, loaded_p in zip(model.params, loaded_params):
+        for param, loaded_p in zip(model.params, params):
             restores.append(param.assign(loaded_p))
         model.sess.run(restores)
 

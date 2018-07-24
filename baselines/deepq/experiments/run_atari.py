@@ -36,7 +36,6 @@ def main():
         env=env,
         q_func=q_func,
         learning_rate=1e-4,
-        max_timesteps=args.num_timesteps,
         buffer_size=10000,
         exploration_fraction=0.1,
         exploration_final_eps=0.01,
@@ -49,7 +48,7 @@ def main():
         checkpoint_freq=args.checkpoint_freq,
         checkpoint_path=args.checkpoint_path,
     )
-    model.learn()
+    model.learn(total_timesteps=args.num_timesteps)
 
     env.close()
 

@@ -31,8 +31,8 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):
 
     env = VecFrameStack(make_atari_env(env_id, num_env, seed), 4)
 
-    model = A2C(policy_fn, env, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule)
-    model.learn(seed=seed)
+    model = A2C(policy_fn, env, lr_schedule=lr_schedule)
+    model.learn(total_timesteps=int(num_timesteps * 1.1), seed=seed)
     env.close()
 
 

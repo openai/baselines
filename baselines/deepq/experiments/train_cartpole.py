@@ -35,12 +35,11 @@ def main(args):
         env=env,
         q_func=q_func,
         learning_rate=1e-3,
-        max_timesteps=args.max_timesteps,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
     )
-    model.learn(callback=callback)
+    model.learn(total_timesteps=args.max_timesteps, callback=callback)
 
     print("Saving model to cartpole_model.pkl")
     model.save("cartpole_model.pkl")

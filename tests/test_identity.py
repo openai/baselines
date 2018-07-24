@@ -13,9 +13,9 @@ from baselines.a2c.policies import MlpPolicy
 
 
 learn_func_list = [
-    lambda e: A2C(policy=MlpPolicy, env=e, total_timesteps=50000).learn(seed=0),
-    lambda e: PPO2(policy=MlpPolicy, env=e, total_timesteps=50000, learning_rate=1e-3, n_steps=128,
-                   ent_coef=0.01).learn(seed=0)
+    lambda e: A2C(policy=MlpPolicy, env=e).learn(total_timesteps=50000, seed=0),
+    lambda e: PPO2(policy=MlpPolicy, env=e, learning_rate=1e-3, n_steps=128, ent_coef=0.01).learn(
+        total_timesteps=50000, seed=0)
 ]
 
 

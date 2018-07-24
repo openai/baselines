@@ -1,26 +1,22 @@
 from collections import deque
 import time
-import os
 
 import tensorflow as tf
 import numpy as np
 from mpi4py import MPI
-import cloudpickle
-import joblib
 
-from baselines.common import Dataset, explained_variance, fmt_row, zipsame, BaseRLModel, set_global_seeds
+from baselines.common import Dataset, explained_variance, fmt_row, zipsame, BaseRLModel
 from baselines import logger
 import baselines.common.tf_util as tf_util
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.mpi_moments import mpi_moments
 from baselines.gail.trpo_mpi import traj_segment_generator, add_vtarg_and_adv, flatten_lists
-from baselines.a2c.utils import make_path
 
 
 class PPO1(BaseRLModel):
-    def __init__(self, policy_fn, env, gamma=0.99, max_timesteps=0, timesteps_per_actorbatch=256, clip_param=0.2,
-                 entcoeff=0.01, optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, max_episodes=0,
-                 max_iters=0, max_seconds=0, adam_epsilon=1e-5, schedule='linear', _init_setup_model=True):
+    def __init__(self, policy_fn, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01,
+                 optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5,
+                 schedule='linear', verbose=0, _init_setup_model=True):
         """
         Learning PPO with Stochastic Gradient Descent
 
@@ -34,25 +30,16 @@ class PPO1(BaseRLModel):
         :param optim_batchsize: (int) the optimizer's the batch size
         :param gamma: (float) discount factor
         :param lam: (float) advantage estimation
-        :param max_timesteps: (int) number of env steps to optimizer for
-        :param max_episodes: (int) the maximum number of epochs
-        :param max_iters: (int) the maximum number of iterations
-        :param max_seconds: (int) the maximal duration
         :param adam_epsilon: (float) the epsilon value for the adam optimizer
         :param schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                      'double_linear_con', 'middle_drop' or 'double_middle_drop')
+        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super().__init__()
-
-        self.sess = tf_util.single_threaded_session()
+        super().__init__(env=env, requires_vec_env=True, verbose=verbose)
 
         self.policy_fn = policy_fn
-        self.env = env
-        self.ob_space = env.observation_space
-        self.ac_space = env.action_space
         self.gamma = gamma
-        self.max_timesteps = max_timesteps
         self.timesteps_per_actorbatch = timesteps_per_actorbatch
         self.clip_param = clip_param
         self.entcoeff = entcoeff
@@ -60,12 +47,10 @@ class PPO1(BaseRLModel):
         self.optim_stepsize = optim_stepsize
         self.optim_batchsize = optim_batchsize
         self.lam = lam
-        self.max_episodes = max_episodes
-        self.max_iters = max_iters
-        self.max_seconds = max_seconds
         self.adam_epsilon = adam_epsilon
         self.schedule = schedule
 
+        self.sess = None
         self.policy = None
         self.loss_names = None
         self.lossandgrad = None
@@ -74,17 +59,18 @@ class PPO1(BaseRLModel):
         self.compute_losses = None
         self.params = None
 
-        self.setup_model()
+        if _init_setup_model:
+            self.setup_model()
 
     def setup_model(self):
-        assert sum([self.max_iters > 0, self.max_timesteps > 0, self.max_episodes > 0,
-                    self.max_seconds > 0]) == 1, "Only one time constraint permitted"
+        super().setup_model()
 
+        self.sess = tf_util.single_threaded_session()
         # Construct network for new policy
-        self.policy = policy = self.policy_fn("pi", self.ob_space, self.ac_space, sess=self.sess)
+        self.policy = policy = self.policy_fn("pi", self.observation_space, self.action_space, sess=self.sess)
 
         # Network for old policy
-        oldpi = self.policy_fn("oldpi", self.ob_space, self.ac_space, sess=self.sess,
+        oldpi = self.policy_fn("oldpi", self.observation_space, self.action_space, sess=self.sess,
                                placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
         # Target advantage function (if applicable)
@@ -134,9 +120,8 @@ class PPO1(BaseRLModel):
 
         tf_util.initialize(sess=self.sess)
 
-    def learn(self, callback=None, seed=None, log_interval=100):
-        if seed is not None:
-            set_global_seeds(seed)
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
+        self._setup_learn(seed)
 
         self.adam.sync()
 
@@ -156,19 +141,13 @@ class PPO1(BaseRLModel):
         while True:
             if callback:
                 callback(locals(), globals())
-            if self.max_timesteps and timesteps_so_far >= self.max_timesteps:
-                break
-            elif self.max_episodes and episodes_so_far >= self.max_episodes:
-                break
-            elif self.max_iters and iters_so_far >= self.max_iters:
-                break
-            elif self.max_seconds and time.time() - t_start >= self.max_seconds:
+            if total_timesteps and timesteps_so_far >= total_timesteps:
                 break
 
             if self.schedule == 'constant':
                 cur_lrmult = 1.0
             elif self.schedule == 'linear':
-                cur_lrmult = max(1.0 - float(timesteps_so_far) / self.max_timesteps, 0)
+                cur_lrmult = max(1.0 - float(timesteps_so_far) / total_timesteps, 0)
             else:
                 raise NotImplementedError
 
@@ -238,7 +217,7 @@ class PPO1(BaseRLModel):
             logger.record_tabular("EpisodesSoFar", episodes_so_far)
             logger.record_tabular("TimestepsSoFar", timesteps_so_far)
             logger.record_tabular("TimeElapsed", time.time() - t_start)
-            if MPI.COMM_WORLD.Get_rank() == 0:
+            if self.verbose >= 1 and MPI.COMM_WORLD.Get_rank() == 0:
                 logger.dump_tabular()
 
         return self
@@ -253,40 +232,31 @@ class PPO1(BaseRLModel):
             "optim_stepsize": self.optim_stepsize,
             "optim_batchsize": self.optim_batchsize,
             "lam": self.lam,
-            "max_episodes": self.max_episodes,
-            "max_iters": self.max_iters,
-            "max_seconds": self.max_seconds,
             "adam_epsilon": self.adam_epsilon,
             "schedule": self.schedule,
-            "ob_space": self.ob_space,
-            "ac_space": self.ac_space
+            "verbose": self.verbose,
+            "policy_fn": self.policy_fn,
+            "observation_space": self.observation_space,
+            "action_space": self.action_space,
+            "n_envs": self.n_envs
         }
 
-        with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
-            cloudpickle.dump(data, file)
+        params = self.sess.run(self.params)
 
-        parameters = self.sess.run(self.params)
-        make_path(os.path.dirname(save_path))
-        joblib.dump(parameters, save_path)
+        self._save_to_file(save_path, data=data, params=params)
 
     @classmethod
-    def load(cls, load_path, env, **kwargs):
-        with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
-            data = cloudpickle.load(file)
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
 
-        assert data["ob_space"] == env.observation_space, \
-            "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["ac_space"] == env.action_space, \
-            "Error: the environment passed must have at least the same action space as the model was trained on."
-
-        model = cls(policy_fn=data["policy_fn"], env=env, _init_setup_model=False)
+        model = cls(policy_fn=data["policy_fn"], env=None, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
+        model.set_env(env)
         model.setup_model()
 
-        loaded_params = joblib.load(load_path)
         restores = []
-        for param, loaded_p in zip(model.params, loaded_params):
+        for param, loaded_p in zip(model.params, params):
             restores.append(param.assign(loaded_p))
         model.sess.run(restores)
 

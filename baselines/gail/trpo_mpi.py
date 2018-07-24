@@ -8,12 +8,11 @@ import tensorflow as tf
 import numpy as np
 
 import baselines.common.tf_util as tf_util
-from baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel, set_global_seeds
+from baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel
 from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import conjugate_gradient
-
-
+from baselines.a2c.utils import find_trainable_variables
 # from baselines.gail.statistics import Stats
 
 
@@ -135,12 +134,11 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 class TRPO(BaseRLModel):
     def __init__(self, policy_func, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, lam=0.98,
-                 entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, max_timesteps=0, max_episodes=0,
-                 max_iters=0,
+                 entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3,
                  # GAIL Params
                  pretrained_weight=None, reward_giver=None, expert_dataset=None, save_per_iter=1,
                  checkpoint_dir="/tmp/gail/ckpt/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4,
-                 using_gail=False, _init_setup_model=True):
+                 using_gail=False, verbose=0, _init_setup_model=True):
         """
         learns a GAIL policy using the given environment
 
@@ -155,9 +153,6 @@ class TRPO(BaseRLModel):
         :param cg_damping: (float) the compute gradient dampening factor
         :param vf_stepsize: (float) the value function stepsize
         :param vf_iters: (int) the value function's number iterations for learning
-        :param max_timesteps: (int) the maximum number of timesteps before halting
-        :param max_episodes: (int) the maximum number of episodes before halting
-        :param max_iters: (int) the maximum number of training iterations  before halting
         :param pretrained_weight: (str) the save location for the pretrained weights
         :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
         :param expert_dataset: (MujocoDset) the dataset manager
@@ -168,29 +163,17 @@ class TRPO(BaseRLModel):
         :param task_name: (str) the name of the task (can be None)
         :param d_stepsize: (float) the reward giver stepsize
         :param using_gail: (bool) using the GAIL model
+        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(TRPO, self).__init__()
+        super(TRPO, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
 
-        nworkers = MPI.COMM_WORLD.Get_size()
-        rank = MPI.COMM_WORLD.Get_rank()
-        np.set_printoptions(precision=3)
-
-        self.sess = tf_util.single_threaded_session()
-        self.ob_space = env.observation_space
-        self.ac_space = env.action_space
-
-        self.env = env
         self.policy_func = policy_func
         self.using_gail = using_gail
         self.timesteps_per_batch = timesteps_per_batch
         self.reward_giver = reward_giver
-        self.max_iters = max_iters
-        self.max_timesteps = max_timesteps
-        self.max_episodes = max_episodes
         self.pretrained_weight = pretrained_weight
         self.checkpoint_dir = checkpoint_dir
-        self.rank = rank
         self.task_name = task_name
         self.save_per_iter = save_per_iter
         self.cg_iters = cg_iters
@@ -199,7 +182,6 @@ class TRPO(BaseRLModel):
         self.gamma = gamma
         self.lam = lam
         self.max_kl = max_kl
-        self.nworkers = nworkers
         self.vf_iters = vf_iters
         self.vf_stepsize = vf_stepsize
         self.d_step = d_step
@@ -220,13 +202,25 @@ class TRPO(BaseRLModel):
         self.set_from_flat = None
         self.timed = None
         self.allmean = None
+        self.nworkers = None
+        self.rank = None
+        self.sess = None
+        self.params = None
 
         if _init_setup_model:
             self.setup_model()
 
     def setup_model(self):
-        self.policy = policy = self.policy_func("pi", self.ob_space, self.ac_space, sess=self.sess)
-        old_policy = self.policy_func("oldpi", self.ob_space, self.ac_space, sess=self.sess,
+        super().setup_model()
+
+        self.nworkers = MPI.COMM_WORLD.Get_size()
+        self.rank = MPI.COMM_WORLD.Get_rank()
+        np.set_printoptions(precision=3)
+
+        self.sess = tf_util.single_threaded_session()
+
+        self.policy = policy = self.policy_func("pi", self.observation_space, self.action_space, sess=self.sess)
+        old_policy = self.policy_func("oldpi", self.observation_space, self.action_space, sess=self.sess,
                                       placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
         atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
@@ -321,9 +315,10 @@ class TRPO(BaseRLModel):
         self.timed = timed
         self.allmean = allmean
 
-    def learn(self, callback=None, seed=None, log_interval=100):
-        if seed is not None:
-            set_global_seeds(seed)
+        self.params = find_trainable_variables("pi")
+
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
+        self._setup_learn(seed)
 
         if self.using_gail:
             seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True,
@@ -338,8 +333,6 @@ class TRPO(BaseRLModel):
         lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
         rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
 
-        assert sum([self.max_iters > 0, self.max_timesteps > 0, self.max_episodes > 0]) == 1
-
         true_rewbuffer = None
         if self.using_gail:
             true_rewbuffer = deque(maxlen=40)
@@ -350,19 +343,12 @@ class TRPO(BaseRLModel):
 
             # if provide pretrained weight
             if self.pretrained_weight is not None:
-                raise NotImplementedError
-                # FIXME: Incorrect call argument...
-                # commented for now
-                # tf_util.load_state(pretrained_weight, var_list=policy.get_variables())
+                tf_util.load_state(self.pretrained_weight, var_list=self.policy.get_variables(), sess=self.sess)
 
         while True:
             if callback:
                 callback(locals(), globals())
-            if self.max_timesteps and timesteps_so_far >= self.max_timesteps:
-                break
-            elif self.max_episodes and episodes_so_far >= self.max_episodes:
-                break
-            elif self.max_iters and iters_so_far >= self.max_iters:
+            if total_timesteps and timesteps_so_far >= total_timesteps:
                 break
 
             # Save model
@@ -510,15 +496,57 @@ class TRPO(BaseRLModel):
             logger.record_tabular("TimestepsSoFar", timesteps_so_far)
             logger.record_tabular("TimeElapsed", time.time() - t_start)
 
-            if self.rank == 0:
+            if self.verbose >= 1 and self.rank == 0:
                 logger.dump_tabular()
 
     def save(self, save_path):
-        raise NotImplementedError
+        data = {
+            "gamma": self.gamma,
+            "timesteps_per_batch": self.timesteps_per_batch,
+            "max_kl": self.max_kl,
+            "cg_iters": self.cg_iters,
+            "lam": self.lam,
+            "entcoeff": self.entcoeff,
+            "cg_damping": self.cg_damping,
+            "vf_stepsize": self.vf_stepsize,
+            "vf_iters": self.vf_iters,
+            "pretrained_weight": self.pretrained_weight,
+            "reward_giver": self.reward_giver,
+            "expert_dataset": self.expert_dataset,
+            "save_per_iter": self.save_per_iter,
+            "checkpoint_dir": self.checkpoint_dir,
+            "g_step": self.g_step,
+            "d_step": self.d_step,
+            "task_name": self.task_name,
+            "d_stepsize": self.d_stepsize,
+            "using_gail": self.using_gail,
+            "verbose": self.verbose,
+            "policy_func": self.policy_func,
+            "observation_space": self.observation_space,
+            "action_space": self.action_space,
+            "n_envs": self.n_envs
+        }
+
+        params = self.sess.run(self.params)
+
+        self._save_to_file(save_path, data=data, params=params)
 
     @classmethod
-    def load(cls, load_path, env, **kwargs):
-        raise NotImplementedError
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
+
+        model = cls(policy_func=data["policy_func"], env=None, _init_setup_model=False)
+        model.__dict__.update(data)
+        model.__dict__.update(kwargs)
+        model.set_env(env)
+        model.setup_model()
+
+        restores = []
+        for param, loaded_p in zip(model.params, params):
+            restores.append(param.assign(loaded_p))
+        model.sess.run(restores)
+
+        return model
 
 
 def flatten_lists(listoflists):

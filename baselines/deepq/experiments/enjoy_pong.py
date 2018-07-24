@@ -12,14 +12,15 @@ def main():
     env = deepq.wrap_atari_dqn(env)
     model = DeepQ.load("pong_model.pkl", env)
 
-    while True:
-        obs, done = env.reset(), False
-        episode_rew = 0
-        while not done:
-            env.render()
-            obs, rew, done, _ = env.step(model.act(obs[None])[0])
-            episode_rew += rew
-        print("Episode reward", episode_rew)
+    with model.sess.as_default():
+        while True:
+            obs, done = env.reset(), False
+            episode_rew = 0
+            while not done:
+                env.render()
+                obs, rew, done, _ = env.step(model.act(obs[None])[0])
+                episode_rew += rew
+            print("Episode reward", episode_rew)
 
 
 if __name__ == '__main__':
