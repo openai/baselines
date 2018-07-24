@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import os
 
 import cloudpickle
+import numpy as np
 
 from baselines.common import set_global_seeds
 
@@ -89,6 +90,30 @@ class BaseRLModel(ABC):
         pass
 
     @abstractmethod
+    def predict(self, observation, state=None, mask=None):
+        """
+        Get the model's action from an observation
+
+        :param observation: (numpy Number) the input observation
+        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
+        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
+        :return: (numpy Number, numpy Number) the model's action and the next state (used in reccurent policies)
+        """
+        pass
+
+    @abstractmethod
+    def action_probability(self, observation, state=None, mask=None):
+        """
+        Get the model's action probability distribution from an observation
+
+        :param observation: (numpy Number) the input observation
+        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
+        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
+        :return: (numpy Number) the model's action probability distribution
+        """
+        pass
+
+    @abstractmethod
     def save(self, save_path):
         """
         Save the current parameters to file
@@ -133,3 +158,15 @@ class BaseRLModel(ABC):
             data, params = cloudpickle.load(file)
 
         return data, params
+
+    @staticmethod
+    def _softmax(x):
+        """
+        An implementation of softmax.
+
+        :param x: (numpy float) input vector
+        :return: (numpy float) output vector
+        """
+        e_x = np.exp(x.T - np.max(x.T, axis=0))
+        return (e_x / e_x.sum(axis=0)).T
+

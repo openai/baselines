@@ -34,10 +34,10 @@ def test_identity():
     n_trials = 1000
     sum_rew = 0
     obs = env.reset()
-    with model.sess.as_default():
-        for _ in range(n_trials):
-            obs, rew, _, _ = env.step(model.act([obs]))
-            sum_rew += rew
+    for _ in range(n_trials):
+        action, _ = model.predict(obs)
+        obs, rew, _, _ = env.step(action)
+        sum_rew += rew
 
     assert sum_rew > 0.9 * n_trials
 

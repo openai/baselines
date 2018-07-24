@@ -386,6 +386,26 @@ class ACER(BaseRLModel):
 
         return self
 
+    def predict(self, observation, state=None, mask=None):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation).reshape(self.observation_space.shape)
+
+        actions, _, states = self.policy.step(observation, state, mask)
+        return actions, states
+
+    def action_probability(self, observation, state=None, mask=None):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation).reshape(self.observation_space.shape)
+
+        _, proba, _ = self.policy.step(observation, state, mask)
+        return proba
+
     def save(self, save_path):
         data = {
             "gamma": self.gamma,

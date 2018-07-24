@@ -5,6 +5,7 @@ Discrete acktr
 import time
 
 import tensorflow as tf
+import numpy as np
 
 from baselines import logger
 from baselines.common import explained_variance, BaseRLModel
@@ -202,6 +203,26 @@ class ACKTR(BaseRLModel):
         coord.request_stop()
         coord.join(enqueue_threads)
         return self
+
+    def predict(self, observation, state=None, mask=None):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation).reshape((1,) + self.observation_space.shape)
+
+        actions, _, states, _ = self.step(observation, state, mask)
+        return actions, states
+
+    def action_probability(self, observation, state=None, mask=None):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation).reshape((1,) + self.observation_space.shape)
+
+        _, _, _, neglogp0 = self.step(observation, state, mask)
+        return self._softmax(neglogp0)
 
     def save(self, save_path):
         data = {

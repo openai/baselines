@@ -28,21 +28,22 @@ def test_identity(learn_func):
 
     :param learn_func: (lambda (Gym Environment): A2CPolicy) the policy generator
     """
+    tf.reset_default_graph()
     np.random.seed(0)
     np_random.seed(0)
     random.seed(0)
 
     env = DummyVecEnv([lambda: IdentityEnv(10)])
 
-    with tf.Graph().as_default(), tf.Session().as_default():
-        tf.set_random_seed(0)
-        model = learn_func(env)
+    tf.set_random_seed(0)
+    model = learn_func(env)
 
-        n_trials = 1000
-        reward_sum = 0
-        obs = env.reset()
-        for _ in range(n_trials):
-            obs, reward, _, _ = env.step(model.step(obs)[0])
-            reward_sum += reward
+    n_trials = 1000
+    reward_sum = 0
+    obs = env.reset()
+    for _ in range(n_trials):
+        action, _ = model.predict(obs)
+        obs, reward, _, _ = env.step(action)
+        reward_sum += reward
 
-        assert reward_sum > 0.9 * n_trials
+    assert reward_sum > 0.9 * n_trials

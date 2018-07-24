@@ -644,7 +644,7 @@ class DDPG(BaseRLModel):
                     # Perform rollouts.
                     for _ in range(self.nb_rollout_steps):
                         if total_steps >= total_timesteps:
-                            return
+                            return self
 
                         # Predict next action.
                         action, q_value = self._policy(obs, apply_noise=True, compute_q=True)
@@ -707,7 +707,7 @@ class DDPG(BaseRLModel):
                         eval_episode_reward = 0.
                         for _ in range(self.nb_eval_steps):
                             if total_steps >= total_timesteps:
-                                return
+                                return self
 
                             eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
                             # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
@@ -784,6 +784,16 @@ class DDPG(BaseRLModel):
                     if self.eval_env and hasattr(self.eval_env, 'get_state'):
                         with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
                             pickle.dump(self.eval_env.get_state(), file_handler)
+
+    def predict(self, observation, state=None, mask=None):
+        observation = np.array(observation).reshape(self.observation_space.shape)
+
+        action, _ = self._policy(observation, apply_noise=False, compute_q=True)
+        return action, None
+
+    def action_probability(self, observation, state=None, mask=None):
+        # here there are no action probabilities, as DDPG is continuous
+        return self.predict(observation, state=None, mask=None)
 
     def save(self, save_path):
         data = {

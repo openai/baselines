@@ -222,6 +222,18 @@ class PPO1(BaseRLModel):
 
         return self
 
+    def predict(self, observation, state=None, mask=None):
+        observation = np.array(observation).reshape(self.observation_space.shape)
+
+        action, _ = self.policy.act(True, observation)
+        return action, None
+
+    def action_probability(self, observation, state=None, mask=None):
+        observation = np.array(observation).reshape(self.observation_space.shape)
+
+        neglogp0 = self.policy.proba_distribution.neglogp(self.policy.proba_distribution.sample())
+        return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))
+
     def save(self, save_path):
         data = {
             "gamma": self.gamma,

@@ -62,7 +62,6 @@ class MlpPolicy(BasePolicy):
             pdparam = dense(last_out, pdtype.param_shape()[0], "polfinal", tf_util.normc_initializer(0.01))
 
         self.proba_distribution = pdtype.proba_distribution_from_flat(pdparam)
-
         self.state_in = []
         self.state_out = []
 
