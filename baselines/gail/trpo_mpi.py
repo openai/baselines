@@ -138,9 +138,9 @@ class TRPO(BaseRLModel):
                  entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, max_timesteps=0, max_episodes=0,
                  max_iters=0,
                  # GAIL Params
-                 pretrained_weight=None, reward_giver=None, expert_dataset=None, rank=0, save_per_iter=1,
+                 pretrained_weight=None, reward_giver=None, expert_dataset=None, save_per_iter=1,
                  checkpoint_dir="/tmp/gail/ckpt/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4,
-                 using_gail=False):
+                 using_gail=False, _init_setup_model=True):
         """
         learns a GAIL policy using the given environment
 
@@ -161,7 +161,6 @@ class TRPO(BaseRLModel):
         :param pretrained_weight: (str) the save location for the pretrained weights
         :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
         :param expert_dataset: (MujocoDset) the dataset manager
-        :param rank: (int) the rank of the mpi thread
         :param save_per_iter: (int) the number of iterations before saving
         :param checkpoint_dir: (str) the location for saving checkpoints
         :param g_step: (int) number of steps to train policy in each epoch
@@ -169,20 +168,66 @@ class TRPO(BaseRLModel):
         :param task_name: (str) the name of the task (can be None)
         :param d_stepsize: (float) the reward giver stepsize
         :param using_gail: (bool) using the GAIL model
+        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(TRPO, self).__init__()
 
         nworkers = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
         np.set_printoptions(precision=3)
-        sess = tf_util.single_threaded_session()
-        # Setup losses and stuff
-        # ----------------------------------------
-        ob_space = env.observation_space
-        ac_space = env.action_space
-        policy = policy_func("pi", ob_space, ac_space, sess=sess)
-        old_policy = policy_func("oldpi", ob_space, ac_space, sess=sess,
-                                 placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
+
+        self.sess = tf_util.single_threaded_session()
+        self.ob_space = env.observation_space
+        self.ac_space = env.action_space
+
+        self.env = env
+        self.policy_func = policy_func
+        self.using_gail = using_gail
+        self.timesteps_per_batch = timesteps_per_batch
+        self.reward_giver = reward_giver
+        self.max_iters = max_iters
+        self.max_timesteps = max_timesteps
+        self.max_episodes = max_episodes
+        self.pretrained_weight = pretrained_weight
+        self.checkpoint_dir = checkpoint_dir
+        self.rank = rank
+        self.task_name = task_name
+        self.save_per_iter = save_per_iter
+        self.cg_iters = cg_iters
+        self.cg_damping = cg_damping
+        self.g_step = g_step
+        self.gamma = gamma
+        self.lam = lam
+        self.max_kl = max_kl
+        self.nworkers = nworkers
+        self.vf_iters = vf_iters
+        self.vf_stepsize = vf_stepsize
+        self.d_step = d_step
+        self.d_stepsize = d_stepsize
+        self.expert_dataset = expert_dataset
+        self.entcoeff = entcoeff
+
+        self.policy = None
+        self.loss_names = None
+        self.assign_old_eq_new = None
+        self.compute_losses = None
+        self.compute_lossandgrad = None
+        self.compute_fvp = None
+        self.compute_vflossandgrad = None
+        self.d_adam = None
+        self.vfadam = None
+        self.get_flat = None
+        self.set_from_flat = None
+        self.timed = None
+        self.allmean = None
+
+        if _init_setup_model:
+            self.setup_model()
+
+    def setup_model(self):
+        self.policy = policy = self.policy_func("pi", self.ob_space, self.ac_space, sess=self.sess)
+        old_policy = self.policy_func("oldpi", self.ob_space, self.ac_space, sess=self.sess,
+                                      placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
         atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
         ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
@@ -194,7 +239,7 @@ class TRPO(BaseRLModel):
         ent = policy.proba_distribution.entropy()
         meankl = tf.reduce_mean(kloldnew)
         meanent = tf.reduce_mean(ent)
-        entbonus = entcoeff * meanent
+        entbonus = self.entcoeff * meanent
 
         vferr = tf.reduce_mean(tf.square(policy.vpred - ret))
 
@@ -204,26 +249,25 @@ class TRPO(BaseRLModel):
 
         optimgain = surrgain + entbonus
         losses = [optimgain, meankl, entbonus, surrgain, meanent]
-        loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
+        self.loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
 
         dist = meankl
 
         all_var_list = policy.get_trainable_variables()
-        d_adam = None
-        if using_gail:
+        if self.using_gail:
             var_list = [v for v in all_var_list if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
             vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
             assert len(var_list) == len(vf_var_list) + 1
-            d_adam = MpiAdam(reward_giver.get_trainable_variables())
-            vfadam = MpiAdam(vf_var_list)
-            get_flat = tf_util.GetFlat(var_list)
-            set_from_flat = tf_util.SetFromFlat(var_list)
+            self.d_adam = MpiAdam(self.reward_giver.get_trainable_variables())
+            self.vfadam = MpiAdam(vf_var_list)
+            self.get_flat = tf_util.GetFlat(var_list)
+            self.set_from_flat = tf_util.SetFromFlat(var_list)
         else:
             var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("pol")]
             vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
-            vfadam = MpiAdam(vf_var_list, sess=sess)
-            get_flat = tf_util.GetFlat(var_list, sess=sess)
-            set_from_flat = tf_util.SetFromFlat(var_list, sess=sess)
+            self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
+            self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
+            self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
 
         klgrads = tf.gradients(dist, var_list)
         flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
@@ -249,7 +293,7 @@ class TRPO(BaseRLModel):
 
         @contextmanager
         def timed(msg):
-            if rank == 0:
+            if self.rank == 0:
                 print(colorize(msg, color='magenta'))
                 start_time = time.time()
                 yield
@@ -261,53 +305,21 @@ class TRPO(BaseRLModel):
             assert isinstance(arr, np.ndarray)
             out = np.empty_like(arr)
             MPI.COMM_WORLD.Allreduce(arr, out, op=MPI.SUM)
-            out /= nworkers
+            out /= self.nworkers
             return out
 
-        tf_util.initialize(sess=sess)
+        tf_util.initialize(sess=self.sess)
 
-        th_init = get_flat()
+        th_init = self.get_flat()
         MPI.COMM_WORLD.Bcast(th_init, root=0)
-        set_from_flat(th_init)
+        self.set_from_flat(th_init)
 
-        if using_gail:
-            d_adam.sync()
-        vfadam.sync()
+        if self.using_gail:
+            self.d_adam.sync()
+        self.vfadam.sync()
 
-        self.env = env
-        self.policy = policy
-        self.using_gail = using_gail
-        self.timesteps_per_batch = timesteps_per_batch
-        self.reward_giver = reward_giver
-        self.max_iters = max_iters
-        self.max_timesteps = max_timesteps
-        self.max_episodes = max_episodes
-        self.pretrained_weight = pretrained_weight
-        self.checkpoint_dir = checkpoint_dir
-        self.rank = rank
-        self.task_name = task_name
-        self.save_per_iter = save_per_iter
-        self.cg_iters = cg_iters
-        self.cg_damping = cg_damping
-        self.g_step = g_step
-        self.gamma = gamma
-        self.lam = lam
-        self.get_flat = get_flat
-        self.max_kl = max_kl
-        self.set_from_flat = set_from_flat
-        self.nworkers = nworkers
-        self.vf_iters = vf_iters
-        self.vfadam = vfadam
-        self.vf_stepsize = vf_stepsize
-        self.loss_names = loss_names
-        self.d_step = d_step
-        self.d_stepsize = d_stepsize
-        self.d_adam = d_adam
-        self.expert_dataset = expert_dataset
-
-        self.sess = sess
-        self.allmean = allmean
         self.timed = timed
+        self.allmean = allmean
 
     def learn(self, callback=None, seed=None, log_interval=100):
         if seed is not None:
@@ -505,7 +517,7 @@ class TRPO(BaseRLModel):
         raise NotImplementedError
 
     @classmethod
-    def load(cls, load_path, env):
+    def load(cls, load_path, env, **kwargs):
         raise NotImplementedError
 
 

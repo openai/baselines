@@ -118,13 +118,12 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 
 
 class DDPG(BaseRLModel):
-    def __init__(self, actor, critic, memory, env, gamma=0.99, total_timesteps=int(40e6), eval_env=None,
-                 nb_epochs=500, nb_epoch_cycles=20, nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100,
-                 param_noise=None, action_noise=None, param_noise_adaption_interval=50, tau=0.001,
-                 normalize_returns=False, enable_popart=False, normalize_observations=True, batch_size=128,
-                 observation_range=(-5., 5.), action_range=(-1., 1.), return_range=(-np.inf, np.inf), critic_l2_reg=0.,
-                 actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False,
-                 logging_level=logger.INFO, _init_setup_model=True):
+    def __init__(self, actor, critic, memory, env, gamma=0.99, eval_env=None, nb_epochs=500, nb_epoch_cycles=20,
+                 nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
+                 param_noise_adaption_interval=50, tau=0.001, normalize_returns=False, enable_popart=False,
+                 normalize_observations=True, batch_size=128, observation_range=(-5., 5.), action_range=(-1., 1.),
+                 return_range=(-np.inf, np.inf), critic_l2_reg=0., actor_lr=1e-4, critic_lr=1e-3, clip_norm=None,
+                 reward_scale=1., render=False, render_eval=False, logging_level=logger.INFO, _init_setup_model=True):
         """
         Deep Deterministic Policy Gradien (DDPG) model
 
@@ -135,7 +134,6 @@ class DDPG(BaseRLModel):
         :param memory: (Memory) the replay buffer
         :param env: (Gym Environment) the environment
         :param gamma: (float) the discount rate
-        :param total_timesteps: (int) The total number of timesteps for training the model
         :param eval_env: (Gym Environment) the evaluation environment (can be None)
         :param nb_epochs: (int) the number of training epochs
         :param nb_epoch_cycles: (int) the number cycles within each epoch
@@ -165,15 +163,15 @@ class DDPG(BaseRLModel):
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(DDPG, self).__init__()
-        self.observation_shape = observation_shape = env.observation_space.shape
-        self.action_shape = action_shape = env.action_space.shape
+        self.observation_space = observation_space = env.observation_space
+        self.action_space = action_space = env.action_space
 
         # Inputs.
-        self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs0')
-        self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_shape, name='obs1')
+        self.obs0 = tf.placeholder(tf.float32, shape=(None,) + observation_space.shape, name='obs0')
+        self.obs1 = tf.placeholder(tf.float32, shape=(None,) + observation_space.shape, name='obs1')
         self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
         self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
-        self.actions = tf.placeholder(tf.float32, shape=(None,) + action_shape, name='actions')
+        self.actions = tf.placeholder(tf.float32, shape=(None,) + action_space.shape, name='actions')
         self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
         self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
 
@@ -211,7 +209,6 @@ class DDPG(BaseRLModel):
         self.nb_epochs = nb_epochs
         self.nb_epoch_cycles = nb_epoch_cycles
         self.render = render
-        self.total_timesteps = total_timesteps
         self.render_eval = render_eval
         self.nb_eval_steps = nb_eval_steps
         self.param_noise_adaption_interval = param_noise_adaption_interval
@@ -256,7 +253,7 @@ class DDPG(BaseRLModel):
         # Observation normalization.
         if self.normalize_observations:
             with tf.variable_scope('obs_rms'):
-                self.obs_rms = RunningMeanStd(shape=self.observation_shape)
+                self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
         else:
             self.obs_rms = None
         normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms), self.observation_range[0],
@@ -595,7 +592,7 @@ class DDPG(BaseRLModel):
                 self.param_noise_stddev: self.param_noise.current_stddev,
             })
 
-    def learn(self, callback=None, seed=None, log_interval=100):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         rank = MPI.COMM_WORLD.Get_rank()
 
         if seed is not None:
@@ -647,7 +644,7 @@ class DDPG(BaseRLModel):
                 for _ in range(self.nb_epoch_cycles):
                     # Perform rollouts.
                     for _ in range(self.nb_rollout_steps):
-                        if total_steps >= self.total_timesteps:
+                        if total_steps >= total_timesteps:
                             return
 
                         # Predict next action.
@@ -710,7 +707,7 @@ class DDPG(BaseRLModel):
                     if self.eval_env is not None:
                         eval_episode_reward = 0.
                         for _ in range(self.nb_eval_steps):
-                            if total_steps >= self.total_timesteps:
+                            if total_steps >= total_timesteps:
                                 return
 
                             eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
@@ -795,8 +792,8 @@ class DDPG(BaseRLModel):
 
         # params
         data = {
-            "observation_shape": tuple([int(x) for x in self.obs0.shape[1:]]),
-            "action_shape": tuple([int(x) for x in self.actions.shape[1:]]),
+            "observation_space": self.observation_space,
+            "action_space": self.action_space,
             "param_noise": self.param_noise,
             "action_noise": self.action_noise,
             "gamma": self.gamma,
@@ -822,7 +819,7 @@ class DDPG(BaseRLModel):
         self.saver.save(self.sess, save_path)
 
     @classmethod
-    def load(cls, load_path, env, **kwargs):
+    def load(cls, load_path, env, memory_limit=100, **kwargs):
         # needed, otherwise tensorflow saver wont find the checkpoint files
         load_path = load_path.replace("//", "/")
 
@@ -834,7 +831,8 @@ class DDPG(BaseRLModel):
         assert data["action_space"] == env.action_space, \
             "Error: the environment passed must have at least the same action space as the model was trained on."
 
-        memory = Memory(limit=100, action_shape=data["action_shape"], observation_shape=data["observation_shape"])
+        memory = Memory(memory_limit=100, action_shape=data["action_space"].shape,
+                        observation_shape=data["observation_space"].shape)
         model = cls(data.pop("actor"), data.pop("critic"), memory, env, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)

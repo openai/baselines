@@ -13,9 +13,8 @@ from baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_
 
 
 class A2C(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, n_steps=5, total_timesteps=int(80e6), vf_coef=0.25, ent_coef=0.01,
-                 max_grad_norm=0.5, learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear',
-                 _init_setup_model=True):
+    def __init__(self, policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
+                 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', _init_setup_model=True):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
@@ -23,7 +22,6 @@ class A2C(BaseRLModel):
         :param env: (Gym environment) The environment to learn from
         :param gamma: (float) Discount factor
         :param n_steps: (int) The number of steps to run for each environment
-        :param total_timesteps: (int) The total number of samples
         :param vf_coef: (float) Value function coefficient for the loss calculation
         :param ent_coef: (float) Entropy coefficient for the loss caculation
         :param max_grad_norm: (float) The maximum value for the gradient clipping
@@ -39,14 +37,13 @@ class A2C(BaseRLModel):
 
         self.learning_rate_ph = tf.placeholder(tf.float32, [])
 
-        self.ob_space = env.observation_space
-        self.ac_space = env.action_space
+        self.observation_space = env.observation_space
+        self.action_space = env.action_space
 
         self.policy = policy
         self.env = env
         self.n_steps = n_steps
         self.gamma = gamma
-        self.total_timesteps = total_timesteps
         self.sess = sess
         self.vf_coef = vf_coef
         self.ent_coef = ent_coef
@@ -54,7 +51,7 @@ class A2C(BaseRLModel):
         self.alpha = alpha
         self.epsilon = epsilon
         self.lr_schedule = lr_schedule
-        self.learning_rate_init = learning_rate
+        self.learning_rate = learning_rate
 
         self.n_envs = None
         self.n_batch = None
@@ -71,7 +68,7 @@ class A2C(BaseRLModel):
         self.step = None
         self.value = None
         self.initial_state = None
-        self.learning_rate = None
+        self.learning_rate_schedule = None
 
         if _init_setup_model:
             self.setup_model()
@@ -84,9 +81,9 @@ class A2C(BaseRLModel):
         self.advs_ph = tf.placeholder(tf.float32, [n_batch])
         self.rewards_ph = tf.placeholder(tf.float32, [n_batch])
 
-        step_model = self.policy(self.sess, self.ob_space, self.ac_space, n_envs, 1, reuse=False)
-        train_model = self.policy(self.sess, self.ob_space, self.ac_space, n_envs * self.n_steps, self.n_steps, 
-                                  reuse=True)
+        step_model = self.policy(self.sess, self.observation_space, self.action_space, n_envs, 1, reuse=False)
+        train_model = self.policy(self.sess, self.observation_space, self.action_space, n_envs * self.n_steps,
+                                  self.n_steps, reuse=True)
 
         neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=self.actions_ph)
         self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
@@ -101,9 +98,6 @@ class A2C(BaseRLModel):
         grads = list(zip(grads, self.params))
         trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha, epsilon=self.epsilon)
         self.apply_backprop = trainer.apply_gradients(grads)
-
-        self.learning_rate = Scheduler(initial_value=self.learning_rate_init, n_values=self.total_timesteps,
-                                       schedule=self.lr_schedule)
 
         self.train_model = train_model
         self.step_model = step_model
@@ -127,7 +121,7 @@ class A2C(BaseRLModel):
         advs = rewards - values
         cur_lr = None
         for _ in range(len(obs)):
-            cur_lr = self.learning_rate.value()
+            cur_lr = self.learning_rate_schedule.value()
         assert cur_lr is not None, "Error: the observation input array cannon be empty"
 
         td_map = {self.train_model.obs_ph: obs, self.actions_ph: actions, self.advs_ph: advs,
@@ -140,14 +134,17 @@ class A2C(BaseRLModel):
             [self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop], td_map)
         return policy_loss, value_loss, policy_entropy
 
-    def learn(self, callback=None, seed=None, log_interval=100):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         if seed is not None:
             set_global_seeds(seed)
+
+        self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
+                                                schedule=self.lr_schedule)
 
         runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
 
         t_start = time.time()
-        for update in range(1, self.total_timesteps // self.n_batch + 1):
+        for update in range(1, total_timesteps // self.n_batch + 1):
             obs, states, rewards, masks, actions, values = runner.run()
             _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
             n_seconds = time.time() - t_start
@@ -175,13 +172,13 @@ class A2C(BaseRLModel):
             "vf_coef": self.vf_coef,
             "ent_coef": self.ent_coef,
             "max_grad_norm": self.max_grad_norm,
-            "learning_rate_init": self.learning_rate_init,
+            "learning_rate": self.learning_rate,
             "alpha": self.alpha,
             "epsilon": self.epsilon,
             "lr_schedule": self.lr_schedule,
             "policy": self.policy,
-            "ob_space": self.ob_space,
-            "ac_space": self.ac_space
+            "ob_space": self.observation_space,
+            "ac_space": self.action_space
         }
 
         with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
@@ -193,15 +190,12 @@ class A2C(BaseRLModel):
 
     @classmethod
     def load(cls, load_path, env, **kwargs):
-        if "learning_rate" in kwargs:
-            kwargs["learning_rate_init"] = kwargs["learning_rate"]
-
         with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
             data = cloudpickle.load(file)
 
-        assert data["ob_space"] == env.observation_space, \
+        assert data["observation_space"] == env.observation_space, \
             "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["ac_space"] == env.action_space, \
+        assert data["action_space"] == env.action_space, \
             "Error: the environment passed must have at least the same action space as the model was trained on."
 
         model = cls(policy=data["policy"], env=env, _init_setup_model=False)

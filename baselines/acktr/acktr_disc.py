@@ -17,16 +17,14 @@ from baselines.acktr import kfac
 
 
 class ACKTR(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, total_timesteps=int(40e6), nprocs=1, n_steps=20,
-                 ent_coef=0.01, vf_coef=0.25, vf_fisher_coef=1.0, learning_rate=0.25, max_grad_norm=0.5,
-                 kfac_clip=0.001, lr_schedule='linear', _init_setup_model=True):
+    def __init__(self, policy, env, gamma=0.99, nprocs=1, n_steps=20, ent_coef=0.01, vf_coef=0.25, vf_fisher_coef=1.0,
+                 learning_rate=0.25, max_grad_norm=0.5, kfac_clip=0.001, lr_schedule='linear', _init_setup_model=True):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
 
         :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
         :param env: (Gym environment) The environment to learn from
         :param gamma: (float) Discount factor
-        :param total_timesteps: (int) The total number of timesteps for training the model
         :param nprocs: (int) The number of threads for TensorFlow operations
         :param n_steps: (int) The number of steps to run for each environment
         :param ent_coef: (float) The weight for the entropic loss
@@ -54,14 +52,13 @@ class ACKTR(BaseRLModel):
         self.env = env
         self.n_steps = n_steps
         self.gamma = gamma
-        self.total_timesteps = total_timesteps
         self.policy = policy
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef
         self.vf_fisher_coef = vf_fisher_coef
         self.kfac_clip = kfac_clip
         self.max_grad_norm = max_grad_norm
-        self.learning_rate_init = learning_rate
+        self.learning_rate = learning_rate
         self.lr_schedule = lr_schedule
         self.nprocs = nprocs
 
@@ -83,7 +80,7 @@ class ACKTR(BaseRLModel):
         self.optim = None
         self.train_op = None
         self.q_runner = None
-        self.learning_rate = None
+        self.learning_rate_schedule = None
         self.train_model = None
         self.step_model = None
         self.step = None
@@ -133,9 +130,6 @@ class ACKTR(BaseRLModel):
             optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
             self.train_op, self.q_runner = optim.apply_gradients(list(zip(grads, params)))
 
-        self.learning_rate = Scheduler(initial_value=self.learning_rate_init, n_values=self.total_timesteps,
-                                       schedule=self.lr_schedule)
-
         self.train_model = train_model
         self.step_model = step_model
         self.step = step_model.step
@@ -158,7 +152,7 @@ class ACKTR(BaseRLModel):
         advs = rewards - values
         cur_lr = None
         for _ in range(len(obs)):
-            cur_lr = self.learning_rate.value()
+            cur_lr = self.learning_rate_schedule.value()
         assert cur_lr is not None, "Error: the observation input array cannon be empty"
 
         td_map = {self.train_model.obs_ph: obs, self.action_ph: actions, self.advs_ph: advs, self.rewards_ph: rewards,
@@ -173,16 +167,19 @@ class ACKTR(BaseRLModel):
         )
         return policy_loss, value_loss, policy_entropy
 
-    def learn(self, callback=None, seed=None, log_interval=100):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         if seed is not None:
             set_global_seeds(seed)
+
+        self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
+                                                schedule=self.lr_schedule)
 
         runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
 
         t_start = time.time()
         coord = tf.train.Coordinator()
         enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
-        for update in range(1, self.total_timesteps // self.n_batch + 1):
+        for update in range(1, total_timesteps // self.n_batch + 1):
             obs, states, rewards, masks, actions, values = runner.run()
             policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
             n_seconds = time.time() - t_start
@@ -215,12 +212,12 @@ class ACKTR(BaseRLModel):
             "ent_coef": self.ent_coef,
             "vf_fisher_coef": self.vf_fisher_coef,
             "max_grad_norm": self.max_grad_norm,
-            "learning_rate_init": self.learning_rate_init,
+            "learning_rate": self.learning_rate,
             "kfac_clip": self.kfac_clip,
             "lr_schedule": self.lr_schedule,
             "policy": self.policy,
-            "ob_space": self.ob_space,
-            "ac_space": self.ac_space
+            "observation_space": self.observation_space,
+            "action_space": self.action_space
         }
 
         with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
@@ -232,15 +229,12 @@ class ACKTR(BaseRLModel):
 
     @classmethod
     def load(cls, load_path, env, **kwargs):
-        if "learning_rate" in kwargs:
-            kwargs["learning_rate_init"] = kwargs["learning_rate"]
-
         with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
             data = cloudpickle.load(file)
 
-        assert data["ob_space"] == env.observation_space, \
+        assert data["observation_space"] == env.observation_space, \
             "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["ac_space"] == env.action_space, \
+        assert data["action_space"] == env.action_space, \
             "Error: the environment passed must have at least the same action space as the model was trained on."
 
         model = cls(policy=data["policy"], env=env, _init_setup_model=False)

@@ -6,10 +6,11 @@ class BaseRLModel(ABC):
         super(BaseRLModel, self).__init__()
 
     @abstractmethod
-    def learn(self, callback=None, seed=None, log_interval=100):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         """
         Return a trained model.
 
+        :param total_timesteps: (int) The total number of samples to train on
         :param seed: (int) The initial seed for training, if None: keep current seed
         :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
             It takes the local and global variables.
@@ -29,11 +30,12 @@ class BaseRLModel(ABC):
 
     @classmethod
     @abstractmethod
-    def load(cls, load_path, env):
+    def load(cls, load_path, env, **kwargs):
         """
         Load the model from file
 
         :param load_path: (str) the saved parameter location
         :param env: (Gym Envrionment) the new environment to run the loaded model on
+        :param kwargs: extra arguments to change the model when loading
         """
         pass

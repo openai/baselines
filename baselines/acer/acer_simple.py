@@ -61,10 +61,10 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
 
 
 class ACER(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, n_steps=20, nstack=4, total_timesteps=int(80e6), num_procs=1,
-                 q_coef=0.5, ent_coef=0.01, max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear',
-                 rprop_alpha=0.99, rprop_epsilon=1e-5, buffer_size=5000, replay_ratio=4, replay_start=1000,
-                 correction_term=10.0, trust_region=True, alpha=0.99, delta=1, _init_setup_model=True):
+    def __init__(self, policy, env, gamma=0.99, n_steps=20, nstack=4, num_procs=1, q_coef=0.5, ent_coef=0.01,
+                 max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5,
+                 buffer_size=5000, replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True,
+                 alpha=0.99, delta=1, _init_setup_model=True):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
@@ -73,7 +73,6 @@ class ACER(BaseRLModel):
         :param gamma: (float) The discount value
         :param n_steps: (int) The number of steps to run for each environment
         :param nstack: (int) The number of stacked frames
-        :param total_timesteps: (int) The total number of timesteps for training the model
         :param num_procs: (int) The number of threads for TensorFlow operations
         :param q_coef: (float) The weight for the loss on the Q value
         :param ent_coef: (float) The weight for the entropic loss
@@ -99,17 +98,16 @@ class ACER(BaseRLModel):
                                 inter_op_parallelism_threads=num_procs)
         self.sess = tf.Session(config=config)
 
-        self.ac_space = env.action_space
-        self.ob_space = env.observation_space
+        self.action_space = env.action_space
+        self.observation_space = env.observation_space
         self.n_env = env.num_envs
-        self.n_act = self.ac_space.n
+        self.n_act = self.action_space.n
         self.n_batch = self.n_env * n_steps
         self.n_steps = n_steps
         self.env = env
         self.replay_ratio = replay_ratio
         self.nstack = nstack
         self.buffer_size = buffer_size
-        self.total_timesteps = total_timesteps
         self.replay_start = replay_start
         self.policy = policy
         self.gamma = gamma
@@ -122,7 +120,7 @@ class ACER(BaseRLModel):
         self.max_grad_norm = max_grad_norm
         self.rprop_alpha = rprop_alpha
         self.rprop_epsilon = rprop_epsilon
-        self.learning_rate_init = learning_rate
+        self.learning_rate = learning_rate
         self.lr_schedule = lr_schedule
 
         self.action_ph = None
@@ -132,7 +130,7 @@ class ACER(BaseRLModel):
         self.learning_rate_ph = None
         self.params = None
         self.polyak_model = None
-        self.learning_rate = None
+        self.learning_rate_schedule = None
         self.run_ops = None
         self.names_ops = None
         self.train_model = None
@@ -151,9 +149,10 @@ class ACER(BaseRLModel):
         self.learning_rate_ph = tf.placeholder(tf.float32, [])
         eps = 1e-6
 
-        step_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_env, 1, self.nstack, reuse=False)
-        train_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_env, self.n_steps + 1, self.nstack,
-                                  reuse=True)
+        step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_env, 1, self.nstack,
+                                 reuse=False)
+        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_env, self.n_steps + 1,
+                                  self.nstack, reuse=True)
 
         self.params = find_trainable_variables("model")
         print("Params {}".format(len(self.params)))
@@ -170,8 +169,8 @@ class ACER(BaseRLModel):
             return val
 
         with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
-            self.polyak_model = polyak_model = self.policy(self.sess, self.ob_space, self.ac_space, self.n_env,
-                                                           self.n_steps + 1, self.nstack, reuse=True)
+            self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                                           self.n_env, self.n_steps + 1, self.nstack, reuse=True)
 
         # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
         value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [n_envs * (n_steps + 1)]
@@ -273,9 +272,6 @@ class ACER(BaseRLModel):
         with tf.control_dependencies([_opt_op]):
             _train = tf.group(ema_apply_op)
 
-        self.learning_rate = Scheduler(initial_value=self.learning_rate_init, n_values=self.total_timesteps,
-                                       schedule=self.lr_schedule)
-
         # Ops/Summaries to run, and their names for logging
         assert norm_grads is not None
         run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, explained_variance, norm_grads]
@@ -308,7 +304,7 @@ class ACER(BaseRLModel):
         :param steps: (int) the number of steps done so far
         :return: ([str], [float]) the list of update operation name, and the list of the results of the operations
         """
-        cur_lr = self.learning_rate.value_steps(steps)
+        cur_lr = self.learning_rate_schedule.value_steps(steps)
         td_map = {self.train_model.obs_ph: obs, self.polyak_model.obs_ph: obs, self.action_ph: actions,
                   self.reward_ph: rewards, self.done_ph: dones, self.mu_ph: mus, self.learning_rate_ph: cur_lr}
 
@@ -320,9 +316,12 @@ class ACER(BaseRLModel):
 
         return self.names_ops, self.sess.run(self.run_ops, td_map)[1:]  # strip off _train
 
-    def learn(self, callback=None, seed=None, log_interval=100):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         if seed is not None:
             set_global_seeds(seed)
+
+        self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
+                                                schedule=self.lr_schedule)
 
         episode_stats = EpisodeStats(self.n_steps, self.n_env)
 
@@ -335,7 +334,7 @@ class ACER(BaseRLModel):
         t_start = time.time()
 
         # n_batch samples, 1 on_policy call and multiple off-policy calls
-        for steps in range(0, self.total_timesteps, self.n_batch):
+        for steps in range(0, total_timesteps, self.n_batch):
             enc_obs, obs, actions, rewards, mus, dones, masks = runner.run()
             episode_stats.feed(rewards, dones)
 
@@ -394,15 +393,15 @@ class ACER(BaseRLModel):
             "q_coef": self.q_coef,
             "ent_coef": self.ent_coef,
             "max_grad_norm": self.max_grad_norm,
-            "learning_rate_init": self.learning_rate_init,
+            "learning_rate": self.learning_rate,
             "lr_schedule": self.lr_schedule,
             "rprop_alpha": self.rprop_alpha,
             "rprop_epsilon": self.rprop_epsilon,
             "replay_ratio": self.replay_ratio,
             "replay_start": self.replay_start,
             "policy": self.policy,
-            "ob_space": self.ob_space,
-            "ac_space": self.ac_space
+            "observation_space": self.observation_space,
+            "action_space": self.action_space
         }
 
         with open(".".join(save_path.split('.')[:-1]) + "_class.pkl", "wb") as file:
@@ -414,15 +413,12 @@ class ACER(BaseRLModel):
 
     @classmethod
     def load(cls, load_path, env, **kwargs):
-        if "learning_rate" in kwargs:
-            kwargs["learning_rate_init"] = kwargs["learning_rate"]
-
         with open(".".join(load_path.split('.')[:-1]) + "_class.pkl", "rb") as file:
             data = cloudpickle.load(file)
 
-        assert data["ob_space"] == env.observation_space, \
+        assert data["observation_space"] == env.observation_space, \
             "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert data["ac_space"] == env.action_space, \
+        assert data["action_space"] == env.action_space, \
             "Error: the environment passed must have at least the same action space as the model was trained on."
 
         model = cls(policy=data["policy"], env=env, _init_setup_model=False)
