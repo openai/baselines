@@ -820,7 +820,7 @@ class DDPG(BaseRLModel):
         self._save_to_file(save_path, data=data, params=params)
 
     @classmethod
-    def load(cls, load_path, env=None, memory_limit=100, **kwargs):
+    def load(cls, load_path, env=None, **kwargs):
         """
         Load the model from file
 
@@ -830,6 +830,8 @@ class DDPG(BaseRLModel):
         :param memory_limit: (int) the maximum transitions that can be stored by DDPG's Memory buffer
         :param kwargs: extra arguments to change the model when loading
         """
+        memory_limit = kwargs.get("memory_limit", 100)
+
         data, params = cls._load_from_file(load_path)
 
         memory = Memory(limit=memory_limit, action_shape=data["action_space"].shape,

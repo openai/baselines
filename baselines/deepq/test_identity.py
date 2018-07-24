@@ -22,22 +22,22 @@ def test_identity():
         env=env,
         q_func=model,
         learning_rate=1e-3,
-        max_timesteps=10000,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
         param_noise=param_noise,
     )
-    model.learn()
+    model.learn(total_timesteps=10000)
 
     tf.set_random_seed(0)
 
     n_trials = 1000
     sum_rew = 0
     obs = env.reset()
-    for _ in range(n_trials):
-        obs, rew, _, _ = env.step(model.act([obs]))
-        sum_rew += rew
+    with model.sess.as_default():
+        for _ in range(n_trials):
+            obs, rew, _, _ = env.step(model.act([obs]))
+            sum_rew += rew
 
     assert sum_rew > 0.9 * n_trials
 

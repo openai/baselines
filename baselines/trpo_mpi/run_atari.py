@@ -40,9 +40,8 @@ def train(env_id, num_timesteps, seed):
     env.seed(workerseed)
 
     model = TRPO(policy_fn, env, timesteps_per_batch=512, max_kl=0.001, cg_iters=10, cg_damping=1e-3, entcoeff=0.0,
-                 max_timesteps=int(num_timesteps * 1.1), gamma=0.98, lam=1, vf_iters=3, vf_stepsize=1e-4,
-                 max_episodes=0, max_iters=0)
-    model.learn()
+                 gamma=0.98, lam=1, vf_iters=3, vf_stepsize=1e-4)
+    model.learn(total_timesteps=int(num_timesteps * 1.1))
     env.close()
 
 

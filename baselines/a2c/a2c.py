@@ -46,7 +46,6 @@ class A2C(BaseRLModel):
 
         self.sess = None
         self.learning_rate_ph = None
-        self.n_envs = None
         self.n_batch = None
         self.actions_ph = None
         self.advs_ph = None
