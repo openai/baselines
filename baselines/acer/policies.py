@@ -85,12 +85,12 @@ class AcerCnnPolicy(AcerPolicy):
 
     def step(self, obs, state, mask, *args, **kwargs):
         # returns actions, mus, states
-        action_0, policy_0 = self.sess.run([self.action, self.policy], {self.obs_ph: obs})
-        return action_0, policy_0, []  # dummy state
+        action, policy = self.sess.run([self.action, self.policy], {self.obs_ph: obs})
+        return action, policy, []  # dummy state
 
     def out(self, obs, state, mask, *args, **kwargs):
-        policy_0, q_value_0 = self.sess.run([self.policy, self.q_value], {self.obs_ph: obs})
-        return policy_0, q_value_0
+        policy, q_value = self.sess.run([self.policy, self.q_value], {self.obs_ph: obs})
+        return policy, q_value
 
     def act(self, obs, state, mask, *args, **kwargs):
         return self.sess.run(self.action, {self.obs_ph: obs})
@@ -119,13 +119,13 @@ class AcerLstmPolicy(AcerPolicy):
 
     def step(self, obs, state, mask, *args, **kwargs):
         # returns actions, mus, states
-        action_0, policy_0, states = self.sess.run([self.action, self.policy, self.snew],
+        action, policy, states = self.sess.run([self.action, self.policy, self.snew],
                                    {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
-        return action_0, policy_0, states
+        return action, policy, states
 
     def out(self, obs, state, mask, *args, **kwargs):
-        policy_0, q_value_0 = self.sess.run([self.policy, self.q_value], {self.obs_ph: obs})
-        return policy_0, q_value_0
+        policy, q_value = self.sess.run([self.policy, self.q_value], {self.obs_ph: obs})
+        return policy, q_value
 
     def act(self, obs, state, mask, *args, **kwargs):
         return self.sess.run(self.action, {self.obs_ph: obs})
