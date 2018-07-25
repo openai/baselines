@@ -1,15 +1,15 @@
 __all__ = ['Monitor', 'get_monitor_files', 'load_results']
 
+import os
 import time
-from glob import glob
 import csv
 import json
-import os
+import uuid
+from glob import glob
 
 import gym
 from gym.core import Wrapper
 import pandas
-import uuid
 
 
 class Monitor(Wrapper):
@@ -173,15 +173,15 @@ def load_results(path):
         raise LoadMonitorResultsError("no monitor files of the form *%s found in %s" % (Monitor.EXT, path))
     data_frames = []
     headers = []
-    for fname in monitor_files:
-        with open(fname, 'rt') as file_handler:
-            if fname.endswith('csv'):
-                firstline = file_handler.readline()
-                assert firstline[0] == '#'
-                header = json.loads(firstline[1:])
+    for file_name in monitor_files:
+        with open(file_name, 'rt') as file_handler:
+            if file_name.endswith('csv'):
+                first_line = file_handler.readline()
+                assert first_line[0] == '#'
+                header = json.loads(first_line[1:])
                 data_frame = pandas.read_csv(file_handler, index_col=None)
                 headers.append(header)
-            elif fname.endswith('json'):  # Deprecated json format
+            elif file_name.endswith('json'):  # Deprecated json format
                 episodes = []
                 lines = file_handler.readlines()
                 header = json.loads(lines[0])

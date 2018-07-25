@@ -57,10 +57,10 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
             param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(stddev), desired_action_stddev=float(stddev))
         elif 'normal' in current_noise_type:
             _, stddev = current_noise_type.split('_')
-            action_noise = NormalActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
+            action_noise = NormalActionNoise(mean=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
         elif 'ou' in current_noise_type:
             _, stddev = current_noise_type.split('_')
-            action_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(nb_actions),
+            action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(nb_actions),
                                                         sigma=float(stddev) * np.ones(nb_actions))
         else:
             raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))

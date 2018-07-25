@@ -119,8 +119,8 @@ def conv(input_tensor, scope, *, n_filters, filter_size, stride,
     else:
         raise NotImplementedError
     bias_var_shape = [n_filters] if one_dim_bias else [1, n_filters, 1, 1]
-    nin = input_tensor.get_shape()[channel_ax].value
-    wshape = [filter_size, filter_size, nin, n_filters]
+    n_input = input_tensor.get_shape()[channel_ax].value
+    wshape = [filter_size, filter_size, n_input, n_filters]
     with tf.variable_scope(scope):
         weight = tf.get_variable("w", wshape, initializer=ortho_init(init_scale))
         bias = tf.get_variable("b", bias_var_shape, initializer=tf.constant_initializer(0.0))
