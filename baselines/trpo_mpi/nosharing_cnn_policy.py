@@ -33,7 +33,7 @@ class CnnPolicy(BasePolicy):
         """
         obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
-        obs_normalized = obs / 255.0
+        obs_normalized = self.processed_x / 255.0
 
         with tf.variable_scope(self.name + "/pol", reuse=self.reuse):
             layer_1 = tf.nn.relu(tf_utils.conv2d(obs_normalized, 8, "l1", [8, 8], [4, 4], pad="VALID"))

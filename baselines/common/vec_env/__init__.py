@@ -108,6 +108,13 @@ class VecEnv(ABC):
 
 class VecEnvWrapper(VecEnv):
     def __init__(self, venv, observation_space=None, action_space=None):
+        """
+        Vectorized environment base class
+
+        :param venv: (VecEnv) the vectorized environment to wrap
+        :param observation_space: (Gym Space) the observation space (can be None to load from venv)
+        :param action_space: (Gym Space) the action space (can be None to load from venv)
+        """
         self.venv = venv
         VecEnv.__init__(self, num_envs=venv.num_envs, observation_space=observation_space or venv.observation_space,
                         action_space=action_space or venv.action_space)

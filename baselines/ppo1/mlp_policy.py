@@ -1,9 +1,10 @@
 import tensorflow as tf
 import gym
 
-from baselines.common.mpi_running_mean_std import RunningMeanStd
-import baselines.common.tf_util as tf_util
+from baselines.common import tf_util
+from baselines.common.input import observation_input
 from baselines.common.distributions import make_proba_dist_type
+from baselines.common.mpi_running_mean_std import RunningMeanStd
 
 
 class BasePolicy(object):
@@ -20,9 +21,11 @@ class BasePolicy(object):
         self.scope = None
         self.obs_ph = None
         self.stochastic_ph = None
+        self.processed_x = None
 
         if placeholders is not None:
             self.obs_ph = placeholders.get("obs", None)
+            self.processed_x = placeholders.get("processed_obs", None)
             self.stochastic_ph = placeholders.get("stochastic", None)
 
     def get_obs_and_pdtype(self, ob_space, ac_space):
@@ -32,13 +35,12 @@ class BasePolicy(object):
         :param ob_space: (Gym Spaces) the observation space
         :param ac_space: (Gym Spaces) the action space
         """
-        assert isinstance(ob_space, gym.spaces.Box)
-
         self.pdtype = pdtype = make_proba_dist_type(ac_space)
-        sequence_length = None
 
         if self.obs_ph is None:
-            self.obs_ph = tf.placeholder(dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape), name="ob")
+            self.obs_ph, self.processed_x = observation_input(ob_space)
+        else:
+            assert self.processed_x is not None
 
         return self.obs_ph, pdtype
 
@@ -118,7 +120,7 @@ class MlpPolicy(BasePolicy):
             self.ob_rms = RunningMeanStd(shape=ob_space.shape)
 
         with tf.variable_scope(self.name + '/vf', reuse=self.reuse):
-            obz = tf.clip_by_value((obs - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
+            obz = tf.clip_by_value((self.processed_x - self.ob_rms.mean) / self.ob_rms.std, -5.0, 5.0)
             last_out = obz
             for i in range(num_hid_layers):
                 last_out = tf.nn.tanh(tf.layers.dense(last_out, hid_size, name="fc%i" % (i + 1),

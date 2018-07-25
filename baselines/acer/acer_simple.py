@@ -154,8 +154,8 @@ class ACER(BaseRLModel):
 
             step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, self.nstack,
                                      reuse=False)
-            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, self.n_steps + 1,
-                                      self.nstack, reuse=True)
+            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
+                                      self.n_steps + 1, self.nstack, reuse=True)
 
             self.params = find_trainable_variables("model")
 
@@ -172,7 +172,8 @@ class ACER(BaseRLModel):
                                                                self.n_envs, self.n_steps + 1, self.nstack, reuse=True)
 
             # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
-            value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [n_envs * (n_steps + 1)]
+            # shape is [n_envs * (n_steps + 1)]
+            value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)
 
             # strip off last step
             # f is a distribution, chosen to be Gaussian distributions
@@ -212,7 +213,9 @@ class ACER(BaseRLModel):
             check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
             gain_bc = tf.reduce_sum(log_f_bc *
                                     tf.stop_gradient(
-                                        adv_bc * tf.nn.relu(1.0 - (self.correction_term / (rho + eps))) * distribution_f),
+                                        adv_bc *
+                                        tf.nn.relu(1.0 - (self.correction_term / (rho + eps))) *
+                                        distribution_f),
                                     axis=1)
             # IMP: This is sum, as expectation wrt f
             loss_bc = -tf.reduce_mean(gain_bc)
@@ -229,11 +232,12 @@ class ACER(BaseRLModel):
             check_shape([loss_policy, loss_q, entropy], [[]] * 3)
             loss = loss_policy + self.q_coef * loss_q - self.ent_coef * entropy
 
-            norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g, avg_norm_adj = \
-                None, None, None, None, None, None, None
+            norm_grads_q, norm_grads_policy, avg_norm_grads_f = None, None, None
+            avg_norm_k, avg_norm_g, avg_norm_k_dot_g, avg_norm_adj = None, None, None, None
             if self.trust_region:
                 # [n_envs * n_steps, n_act]
-                grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs, distribution_f)
+                grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs,
+                                    distribution_f)
                 # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
                 kl_grad = - f_polyak / (distribution_f + eps)
                 k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
@@ -383,7 +387,7 @@ class ACER(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None, stack=True):
+    def predict(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W:0221
         """
         Get the model's action from an observation
 
@@ -417,7 +421,7 @@ class ACER(BaseRLModel):
         actions, _, states = self.step(stacked_obs, state, mask)
         return actions, states
 
-    def action_probability(self, observation, state=None, mask=None, stack=True):
+    def action_probability(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W:0221
         """
         Get the model's action probability distribution from an observation
 

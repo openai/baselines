@@ -75,7 +75,8 @@ class PPO1(BaseRLModel):
 
             # Network for old policy
             oldpi = self.policy_fn("oldpi", self.observation_space, self.action_space, sess=self.sess,
-                                   placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
+                                   placeholders={"obs": policy.obs_ph, "processed_obs": policy.processed_x,
+                                                 "stochastic": policy.stochastic_ph})
 
             # Target advantage function (if applicable)
             atarg = tf.placeholder(dtype=tf.float32, shape=[None])
@@ -127,102 +128,103 @@ class PPO1(BaseRLModel):
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         self._setup_learn(seed)
 
-        self.adam.sync()
+        with self.sess.as_default():
+            self.adam.sync()
 
-        # Prepare for rollouts
-        seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_actorbatch, stochastic=True)
+            # Prepare for rollouts
+            seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_actorbatch, stochastic=True)
 
-        episodes_so_far = 0
-        timesteps_so_far = 0
-        iters_so_far = 0
-        t_start = time.time()
+            episodes_so_far = 0
+            timesteps_so_far = 0
+            iters_so_far = 0
+            t_start = time.time()
 
-        # rolling buffer for episode lengths
-        lenbuffer = deque(maxlen=100)
-        # rolling buffer for episode rewards
-        rewbuffer = deque(maxlen=100)
+            # rolling buffer for episode lengths
+            lenbuffer = deque(maxlen=100)
+            # rolling buffer for episode rewards
+            rewbuffer = deque(maxlen=100)
 
-        while True:
-            if callback:
-                callback(locals(), globals())
-            if total_timesteps and timesteps_so_far >= total_timesteps:
-                break
+            while True:
+                if callback:
+                    callback(locals(), globals())
+                if total_timesteps and timesteps_so_far >= total_timesteps:
+                    break
 
-            if self.schedule == 'constant':
-                cur_lrmult = 1.0
-            elif self.schedule == 'linear':
-                cur_lrmult = max(1.0 - float(timesteps_so_far) / total_timesteps, 0)
-            else:
-                raise NotImplementedError
+                if self.schedule == 'constant':
+                    cur_lrmult = 1.0
+                elif self.schedule == 'linear':
+                    cur_lrmult = max(1.0 - float(timesteps_so_far) / total_timesteps, 0)
+                else:
+                    raise NotImplementedError
 
-            logger.log("********** Iteration %i ************" % iters_so_far)
+                logger.log("********** Iteration %i ************" % iters_so_far)
 
-            seg = seg_gen.__next__()
-            add_vtarg_and_adv(seg, self.gamma, self.lam)
+                seg = seg_gen.__next__()
+                add_vtarg_and_adv(seg, self.gamma, self.lam)
 
-            # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-            obs_ph, action_ph, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+                # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
+                obs_ph, action_ph, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
 
-            # predicted value function before udpate
-            vpredbefore = seg["vpred"]
+                # predicted value function before udpate
+                vpredbefore = seg["vpred"]
 
-            # standardized advantage function estimate
-            atarg = (atarg - atarg.mean()) / atarg.std()
-            dataset = Dataset(dict(ob=obs_ph, ac=action_ph, atarg=atarg, vtarg=tdlamret),
-                              shuffle=not self.policy.recurrent)
-            optim_batchsize = self.optim_batchsize or obs_ph.shape[0]
+                # standardized advantage function estimate
+                atarg = (atarg - atarg.mean()) / atarg.std()
+                dataset = Dataset(dict(ob=obs_ph, ac=action_ph, atarg=atarg, vtarg=tdlamret),
+                                  shuffle=not self.policy.recurrent)
+                optim_batchsize = self.optim_batchsize or obs_ph.shape[0]
 
-            if hasattr(self.policy, "ob_rms"):
-                # update running mean/std for policy
-                self.policy.ob_rms.update(obs_ph)
+                if hasattr(self.policy, "ob_rms"):
+                    # update running mean/std for policy
+                    self.policy.ob_rms.update(obs_ph)
 
-            # set old parameter values to new parameter values
-            self.assign_old_eq_new(sess=self.sess)
-            logger.log("Optimizing...")
-            logger.log(fmt_row(13, self.loss_names))
+                # set old parameter values to new parameter values
+                self.assign_old_eq_new(sess=self.sess)
+                logger.log("Optimizing...")
+                logger.log(fmt_row(13, self.loss_names))
 
-            # Here we do a bunch of optimization epochs over the data
-            for _ in range(self.optim_epochs):
-                # list of tuples, each of which gives the loss for a minibatch
+                # Here we do a bunch of optimization epochs over the data
+                for _ in range(self.optim_epochs):
+                    # list of tuples, each of which gives the loss for a minibatch
+                    losses = []
+                    for batch in dataset.iterate_once(optim_batchsize):
+                        *newlosses, grad = self.lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
+                                                            cur_lrmult, sess=self.sess)
+                        self.adam.update(grad, self.optim_stepsize * cur_lrmult)
+                        losses.append(newlosses)
+                    logger.log(fmt_row(13, np.mean(losses, axis=0)))
+
+                logger.log("Evaluating losses...")
                 losses = []
                 for batch in dataset.iterate_once(optim_batchsize):
-                    *newlosses, grad = self.lossandgrad(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
-                                                        cur_lrmult, sess=self.sess)
-                    self.adam.update(grad, self.optim_stepsize * cur_lrmult)
+                    newlosses = self.compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult,
+                                                    sess=self.sess)
                     losses.append(newlosses)
-                logger.log(fmt_row(13, np.mean(losses, axis=0)))
+                mean_losses, _, _ = mpi_moments(losses, axis=0)
+                logger.log(fmt_row(13, mean_losses))
+                for (loss_val, name) in zipsame(mean_losses, self.loss_names):
+                    logger.record_tabular("loss_" + name, loss_val)
+                logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
 
-            logger.log("Evaluating losses...")
-            losses = []
-            for batch in dataset.iterate_once(optim_batchsize):
-                newlosses = self.compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult,
-                                                sess=self.sess)
-                losses.append(newlosses)
-            mean_losses, _, _ = mpi_moments(losses, axis=0)
-            logger.log(fmt_row(13, mean_losses))
-            for (loss_val, name) in zipsame(mean_losses, self.loss_names):
-                logger.record_tabular("loss_" + name, loss_val)
-            logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
+                # local values
+                lrlocal = (seg["ep_lens"], seg["ep_rets"])
 
-            # local values
-            lrlocal = (seg["ep_lens"], seg["ep_rets"])
-
-            # list of tuples
-            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)
-            lens, rews = map(flatten_lists, zip(*listoflrpairs))
-            lenbuffer.extend(lens)
-            rewbuffer.extend(rews)
-            logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-            logger.record_tabular("EpRewMean", np.mean(rewbuffer))
-            logger.record_tabular("EpThisIter", len(lens))
-            episodes_so_far += len(lens)
-            timesteps_so_far += sum(lens)
-            iters_so_far += 1
-            logger.record_tabular("EpisodesSoFar", episodes_so_far)
-            logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-            logger.record_tabular("TimeElapsed", time.time() - t_start)
-            if self.verbose >= 1 and MPI.COMM_WORLD.Get_rank() == 0:
-                logger.dump_tabular()
+                # list of tuples
+                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)
+                lens, rews = map(flatten_lists, zip(*listoflrpairs))
+                lenbuffer.extend(lens)
+                rewbuffer.extend(rews)
+                logger.record_tabular("EpLenMean", np.mean(lenbuffer))
+                logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+                logger.record_tabular("EpThisIter", len(lens))
+                episodes_so_far += len(lens)
+                timesteps_so_far += seg["total_timestep"]
+                iters_so_far += 1
+                logger.record_tabular("EpisodesSoFar", episodes_so_far)
+                logger.record_tabular("TimestepsSoFar", timesteps_so_far)
+                logger.record_tabular("TimeElapsed", time.time() - t_start)
+                if self.verbose >= 1 and MPI.COMM_WORLD.Get_rank() == 0:
+                    logger.dump_tabular()
 
         return self
 
@@ -230,13 +232,19 @@ class PPO1(BaseRLModel):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         action, _ = self.policy.act(True, observation)
-        return action, None
+        if self._vectorize_action:
+            return [action], [None]
+        else:
+            return action, None
 
     def action_probability(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         neglogp0 = self.policy.proba_distribution.neglogp(self.policy.proba_distribution.sample())
-        return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))
+        if self._vectorize_action:
+            return [self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))]
+        else:
+            return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))
 
     def save(self, save_path):
         data = {

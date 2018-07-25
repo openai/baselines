@@ -38,7 +38,7 @@ class CnnPolicy(BasePolicy):
         obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
         with tf.variable_scope(self.name, reuse=self.reuse):
-            normalized_obs = obs / 255.0
+            normalized_obs = self.processed_x / 255.0
             if architecture_size == 'small':  # from A3C paper
                 layer_1 = tf.nn.relu(tf_util.conv2d(normalized_obs, 16, "l1", [8, 8], [4, 4], pad="VALID"))
                 layer_2 = tf.nn.relu(tf_util.conv2d(layer_1, 32, "l2", [4, 4], [2, 2], pad="VALID"))

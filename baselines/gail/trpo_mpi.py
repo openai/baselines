@@ -73,7 +73,8 @@ def traj_segment_generator(policy, env, horizon, stochastic, reward_giver=None, 
         if step > 0 and step % horizon == 0:
             yield {"ob": observations, "rew": rews, "vpred": vpreds, "new": news,
                    "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
-                   "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets}
+                   "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets,
+                   "total_timestep": sum(ep_lens) + cur_ep_len}
             _, vpred = policy.act(stochastic, observation)
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
@@ -224,7 +225,8 @@ class TRPO(BaseRLModel):
 
             self.policy = policy = self.policy_func("pi", self.observation_space, self.action_space, sess=self.sess)
             old_policy = self.policy_func("oldpi", self.observation_space, self.action_space, sess=self.sess,
-                                          placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
+                                          placeholders={"obs": policy.obs_ph, "processed_obs": policy.processed_x,
+                                                        "stochastic": policy.stochastic_ph})
 
             atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
             ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
@@ -290,7 +292,7 @@ class TRPO(BaseRLModel):
 
             @contextmanager
             def timed(msg):
-                if self.rank == 0:
+                if self.rank == 0 and self.verbose >= 1:
                     print(colorize(msg, color='magenta'))
                     start_time = time.time()
                     yield
@@ -323,184 +325,185 @@ class TRPO(BaseRLModel):
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         self._setup_learn(seed)
 
-        if self.using_gail:
-            seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True,
-                                             reward_giver=self.reward_giver, gail=True)
-        else:
-            seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True)
-
-        episodes_so_far = 0
-        timesteps_so_far = 0
-        iters_so_far = 0
-        t_start = time.time()
-        lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
-        rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
-
-        true_rewbuffer = None
-        if self.using_gail:
-            true_rewbuffer = deque(maxlen=40)
-            #  Stats not used for now
-            #  g_loss_stats = Stats(loss_names)
-            #  d_loss_stats = Stats(reward_giver.loss_name)
-            #  ep_stats = Stats(["True_rewards", "Rewards", "Episode_length"])
-
-            # if provide pretrained weight
-            if self.pretrained_weight is not None:
-                tf_util.load_state(self.pretrained_weight, var_list=self.policy.get_variables(), sess=self.sess)
-
-        while True:
-            if callback:
-                callback(locals(), globals())
-            if total_timesteps and timesteps_so_far >= total_timesteps:
-                break
-
-            # Save model
-            if (self.using_gail and
-               self.rank == 0 and
-               iters_so_far % self.save_per_iter == 0 and
-               self.checkpoint_dir is not None):
-                fname = os.path.join(self.checkpoint_dir, self.task_name)
-                os.makedirs(os.path.dirname(fname), exist_ok=True)
-                saver = tf.train.Saver()
-                saver.save(tf.get_default_session(), fname)
-
-            logger.log("********** Iteration %i ************" % iters_so_far)
-
-            def fisher_vector_product(vec):
-                return self.allmean(self.compute_fvp(vec, *fvpargs, sess=self.sess)) + self.cg_damping * vec
-            # ------------------ Update G ------------------
-            logger.log("Optimizing Policy...")
-            # g_step = 1 when not using GAIL
-            mean_losses = None
-            vpredbefore = None
-            tdlamret = None
-            observation = None
-            action = None
-            seg = None
-            for _ in range(self.g_step):
-                with self.timed("sampling"):
-                    seg = seg_gen.__next__()
-                add_vtarg_and_adv(seg, self.gamma, self.lam)
-                # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-                observation, action, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-                vpredbefore = seg["vpred"]  # predicted value function before udpate
-                atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
-
-                if hasattr(self.policy, "ret_rms"):
-                    self.policy.ret_rms.update(tdlamret)
-                if hasattr(self.policy, "ob_rms"):
-                    self.policy.ob_rms.update(observation)  # update running mean/std for policy
-
-                args = seg["ob"], seg["ac"], atarg
-                fvpargs = [arr[::5] for arr in args]
-
-                self.assign_old_eq_new(sess=self.sess)
-
-                with self.timed("computegrad"):
-                    *lossbefore, grad = self.compute_lossandgrad(*args, sess=self.sess)
-                lossbefore = self.allmean(np.array(lossbefore))
-                grad = self.allmean(grad)
-                if np.allclose(grad, 0):
-                    logger.log("Got zero gradient. not updating")
-                else:
-                    with self.timed("cg"):
-                        stepdir = conjugate_gradient(fisher_vector_product, grad, cg_iters=self.cg_iters,
-                                                     verbose=self.rank == 0)
-                    assert np.isfinite(stepdir).all()
-                    shs = .5 * stepdir.dot(fisher_vector_product(stepdir))
-                    # abs(shs) to avoid taking square root of negative values
-                    lagrange_multiplier = np.sqrt(abs(shs) / self.max_kl)
-                    # logger.log("lagrange multiplier:", lm, "gnorm:", np.linalg.norm(g))
-                    fullstep = stepdir / lagrange_multiplier
-                    expectedimprove = grad.dot(fullstep)
-                    surrbefore = lossbefore[0]
-                    stepsize = 1.0
-                    thbefore = self.get_flat()
-                    thnew = None
-                    for _ in range(10):
-                        thnew = thbefore + fullstep * stepsize
-                        self.set_from_flat(thnew)
-                        mean_losses = surr, kl_loss, *_ = self.allmean(
-                            np.array(self.compute_losses(*args, sess=self.sess)))
-                        improve = surr - surrbefore
-                        logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
-                        if not np.isfinite(mean_losses).all():
-                            logger.log("Got non-finite value of losses -- bad!")
-                        elif kl_loss > self.max_kl * 1.5:
-                            logger.log("violated KL constraint. shrinking step.")
-                        elif improve < 0:
-                            logger.log("surrogate didn't improve. shrinking step.")
-                        else:
-                            logger.log("Stepsize OK!")
-                            break
-                        stepsize *= .5
-                    else:
-                        logger.log("couldn't compute a good step")
-                        self.set_from_flat(thbefore)
-                    if self.nworkers > 1 and iters_so_far % 20 == 0:
-                        # list of tuples
-                        paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), self.vfadam.getflat().sum()))
-                        assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
-
-                with self.timed("vf"):
-                    for _ in range(self.vf_iters):
-                        for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
-                                                                 include_final_partial_batch=False, batch_size=128):
-                            if hasattr(self.policy, "ob_rms"):
-                                self.policy.ob_rms.update(mbob)  # update running mean/std for policy
-                            grad = self.allmean(self.compute_vflossandgrad(mbob, mbret, sess=self.sess))
-                            self.vfadam.update(grad, self.vf_stepsize)
-
-            for (loss_name, loss_val) in zip(self.loss_names, mean_losses):
-                logger.record_tabular(loss_name, loss_val)
-
-            logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
-
+        with self.sess.as_default():
             if self.using_gail:
-                # ------------------ Update D ------------------
-                logger.log("Optimizing Discriminator...")
-                logger.log(fmt_row(13, self.reward_giver.loss_name))
-                ob_expert, ac_expert = self.expert_dataset.get_next_batch(len(observation))
-                batch_size = len(observation) // self.d_step
-                d_losses = []  # list of tuples, each of which gives the loss for a minibatch
-                for ob_batch, ac_batch in dataset.iterbatches((observation, action),
-                                                              include_final_partial_batch=False,
-                                                              batch_size=batch_size):
-                    ob_expert, ac_expert = self.expert_dataset.get_next_batch(len(ob_batch))
-                    # update running mean/std for reward_giver
-                    if hasattr(self.reward_giver, "obs_rms"):
-                        self.reward_giver.obs_rms.update(np.concatenate((ob_batch, ob_expert), 0))
-                    *newlosses, grad = self.reward_giver.lossandgrad(ob_batch, ac_batch, ob_expert, ac_expert)
-                    self.d_adam.update(self.allmean(grad), self.d_stepsize)
-                    d_losses.append(newlosses)
-                logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
-
-                lrlocal = (seg["ep_lens"], seg["ep_rets"], seg["ep_true_rets"])  # local values
-                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
-                lens, rews, true_rets = map(flatten_lists, zip(*listoflrpairs))
-                true_rewbuffer.extend(true_rets)
+                seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True,
+                                                 reward_giver=self.reward_giver, gail=True)
             else:
-                lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
-                listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
-                lens, rews = map(flatten_lists, zip(*listoflrpairs))
-            lenbuffer.extend(lens)
-            rewbuffer.extend(rews)
+                seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True)
 
-            logger.record_tabular("EpLenMean", np.mean(lenbuffer))
-            logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+            episodes_so_far = 0
+            timesteps_so_far = 0
+            iters_so_far = 0
+            t_start = time.time()
+            lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
+            rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
+
+            true_rewbuffer = None
             if self.using_gail:
-                logger.record_tabular("EpTrueRewMean", np.mean(true_rewbuffer))
-            logger.record_tabular("EpThisIter", len(lens))
-            episodes_so_far += len(lens)
-            timesteps_so_far += sum(lens)
-            iters_so_far += 1
+                true_rewbuffer = deque(maxlen=40)
+                #  Stats not used for now
+                #  g_loss_stats = Stats(loss_names)
+                #  d_loss_stats = Stats(reward_giver.loss_name)
+                #  ep_stats = Stats(["True_rewards", "Rewards", "Episode_length"])
 
-            logger.record_tabular("EpisodesSoFar", episodes_so_far)
-            logger.record_tabular("TimestepsSoFar", timesteps_so_far)
-            logger.record_tabular("TimeElapsed", time.time() - t_start)
+                # if provide pretrained weight
+                if self.pretrained_weight is not None:
+                    tf_util.load_state(self.pretrained_weight, var_list=self.policy.get_variables(), sess=self.sess)
 
-            if self.verbose >= 1 and self.rank == 0:
-                logger.dump_tabular()
+            while True:
+                if callback:
+                    callback(locals(), globals())
+                if total_timesteps and timesteps_so_far >= total_timesteps:
+                    break
+
+                # Save model
+                if (self.using_gail and
+                   self.rank == 0 and
+                   iters_so_far % self.save_per_iter == 0 and
+                   self.checkpoint_dir is not None):
+                    fname = os.path.join(self.checkpoint_dir, self.task_name)
+                    os.makedirs(os.path.dirname(fname), exist_ok=True)
+                    saver = tf.train.Saver()
+                    saver.save(tf.get_default_session(), fname)
+
+                logger.log("********** Iteration %i ************" % iters_so_far)
+
+                def fisher_vector_product(vec):
+                    return self.allmean(self.compute_fvp(vec, *fvpargs, sess=self.sess)) + self.cg_damping * vec
+                # ------------------ Update G ------------------
+                logger.log("Optimizing Policy...")
+                # g_step = 1 when not using GAIL
+                mean_losses = None
+                vpredbefore = None
+                tdlamret = None
+                observation = None
+                action = None
+                seg = None
+                for _ in range(self.g_step):
+                    with self.timed("sampling"):
+                        seg = seg_gen.__next__()
+                    add_vtarg_and_adv(seg, self.gamma, self.lam)
+                    # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
+                    observation, action, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+                    vpredbefore = seg["vpred"]  # predicted value function before udpate
+                    atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
+
+                    if hasattr(self.policy, "ret_rms"):
+                        self.policy.ret_rms.update(tdlamret)
+                    if hasattr(self.policy, "ob_rms"):
+                        self.policy.ob_rms.update(observation)  # update running mean/std for policy
+
+                    args = seg["ob"], seg["ac"], atarg
+                    fvpargs = [arr[::5] for arr in args]
+
+                    self.assign_old_eq_new(sess=self.sess)
+
+                    with self.timed("computegrad"):
+                        *lossbefore, grad = self.compute_lossandgrad(*args, sess=self.sess)
+                    lossbefore = self.allmean(np.array(lossbefore))
+                    grad = self.allmean(grad)
+                    if np.allclose(grad, 0):
+                        logger.log("Got zero gradient. not updating")
+                    else:
+                        with self.timed("cg"):
+                            stepdir = conjugate_gradient(fisher_vector_product, grad, cg_iters=self.cg_iters,
+                                                         verbose=self.rank == 0)
+                        assert np.isfinite(stepdir).all()
+                        shs = .5 * stepdir.dot(fisher_vector_product(stepdir))
+                        # abs(shs) to avoid taking square root of negative values
+                        lagrange_multiplier = np.sqrt(abs(shs) / self.max_kl)
+                        # logger.log("lagrange multiplier:", lm, "gnorm:", np.linalg.norm(g))
+                        fullstep = stepdir / lagrange_multiplier
+                        expectedimprove = grad.dot(fullstep)
+                        surrbefore = lossbefore[0]
+                        stepsize = 1.0
+                        thbefore = self.get_flat()
+                        thnew = None
+                        for _ in range(10):
+                            thnew = thbefore + fullstep * stepsize
+                            self.set_from_flat(thnew)
+                            mean_losses = surr, kl_loss, *_ = self.allmean(
+                                np.array(self.compute_losses(*args, sess=self.sess)))
+                            improve = surr - surrbefore
+                            logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
+                            if not np.isfinite(mean_losses).all():
+                                logger.log("Got non-finite value of losses -- bad!")
+                            elif kl_loss > self.max_kl * 1.5:
+                                logger.log("violated KL constraint. shrinking step.")
+                            elif improve < 0:
+                                logger.log("surrogate didn't improve. shrinking step.")
+                            else:
+                                logger.log("Stepsize OK!")
+                                break
+                            stepsize *= .5
+                        else:
+                            logger.log("couldn't compute a good step")
+                            self.set_from_flat(thbefore)
+                        if self.nworkers > 1 and iters_so_far % 20 == 0:
+                            # list of tuples
+                            paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), self.vfadam.getflat().sum()))
+                            assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
+
+                    with self.timed("vf"):
+                        for _ in range(self.vf_iters):
+                            for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
+                                                                     include_final_partial_batch=False, batch_size=128):
+                                if hasattr(self.policy, "ob_rms"):
+                                    self.policy.ob_rms.update(mbob)  # update running mean/std for policy
+                                grad = self.allmean(self.compute_vflossandgrad(mbob, mbret, sess=self.sess))
+                                self.vfadam.update(grad, self.vf_stepsize)
+
+                for (loss_name, loss_val) in zip(self.loss_names, mean_losses):
+                    logger.record_tabular(loss_name, loss_val)
+
+                logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
+
+                if self.using_gail:
+                    # ------------------ Update D ------------------
+                    logger.log("Optimizing Discriminator...")
+                    logger.log(fmt_row(13, self.reward_giver.loss_name))
+                    ob_expert, ac_expert = self.expert_dataset.get_next_batch(len(observation))
+                    batch_size = len(observation) // self.d_step
+                    d_losses = []  # list of tuples, each of which gives the loss for a minibatch
+                    for ob_batch, ac_batch in dataset.iterbatches((observation, action),
+                                                                  include_final_partial_batch=False,
+                                                                  batch_size=batch_size):
+                        ob_expert, ac_expert = self.expert_dataset.get_next_batch(len(ob_batch))
+                        # update running mean/std for reward_giver
+                        if hasattr(self.reward_giver, "obs_rms"):
+                            self.reward_giver.obs_rms.update(np.concatenate((ob_batch, ob_expert), 0))
+                        *newlosses, grad = self.reward_giver.lossandgrad(ob_batch, ac_batch, ob_expert, ac_expert)
+                        self.d_adam.update(self.allmean(grad), self.d_stepsize)
+                        d_losses.append(newlosses)
+                    logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
+
+                    lrlocal = (seg["ep_lens"], seg["ep_rets"], seg["ep_true_rets"])  # local values
+                    listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+                    lens, rews, true_rets = map(flatten_lists, zip(*listoflrpairs))
+                    true_rewbuffer.extend(true_rets)
+                else:
+                    lrlocal = (seg["ep_lens"], seg["ep_rets"])  # local values
+                    listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
+                    lens, rews = map(flatten_lists, zip(*listoflrpairs))
+                lenbuffer.extend(lens)
+                rewbuffer.extend(rews)
+
+                logger.record_tabular("EpLenMean", np.mean(lenbuffer))
+                logger.record_tabular("EpRewMean", np.mean(rewbuffer))
+                if self.using_gail:
+                    logger.record_tabular("EpTrueRewMean", np.mean(true_rewbuffer))
+                logger.record_tabular("EpThisIter", len(lens))
+                episodes_so_far += len(lens)
+                timesteps_so_far += seg["total_timestep"]
+                iters_so_far += 1
+
+                logger.record_tabular("EpisodesSoFar", episodes_so_far)
+                logger.record_tabular("TimestepsSoFar", timesteps_so_far)
+                logger.record_tabular("TimeElapsed", time.time() - t_start)
+
+                if self.verbose >= 1 and self.rank == 0:
+                    logger.dump_tabular()
 
         return self
 
@@ -508,13 +511,19 @@ class TRPO(BaseRLModel):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         action, _ = self.policy.act(True, observation)
-        return action, None
+        if self._vectorize_action:
+            return [action], [None]
+        else:
+            return action, None
 
     def action_probability(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         neglogp0 = self.policy.proba_distribution.neglogp(self.policy.proba_distribution.sample())
-        return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))
+        if self._vectorize_action:
+            return [self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))]
+        else:
+            return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))
 
     def save(self, save_path):
         data = {

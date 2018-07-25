@@ -602,7 +602,6 @@ class DDPG(BaseRLModel):
 
         assert np.all(np.abs(self.env.action_space.low) == self.env.action_space.high)  # we assume symmetric actions.
         max_action = self.env.action_space.high
-        logger.set_level(logger.INFO if self.verbose >= 1 else logger.DISABLED)
         logger.log('scaling actions by {} before executing in env'.format(max_action))
         logger.log('Using agent with the following configuration:')
         logger.log(str(self.__dict__.items()))
@@ -788,11 +787,17 @@ class DDPG(BaseRLModel):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         action, _ = self._policy(observation, apply_noise=False, compute_q=True)
-        return action, None
+        if self._vectorize_action:
+            return [action], [None]
+        else:
+            return action, None
 
     def action_probability(self, observation, state=None, mask=None):
         # here there are no action probabilities, as DDPG is continuous
-        return self.predict(observation, state=None, mask=None)
+        if self._vectorize_action:
+            return [self.predict(observation, state=None, mask=None)]
+        else:
+            return self.predict(observation, state=None, mask=None)
 
     def save(self, save_path):
         data = {

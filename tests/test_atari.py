@@ -1,7 +1,5 @@
 import pytest
 
-import tensorflow as tf
-
 from baselines import bench, logger
 from baselines.deepq import DeepQ, wrap_atari_dqn, models as deepq_models
 from baselines.common import set_global_seeds
@@ -20,13 +18,6 @@ NUM_TIMESTEPS = 2500
 NUM_CPU = 4
 
 
-def clear_tf_session():
-    """
-    clears the Tensorflow session, this is needed for sequential testing of the baselines
-    """
-    tf.reset_default_graph()
-
-
 @pytest.mark.slow
 @pytest.mark.parametrize("policy", ['cnn', 'lstm', 'lnlstm'])
 def test_a2c(policy):
@@ -35,7 +26,6 @@ def test_a2c(policy):
 
     :param policy: (str) the policy to test for A2C
     """
-    clear_tf_session()
     a2c_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
                     policy=policy, lr_schedule='constant', num_env=NUM_CPU)
 
@@ -48,7 +38,6 @@ def test_acer(policy):
 
     :param policy: (str) the policy to test for ACER
     """
-    clear_tf_session()
     acer_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
                      policy=policy, lr_schedule='constant', num_cpu=NUM_CPU)
 
@@ -58,7 +47,6 @@ def test_acktr():
     """
     test ACKTR on atari
     """
-    clear_tf_session()
     acktr_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED, num_cpu=NUM_CPU)
 
 
@@ -67,7 +55,6 @@ def test_deepq():
     """
     test DeepQ on atari
     """
-    clear_tf_session()
     logger.configure()
     set_global_seeds(SEED)
     env = make_atari(ENV_ID)
@@ -88,7 +75,6 @@ def test_ppo1():
     """
     test PPO1 on atari
     """
-    clear_tf_session()
     ppo1_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED)
 
 
@@ -100,7 +86,6 @@ def test_ppo2(policy):
 
     :param policy: (str) the policy to test for PPO2
     """
-    clear_tf_session()
     ppo2_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED, policy=policy)
 
 
@@ -109,5 +94,4 @@ def test_trpo():
     """
     test TRPO on atari
     """
-    clear_tf_session()
     trpo_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED)

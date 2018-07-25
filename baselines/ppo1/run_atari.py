@@ -40,7 +40,7 @@ def train(env_id, num_timesteps, seed):
     env.seed(workerseed)
 
     model = PPO1(policy_fn, env, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01, optim_epochs=4,
-                 optim_stepsize=1e-3, optim_batchsize=64, gamma=0.99, lam=0.95, schedule='linear')
+                 optim_stepsize=1e-3, optim_batchsize=64, gamma=0.99, lam=0.95, schedule='linear', verbose=2)
     model.learn(total_timesteps=num_timesteps)
     env.close()
 

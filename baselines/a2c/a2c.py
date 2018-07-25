@@ -85,7 +85,8 @@ class A2C(BaseRLModel):
             train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs * self.n_steps,
                                       self.n_steps, reuse=True)
 
-            neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=self.actions_ph)
+            neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy,
+                                                                       labels=self.actions_ph)
             self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
             self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
             self.entropy = tf.reduce_mean(calc_entropy(train_model.policy))
@@ -96,7 +97,8 @@ class A2C(BaseRLModel):
             if self.max_grad_norm is not None:
                 grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
             grads = list(zip(grads, self.params))
-            trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha, epsilon=self.epsilon)
+            trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha,
+                                                epsilon=self.epsilon)
             self.apply_backprop = trainer.apply_gradients(grads)
 
             self.train_model = train_model

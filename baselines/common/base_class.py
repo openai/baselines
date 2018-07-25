@@ -5,6 +5,8 @@ import cloudpickle
 import numpy as np
 
 from baselines.common import set_global_seeds
+from baselines.common.vec_env import VecEnvWrapper, VecEnv
+from baselines import logger
 
 
 class BaseRLModel(ABC):
@@ -24,15 +26,24 @@ class BaseRLModel(ABC):
         self.observation_space = None
         self.action_space = None
         self.n_envs = None
+        self._vectorize_action = False
 
         if env is not None:
             self.observation_space = env.observation_space
             self.action_space = env.action_space
             if requires_vec_env:
-                if hasattr(env, "num_envs"):
+                if isinstance(env, VecEnv):
                     self.n_envs = env.num_envs
                 else:
                     raise ValueError("Error: the model requires a vectorized environment, please use a VecEnv wrapper.")
+            else:
+                if isinstance(env, VecEnv):
+                    if env.num_envs == 1:
+                        self.env = _UnvecWrapper(env)
+                        self._vectorize_action = True
+                    else:
+                        raise ValueError("Error: the model requires a non vectorized environment or a single vectorized"
+                                         " environment.")
 
     def set_env(self, env):
         """
@@ -53,11 +64,23 @@ class BaseRLModel(ABC):
         assert self.action_space == env.action_space, \
             "Error: the environment passed must have at least the same action space as the model was trained on."
         if self._requires_vec_env:
-            assert hasattr(env, "num_envs"), \
+            assert isinstance(env, VecEnv), \
                 "Error: the environment passed is not a vectorized environment, however {} requires it".format(
                     self.__class__.__name__)
             assert self.n_envs == env.num_envs, \
                 "Error: the environment passed must have the same number of environments as the model was trained on."
+
+        # for models that dont want vectorized environment, check if they make sense and adapt them.
+        # Otherwise tell the user about this issue
+        if not self._requires_vec_env and isinstance(env, VecEnv):
+            if env.num_envs == 1:
+                env = _UnvecWrapper(env)
+                self._vectorize_action = True
+            else:
+                raise ValueError("Error: the model requires a non vectorized environment or a single vectorized "
+                                 "environment.")
+        else:
+            self._vectorize_action = False
 
         self.env = env
 
@@ -69,11 +92,18 @@ class BaseRLModel(ABC):
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
     def _setup_learn(self, seed):
+        """
+        check the environment, set the seed, and set the logger
+
+        :param seed: (int) the seed value
+        """
         if self.env is None:
             raise ValueError("Error: cannot train the model without a valid environment, please set an environment with"
                              "set_env(self, env) method.")
         if seed is not None:
             set_global_seeds(seed)
+
+        logger.set_level(logger.INFO if self.verbose >= 1 else logger.DISABLED)
 
     @abstractmethod
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
@@ -170,3 +200,26 @@ class BaseRLModel(ABC):
         x_exp = np.exp(x_input.T - np.max(x_input.T, axis=0))
         return (x_exp / x_exp.sum(axis=0)).T
 
+
+class _UnvecWrapper(VecEnvWrapper):
+    def __init__(self, venv):
+        """
+        Unvectorize a vectorized environment, for vectorized environment that only have one environment
+
+        :param venv: (VecEnv) the vectorized environment to wrap
+        """
+        super().__init__(venv)
+        assert venv.num_envs == 1, "Error: cannot unwrap a environment wrapper that has more than one environment."
+
+    def reset(self):
+        return self.venv.reset()[0]
+
+    def step_async(self, actions):
+        self.venv.step_async([actions])
+
+    def step_wait(self):
+        actions, values, states, information = self.venv.step_wait()
+        return actions[0], values[0], states[0], information[0]
+
+    def render(self, mode='human'):
+        return self.venv.render(mode)[0]
