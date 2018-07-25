@@ -51,7 +51,7 @@ class A2CPolicy(object):
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
-        :return: ([float], [float], [float], [float]) actions, values, states, neglogp0
+        :return: ([float], [float], [float], [float]) actions, values, states, neglogp
         """
         raise NotImplementedError
 
@@ -80,18 +80,18 @@ class LstmPolicy(A2CPolicy):
             value_fn = linear(rnn_output, 'v', 1)
             self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(rnn_output)
 
-        self.value_0 = value_fn[:, 0]
-        self.action_0 = self.proba_distribution.sample()
-        self.neglogp0 = self.proba_distribution.neglogp(self.action_0)
+        self._value = value_fn[:, 0]
+        self.action = self.proba_distribution.sample()
+        self.neglogp = self.proba_distribution.neglogp(self.action)
         self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self.value_fn = value_fn
 
     def step(self, obs, state=None, mask=None):
-        return self.sess.run([self.action_0, self.value_0, self.snew, self.neglogp0],
+        return self.sess.run([self.action, self._value, self.snew, self.neglogp],
                              {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
     def value(self, obs, state=None, mask=None):
-        return self.sess.run(self.value_0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+        return self.sess.run(self._value, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
 
 class LnLstmPolicy(LstmPolicy):
@@ -118,13 +118,13 @@ class FeedForwardPolicy(A2CPolicy):
             self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(extracted_features,
                                                                                               init_scale=0.01)
 
-        self.action_0 = self.proba_distribution.sample()
-        self.neglogp0 = self.proba_distribution.neglogp(self.action_0)
+        self.action = self.proba_distribution.sample()
+        self.neglogp = self.proba_distribution.neglogp(self.action)
         self.initial_state = None
         self.value_fn = value_fn
 
     def step(self, obs, state=None, mask=None):
-        action, value, neglogp = self.sess.run([self.action_0, self.value_fn, self.neglogp0], {self.obs_ph: obs})
+        action, value, neglogp = self.sess.run([self.action, self.value_fn, self.neglogp], {self.obs_ph: obs})
         return action, value, self.initial_state, neglogp
 
     def value(self, obs, state=None, mask=None):
