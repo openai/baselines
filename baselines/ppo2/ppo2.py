@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from baselines import logger
-from baselines.common import explained_variance, BaseRLModel
+from baselines.common import explained_variance, BaseRLModel, tf_util
 from baselines.common.runners import AbstractEnvRunner
 
 
@@ -56,6 +56,7 @@ class PPO2(BaseRLModel):
         self.noptepochs = noptepochs
         self.policy = policy
 
+        self.graph = None
         self.sess = None
         self.action_ph = None
         self.advs_ph = None
@@ -93,57 +94,55 @@ class PPO2(BaseRLModel):
         if sys.platform == 'darwin':
             n_cpu //= 2
 
-        config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=n_cpu,
-                                inter_op_parallelism_threads=n_cpu)
-        config.gpu_options.allow_growth = True  # pylint: disable=E1101
-        self.sess = tf.Session(config=config)
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
 
-        act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
-        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_batch_train,
-                                  self.n_steps, reuse=True)
+            act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
+            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_batch_train,
+                                      self.n_steps, reuse=True)
 
-        self.action_ph = train_model.pdtype.sample_placeholder([None])
-        self.advs_ph = tf.placeholder(tf.float32, [None])
-        self.rewards_ph = tf.placeholder(tf.float32, [None])
-        self.old_neglog_pac_ph = tf.placeholder(tf.float32, [None])
-        self.old_vpred_ph = tf.placeholder(tf.float32, [None])
-        self.learning_rate_ph = tf.placeholder(tf.float32, [])
-        self.clip_range_ph = tf.placeholder(tf.float32, [])
+            self.action_ph = train_model.pdtype.sample_placeholder([None])
+            self.advs_ph = tf.placeholder(tf.float32, [None])
+            self.rewards_ph = tf.placeholder(tf.float32, [None])
+            self.old_neglog_pac_ph = tf.placeholder(tf.float32, [None])
+            self.old_vpred_ph = tf.placeholder(tf.float32, [None])
+            self.learning_rate_ph = tf.placeholder(tf.float32, [])
+            self.clip_range_ph = tf.placeholder(tf.float32, [])
 
-        neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
-        self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
+            neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
+            self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
-        vpred = train_model.value_fn
-        vpredclipped = self.old_vpred_ph + tf.clip_by_value(
-            train_model.value_fn - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
-        vf_losses1 = tf.square(vpred - self.rewards_ph)
-        vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
-        self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
-        ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
-        pg_losses = -self.advs_ph * ratio
-        pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
-        self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
-        self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
-        self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
-        loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
-        with tf.variable_scope('model'):
-            self.params = tf.trainable_variables()
-        grads = tf.gradients(loss, self.params)
-        if self.max_grad_norm is not None:
-            grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
-        grads = list(zip(grads, self.params))
-        trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
-        self._train = trainer.apply_gradients(grads)
+            vpred = train_model.value_fn
+            vpredclipped = self.old_vpred_ph + tf.clip_by_value(
+                train_model.value_fn - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
+            vf_losses1 = tf.square(vpred - self.rewards_ph)
+            vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
+            self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
+            ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
+            pg_losses = -self.advs_ph * ratio
+            pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
+            self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
+            self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
+            self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
+            loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+            with tf.variable_scope('model'):
+                self.params = tf.trainable_variables()
+            grads = tf.gradients(loss, self.params)
+            if self.max_grad_norm is not None:
+                grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
+            grads = list(zip(grads, self.params))
+            trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
+            self._train = trainer.apply_gradients(grads)
 
-        self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
+            self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
-        self.train_model = train_model
-        self.act_model = act_model
-        self.step = act_model.step
-        self.value = act_model.value
-        self.initial_state = act_model.initial_state
-        tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
+            self.train_model = train_model
+            self.act_model = act_model
+            self.step = act_model.step
+            self.value = act_model.value
+            self.initial_state = act_model.initial_state
+            tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
 
     def _train_step(self, learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
         """

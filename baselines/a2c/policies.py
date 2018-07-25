@@ -138,34 +138,35 @@ class FeedForwardPolicy(A2CPolicy):
 
 class CnnPolicy(FeedForwardPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
-        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="cnn")
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="cnn",
+                                        **_kwargs)
 
 
 class CnnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
         super(CnnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, layer_norm=False,
-                                            _type="cnn")
+                                            _type="cnn", **_kwargs)
 
 
 class CnnLnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
         super(CnnLnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse,
-                                              layer_norm=True, _type="cnn")
+                                              layer_norm=True, _type="cnn", **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
-        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="mlp")
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, _type="mlp",
+                                        **_kwargs)
 
 
 class MlpLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
         super(MlpLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse, layer_norm=False,
-                                            _type="mlp")
+                                            _type="mlp", **_kwargs)
 
 
 class MlpLnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, reuse=False, **_kwargs):
         super(MlpLnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, reuse,
-                                              layer_norm=True, _type="mlp")
-
+                                              layer_norm=True, _type="mlp", **_kwargs)

@@ -50,6 +50,7 @@ class PPO1(BaseRLModel):
         self.adam_epsilon = adam_epsilon
         self.schedule = schedule
 
+        self.graph = None
         self.sess = None
         self.policy = None
         self.loss_names = None
@@ -65,60 +66,63 @@ class PPO1(BaseRLModel):
     def setup_model(self):
         super().setup_model()
 
-        self.sess = tf_util.single_threaded_session()
-        # Construct network for new policy
-        self.policy = policy = self.policy_fn("pi", self.observation_space, self.action_space, sess=self.sess)
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.sess = tf_util.single_threaded_session(graph=self.graph)
 
-        # Network for old policy
-        oldpi = self.policy_fn("oldpi", self.observation_space, self.action_space, sess=self.sess,
-                               placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
+            # Construct network for new policy
+            self.policy = policy = self.policy_fn("pi", self.observation_space, self.action_space, sess=self.sess)
 
-        # Target advantage function (if applicable)
-        atarg = tf.placeholder(dtype=tf.float32, shape=[None])
+            # Network for old policy
+            oldpi = self.policy_fn("oldpi", self.observation_space, self.action_space, sess=self.sess,
+                                   placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
-        # Empirical return
-        ret = tf.placeholder(dtype=tf.float32, shape=[None])
+            # Target advantage function (if applicable)
+            atarg = tf.placeholder(dtype=tf.float32, shape=[None])
 
-        # learning rate multiplier, updated with schedule
-        lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[])
+            # Empirical return
+            ret = tf.placeholder(dtype=tf.float32, shape=[None])
 
-        # Annealed cliping parameter epislon
-        clip_param = self.clip_param * lrmult
+            # learning rate multiplier, updated with schedule
+            lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[])
 
-        obs_ph = policy.obs_ph
-        action_ph = policy.pdtype.sample_placeholder([None])
+            # Annealed cliping parameter epislon
+            clip_param = self.clip_param * lrmult
 
-        kloldnew = oldpi.proba_distribution.kl(policy.proba_distribution)
-        ent = policy.proba_distribution.entropy()
-        meankl = tf.reduce_mean(kloldnew)
-        meanent = tf.reduce_mean(ent)
-        pol_entpen = (-self.entcoeff) * meanent
+            obs_ph = policy.obs_ph
+            action_ph = policy.pdtype.sample_placeholder([None])
 
-        # pnew / pold
-        ratio = tf.exp(policy.proba_distribution.logp(action_ph) - oldpi.proba_distribution.logp(action_ph))
+            kloldnew = oldpi.proba_distribution.kl(policy.proba_distribution)
+            ent = policy.proba_distribution.entropy()
+            meankl = tf.reduce_mean(kloldnew)
+            meanent = tf.reduce_mean(ent)
+            pol_entpen = (-self.entcoeff) * meanent
 
-        # surrogate from conservative policy iteration
-        surr1 = ratio * atarg
-        surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg
+            # pnew / pold
+            ratio = tf.exp(policy.proba_distribution.logp(action_ph) - oldpi.proba_distribution.logp(action_ph))
 
-        # PPO's pessimistic surrogate (L^CLIP)
-        pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
-        vf_loss = tf.reduce_mean(tf.square(policy.vpred - ret))
-        total_loss = pol_surr + pol_entpen + vf_loss
-        losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
-        self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
+            # surrogate from conservative policy iteration
+            surr1 = ratio * atarg
+            surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg
 
-        self.params = policy.get_trainable_variables()
-        self.lossandgrad = tf_util.function([obs_ph, action_ph, atarg, ret, lrmult],
-                                            losses + [tf_util.flatgrad(total_loss, self.params)])
-        self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
+            # PPO's pessimistic surrogate (L^CLIP)
+            pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
+            vf_loss = tf.reduce_mean(tf.square(policy.vpred - ret))
+            total_loss = pol_surr + pol_entpen + vf_loss
+            losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
+            self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
-        self.assign_old_eq_new = tf_util.function(
-            [], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                             zipsame(oldpi.get_variables(), policy.get_variables())])
-        self.compute_losses = tf_util.function([obs_ph, action_ph, atarg, ret, lrmult], losses)
+            self.params = policy.get_trainable_variables()
+            self.lossandgrad = tf_util.function([obs_ph, action_ph, atarg, ret, lrmult],
+                                                losses + [tf_util.flatgrad(total_loss, self.params)])
+            self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
 
-        tf_util.initialize(sess=self.sess)
+            self.assign_old_eq_new = tf_util.function(
+                [], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
+                                 zipsame(oldpi.get_variables(), policy.get_variables())])
+            self.compute_losses = tf_util.function([obs_ph, action_ph, atarg, ret, lrmult], losses)
+
+            tf_util.initialize(sess=self.sess)
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         self._setup_learn(seed)

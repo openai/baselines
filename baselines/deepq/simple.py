@@ -78,6 +78,7 @@ class DeepQ(BaseRLModel):
         self.gamma = gamma
         self.q_func = q_func
 
+        self.graph = None
         self.sess = None
         self._train_step = None
         self.update_target = None
@@ -93,36 +94,38 @@ class DeepQ(BaseRLModel):
     def setup_model(self):
         super().setup_model()
 
-        self.sess = tf_util.make_session()
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.sess = tf_util.make_session(graph=self.graph)
 
-        # capture the shape outside the closure so that the env object is not serialized
-        # by cloudpickle when serializing make_obs_ph
-        observation_space = self.observation_space
+            # capture the shape outside the closure so that the env object is not serialized
+            # by cloudpickle when serializing make_obs_ph
+            observation_space = self.observation_space
 
-        def make_obs_ph(name):
-            """
-            makes the observation placeholder
+            def make_obs_ph(name):
+                """
+                makes the observation placeholder
 
-            :param name: (str) the placeholder name
-            :return: (TensorFlow Tensor) the placeholder
-            """
-            return ObservationInput(observation_space, name=name)
+                :param name: (str) the placeholder name
+                :return: (TensorFlow Tensor) the placeholder
+                """
+                return ObservationInput(observation_space, name=name)
 
-        self.act, self._train_step, self.update_target, _ = deepq.build_train(
-            make_obs_ph=make_obs_ph,
-            q_func=self.q_func,
-            num_actions=self.env.action_space.n,
-            optimizer=tf.train.AdamOptimizer(learning_rate=self.learning_rate),
-            gamma=self.gamma,
-            grad_norm_clipping=10,
-            param_noise=self.param_noise
-        )
+            self.act, self._train_step, self.update_target, _ = deepq.build_train(
+                make_obs_ph=make_obs_ph,
+                q_func=self.q_func,
+                num_actions=self.env.action_space.n,
+                optimizer=tf.train.AdamOptimizer(learning_rate=self.learning_rate),
+                gamma=self.gamma,
+                grad_norm_clipping=10,
+                param_noise=self.param_noise
+            )
 
-        self.params = find_trainable_variables("deepq")
+            self.params = find_trainable_variables("deepq")
 
-        # Initialize the parameters and copy them to the target network.
-        tf_util.initialize(self.sess)
-        self.update_target(sess=self.sess)
+            # Initialize the parameters and copy them to the target network.
+            tf_util.initialize(self.sess)
+            self.update_target(sess=self.sess)
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         self._setup_learn(seed)

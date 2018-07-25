@@ -160,13 +160,13 @@ class BaseRLModel(ABC):
         return data, params
 
     @staticmethod
-    def _softmax(x):
+    def _softmax(x_input):
         """
         An implementation of softmax.
 
-        :param x: (numpy float) input vector
+        :param x_input: (numpy float) input vector
         :return: (numpy float) output vector
         """
-        e_x = np.exp(x.T - np.max(x.T, axis=0))
-        return (e_x / e_x.sum(axis=0)).T
+        x_exp = np.exp(x_input.T - np.max(x_input.T, axis=0))
+        return (x_exp / x_exp.sum(axis=0)).T
 

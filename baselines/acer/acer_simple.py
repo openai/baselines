@@ -2,9 +2,10 @@ import time
 
 import numpy as np
 import tensorflow as tf
+from gym.spaces import Discrete, Box
 
 from baselines import logger
-from baselines.common import BaseRLModel
+from baselines.common import BaseRLModel, tf_util
 from baselines.common.runners import AbstractEnvRunner
 from baselines.acer.buffer import Buffer
 from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, calc_entropy_softmax, \
@@ -112,6 +113,7 @@ class ACER(BaseRLModel):
         self.lr_schedule = lr_schedule
         self.num_procs = num_procs
 
+        self.graph = None
         self.sess = None
         self.action_ph = None
         self.done_ph = None
@@ -139,158 +141,153 @@ class ACER(BaseRLModel):
         self.n_act = self.action_space.n
         self.n_batch = self.n_envs * self.n_steps
 
-        config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=self.num_procs,
-                                inter_op_parallelism_threads=self.num_procs)
-        self.sess = tf.Session(config=config)
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.sess = tf_util.make_session(num_cpu=self.num_procs, graph=self.graph)
 
-        self.action_ph = tf.placeholder(tf.int32, [self.n_batch])  # actions
-        self.done_ph = tf.placeholder(tf.float32, [self.n_batch])  # dones
-        self.reward_ph = tf.placeholder(tf.float32, [self.n_batch])  # rewards, not returns
-        self.mu_ph = tf.placeholder(tf.float32, [self.n_batch, self.n_act])  # mu's
-        self.learning_rate_ph = tf.placeholder(tf.float32, [])
-        eps = 1e-6
+            self.action_ph = tf.placeholder(tf.int32, [self.n_batch])  # actions
+            self.done_ph = tf.placeholder(tf.float32, [self.n_batch])  # dones
+            self.reward_ph = tf.placeholder(tf.float32, [self.n_batch])  # rewards, not returns
+            self.mu_ph = tf.placeholder(tf.float32, [self.n_batch, self.n_act])  # mu's
+            self.learning_rate_ph = tf.placeholder(tf.float32, [])
+            eps = 1e-6
 
-        step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, self.nstack,
-                                 reuse=False)
-        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, self.n_steps + 1,
-                                  self.nstack, reuse=True)
+            step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, self.nstack,
+                                     reuse=False)
+            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, self.n_steps + 1,
+                                      self.nstack, reuse=True)
 
-        self.params = find_trainable_variables("model")
-        print("Params {}".format(len(self.params)))
-        for var in self.params:
-            print(var)
+            self.params = find_trainable_variables("model")
 
-        # create polyak averaged model
-        ema = tf.train.ExponentialMovingAverage(self.alpha)
-        ema_apply_op = ema.apply(self.params)
+            # create polyak averaged model
+            ema = tf.train.ExponentialMovingAverage(self.alpha)
+            ema_apply_op = ema.apply(self.params)
 
-        def custom_getter(getter, *args, **kwargs):
-            val = ema.average(getter(*args, **kwargs))
-            print(val.name)
-            return val
+            def custom_getter(getter, *args, **kwargs):
+                val = ema.average(getter(*args, **kwargs))
+                return val
 
-        with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
-            self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                                           self.n_envs, self.n_steps + 1, self.nstack, reuse=True)
+            with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
+                self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                                               self.n_envs, self.n_steps + 1, self.nstack, reuse=True)
 
-        # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
-        value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [n_envs * (n_steps + 1)]
+            # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
+            value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)  # shape is [n_envs * (n_steps + 1)]
 
-        # strip off last step
-        # f is a distribution, chosen to be Gaussian distributions
-        # with fixed diagonal covariance and mean \phi(x)
-        # in the paper
-        distribution_f, f_polyak, q_value = map(lambda variables: strip(variables, self.n_envs, self.n_steps),
-                                                [train_model.policy, polyak_model.policy, train_model.q_value])
-        # Get pi and q values for actions taken
-        f_i = get_by_index(distribution_f, self.action_ph)
-        q_i = get_by_index(q_value, self.action_ph)
+            # strip off last step
+            # f is a distribution, chosen to be Gaussian distributions
+            # with fixed diagonal covariance and mean \phi(x)
+            # in the paper
+            distribution_f, f_polyak, q_value = map(lambda variables: strip(variables, self.n_envs, self.n_steps),
+                                                    [train_model.policy, polyak_model.policy, train_model.q_value])
+            # Get pi and q values for actions taken
+            f_i = get_by_index(distribution_f, self.action_ph)
+            q_i = get_by_index(q_value, self.action_ph)
 
-        # Compute ratios for importance truncation
-        rho = distribution_f / (self.mu_ph + eps)
-        rho_i = get_by_index(rho, self.action_ph)
+            # Compute ratios for importance truncation
+            rho = distribution_f / (self.mu_ph + eps)
+            rho_i = get_by_index(rho, self.action_ph)
 
-        # Calculate Q_retrace targets
-        qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_envs, self.n_steps, self.gamma)
+            # Calculate Q_retrace targets
+            qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_envs, self.n_steps, self.gamma)
 
-        # Calculate losses
-        # Entropy
-        entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
+            # Calculate losses
+            # Entropy
+            entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
 
-        # Policy Gradient loss, with truncated importance sampling & bias correction
-        value = strip(value, self.n_envs, self.n_steps, True)
-        check_shape([qret, value, rho_i, f_i], [[self.n_envs * self.n_steps]] * 4)
-        check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.n_act]] * 2)
+            # Policy Gradient loss, with truncated importance sampling & bias correction
+            value = strip(value, self.n_envs, self.n_steps, True)
+            check_shape([qret, value, rho_i, f_i], [[self.n_envs * self.n_steps]] * 4)
+            check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.n_act]] * 2)
 
-        # Truncated importance sampling
-        adv = qret - value
-        log_f = tf.log(f_i + eps)
-        gain_f = log_f * tf.stop_gradient(adv * tf.minimum(self.correction_term, rho_i))  # [n_envs * n_steps]
-        loss_f = -tf.reduce_mean(gain_f)
+            # Truncated importance sampling
+            adv = qret - value
+            log_f = tf.log(f_i + eps)
+            gain_f = log_f * tf.stop_gradient(adv * tf.minimum(self.correction_term, rho_i))  # [n_envs * n_steps]
+            loss_f = -tf.reduce_mean(gain_f)
 
-        # Bias correction for the truncation
-        adv_bc = (q_value - tf.reshape(value, [self.n_envs * self.n_steps, 1]))  # [n_envs * n_steps, n_act]
-        log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
-        check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
-        gain_bc = tf.reduce_sum(log_f_bc *
-                                tf.stop_gradient(
-                                    adv_bc * tf.nn.relu(1.0 - (self.correction_term / (rho + eps))) * distribution_f),
-                                axis=1)
-        # IMP: This is sum, as expectation wrt f
-        loss_bc = -tf.reduce_mean(gain_bc)
+            # Bias correction for the truncation
+            adv_bc = (q_value - tf.reshape(value, [self.n_envs * self.n_steps, 1]))  # [n_envs * n_steps, n_act]
+            log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
+            check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
+            gain_bc = tf.reduce_sum(log_f_bc *
+                                    tf.stop_gradient(
+                                        adv_bc * tf.nn.relu(1.0 - (self.correction_term / (rho + eps))) * distribution_f),
+                                    axis=1)
+            # IMP: This is sum, as expectation wrt f
+            loss_bc = -tf.reduce_mean(gain_bc)
 
-        loss_policy = loss_f + loss_bc
+            loss_policy = loss_f + loss_bc
 
-        # Value/Q function loss, and explained variance
-        check_shape([qret, q_i], [[self.n_envs * self.n_steps]] * 2)
-        explained_variance = q_explained_variance(tf.reshape(q_i, [self.n_envs, self.n_steps]),
-                                                  tf.reshape(qret, [self.n_envs, self.n_steps]))
-        loss_q = tf.reduce_mean(tf.square(tf.stop_gradient(qret) - q_i) * 0.5)
+            # Value/Q function loss, and explained variance
+            check_shape([qret, q_i], [[self.n_envs * self.n_steps]] * 2)
+            explained_variance = q_explained_variance(tf.reshape(q_i, [self.n_envs, self.n_steps]),
+                                                      tf.reshape(qret, [self.n_envs, self.n_steps]))
+            loss_q = tf.reduce_mean(tf.square(tf.stop_gradient(qret) - q_i) * 0.5)
 
-        # Net loss
-        check_shape([loss_policy, loss_q, entropy], [[]] * 3)
-        loss = loss_policy + self.q_coef * loss_q - self.ent_coef * entropy
+            # Net loss
+            check_shape([loss_policy, loss_q, entropy], [[]] * 3)
+            loss = loss_policy + self.q_coef * loss_q - self.ent_coef * entropy
 
-        norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g, avg_norm_adj = \
-            None, None, None, None, None, None, None
-        if self.trust_region:
-            # [n_envs * n_steps, n_act]
-            grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs, distribution_f)
-            # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
-            kl_grad = - f_polyak / (distribution_f + eps)
-            k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
-            adj = tf.maximum(0.0, (tf.reduce_sum(kl_grad * grad, axis=-1) - self.delta) / (
-                    tf.reduce_sum(tf.square(kl_grad), axis=-1) + eps))  # [n_envs * n_steps]
+            norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g, avg_norm_k_dot_g, avg_norm_adj = \
+                None, None, None, None, None, None, None
+            if self.trust_region:
+                # [n_envs * n_steps, n_act]
+                grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs, distribution_f)
+                # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
+                kl_grad = - f_polyak / (distribution_f + eps)
+                k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
+                adj = tf.maximum(0.0, (tf.reduce_sum(kl_grad * grad, axis=-1) - self.delta) / (
+                        tf.reduce_sum(tf.square(kl_grad), axis=-1) + eps))  # [n_envs * n_steps]
 
-            # Calculate stats (before doing adjustment) for logging.
-            avg_norm_k = avg_norm(kl_grad)
-            avg_norm_g = avg_norm(grad)
-            avg_norm_k_dot_g = tf.reduce_mean(tf.abs(k_dot_g))
-            avg_norm_adj = tf.reduce_mean(tf.abs(adj))
+                # Calculate stats (before doing adjustment) for logging.
+                avg_norm_k = avg_norm(kl_grad)
+                avg_norm_g = avg_norm(grad)
+                avg_norm_k_dot_g = tf.reduce_mean(tf.abs(k_dot_g))
+                avg_norm_adj = tf.reduce_mean(tf.abs(adj))
 
-            grad = grad - tf.reshape(adj, [self.n_envs * self.n_steps, 1]) * kl_grad
-            # These are turst region adjusted gradients wrt f ie statistics of policy pi
-            grads_f = -grad / (self.n_envs * self.n_steps)
-            grads_policy = tf.gradients(distribution_f, self.params, grads_f)
-            grads_q = tf.gradients(loss_q * self.q_coef, self.params)
-            grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, self.params)]
+                grad = grad - tf.reshape(adj, [self.n_envs * self.n_steps, 1]) * kl_grad
+                # These are turst region adjusted gradients wrt f ie statistics of policy pi
+                grads_f = -grad / (self.n_envs * self.n_steps)
+                grads_policy = tf.gradients(distribution_f, self.params, grads_f)
+                grads_q = tf.gradients(loss_q * self.q_coef, self.params)
+                grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, self.params)]
 
-            avg_norm_grads_f = avg_norm(grads_f) * (self.n_steps * self.n_envs)
-            norm_grads_q = tf.global_norm(grads_q)
-            norm_grads_policy = tf.global_norm(grads_policy)
-        else:
-            grads = tf.gradients(loss, self.params)
+                avg_norm_grads_f = avg_norm(grads_f) * (self.n_steps * self.n_envs)
+                norm_grads_q = tf.global_norm(grads_q)
+                norm_grads_policy = tf.global_norm(grads_policy)
+            else:
+                grads = tf.gradients(loss, self.params)
 
-        norm_grads = None
-        if self.max_grad_norm is not None:
-            grads, norm_grads = tf.clip_by_global_norm(grads, self.max_grad_norm)
-        grads = list(zip(grads, self.params))
-        trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.rprop_alpha,
-                                            epsilon=self.rprop_epsilon)
-        _opt_op = trainer.apply_gradients(grads)
+            norm_grads = None
+            if self.max_grad_norm is not None:
+                grads, norm_grads = tf.clip_by_global_norm(grads, self.max_grad_norm)
+            grads = list(zip(grads, self.params))
+            trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.rprop_alpha,
+                                                epsilon=self.rprop_epsilon)
+            _opt_op = trainer.apply_gradients(grads)
 
-        # so when you call _train, you first do the gradient step, then you apply ema
-        with tf.control_dependencies([_opt_op]):
-            _train = tf.group(ema_apply_op)
+            # so when you call _train, you first do the gradient step, then you apply ema
+            with tf.control_dependencies([_opt_op]):
+                _train = tf.group(ema_apply_op)
 
-        # Ops/Summaries to run, and their names for logging
-        assert norm_grads is not None
-        run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, explained_variance, norm_grads]
-        names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
-                     'norm_grads']
-        if self.trust_region:
-            self.run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g,
-                                      avg_norm_k_dot_g, avg_norm_adj]
-            self.names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k',
-                                          'avg_norm_g', 'avg_norm_k_dot_g', 'avg_norm_adj']
+            # Ops/Summaries to run, and their names for logging
+            assert norm_grads is not None
+            run_ops = [_train, loss, loss_q, entropy, loss_policy, loss_f, loss_bc, explained_variance, norm_grads]
+            names_ops = ['loss', 'loss_q', 'entropy', 'loss_policy', 'loss_f', 'loss_bc', 'explained_variance',
+                         'norm_grads']
+            if self.trust_region:
+                self.run_ops = run_ops + [norm_grads_q, norm_grads_policy, avg_norm_grads_f, avg_norm_k, avg_norm_g,
+                                          avg_norm_k_dot_g, avg_norm_adj]
+                self.names_ops = names_ops + ['norm_grads_q', 'norm_grads_policy', 'avg_norm_grads_f', 'avg_norm_k',
+                                              'avg_norm_g', 'avg_norm_k_dot_g', 'avg_norm_adj']
 
-        self.train_model = train_model
-        self.step_model = step_model
-        self.step = step_model.step
-        self.initial_state = step_model.initial_state
+            self.train_model = train_model
+            self.step_model = step_model
+            self.step = step_model.step
+            self.initial_state = step_model.initial_state
 
-        tf.global_variables_initializer().run(session=self.sess)
+            tf.global_variables_initializer().run(session=self.sess)
 
     def _train_step(self, obs, actions, rewards, dones, mus, states, masks, steps):
         """
@@ -386,24 +383,72 @@ class ACER(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, stack=True):
+        """
+        Get the model's action from an observation
+
+        :param observation: (numpy Number) the input observation
+        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
+        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
+        :param stack: (bool) if the observation needs stacking, as opposed to already being stacked
+        :return: (numpy Number, numpy Number) the model's action and the next state (used in reccurent policies)
+        """
         if state is None:
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape(self.observation_space.shape)
 
-        actions, _, states = self.policy.step(observation, state, mask)
+        # some trickery is required for stacking Discrete obs space
+        if isinstance(self.observation_space, Discrete):
+            obs_shape = (1, 1)
+        elif isinstance(self.observation_space, Box):
+            obs_shape = (1,) + self.observation_space.shape
+        else:
+            raise NotImplementedError("Error: ACER does not support input space of type {}".format(
+                type(self.observation_space).__name__))
+
+        # if the input need stacking, make an empty stack (as we dont know the order of prediction
+        if stack:
+            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape(obs_shape)[:]
+        else:
+            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+
+        actions, _, states = self.step(stacked_obs, state, mask)
         return actions, states
 
-    def action_probability(self, observation, state=None, mask=None):
+    def action_probability(self, observation, state=None, mask=None, stack=True):
+        """
+        Get the model's action probability distribution from an observation
+
+        :param observation: (numpy Number) the input observation
+        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
+        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
+        :param stack: (bool) if the observation needs stacking, as opposed to already being stacked
+        :return: (numpy Number) the model's action probability distribution
+        """
         if state is None:
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape(self.observation_space.shape)
 
-        _, proba, _ = self.policy.step(observation, state, mask)
+        # some trickery is required for stacking Discrete obs space
+        if isinstance(self.observation_space, Discrete):
+            obs_shape = (1, 1)
+        elif isinstance(self.observation_space, Box):
+            obs_shape = (1,) + self.observation_space.shape
+        else:
+            raise NotImplementedError("Error: ACER does not support input space of type {}".format(
+                type(self.observation_space).__name__))
+
+        # if the input need stacking, make an empty stack (as we dont know the order of prediction
+        if stack:
+            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape(obs_shape)[:]
+        else:
+            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+
+        _, proba, _ = self.step(stacked_obs, state, mask)
         return proba
 
     def save(self, save_path):
@@ -459,17 +504,33 @@ class _Runner(AbstractEnvRunner):
         :param n_steps: (int) The number of steps to run for each environment
         :param nstack: (int) The number of stacked frames
         """
+
         super(_Runner, self).__init__(env=env, model=model, n_steps=n_steps)
+        self.env = env
         self.nstack = nstack
-        obs_height, obs_width, obs_num_channels = env.observation_space.shape
-        self.num_channels = obs_num_channels  # obs_num_channels = 1 for atari, but just in case
+        self.model = model
         self.n_env = n_env = env.num_envs
         self.n_act = env.action_space.n
         self.n_batch = n_env * n_steps
-        self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * nstack)
-        self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * nstack), dtype=np.uint8)
+
+        if len(env.observation_space.shape) > 1:
+            self.raw_pixels = True
+            obs_height, obs_width, obs_num_channels = env.observation_space.shape
+            self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * nstack)
+            self.obs_dtype = np.uint8
+            self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * nstack), dtype=self.obs_dtype)
+            self.num_channels = obs_num_channels
+        else:
+            self.raw_pixels = False
+            self.batch_ob_shape = (n_env * (n_steps + 1), nstack)
+            self.obs_dtype = np.float32
+            self.obs = np.zeros((n_env, nstack), dtype=self.obs_dtype)
+
         obs = env.reset()
         self.update_obs(obs)
+        self.n_steps = n_steps
+        self.states = model.initial_state
+        self.dones = [False for _ in range(n_env)]
 
     def update_obs(self, obs, dones=None):
         """
@@ -478,10 +539,16 @@ class _Runner(AbstractEnvRunner):
         :param obs: ([int] or [float]) The input observation
         :param dones: ([bool])
         """
-        if dones is not None:
-            self.obs *= (1 - dones.astype(np.uint8))[:, None, None, None]
-        self.obs = np.roll(self.obs, shift=-self.num_channels, axis=3)
-        self.obs[:, :, :, -self.num_channels:] = obs[:, :, :, :]
+        if self.raw_pixels:
+            if dones is not None:
+                self.obs *= (1 - dones.astype(np.uint8))[:, None, None, None]
+            self.obs = np.roll(self.obs, shift=-self.num_channels, axis=3)
+            self.obs[:, :, :, -self.num_channels:] = obs[:, :, :, :]
+        else:
+            if dones is not None:
+                self.obs *= (1 - dones.astype(np.uint8))[:, None]
+            self.obs = np.roll(self.obs, shift=-1, axis=1)
+            self.obs[:, -1:] = obs[:]
 
     def run(self):
         """
@@ -490,7 +557,10 @@ class _Runner(AbstractEnvRunner):
         :return: ([float], [float], [float], [float], [float], [bool], [float])
                  encoded observation, observations, actions, rewards, mus, dones, masks
         """
-        enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
+        if self.raw_pixels:
+            enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
+        else:
+            enc_obs = np.split(self.obs, self.nstack, axis=1)  # so now list of obs steps
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.n_steps):
             actions, mus, states = self.model.step(self.obs, state=self.states, mask=self.dones)
@@ -508,8 +578,8 @@ class _Runner(AbstractEnvRunner):
         mb_obs.append(np.copy(self.obs))
         mb_dones.append(self.dones)
 
-        enc_obs = np.asarray(enc_obs, dtype=np.uint8).swapaxes(1, 0)
-        mb_obs = np.asarray(mb_obs, dtype=np.uint8).swapaxes(1, 0)
+        enc_obs = np.asarray(enc_obs, dtype=self.obs_dtype).swapaxes(1, 0)
+        mb_obs = np.asarray(mb_obs, dtype=self.obs_dtype).swapaxes(1, 0)
         mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         mb_mus = np.asarray(mb_mus, dtype=np.float32).swapaxes(1, 0)
@@ -519,7 +589,7 @@ class _Runner(AbstractEnvRunner):
         mb_masks = mb_dones  # Used for statefull models like LSTM's to mask state when done
         mb_dones = mb_dones[:, 1:]  # Used for calculating returns. The dones array is now aligned with rewards
 
-        # shapes are now [n_env, n_steps, []]
+        # shapes are now [nenv, nsteps, []]
         # When pulling from buffer, arrays will now be reshaped in place, preventing a deep copy.
 
         return enc_obs, mb_obs, mb_actions, mb_rewards, mb_mus, mb_dones, mb_masks

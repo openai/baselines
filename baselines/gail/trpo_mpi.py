@@ -189,6 +189,8 @@ class TRPO(BaseRLModel):
         self.expert_dataset = expert_dataset
         self.entcoeff = entcoeff
 
+        self.graph = None
+        self.sess = None
         self.policy = None
         self.loss_names = None
         self.assign_old_eq_new = None
@@ -204,7 +206,6 @@ class TRPO(BaseRLModel):
         self.allmean = None
         self.nworkers = None
         self.rank = None
-        self.sess = None
         self.params = None
 
         if _init_setup_model:
@@ -217,105 +218,107 @@ class TRPO(BaseRLModel):
         self.rank = MPI.COMM_WORLD.Get_rank()
         np.set_printoptions(precision=3)
 
-        self.sess = tf_util.single_threaded_session()
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.sess = tf_util.single_threaded_session(graph=self.graph)
 
-        self.policy = policy = self.policy_func("pi", self.observation_space, self.action_space, sess=self.sess)
-        old_policy = self.policy_func("oldpi", self.observation_space, self.action_space, sess=self.sess,
-                                      placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
+            self.policy = policy = self.policy_func("pi", self.observation_space, self.action_space, sess=self.sess)
+            old_policy = self.policy_func("oldpi", self.observation_space, self.action_space, sess=self.sess,
+                                          placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
-        atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
-        ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
+            atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
+            ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-        observation = policy.obs_ph
-        action = policy.pdtype.sample_placeholder([None])
+            observation = policy.obs_ph
+            action = policy.pdtype.sample_placeholder([None])
 
-        kloldnew = old_policy.proba_distribution.kl(policy.proba_distribution)
-        ent = policy.proba_distribution.entropy()
-        meankl = tf.reduce_mean(kloldnew)
-        meanent = tf.reduce_mean(ent)
-        entbonus = self.entcoeff * meanent
+            kloldnew = old_policy.proba_distribution.kl(policy.proba_distribution)
+            ent = policy.proba_distribution.entropy()
+            meankl = tf.reduce_mean(kloldnew)
+            meanent = tf.reduce_mean(ent)
+            entbonus = self.entcoeff * meanent
 
-        vferr = tf.reduce_mean(tf.square(policy.vpred - ret))
+            vferr = tf.reduce_mean(tf.square(policy.vpred - ret))
 
-        # advantage * pnew / pold
-        ratio = tf.exp(policy.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))
-        surrgain = tf.reduce_mean(ratio * atarg)
+            # advantage * pnew / pold
+            ratio = tf.exp(policy.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))
+            surrgain = tf.reduce_mean(ratio * atarg)
 
-        optimgain = surrgain + entbonus
-        losses = [optimgain, meankl, entbonus, surrgain, meanent]
-        self.loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
+            optimgain = surrgain + entbonus
+            losses = [optimgain, meankl, entbonus, surrgain, meanent]
+            self.loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
 
-        dist = meankl
+            dist = meankl
 
-        all_var_list = policy.get_trainable_variables()
-        if self.using_gail:
-            var_list = [v for v in all_var_list if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
-            vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
-            assert len(var_list) == len(vf_var_list) + 1
-            self.d_adam = MpiAdam(self.reward_giver.get_trainable_variables())
-            self.vfadam = MpiAdam(vf_var_list)
-            self.get_flat = tf_util.GetFlat(var_list)
-            self.set_from_flat = tf_util.SetFromFlat(var_list)
-        else:
-            var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("pol")]
-            vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
-            self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
-            self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
-            self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
-
-        klgrads = tf.gradients(dist, var_list)
-        flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
-        shapes = [var.get_shape().as_list() for var in var_list]
-        start = 0
-        tangents = []
-        for shape in shapes:
-            var_size = tf_util.intprod(shape)
-            tangents.append(tf.reshape(flat_tangent[start: start + var_size], shape))
-            start += var_size
-        gvp = tf.add_n(
-            [tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
-        fvp = tf_util.flatgrad(gvp, var_list)
-
-        self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                                                   zipsame(old_policy.get_variables(),
-                                                                           policy.get_variables())])
-        self.compute_losses = tf_util.function([observation, action, atarg], losses)
-        self.compute_lossandgrad = tf_util.function([observation, action, atarg],
-                                                    losses + [tf_util.flatgrad(optimgain, var_list)])
-        self.compute_fvp = tf_util.function([flat_tangent, observation, action, atarg], fvp)
-        self.compute_vflossandgrad = tf_util.function([observation, ret], tf_util.flatgrad(vferr, vf_var_list))
-
-        @contextmanager
-        def timed(msg):
-            if self.rank == 0:
-                print(colorize(msg, color='magenta'))
-                start_time = time.time()
-                yield
-                print(colorize("done in %.3f seconds" % (time.time() - start_time), color='magenta'))
+            all_var_list = policy.get_trainable_variables()
+            if self.using_gail:
+                var_list = [v for v in all_var_list if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
+                vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
+                assert len(var_list) == len(vf_var_list) + 1
+                self.d_adam = MpiAdam(self.reward_giver.get_trainable_variables())
+                self.vfadam = MpiAdam(vf_var_list)
+                self.get_flat = tf_util.GetFlat(var_list)
+                self.set_from_flat = tf_util.SetFromFlat(var_list)
             else:
-                yield
+                var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("pol")]
+                vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
+                self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
+                self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
+                self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
 
-        def allmean(arr):
-            assert isinstance(arr, np.ndarray)
-            out = np.empty_like(arr)
-            MPI.COMM_WORLD.Allreduce(arr, out, op=MPI.SUM)
-            out /= self.nworkers
-            return out
+            klgrads = tf.gradients(dist, var_list)
+            flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
+            shapes = [var.get_shape().as_list() for var in var_list]
+            start = 0
+            tangents = []
+            for shape in shapes:
+                var_size = tf_util.intprod(shape)
+                tangents.append(tf.reshape(flat_tangent[start: start + var_size], shape))
+                start += var_size
+            gvp = tf.add_n(
+                [tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
+            fvp = tf_util.flatgrad(gvp, var_list)
 
-        tf_util.initialize(sess=self.sess)
+            self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
+                                                                       zipsame(old_policy.get_variables(),
+                                                                               policy.get_variables())])
+            self.compute_losses = tf_util.function([observation, action, atarg], losses)
+            self.compute_lossandgrad = tf_util.function([observation, action, atarg],
+                                                        losses + [tf_util.flatgrad(optimgain, var_list)])
+            self.compute_fvp = tf_util.function([flat_tangent, observation, action, atarg], fvp)
+            self.compute_vflossandgrad = tf_util.function([observation, ret], tf_util.flatgrad(vferr, vf_var_list))
 
-        th_init = self.get_flat()
-        MPI.COMM_WORLD.Bcast(th_init, root=0)
-        self.set_from_flat(th_init)
+            @contextmanager
+            def timed(msg):
+                if self.rank == 0:
+                    print(colorize(msg, color='magenta'))
+                    start_time = time.time()
+                    yield
+                    print(colorize("done in %.3f seconds" % (time.time() - start_time), color='magenta'))
+                else:
+                    yield
 
-        if self.using_gail:
-            self.d_adam.sync()
-        self.vfadam.sync()
+            def allmean(arr):
+                assert isinstance(arr, np.ndarray)
+                out = np.empty_like(arr)
+                MPI.COMM_WORLD.Allreduce(arr, out, op=MPI.SUM)
+                out /= self.nworkers
+                return out
 
-        self.timed = timed
-        self.allmean = allmean
+            tf_util.initialize(sess=self.sess)
 
-        self.params = find_trainable_variables("pi")
+            th_init = self.get_flat()
+            MPI.COMM_WORLD.Bcast(th_init, root=0)
+            self.set_from_flat(th_init)
+
+            if self.using_gail:
+                self.d_adam.sync()
+            self.vfadam.sync()
+
+            self.timed = timed
+            self.allmean = allmean
+
+            self.params = find_trainable_variables("pi")
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         self._setup_learn(seed)

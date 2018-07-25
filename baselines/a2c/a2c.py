@@ -44,6 +44,7 @@ class A2C(BaseRLModel):
         self.lr_schedule = lr_schedule
         self.learning_rate = learning_rate
 
+        self.graph = None
         self.sess = None
         self.learning_rate_ph = None
         self.n_batch = None
@@ -69,39 +70,41 @@ class A2C(BaseRLModel):
     def setup_model(self):
         super().setup_model()
 
-        self.sess = tf_util.make_session()
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.sess = tf_util.make_session(graph=self.graph)
 
-        self.n_batch = n_batch = self.n_envs * self.n_steps
+            self.n_batch = n_batch = self.n_envs * self.n_steps
 
-        self.actions_ph = tf.placeholder(tf.int32, [n_batch])
-        self.advs_ph = tf.placeholder(tf.float32, [n_batch])
-        self.rewards_ph = tf.placeholder(tf.float32, [n_batch])
-        self.learning_rate_ph = tf.placeholder(tf.float32, [])
+            self.actions_ph = tf.placeholder(tf.int32, [n_batch])
+            self.advs_ph = tf.placeholder(tf.float32, [n_batch])
+            self.rewards_ph = tf.placeholder(tf.float32, [n_batch])
+            self.learning_rate_ph = tf.placeholder(tf.float32, [])
 
-        step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
-        train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs * self.n_steps,
-                                  self.n_steps, reuse=True)
+            step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
+            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs * self.n_steps,
+                                      self.n_steps, reuse=True)
 
-        neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=self.actions_ph)
-        self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
-        self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
-        self.entropy = tf.reduce_mean(calc_entropy(train_model.policy))
-        loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+            neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=self.actions_ph)
+            self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
+            self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
+            self.entropy = tf.reduce_mean(calc_entropy(train_model.policy))
+            loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
 
-        self.params = find_trainable_variables("model")
-        grads = tf.gradients(loss, self.params)
-        if self.max_grad_norm is not None:
-            grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
-        grads = list(zip(grads, self.params))
-        trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha, epsilon=self.epsilon)
-        self.apply_backprop = trainer.apply_gradients(grads)
+            self.params = find_trainable_variables("model")
+            grads = tf.gradients(loss, self.params)
+            if self.max_grad_norm is not None:
+                grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
+            grads = list(zip(grads, self.params))
+            trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha, epsilon=self.epsilon)
+            self.apply_backprop = trainer.apply_gradients(grads)
 
-        self.train_model = train_model
-        self.step_model = step_model
-        self.step = step_model.step
-        self.value = step_model.value
-        self.initial_state = step_model.initial_state
-        tf.global_variables_initializer().run(session=self.sess)
+            self.train_model = train_model
+            self.step_model = step_model
+            self.step = step_model.step
+            self.value = step_model.value
+            self.initial_state = step_model.initial_state
+            tf.global_variables_initializer().run(session=self.sess)
 
     def _train_step(self, obs, states, rewards, masks, actions, values):
         """

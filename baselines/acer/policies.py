@@ -1,7 +1,9 @@
 import numpy as np
 import tensorflow as tf
+
 from baselines.a2c.policies import nature_cnn
 from baselines.a2c.utils import linear, batch_to_seq, seq_to_batch, lstm, sample
+from baselines.common.input import observation_input
 
 
 class AcerPolicy(object):
@@ -20,10 +22,8 @@ class AcerPolicy(object):
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, nstack, reuse=False, n_lstm=256):
         self.n_batch = n_env * n_steps
-        height, width, n_channels = ob_space.shape
-        self.ob_shape = (self.n_batch, height, width, n_channels * nstack)
+        self.obs_ph, self.processed_x = observation_input(ob_space, self.n_batch, n_stack=nstack)
         self.n_act = ac_space.n
-        self.obs_ph = tf.placeholder(tf.uint8, self.ob_shape)  # obs
         self.masks_ph = tf.placeholder(tf.float32, [self.n_batch])  # mask (done t-1)
         self.states_ph = tf.placeholder(tf.float32, [n_env, n_lstm * 2])  # states
         self.sess = sess
@@ -73,7 +73,7 @@ class AcerCnnPolicy(AcerPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, nstack, reuse=False):
         super(AcerCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, nstack, reuse)
         with tf.variable_scope("model", reuse=reuse):
-            extracted_features = nature_cnn(self.obs_ph)
+            extracted_features = nature_cnn(self.processed_x)
             pi_logits = linear(extracted_features, 'pi', self.n_act, init_scale=0.01)
             policy = tf.nn.softmax(pi_logits)
             q_value = linear(extracted_features, 'q', self.n_act)
@@ -101,10 +101,10 @@ class AcerMlpPolicy(AcerPolicy):
         super(AcerMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, nstack, reuse)
         with tf.variable_scope("model", reuse=reuse):
             activ = tf.tanh
-            layer1 = activ(linear(self.obs_ph, 'pi_fc1', n_hidden=64, init_scale=np.sqrt(2)))
+            layer1 = activ(linear(self.processed_x, 'pi_fc1', n_hidden=64, init_scale=np.sqrt(2)))
             layer2 = activ(linear(layer1, 'pi_fc2', n_hidden=64, init_scale=np.sqrt(2)))
             pi_logits = linear(layer2, 'pi', self.n_act, init_scale=0.01)
-            layer1 = activ(linear(self.obs_ph, 'q_fc1', n_hidden=64, init_scale=np.sqrt(2)))
+            layer1 = activ(linear(self.processed_x, 'q_fc1', n_hidden=64, init_scale=np.sqrt(2)))
             layer2 = activ(linear(layer1, 'q_fc2', n_hidden=64, init_scale=np.sqrt(2)))
             q_value = linear(layer2, 'q', self.n_act)
             policy = tf.nn.softmax(pi_logits)
@@ -131,7 +131,7 @@ class AcerLstmPolicy(AcerPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, nstack, reuse=False, n_lstm=256):
         super(AcerLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, nstack, reuse, n_lstm)
         with tf.variable_scope("model", reuse=reuse):
-            extracted_features = nature_cnn(self.obs_ph)
+            extracted_features = nature_cnn(self.processed_x)
 
             # lstm
             input_seq = batch_to_seq(extracted_features, n_env, n_steps)

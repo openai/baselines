@@ -191,6 +191,7 @@ class DDPG(BaseRLModel):
         self.nb_rollout_steps = nb_rollout_steps
 
         # init
+        self.graph = None
         self.stats_sample = None
         self.target_init_updates = None
         self.target_soft_updates = None
@@ -198,7 +199,6 @@ class DDPG(BaseRLModel):
         self.critic_grads = None
         self.critic_optimizer = None
         self.sess = None
-        self.saver = None
         self.stats_ops = None
         self.stats_names = None
         self.perturbed_actor_tf = None
@@ -236,66 +236,70 @@ class DDPG(BaseRLModel):
     def setup_model(self):
         super().setup_model()
 
-        # Inputs.
-        self.obs0 = tf.placeholder(tf.float32, shape=(None,) + self.observation_space.shape, name='obs0')
-        self.obs1 = tf.placeholder(tf.float32, shape=(None,) + self.observation_space.shape, name='obs1')
-        self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
-        self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
-        self.actions = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape, name='actions')
-        self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
-        self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.sess = tf_util.single_threaded_session(graph=self.graph)
 
-        # Observation normalization.
-        if self.normalize_observations:
-            with tf.variable_scope('obs_rms'):
-                self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
-        else:
-            self.obs_rms = None
-        normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms), self.observation_range[0],
-                                           self.observation_range[1])
-        normalized_obs1 = tf.clip_by_value(normalize(self.obs1, self.obs_rms), self.observation_range[0],
-                                           self.observation_range[1])
+            # Inputs.
+            self.obs0 = tf.placeholder(tf.float32, shape=(None,) + self.observation_space.shape, name='obs0')
+            self.obs1 = tf.placeholder(tf.float32, shape=(None,) + self.observation_space.shape, name='obs1')
+            self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
+            self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
+            self.actions = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape, name='actions')
+            self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
+            self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
 
-        # Return normalization.
-        if self.normalize_returns:
-            with tf.variable_scope('ret_rms'):
-                self.ret_rms = RunningMeanStd()
-        else:
-            self.ret_rms = None
+            # Observation normalization.
+            if self.normalize_observations:
+                with tf.variable_scope('obs_rms'):
+                    self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
+            else:
+                self.obs_rms = None
+            normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms), self.observation_range[0],
+                                               self.observation_range[1])
+            normalized_obs1 = tf.clip_by_value(normalize(self.obs1, self.obs_rms), self.observation_range[0],
+                                               self.observation_range[1])
 
-        # Create target networks.
-        target_actor = copy(self.actor)
-        target_actor.name = 'target_actor'
-        self.target_actor = target_actor
-        target_critic = copy(self.critic)
-        target_critic.name = 'target_critic'
-        self.target_critic = target_critic
+            # Return normalization.
+            if self.normalize_returns:
+                with tf.variable_scope('ret_rms'):
+                    self.ret_rms = RunningMeanStd()
+            else:
+                self.ret_rms = None
 
-        # Create networks and core TF parts that are shared across setup parts.
-        self.actor_tf = self.actor(normalized_obs0)
-        self.normalized_critic_tf = self.critic(normalized_obs0, self.actions)
-        self.critic_tf = denormalize(
-            tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
-        self.normalized_critic_with_actor_tf = self.critic(normalized_obs0, self.actor_tf, reuse=True)
-        self.critic_with_actor_tf = denormalize(
-            tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]),
-            self.ret_rms)
-        q_obs1 = denormalize(target_critic(normalized_obs1, target_actor(normalized_obs1)), self.ret_rms)
-        self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
+            # Create target networks.
+            target_actor = copy(self.actor)
+            target_actor.name = 'target_actor'
+            self.target_actor = target_actor
+            target_critic = copy(self.critic)
+            target_critic.name = 'target_critic'
+            self.target_critic = target_critic
 
-        # Set up parts.
-        if self.param_noise is not None:
-            self._setup_param_noise(normalized_obs0)
-        self._setup_actor_optimizer()
-        self._setup_critic_optimizer()
-        if self.normalize_returns and self.enable_popart:
-            self._setup_popart()
-        self._setup_stats()
-        self._setup_target_network_updates()
+            # Create networks and core TF parts that are shared across setup parts.
+            self.actor_tf = self.actor(normalized_obs0)
+            self.normalized_critic_tf = self.critic(normalized_obs0, self.actions)
+            self.critic_tf = denormalize(
+                tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
+            self.normalized_critic_with_actor_tf = self.critic(normalized_obs0, self.actor_tf, reuse=True)
+            self.critic_with_actor_tf = denormalize(
+                tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]),
+                self.ret_rms)
+            q_obs1 = denormalize(target_critic(normalized_obs1, target_actor(normalized_obs1)), self.ret_rms)
+            self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
 
-        self.params = []
-        self.params.extend(find_trainable_variables(self.actor.name))
-        self.params.extend(find_trainable_variables(self.critic.name))
+            # Set up parts.
+            if self.param_noise is not None:
+                self._setup_param_noise(normalized_obs0)
+            self._setup_actor_optimizer()
+            self._setup_critic_optimizer()
+            if self.normalize_returns and self.enable_popart:
+                self._setup_popart()
+            self._setup_stats()
+            self._setup_target_network_updates()
+
+            self.params = []
+            self.params.extend(find_trainable_variables(self.actor.name))
+            self.params.extend(find_trainable_variables(self.critic.name))
 
     def _setup_target_network_updates(self):
         """
@@ -603,17 +607,12 @@ class DDPG(BaseRLModel):
         logger.log('Using agent with the following configuration:')
         logger.log(str(self.__dict__.items()))
 
-        # Set up logging stuff only for a single worker.
-        if rank == 0:
-            tf.train.Saver()
-
         eval_episode_rewards_history = deque(maxlen=100)
         episode_rewards_history = deque(maxlen=100)
-        with tf_util.single_threaded_session() as sess:
+        with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
-            self.saver = tf.train.Saver()
-            self._initialize(sess)
-            sess.graph.finalize()
+            self._initialize(self.sess)
+            self.sess.graph.finalize()
 
             self._reset()
             obs = self.env.reset()
