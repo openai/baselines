@@ -34,14 +34,14 @@ def switch(condition, then_expression, else_expression):
 # Extras
 # ================================================================
 
-def lrelu(tensor, leak=0.2):
+def leaky_relu(tensor, leak=0.2):
     """
     Leaky ReLU
     http://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf
 
     :param tensor: (float) the input value
     :param leak: (float) the leaking coeficient when the function is saturated
-    :return: (float) LReLU output
+    :return: (float) Leaky ReLU output
     """
     f_1 = 0.5 * (1 + leak)
     f_2 = 0.5 * (1 - leak)
@@ -395,7 +395,7 @@ def flattenallbut0(tensor):
 
 
 # ================================================================
-# Diagnostics 
+# Diagnostics
 # ================================================================
 
 def display_var_info(_vars):

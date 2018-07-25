@@ -28,14 +28,14 @@ class Stats:
         self.histogram_summaries_ph = []
         self.histogram_summaries = []
         with tf.variable_scope('summary'):
-            for k in scalar_keys:
-                place_holder = tf.placeholder('float32', None, name=k + '.scalar.summary')
-                string_summary = tf.summary.scalar(k + '.scalar.summary', place_holder)
+            for key in scalar_keys:
+                place_holder = tf.placeholder('float32', None, name=key + '.scalar.summary')
+                string_summary = tf.summary.scalar(key + '.scalar.summary', place_holder)
                 self.scalar_summaries_ph.append(place_holder)
                 self.scalar_summaries.append(string_summary)
-            for k in histogram_keys:
-                place_holder = tf.placeholder('float32', None, name=k + '.histogram.summary')
-                string_summary = tf.summary.scalar(k + '.histogram.summary', place_holder)
+            for key in histogram_keys:
+                place_holder = tf.placeholder('float32', None, name=key + '.histogram.summary')
+                string_summary = tf.summary.scalar(key + '.histogram.summary', place_holder)
                 self.histogram_summaries_ph.append(place_holder)
                 self.histogram_summaries.append(string_summary)
 
