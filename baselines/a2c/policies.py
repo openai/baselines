@@ -80,18 +80,18 @@ class LstmPolicy(A2CPolicy):
             value_fn = linear(rnn_output, 'v', 1)
             self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(rnn_output)
 
-        self.value = value_fn[:, 0]
+        self._value = value_fn[:, 0]
         self.action = self.proba_distribution.sample()
         self.neglogp = self.proba_distribution.neglogp(self.action)
         self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self.value_fn = value_fn
 
     def step(self, obs, state=None, mask=None):
-        return self.sess.run([self.action, self.value, self.snew, self.neglogp],
+        return self.sess.run([self.action, self._value, self.snew, self.neglogp],
                              {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
     def value(self, obs, state=None, mask=None):
-        return self.sess.run(self.value, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+        return self.sess.run(self._value, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
 
 class LnLstmPolicy(LstmPolicy):
