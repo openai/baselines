@@ -51,9 +51,10 @@ class BaseRLModel(ABC):
 
         :param env: (Gym Environment) The environment for learning a policy
         """
-        if env is None and self.env is None and self.verbose == 1:
-            print("Loading a model without an environment, "
-                  "this model cannot be trained until it has a valid environment.")
+        if env is None and self.env is None:
+            if self.verbose >= 1:
+                print("Loading a model without an environment, "
+                      "this model cannot be trained until it has a valid environment.")
             return
         elif env is None:
             raise ValueError("Error: trying to replace the current environment with None")

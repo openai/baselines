@@ -82,13 +82,14 @@ class EzPickle(object):
 
 def set_global_seeds(seed):
     """
-    set the seed for python random, tensorflow, and numpy
+    set the seed for python random, tensorflow, numpy and gym spaces
 
     :param seed: (int) the seed
     """
     tf.set_random_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
+    gym.spaces.prng.seed(seed)
 
 
 def pretty_eta(seconds_left):

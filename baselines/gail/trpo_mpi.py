@@ -134,7 +134,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 
 class TRPO(BaseRLModel):
-    def __init__(self, policy_func, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, lam=0.98,
+    def __init__(self, policy, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, lam=0.98,
                  entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3,
                  # GAIL Params
                  pretrained_weight=None, reward_giver=None, expert_dataset=None, save_per_iter=1,
@@ -143,7 +143,7 @@ class TRPO(BaseRLModel):
         """
         learns a GAIL policy using the given environment
 
-        :param policy_func: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
+        :param policy: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
         :param env: (Gym Environment) the environment
         :param gamma: (float) the discount value
         :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
@@ -169,7 +169,7 @@ class TRPO(BaseRLModel):
         """
         super(TRPO, self).__init__(env=env, requires_vec_env=False, verbose=verbose)
 
-        self.policy_func = policy_func
+        self.policy = policy
         self.using_gail = using_gail
         self.timesteps_per_batch = timesteps_per_batch
         self.reward_giver = reward_giver
@@ -192,7 +192,7 @@ class TRPO(BaseRLModel):
 
         self.graph = None
         self.sess = None
-        self.policy = None
+        self.policy_pi = None
         self.loss_names = None
         self.assign_old_eq_new = None
         self.compute_losses = None
@@ -223,27 +223,27 @@ class TRPO(BaseRLModel):
         with self.graph.as_default():
             self.sess = tf_util.single_threaded_session(graph=self.graph)
 
-            self.policy = policy = self.policy_func("pi", self.observation_space, self.action_space, sess=self.sess)
-            old_policy = self.policy_func("oldpi", self.observation_space, self.action_space, sess=self.sess,
-                                          placeholders={"obs": policy.obs_ph, "processed_obs": policy.processed_x,
-                                                        "stochastic": policy.stochastic_ph})
+            self.policy_pi = policy_pi = self.policy("pi", self.observation_space, self.action_space, sess=self.sess)
+            old_policy = self.policy("oldpi", self.observation_space, self.action_space, sess=self.sess,
+                                     placeholders={"obs": policy_pi.obs_ph, "processed_obs": policy_pi.processed_x,
+                                                   "stochastic": policy_pi.stochastic_ph})
 
             atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
             ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-            observation = policy.obs_ph
-            action = policy.pdtype.sample_placeholder([None])
+            observation = policy_pi.obs_ph
+            action = policy_pi.pdtype.sample_placeholder([None])
 
-            kloldnew = old_policy.proba_distribution.kl(policy.proba_distribution)
-            ent = policy.proba_distribution.entropy()
+            kloldnew = old_policy.proba_distribution.kl(policy_pi.proba_distribution)
+            ent = policy_pi.proba_distribution.entropy()
             meankl = tf.reduce_mean(kloldnew)
             meanent = tf.reduce_mean(ent)
             entbonus = self.entcoeff * meanent
 
-            vferr = tf.reduce_mean(tf.square(policy.vpred - ret))
+            vferr = tf.reduce_mean(tf.square(policy_pi.vpred - ret))
 
             # advantage * pnew / pold
-            ratio = tf.exp(policy.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))
+            ratio = tf.exp(policy_pi.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))
             surrgain = tf.reduce_mean(ratio * atarg)
 
             optimgain = surrgain + entbonus
@@ -252,7 +252,7 @@ class TRPO(BaseRLModel):
 
             dist = meankl
 
-            all_var_list = policy.get_trainable_variables()
+            all_var_list = policy_pi.get_trainable_variables()
             if self.using_gail:
                 var_list = [v for v in all_var_list if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
                 vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
@@ -283,7 +283,7 @@ class TRPO(BaseRLModel):
 
             self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
                                                                        zipsame(old_policy.get_variables(),
-                                                                               policy.get_variables())])
+                                                                               policy_pi.get_variables())])
             self.compute_losses = tf_util.function([observation, action, atarg], losses)
             self.compute_lossandgrad = tf_util.function([observation, action, atarg],
                                                         losses + [tf_util.flatgrad(optimgain, var_list)])
@@ -327,10 +327,10 @@ class TRPO(BaseRLModel):
 
         with self.sess.as_default():
             if self.using_gail:
-                seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True,
+                seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch, stochastic=True,
                                                  reward_giver=self.reward_giver, gail=True)
             else:
-                seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_batch, stochastic=True)
+                seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch, stochastic=True)
 
             episodes_so_far = 0
             timesteps_so_far = 0
@@ -349,7 +349,7 @@ class TRPO(BaseRLModel):
 
                 # if provide pretrained weight
                 if self.pretrained_weight is not None:
-                    tf_util.load_state(self.pretrained_weight, var_list=self.policy.get_variables(), sess=self.sess)
+                    tf_util.load_state(self.pretrained_weight, var_list=self.policy_pi.get_variables(), sess=self.sess)
 
             while True:
                 if callback:
@@ -389,10 +389,10 @@ class TRPO(BaseRLModel):
                     vpredbefore = seg["vpred"]  # predicted value function before udpate
                     atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
-                    if hasattr(self.policy, "ret_rms"):
-                        self.policy.ret_rms.update(tdlamret)
-                    if hasattr(self.policy, "ob_rms"):
-                        self.policy.ob_rms.update(observation)  # update running mean/std for policy
+                    if hasattr(self.policy_pi, "ret_rms"):
+                        self.policy_pi.ret_rms.update(tdlamret)
+                    if hasattr(self.policy_pi, "ob_rms"):
+                        self.policy_pi.ob_rms.update(observation)  # update running mean/std for policy
 
                     args = seg["ob"], seg["ac"], atarg
                     fvpargs = [arr[::5] for arr in args]
@@ -449,8 +449,8 @@ class TRPO(BaseRLModel):
                         for _ in range(self.vf_iters):
                             for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                                                                      include_final_partial_batch=False, batch_size=128):
-                                if hasattr(self.policy, "ob_rms"):
-                                    self.policy.ob_rms.update(mbob)  # update running mean/std for policy
+                                if hasattr(self.policy_pi, "ob_rms"):
+                                    self.policy_pi.ob_rms.update(mbob)  # update running mean/std for policy
                                 grad = self.allmean(self.compute_vflossandgrad(mbob, mbret, sess=self.sess))
                                 self.vfadam.update(grad, self.vf_stepsize)
 
@@ -510,7 +510,7 @@ class TRPO(BaseRLModel):
     def predict(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
-        action, _ = self.policy.act(True, observation)
+        action, _ = self.policy_pi.act(True, observation)
         if self._vectorize_action:
             return [action], [None]
         else:
@@ -519,11 +519,11 @@ class TRPO(BaseRLModel):
     def action_probability(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
-        neglogp0 = self.policy.proba_distribution.neglogp(self.policy.proba_distribution.sample())
+        neglogp0 = self.policy_pi.proba_distribution.neglogp(self.policy_pi.proba_distribution.sample())
         if self._vectorize_action:
-            return [self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))]
+            return [self._softmax(self.sess.run(neglogp0, feed_dict={self.policy_pi.obs_ph: observation}))]
         else:
-            return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))
+            return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy_pi.obs_ph: observation}))
 
     def save(self, save_path):
         data = {
@@ -547,7 +547,7 @@ class TRPO(BaseRLModel):
             "d_stepsize": self.d_stepsize,
             "using_gail": self.using_gail,
             "verbose": self.verbose,
-            "policy_func": self.policy_func,
+            "policy": self.policy,
             "observation_space": self.observation_space,
             "action_space": self.action_space,
             "n_envs": self.n_envs
@@ -561,7 +561,7 @@ class TRPO(BaseRLModel):
     def load(cls, load_path, env=None, **kwargs):
         data, params = cls._load_from_file(load_path)
 
-        model = cls(policy_func=data["policy_func"], env=None, _init_setup_model=False)
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
         model.set_env(env)

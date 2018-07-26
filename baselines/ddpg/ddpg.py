@@ -301,6 +301,8 @@ class DDPG(BaseRLModel):
             self.params.extend(find_trainable_variables(self.actor.name))
             self.params.extend(find_trainable_variables(self.critic.name))
 
+            self._initialize(self.sess)
+
     def _setup_target_network_updates(self):
         """
         set the target update operations
@@ -610,9 +612,6 @@ class DDPG(BaseRLModel):
         episode_rewards_history = deque(maxlen=100)
         with self.sess.as_default(), self.graph.as_default():
             # Prepare everything.
-            self._initialize(self.sess)
-            self.sess.graph.finalize()
-
             self._reset()
             obs = self.env.reset()
             eval_obs = None

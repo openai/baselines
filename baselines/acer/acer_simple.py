@@ -387,7 +387,7 @@ class ACER(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W:0221
+    def predict(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W0221
         """
         Get the model's action from an observation
 
@@ -421,7 +421,7 @@ class ACER(BaseRLModel):
         actions, _, states = self.step(stacked_obs, state, mask)
         return actions, states
 
-    def action_probability(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W:0221
+    def action_probability(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W0221
         """
         Get the model's action probability distribution from an observation
 

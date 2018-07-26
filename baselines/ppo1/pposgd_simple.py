@@ -14,14 +14,14 @@ from baselines.gail.trpo_mpi import traj_segment_generator, add_vtarg_and_adv, f
 
 
 class PPO1(BaseRLModel):
-    def __init__(self, policy_fn, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01,
+    def __init__(self, policy, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01,
                  optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5,
                  schedule='linear', verbose=0, _init_setup_model=True):
         """
         Learning PPO with Stochastic Gradient Descent
 
         :param env: (Gym Environment) environment to train on
-        :param policy_fn: (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) creates the policy
+        :param policy: (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) creates the policy
         :param timesteps_per_actorbatch: (int) timesteps per actor per update
         :param clip_param: (float) clipping parameter epsilon
         :param entcoeff: (float) the entropy loss weight
@@ -38,7 +38,7 @@ class PPO1(BaseRLModel):
         """
         super().__init__(env=env, requires_vec_env=False, verbose=verbose)
 
-        self.policy_fn = policy_fn
+        self.policy = policy
         self.gamma = gamma
         self.timesteps_per_actorbatch = timesteps_per_actorbatch
         self.clip_param = clip_param
@@ -52,7 +52,7 @@ class PPO1(BaseRLModel):
 
         self.graph = None
         self.sess = None
-        self.policy = None
+        self.policy_pi = None
         self.loss_names = None
         self.lossandgrad = None
         self.adam = None
@@ -71,12 +71,12 @@ class PPO1(BaseRLModel):
             self.sess = tf_util.single_threaded_session(graph=self.graph)
 
             # Construct network for new policy
-            self.policy = policy = self.policy_fn("pi", self.observation_space, self.action_space, sess=self.sess)
+            self.policy_pi = policy_pi = self.policy("pi", self.observation_space, self.action_space, sess=self.sess)
 
             # Network for old policy
-            oldpi = self.policy_fn("oldpi", self.observation_space, self.action_space, sess=self.sess,
-                                   placeholders={"obs": policy.obs_ph, "processed_obs": policy.processed_x,
-                                                 "stochastic": policy.stochastic_ph})
+            oldpi = self.policy("oldpi", self.observation_space, self.action_space, sess=self.sess,
+                                placeholders={"obs": policy_pi.obs_ph, "processed_obs": policy_pi.processed_x,
+                                              "stochastic": policy_pi.stochastic_ph})
 
             # Target advantage function (if applicable)
             atarg = tf.placeholder(dtype=tf.float32, shape=[None])
@@ -90,17 +90,17 @@ class PPO1(BaseRLModel):
             # Annealed cliping parameter epislon
             clip_param = self.clip_param * lrmult
 
-            obs_ph = policy.obs_ph
-            action_ph = policy.pdtype.sample_placeholder([None])
+            obs_ph = policy_pi.obs_ph
+            action_ph = policy_pi.pdtype.sample_placeholder([None])
 
-            kloldnew = oldpi.proba_distribution.kl(policy.proba_distribution)
-            ent = policy.proba_distribution.entropy()
+            kloldnew = oldpi.proba_distribution.kl(policy_pi.proba_distribution)
+            ent = policy_pi.proba_distribution.entropy()
             meankl = tf.reduce_mean(kloldnew)
             meanent = tf.reduce_mean(ent)
             pol_entpen = (-self.entcoeff) * meanent
 
             # pnew / pold
-            ratio = tf.exp(policy.proba_distribution.logp(action_ph) - oldpi.proba_distribution.logp(action_ph))
+            ratio = tf.exp(policy_pi.proba_distribution.logp(action_ph) - oldpi.proba_distribution.logp(action_ph))
 
             # surrogate from conservative policy iteration
             surr1 = ratio * atarg
@@ -108,19 +108,19 @@ class PPO1(BaseRLModel):
 
             # PPO's pessimistic surrogate (L^CLIP)
             pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
-            vf_loss = tf.reduce_mean(tf.square(policy.vpred - ret))
+            vf_loss = tf.reduce_mean(tf.square(policy_pi.vpred - ret))
             total_loss = pol_surr + pol_entpen + vf_loss
             losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
             self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
-            self.params = policy.get_trainable_variables()
+            self.params = policy_pi.get_trainable_variables()
             self.lossandgrad = tf_util.function([obs_ph, action_ph, atarg, ret, lrmult],
                                                 losses + [tf_util.flatgrad(total_loss, self.params)])
             self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
 
             self.assign_old_eq_new = tf_util.function(
                 [], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                 zipsame(oldpi.get_variables(), policy.get_variables())])
+                                 zipsame(oldpi.get_variables(), policy_pi.get_variables())])
             self.compute_losses = tf_util.function([obs_ph, action_ph, atarg, ret, lrmult], losses)
 
             tf_util.initialize(sess=self.sess)
@@ -132,7 +132,7 @@ class PPO1(BaseRLModel):
             self.adam.sync()
 
             # Prepare for rollouts
-            seg_gen = traj_segment_generator(self.policy, self.env, self.timesteps_per_actorbatch, stochastic=True)
+            seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_actorbatch, stochastic=True)
 
             episodes_so_far = 0
             timesteps_so_far = 0
@@ -171,12 +171,12 @@ class PPO1(BaseRLModel):
                 # standardized advantage function estimate
                 atarg = (atarg - atarg.mean()) / atarg.std()
                 dataset = Dataset(dict(ob=obs_ph, ac=action_ph, atarg=atarg, vtarg=tdlamret),
-                                  shuffle=not self.policy.recurrent)
+                                  shuffle=not self.policy_pi.recurrent)
                 optim_batchsize = self.optim_batchsize or obs_ph.shape[0]
 
-                if hasattr(self.policy, "ob_rms"):
+                if hasattr(self.policy_pi, "ob_rms"):
                     # update running mean/std for policy
-                    self.policy.ob_rms.update(obs_ph)
+                    self.policy_pi.ob_rms.update(obs_ph)
 
                 # set old parameter values to new parameter values
                 self.assign_old_eq_new(sess=self.sess)
@@ -231,7 +231,7 @@ class PPO1(BaseRLModel):
     def predict(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
-        action, _ = self.policy.act(True, observation)
+        action, _ = self.policy_pi.act(True, observation)
         if self._vectorize_action:
             return [action], [None]
         else:
@@ -240,11 +240,11 @@ class PPO1(BaseRLModel):
     def action_probability(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
-        neglogp0 = self.policy.proba_distribution.neglogp(self.policy.proba_distribution.sample())
+        neglogp0 = self.policy_pi.proba_distribution.neglogp(self.policy_pi.proba_distribution.sample())
         if self._vectorize_action:
-            return [self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))]
+            return [self._softmax(self.sess.run(neglogp0, feed_dict={self.policy_pi.obs_ph: observation}))]
         else:
-            return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy.obs_ph: observation}))
+            return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy_pi.obs_ph: observation}))
 
     def save(self, save_path):
         data = {
@@ -259,7 +259,7 @@ class PPO1(BaseRLModel):
             "adam_epsilon": self.adam_epsilon,
             "schedule": self.schedule,
             "verbose": self.verbose,
-            "policy_fn": self.policy_fn,
+            "policy": self.policy,
             "observation_space": self.observation_space,
             "action_space": self.action_space,
             "n_envs": self.n_envs
@@ -273,7 +273,7 @@ class PPO1(BaseRLModel):
     def load(cls, load_path, env=None, **kwargs):
         data, params = cls._load_from_file(load_path)
 
-        model = cls(policy_fn=data["policy_fn"], env=None, _init_setup_model=False)
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
         model.set_env(env)
