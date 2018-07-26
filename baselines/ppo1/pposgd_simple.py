@@ -197,8 +197,8 @@ class PPO1(BaseRLModel):
                 logger.log("Evaluating losses...")
                 losses = []
                 for batch in dataset.iterate_once(optim_batchsize):
-                    newlosses = self.compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"], cur_lrmult,
-                                                    sess=self.sess)
+                    newlosses = self.compute_losses(batch["ob"], batch["ac"], batch["atarg"], batch["vtarg"],
+                                                    cur_lrmult, sess=self.sess)
                     losses.append(newlosses)
                 mean_losses, _, _ = mpi_moments(losses, axis=0)
                 logger.log(fmt_row(13, mean_losses))

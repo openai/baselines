@@ -255,7 +255,8 @@ class ACER(BaseRLModel):
                 grads_f = -grad / (self.n_envs * self.n_steps)
                 grads_policy = tf.gradients(distribution_f, self.params, grads_f)
                 grads_q = tf.gradients(loss_q * self.q_coef, self.params)
-                grads = [gradient_add(g1, g2, param) for (g1, g2, param) in zip(grads_policy, grads_q, self.params)]
+                grads = [gradient_add(g1, g2, param, verbose=self.verbose)
+                         for (g1, g2, param) in zip(grads_policy, grads_q, self.params)]
 
                 avg_norm_grads_f = avg_norm(grads_f) * (self.n_steps * self.n_envs)
                 norm_grads_q = tf.global_norm(grads_q)

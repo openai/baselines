@@ -33,7 +33,7 @@ def main(args):
     q_func = deepq_models.mlp([64])
     model = DeepQ(
         env=env,
-        q_func=q_func,
+        policy=q_func,
         learning_rate=1e-3,
         buffer_size=50000,
         exploration_fraction=0.1,

@@ -16,7 +16,7 @@ def main(args):
     q_func = deepq_models.mlp([64], layer_norm=True)
 
     model = DeepQ(
-        q_func=q_func,
+        policy=q_func,
         env=env,
         learning_rate=1e-3,
         buffer_size=50000,

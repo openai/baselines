@@ -34,7 +34,7 @@ def main():
 
     model = DeepQ(
         env=env,
-        q_func=q_func,
+        policy=q_func,
         learning_rate=1e-4,
         buffer_size=10000,
         exploration_fraction=0.1,

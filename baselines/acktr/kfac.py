@@ -15,7 +15,7 @@ class KfacOptimizer:
     def __init__(self, learning_rate=0.01, momentum=0.9, clip_kl=0.01, kfac_update=2, stats_accum_iter=60,
                  full_stats_init=False, cold_iter=100, cold_lr=None, async=False, async_stats=False, epsilon=1e-2,
                  stats_decay=0.95, blockdiag_bias=False, channel_fac=False, factored_damping=False, approx_t2=False,
-                 use_float64=False, weight_decay_dict=None, max_grad_norm=0.5):
+                 use_float64=False, weight_decay_dict=None, max_grad_norm=0.5, verbose=1):
         """
         Kfac Optimizer for ACKTR models
         link: https://arxiv.org/pdf/1708.05144.pdf
@@ -39,6 +39,7 @@ class KfacOptimizer:
         :param use_float64: (bool) use 64-bit float
         :param weight_decay_dict: (dict) custom weight decay coeff for a given gradient
         :param max_grad_norm: (float) The maximum value for the gradient clipping
+        :param verbose: (int) verbosity level
         """
         self.max_grad_norm = max_grad_norm
         self._lr = learning_rate
@@ -55,6 +56,7 @@ class KfacOptimizer:
         self._use_float64 = use_float64
         self._factored_damping = factored_damping
         self._cold_iter = cold_iter
+        self.verbose = verbose
         if cold_lr is None:
             # good heuristics
             self._cold_lr = self._lr  # * 3.
@@ -113,10 +115,11 @@ class KfacOptimizer:
                 for grad in gradient.op.inputs:
                     factors.append(_search_factors(grad, graph))
                 op_names = [_item['opName'] for _item in factors]
-                # TODO: need to check all the attribute of the ops as well
-                print(gradient.name)
-                print(op_names)
-                print(len(np.unique(op_names)))
+                if self.verbose >= 1:
+                    # TODO: need to check all the attribute of the ops as well
+                    print(gradient.name)
+                    print(op_names)
+                    print(len(np.unique(op_names)))
                 assert len(np.unique(op_names)) == 1, \
                     'Error: {} is shared among different computation OPs'.format(gradient.name)
 
@@ -635,7 +638,8 @@ class KfacOptimizer:
         :return: ([TensorFlow Tensor]) update operations
         """
         update_ops = []
-        print(('updating %d eigenvalue/vectors' % len(eigen_list)))
+        if self.verbose >= 1:
+            print(('updating %d eigenvalue/vectors' % len(eigen_list)))
         for _, (tensor, mark) in enumerate(zip(eigen_list, self.eigen_update_list)):
             stats_eigen_var = self.eigen_reverse_lookup[mark]
             update_ops.append(
@@ -801,7 +805,8 @@ class KfacOptimizer:
 
                 grad_dict[var] = grad
 
-        print(('projecting %d gradient matrices' % counter))
+        if self.verbose >= 1:
+            print(('projecting %d gradient matrices' % counter))
 
         for grad_1, var in zip(gradlist, varlist):
             grad = grad_dict[var]
@@ -858,7 +863,8 @@ class KfacOptimizer:
         queue_runner = None
         # launch eigen-decomp on a queue thread
         if self._async:
-            print('Use async eigen decomp')
+            if self.verbose >= 1:
+                print('Use async eigen decomp')
             # get a list of factor loading tensors
             factor_ops_dummy = self.compute_stats_eigen()
 

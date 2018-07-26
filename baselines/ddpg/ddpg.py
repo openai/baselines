@@ -301,7 +301,8 @@ class DDPG(BaseRLModel):
             self.params.extend(find_trainable_variables(self.actor.name))
             self.params.extend(find_trainable_variables(self.critic.name))
 
-            self._initialize(self.sess)
+            with self.sess.as_default():
+                self._initialize(self.sess)
 
     def _setup_target_network_updates(self):
         """
