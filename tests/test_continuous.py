@@ -18,14 +18,15 @@ from baselines.a2c.policies import MlpPolicy
 from baselines.acer.policies import AcerMlpPolicy
 from baselines.ddpg.models import ActorMLP, CriticMLP
 from baselines.ppo1.mlp_policy import MlpPolicy as PPO1MlpPolicy
+from tests.test_common import _assert_eq
 
 ENV_ID = 'Pendulum-v0'
 N_TRIALS = 1000
 
 MODEL_POLICY_LIST = [
     (A2C, {"policy": MlpPolicy}),
-    (ACER, {"policy": AcerMlpPolicy}),
-    (ACKTR, {"policy": MlpPolicy}),
+    #(ACER, {"policy": MlpPolicy}),
+    #(ACKTR, {"policy": MlpPolicy}),
     (DDPG, {"critic_policy": CriticMLP,
             "actor_policy": ActorMLP}),
     (PPO1, {"policy": partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)}),
@@ -80,7 +81,7 @@ def test_model_manipulation(model_policy):
         loaded_acc_reward = 0
         obs = env.reset()
         set_global_seeds(0)
-        for i in range(N_TRIALS):
+        for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
@@ -96,14 +97,14 @@ def test_model_manipulation(model_policy):
         loaded_acc_reward = 0
         obs = env.reset()
         set_global_seeds(0)
-        for i in range(N_TRIALS):
+        for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
         # assert <5% diff
         assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.05, \
-            "Error: the prediction seems to have changed between pre leaning and post leaning"
+            "Error: the prediction seems to have changed between pre learning and post learning"
 
         # predict new values
         obs = env.reset()

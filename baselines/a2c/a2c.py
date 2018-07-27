@@ -74,22 +74,21 @@ class A2C(BaseRLModel):
         with self.graph.as_default():
             self.sess = tf_util.make_session(graph=self.graph)
 
-            self.n_batch = n_batch = self.n_envs * self.n_steps
-
-            self.actions_ph = tf.placeholder(tf.int32, [n_batch])
-            self.advs_ph = tf.placeholder(tf.float32, [n_batch])
-            self.rewards_ph = tf.placeholder(tf.float32, [n_batch])
-            self.learning_rate_ph = tf.placeholder(tf.float32, [])
+            self.n_batch = self.n_envs * self.n_steps
 
             step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
             train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs * self.n_steps,
                                       self.n_steps, reuse=True)
 
-            neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy,
-                                                                       labels=self.actions_ph)
+            self.actions_ph = train_model.pdtype.sample_placeholder([None])
+            self.advs_ph = tf.placeholder(tf.float32, [None])
+            self.rewards_ph = tf.placeholder(tf.float32, [None])
+            self.learning_rate_ph = tf.placeholder(tf.float32, [])
+
+            neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
+            self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
             self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
             self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
-            self.entropy = tf.reduce_mean(calc_entropy(train_model.policy))
             loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
 
             self.params = find_trainable_variables("model")
@@ -264,7 +263,7 @@ class A2CRunner(AbstractEnvRunner):
             mb_rewards.append(rewards)
         mb_dones.append(self.dones)
         # batch of steps to batch of rollouts
-        mb_obs = np.asarray(mb_obs, dtype=np.uint8).swapaxes(1, 0).reshape(self.batch_ob_shape)
+        mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype).swapaxes(1, 0).reshape(self.batch_ob_shape)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
         mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
@@ -281,8 +280,19 @@ class A2CRunner(AbstractEnvRunner):
             else:
                 rewards = discount_with_dones(rewards, dones, self.gamma)
             mb_rewards[n] = rewards
-        mb_rewards = mb_rewards.flatten()
-        mb_actions = mb_actions.flatten()
-        mb_values = mb_values.flatten()
-        mb_masks = mb_masks.flatten()
+        mb_rewards = swap_and_flatten(mb_rewards)
+        mb_actions = swap_and_flatten(mb_actions)
+        mb_values = swap_and_flatten(mb_values)
+        mb_masks = swap_and_flatten(mb_masks)
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
+
+
+def swap_and_flatten(arr):
+    """
+    swap and then flatten axes 0 and 1
+
+    :param arr: (numpy array)
+    :return: (numpy array)
+    """
+    shape = arr.shape
+    return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])

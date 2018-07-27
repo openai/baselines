@@ -85,7 +85,7 @@ def test_model_manipulation(model_policy):
         loaded_acc_reward = 0
         obs = env.reset()
         set_global_seeds(0)
-        for i in range(N_TRIALS):
+        for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
@@ -106,7 +106,7 @@ def test_model_manipulation(model_policy):
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
         assert abs(acc_reward - loaded_acc_reward) < 0.1, "Error: the prediction seems to have changed between " \
-                                                          "pre leaning and post leaning"
+                                                          "pre learning and post learning"
 
         # predict new values
         obs = env.reset()
