@@ -14,8 +14,8 @@ from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common import tf_util, BaseRLModel
 from baselines.common.mpi_running_mean_std import RunningMeanStd
-from baselines.ddpg.memory import Memory
 from baselines.a2c.utils import find_trainable_variables
+from baselines.ddpg.memory import Memory
 
 
 def normalize(tensor, stats):
@@ -118,22 +118,23 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 
 
 class DDPG(BaseRLModel):
-    def __init__(self, actor, critic, memory, env, gamma=0.99, eval_env=None, nb_train_steps=50, nb_rollout_steps=100,
-                 nb_eval_steps=100, param_noise=None, action_noise=None, param_noise_adaption_interval=50, tau=0.001,
-                 normalize_returns=False, enable_popart=False, normalize_observations=True, batch_size=128,
-                 observation_range=(-5., 5.), action_range=(-1., 1.), return_range=(-np.inf, np.inf), critic_l2_reg=0.,
-                 actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False,
-                 verbose=0, _init_setup_model=True):
+    def __init__(self, actor_policy, critic_policy, env, gamma=0.99, memory_policy=None, eval_env=None,
+                 nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
+                 action_range=(-1., 1.), normalize_observations=True, tau=0.001, batch_size=128,
+                 param_noise_adaption_interval=50, normalize_returns=False, enable_popart=False,
+                 observation_range=(-5., 5.), critic_l2_reg=0., return_range=(-np.inf, np.inf), actor_lr=1e-4,
+                 critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False, layer_norm=True,
+                 memory_limit=100, verbose=0, _init_setup_model=True):
         """
         Deep Deterministic Policy Gradien (DDPG) model
 
         DDPG: https://arxiv.org/pdf/1509.02971.pdf
 
-        :param actor: (TensorFlow Tensor) the actor model
-        :param critic: (TensorFlow Tensor) the critic model
-        :param memory: (Memory) the replay buffer
+        :param actor_policy: (TensorFlow Tensor) the actor model
+        :param critic_policy: (TensorFlow Tensor) the critic model
         :param env: (Gym Environment) the environment
         :param gamma: (float) the discount rate
+        :param memory_policy: (Memory) the replay buffer (if None, default to baselines.ddpg.memory.Memory)
         :param eval_env: (Gym Environment) the evaluation environment (can be None)
         :param nb_train_steps: (int) the number of training steps
         :param nb_rollout_steps: (int) the number of rollout steps
@@ -157,6 +158,8 @@ class DDPG(BaseRLModel):
         :param reward_scale: (float) the value the reward should be scaled by
         :param render: (bool) enable rendering of the environment
         :param render_eval: (bool) enable rendering of the evalution environment
+        :param layer_norm: (bool) enable layer normalization for the policies
+        :param memory_limit: (int) the max number of transitions to store
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
@@ -165,7 +168,7 @@ class DDPG(BaseRLModel):
         # Parameters.
         self.gamma = gamma
         self.tau = tau
-        self.memory = memory
+        self.memory_policy = memory_policy or Memory
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.action_noise = action_noise
@@ -173,8 +176,8 @@ class DDPG(BaseRLModel):
         self.action_range = action_range
         self.return_range = return_range
         self.observation_range = observation_range
-        self.critic = critic
-        self.actor = actor
+        self.critic_policy = critic_policy
+        self.actor_policy = actor_policy
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
@@ -189,10 +192,15 @@ class DDPG(BaseRLModel):
         self.param_noise_adaption_interval = param_noise_adaption_interval
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
+        self.layer_norm = layer_norm
+        self.memory_limit = memory_limit
 
         # init
         self.graph = None
         self.stats_sample = None
+        self.actor = None
+        self.critic = None
+        self.memory = None
         self.target_init_updates = None
         self.target_soft_updates = None
         self.critic_loss = None
@@ -239,6 +247,11 @@ class DDPG(BaseRLModel):
         self.graph = tf.Graph()
         with self.graph.as_default():
             self.sess = tf_util.single_threaded_session(graph=self.graph)
+
+            self.memory = self.memory_policy(limit=self.memory_limit, action_shape=self.action_space.shape,
+                                             observation_shape=self.observation_space.shape)
+            self.actor = self.actor_policy(self.action_space.shape[-1], layer_norm=self.layer_norm)
+            self.critic = self.critic_policy(layer_norm=self.layer_norm)
 
             # Inputs.
             self.obs0 = tf.placeholder(tf.float32, shape=(None,) + self.observation_space.shape, name='obs0')
@@ -824,8 +837,11 @@ class DDPG(BaseRLModel):
             "critic_lr": self.critic_lr,
             "clip_norm": self.clip_norm,
             "reward_scale": self.reward_scale,
-            "actor": self.actor,
-            "critic": self.critic,
+            "layer_norm": self.layer_norm,
+            "memory_limit": self.memory_limit,
+            "actor_policy": self.actor_policy,
+            "critic_policy": self.critic_policy,
+            "memory_policy": self.memory_policy,
             "n_envs": self.n_envs
         }
 
@@ -835,22 +851,9 @@ class DDPG(BaseRLModel):
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
-        """
-        Load the model from file
-
-        :param load_path: (str) the saved parameter location
-        :param env: (Gym Envrionment) the new environment to run the loaded model on
-            (can be None if you only need prediction from a trained model)
-        :param memory_limit: (int) the maximum transitions that can be stored by DDPG's Memory buffer
-        :param kwargs: extra arguments to change the model when loading
-        """
-        memory_limit = kwargs.get("memory_limit", 100)
-
         data, params = cls._load_from_file(load_path)
 
-        memory = Memory(limit=memory_limit, action_shape=data["action_space"].shape,
-                        observation_shape=data["observation_space"].shape)
-        model = cls(data.pop("actor"), data.pop("critic"), memory, env, _init_setup_model=False)
+        model = cls(None, None, None, env, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
         model.set_env(env)

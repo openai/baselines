@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from gym.spaces import Discrete
 
 from baselines.a2c.policies import nature_cnn
 from baselines.a2c.utils import linear, batch_to_seq, seq_to_batch, lstm, sample
@@ -23,7 +24,10 @@ class AcerPolicy(object):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, nstack, reuse=False, n_lstm=256):
         self.n_batch = n_env * n_steps
         self.obs_ph, self.processed_x = observation_input(ob_space, self.n_batch, n_stack=nstack)
-        self.n_act = ac_space.n
+        if isinstance(ac_space, Discrete):
+            self.n_act = ac_space.n
+        else:
+            self.n_act = ac_space.shape[-1]
         self.masks_ph = tf.placeholder(tf.float32, [self.n_batch])  # mask (done t-1)
         self.states_ph = tf.placeholder(tf.float32, [n_env, n_lstm * 2])  # states
         self.sess = sess

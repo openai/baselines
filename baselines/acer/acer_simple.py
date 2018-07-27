@@ -138,7 +138,11 @@ class ACER(BaseRLModel):
     def setup_model(self):
         super().setup_model()
 
-        self.n_act = self.action_space.n
+        if isinstance(self.action_space, Discrete):
+            self.n_act = self.action_space.n
+        else:
+            self.n_act = self.action_space.shape[-1]
+
         self.n_batch = self.n_envs * self.n_steps
 
         self.graph = tf.Graph()
@@ -515,7 +519,10 @@ class _Runner(AbstractEnvRunner):
         self.nstack = nstack
         self.model = model
         self.n_env = n_env = env.num_envs
-        self.n_act = env.action_space.n
+        if isinstance(env.action_space, Discrete):
+            self.n_act = env.action_space.n
+        else:
+            self.n_act = env.action_space.shape[-1]
         self.n_batch = n_env * n_steps
 
         if len(env.observation_space.shape) > 1:
@@ -526,10 +533,14 @@ class _Runner(AbstractEnvRunner):
             self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * nstack), dtype=self.obs_dtype)
             self.num_channels = obs_num_channels
         else:
+            if len(env.observation_space.shape) == 1:
+                self.obs_dim = env.observation_space.shape[0]
+            else:
+                self.obs_dim = 1
             self.raw_pixels = False
-            self.batch_ob_shape = (n_env * (n_steps + 1), nstack)
+            self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim * nstack)
             self.obs_dtype = np.float32
-            self.obs = np.zeros((n_env, nstack), dtype=self.obs_dtype)
+            self.obs = np.zeros((n_env, self.obs_dim * nstack), dtype=self.obs_dtype)
 
         obs = env.reset()
         self.update_obs(obs)
@@ -552,8 +563,8 @@ class _Runner(AbstractEnvRunner):
         else:
             if dones is not None:
                 self.obs *= (1 - dones.astype(np.uint8))[:, None]
-            self.obs = np.roll(self.obs, shift=-1, axis=1)
-            self.obs[:, -1:] = obs[:]
+            self.obs = np.roll(self.obs, shift=-self.obs_dim, axis=1)
+            self.obs[:, -self.obs_dim:] = obs[:]
 
     def run(self):
         """

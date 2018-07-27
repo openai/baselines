@@ -16,14 +16,13 @@ from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.a2c.policies import MlpPolicy
 from baselines.acer.policies import AcerMlpPolicy
 from baselines.deepq import models as deepq_models
-
 from baselines.ppo1.mlp_policy import MlpPolicy as PPO1MlpPolicy
 
 N_TRIALS = 1000
 
 ppo1_policy = partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)
 
-model_policy_list = [
+MODEL_POLICY_LIST = [
     (A2C, MlpPolicy),
     (ACER, AcerMlpPolicy),
     (ACKTR, MlpPolicy),
@@ -35,11 +34,11 @@ model_policy_list = [
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_policy", model_policy_list)
+@pytest.mark.parametrize("model_policy", MODEL_POLICY_LIST)
 def test_model_manipulation(model_policy):
     """
-    Test if the algorithm (with a given policy) is deterministic with the same seed, can be loaded and saved without
-    any issues, the environment switching works and that the action prediction works
+    Test if the algorithm (with a given policy) can be loaded and saved without any issues, the environment switching
+    works and that the action prediction works
 
     :param model_policy: (BaseRLModel, Object) A model, policy pair
     """
@@ -101,7 +100,7 @@ def test_model_manipulation(model_policy):
         loaded_acc_reward = 0
         obs = env.reset()
         set_global_seeds(0)
-        for i in range(N_TRIALS):
+        for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward

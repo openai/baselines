@@ -65,11 +65,6 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
         else:
             raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
 
-    # Configure components.
-    memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
-    critic = CriticMLP(layer_norm=layer_norm)
-    actor = ActorMLP(nb_actions, layer_norm=layer_norm)
-
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
     logger.info('rank {}: seed={}, logdir={}'.format(rank, seed, logger.get_dir()))
@@ -83,8 +78,9 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     start_time = 0
     if rank == 0:
         start_time = time.time()
-    model = DDPG(actor=actor, critic=critic, memory=memory, env=env, eval_env=eval_env, param_noise=param_noise,
-                 action_noise=action_noise, **kwargs)
+    model = DDPG(actor_policy=ActorMLP, critic_policy=CriticMLP, memory_policy=Memory, env=env, eval_env=eval_env,
+                 param_noise=param_noise, action_noise=action_noise, memory_limit=int(1e6), layer_norm=layer_norm,
+                 **kwargs)
     model.learn(total_timesteps=10000)
     env.close()
     if eval_env is not None:

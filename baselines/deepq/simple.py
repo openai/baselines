@@ -1,12 +1,8 @@
-import os
-import tempfile
-
 import tensorflow as tf
 import numpy as np
 
 from baselines import logger, deepq
 from baselines.common import tf_util, BaseRLModel
-from baselines.common.tf_util import load_state, save_state
 from baselines.common.schedules import LinearSchedule
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
@@ -147,7 +143,6 @@ class DeepQ(BaseRLModel):
                                           final_p=self.exploration_final_eps)
 
         episode_rewards = [0.0]
-        saved_mean_reward = None
         obs = self.env.reset()
         reset = True
 

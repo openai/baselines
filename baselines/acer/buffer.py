@@ -24,6 +24,10 @@ class Buffer(object):
             self.obs_dtype = np.uint8
         else:
             self.raw_pixels = False
+            if len(env.observation_space.shape) == 1:
+                self.obs_dim = env.observation_space.shape[-1]
+            else:
+                self.obs_dim = 1
             self.obs_dtype = np.float32
 
         # Memory
@@ -72,7 +76,7 @@ class Buffer(object):
         if self.raw_pixels:
             obs_dim = [self.height, self.width, self.n_channels]
         else:
-            obs_dim = [1]
+            obs_dim = [self.obs_dim]
 
         y_var = np.empty([n_steps + n_stack - 1, n_env] + ([1] * len(obs_dim)), dtype=np.float32)
         obs = np.zeros([n_stack, n_steps + n_stack, n_env] + obs_dim, dtype=self.obs_dtype)
