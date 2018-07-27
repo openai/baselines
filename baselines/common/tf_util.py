@@ -434,28 +434,32 @@ def get_available_gpus():
 # Saving variables
 # ================================================================
 
-def load_state(fname, sess=None):
+def load_state(fname, sess=None, var_list=None):
     """
     Load a TensorFlow saved model
 
     :param fname: (str) the graph name
     :param sess: (TensorFlow Session) the session, if None: get_default_session()
+    :param var_list: ([TensorFlow Tensor] or {str: TensorFlow Tensor}) A list of Variable/SaveableObject,
+        or a dictionary mapping names to SaveableObject`s. If `None, defaults to the list of all saveable objects.
     """
     if sess is None:
         sess = tf.get_default_session()
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(var_list=var_list)
     saver.restore(sess, fname)
 
 
-def save_state(fname, sess=None):
+def save_state(fname, sess=None, var_list=None):
     """
     Save a TensorFlow model
 
     :param fname: (str) the graph name
     :param sess: (TensorFlow Session) the session, if None: get_default_session()
+    :param var_list: ([TensorFlow Tensor] or {str: TensorFlow Tensor}) A list of Variable/SaveableObject,
+        or a dictionary mapping names to SaveableObject`s. If `None, defaults to the list of all saveable objects.
     """
     if sess is None:
         sess = tf.get_default_session()
     os.makedirs(os.path.dirname(fname), exist_ok=True)
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(var_list=var_list)
     saver.save(sess, fname)

@@ -61,7 +61,7 @@ def rollout(env, policy, max_pathlength, animate=False, obfilter=None):
 def learn(env, policy, value_fn, gamma, lam, timesteps_per_batch, num_timesteps,
           animate=False, callback=None, desired_kl=0.002):
     """
-    Learns a Kfac model
+    Traines an ACKTR model.
 
     :param env: (Gym environment) The environment to learn from
     :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
