@@ -1,10 +1,18 @@
+from collections import OrderedDict
+
 import numpy as np
 from gym import spaces
-from collections import OrderedDict
+
 from . import VecEnv
+
 
 class DummyVecEnv(VecEnv):
     def __init__(self, env_fns):
+        """
+        Creates a simple vectorized wrapper for multiple environments
+        
+        :param env_fns: ([Gym Environment]) the list of environments to vectorize
+        """
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
@@ -23,9 +31,9 @@ class DummyVecEnv(VecEnv):
             dtypes[key] = box.dtype
             self.keys.append(key)
         
-        self.buf_obs = { k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys }
+        self.buf_obs = {k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys}
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
-        self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
+        self.buf_rews = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
         self.actions = None
 
@@ -33,18 +41,19 @@ class DummyVecEnv(VecEnv):
         self.actions = actions
 
     def step_wait(self):
-        for e in range(self.num_envs):
-            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(self.actions[e])
-            if self.buf_dones[e]:
-                obs = self.envs[e].reset()
-            self._save_obs(e, obs)
+        for env_idx in range(self.num_envs):
+            obs, self.buf_rews[env_idx], self.buf_dones[env_idx], self.buf_infos[env_idx] =\
+                self.envs[env_idx].step(self.actions[env_idx])
+            if self.buf_dones[env_idx]:
+                obs = self.envs[env_idx].reset()
+            self._save_obs(env_idx, obs)
         return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
                 self.buf_infos.copy())
 
     def reset(self):
-        for e in range(self.num_envs):
-            obs = self.envs[e].reset()
-            self._save_obs(e, obs)
+        for env_idx in range(self.num_envs):
+            obs = self.envs[env_idx].reset()
+            self._save_obs(env_idx, obs)
         return self._obs_from_buf()
 
     def close(self):
@@ -53,15 +62,15 @@ class DummyVecEnv(VecEnv):
     def render(self, mode='human'):
         return [e.render(mode=mode) for e in self.envs]
 
-    def _save_obs(self, e, obs):
-        for k in self.keys:
-            if k is None:
-                self.buf_obs[k][e] = obs
+    def _save_obs(self, env_idx, obs):
+        for key in self.keys:
+            if key is None:
+                self.buf_obs[key][env_idx] = obs
             else:
-                self.buf_obs[k][e] = obs[k]
+                self.buf_obs[key][env_idx] = obs[key]
 
     def _obs_from_buf(self):
-        if self.keys==[None]:
+        if self.keys == [None]:
             return self.buf_obs[None]
         else:
             return self.buf_obs

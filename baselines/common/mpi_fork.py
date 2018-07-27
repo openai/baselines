@@ -1,10 +1,18 @@
-import os, subprocess, sys
+import os
+import subprocess
+import sys
 
-def mpi_fork(n, bind_to_core=False):
-    """Re-launches the current script with workers
-    Returns "parent" for original parent, "child" for MPI children
+
+def mpi_fork(rank, bind_to_core=False):
     """
-    if n<=1: 
+    Re-launches the current script with workers
+    Returns "parent" for original parent, "child" for MPI children
+
+    :param rank: (int) the rank
+    :param bind_to_core: (bool) enables binding to core
+    :return: (str) the correct type of thread name
+    """
+    if rank <= 1:
         return "child"
     if os.getenv("IN_MPI") is None:
         env = os.environ.copy()
@@ -13,7 +21,7 @@ def mpi_fork(n, bind_to_core=False):
             OMP_NUM_THREADS="1",
             IN_MPI="1"
         )
-        args = ["mpirun", "-np", str(n)]
+        args = ["mpirun", "-np", str(rank)]
         if bind_to_core:
             args += ["-bind-to", "core"]
         args += [sys.executable] + sys.argv

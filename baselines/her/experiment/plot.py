@@ -1,26 +1,42 @@
 import os
-import matplotlib.pyplot as plt
-import numpy as np
 import json
-import seaborn as sns; sns.set()
-import glob2
 import argparse
 
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+import glob2
+
+# Initialize seaborn
+sns.set()
 
 def smooth_reward_curve(x, y):
+    """
+    smooth the reward curve
+
+    :param x: (numpy float) the x coord of the reward
+    :param y: (numpy float) the y coord of the reward
+    :return: (numpy float, numpy float) smoothed x, smoothed y
+    """
     halfwidth = int(np.ceil(len(x) / 60))  # Halfwidth of our smoothing convolution
     k = halfwidth
     xsmoo = x
     ysmoo = np.convolve(y, np.ones(2 * k + 1), mode='same') / np.convolve(np.ones_like(y), np.ones(2 * k + 1),
-        mode='same')
+                                                                          mode='same')
     return xsmoo, ysmoo
 
 
 def load_results(file):
+    """
+    load the results from a file
+
+    :param file: (str) the saved results
+    :return: (dict) the result
+    """
     if not os.path.exists(file):
         return None
-    with open(file, 'r') as f:
-        lines = [line for line in f]
+    with open(file, 'r') as file_handler:
+        lines = [line for line in file_handler]
     if len(lines) < 2:
         return None
     keys = [name.strip() for name in lines[0].split(',')]
@@ -36,13 +52,20 @@ def load_results(file):
 
 
 def pad(xs, value=np.nan):
+    """
+
+
+    :param xs:
+    :param value:
+    :return:
+    """
     maxlen = np.max([len(x) for x in xs])
-    
+
     padded_xs = []
     for x in xs:
         if x.shape[0] >= maxlen:
             padded_xs.append(x)
-    
+
         padding = np.ones((maxlen - x.shape[0],) + x.shape[1:]) * value
         x_padded = np.concatenate([x, padding], axis=0)
         assert x_padded.shape[1:] == x.shape[1:]

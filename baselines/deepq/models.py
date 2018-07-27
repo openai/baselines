@@ -14,19 +14,17 @@ def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
         return q_out
 
 
-def mlp(hiddens=[], layer_norm=False):
-    """This model takes as input an observation and returns values of all actions.
-
-    Parameters
-    ----------
-    hiddens: [int]
-        list of sizes of hidden layers
-
-    Returns
-    -------
-    q_func: function
-        q_function for DQN algorithm.
+def mlp(hiddens=None, layer_norm=False):
     """
+    This model takes as input an observation and returns values of all actions.
+
+    :param hiddens: ([int]) list of sizes of hidden layers
+    :param layer_norm: (bool) if true, use layer normalization
+
+    :return: (function) q_function for DQN algorithm.
+    """
+    if hiddens is None:
+        hiddens = []
     return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
 
 
@@ -70,21 +68,11 @@ def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, 
 def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
     """This model takes as input an observation and returns values of all actions.
 
-    Parameters
-    ----------
-    convs: [(int, int int)]
-        list of convolutional layers in form of
-        (num_outputs, kernel_size, stride)
-    hiddens: [int]
-        list of sizes of hidden layers
-    dueling: bool
-        if true double the output MLP to compute a baseline
-        for action scores
-
-    Returns
-    -------
-    q_func: function
-        q_function for DQN algorithm.
+    :param convs: ([(int, int, int)]) list of convolutional layers in form of (num_outputs, kernel_size, stride)
+    :param hiddens: ([int]) list of sizes of hidden layers
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
+    :param layer_norm: (bool) if true, use layer normalization
+    :return: (function) q_function for DQN algorithm.
     """
 
     return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, layer_norm=layer_norm, *args, **kwargs)

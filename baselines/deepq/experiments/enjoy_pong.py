@@ -1,8 +1,12 @@
 import gym
+
 from baselines import deepq
 
 
 def main():
+    """
+    run a trained model for the pong problem
+    """
     env = gym.make("PongNoFrameskip-v4")
     env = deepq.wrap_atari_dqn(env)
     act = deepq.load("pong_model.pkl")

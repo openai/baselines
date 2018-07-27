@@ -3,7 +3,8 @@ import operator
 
 class SegmentTree(object):
     def __init__(self, capacity, operation, neutral_element):
-        """Build a Segment Tree data structure.
+        """
+        Build a Segment Tree data structure.
 
         https://en.wikipedia.org/wiki/Segment_tree
 
@@ -16,17 +17,10 @@ class SegmentTree(object):
                `reduce` operation which reduces `operation` over
                a contiguous subsequence of items in the array.
 
-        Paramters
-        ---------
-        capacity: int
-            Total size of the array - must be a power of two.
-        operation: lambda obj, obj -> obj
-            and operation for combining elements (eg. sum, max)
-            must form a mathematical group together with the set of
-            possible values for array elements (i.e. be associative)
-        neutral_element: obj
-            neutral element for the operation above. eg. float('-inf')
-            for max and 0 for sum.
+        :param capacity: (int) Total size of the array - must be a power of two.
+        :param operation: (lambda (Any, Any): Any) operation for combining elements (eg. sum, max) must form a
+            mathematical group together with the set of possible values for array elements (i.e. be associative)
+        :param neutral_element: (Any) neutral element for the operation above. eg. float('-inf') for max and 0 for sum.
         """
         assert capacity > 0 and capacity & (capacity - 1) == 0, "capacity must be positive and a power of 2."
         self._capacity = capacity
@@ -49,22 +43,15 @@ class SegmentTree(object):
                 )
 
     def reduce(self, start=0, end=None):
-        """Returns result of applying `self.operation`
+        """
+        Returns result of applying `self.operation`
         to a contiguous subsequence of the array.
 
             self.operation(arr[start], operation(arr[start+1], operation(... arr[end])))
 
-        Parameters
-        ----------
-        start: int
-            beginning of the subsequence
-        end: int
-            end of the subsequences
-
-        Returns
-        -------
-        reduced: obj
-            result of reducing self.operation over the specified range of array elements.
+        :param start: (int) beginning of the subsequence
+        :param end: (int) end of the subsequences
+        :return: (Any) result of reducing self.operation over the specified range of array elements.
         """
         if end is None:
             end = self._capacity
@@ -99,26 +86,26 @@ class SumSegmentTree(SegmentTree):
         )
 
     def sum(self, start=0, end=None):
-        """Returns arr[start] + ... + arr[end]"""
+        """
+        Returns arr[start] + ... + arr[end]
+
+        :param start: (int) start position of the reduction (must be >= 0)
+        :param end: (int) end position of the reduction (must be < len(arr), can be None for len(arr) - 1)
+        :return: (Any) reduction of SumSegmentTree
+        """
         return super(SumSegmentTree, self).reduce(start, end)
 
     def find_prefixsum_idx(self, prefixsum):
-        """Find the highest index `i` in the array such that
+        """
+        Find the highest index `i` in the array such that
             sum(arr[0] + arr[1] + ... + arr[i - i]) <= prefixsum
 
         if array values are probabilities, this function
         allows to sample indexes according to the discrete
         probability efficiently.
 
-        Parameters
-        ----------
-        perfixsum: float
-            upperbound on the sum of array prefix
-
-        Returns
-        -------
-        idx: int
-            highest index satisfying the prefixsum constraint
+        :param prefixsum: (float) upperbound on the sum of array prefix
+        :return: (int) highest index satisfying the prefixsum constraint
         """
         assert 0 <= prefixsum <= self.sum() + 1e-5
         idx = 1
@@ -140,6 +127,11 @@ class MinSegmentTree(SegmentTree):
         )
 
     def min(self, start=0, end=None):
-        """Returns min(arr[start], ...,  arr[end])"""
+        """
+        Returns min(arr[start], ...,  arr[end])
 
+        :param start: (int) start position of the reduction (must be >= 0)
+        :param end: (int) end position of the reduction (must be < len(arr), can be None for len(arr) - 1)
+        :return: (Any) reduction of MinSegmentTree
+        """
         return super(MinSegmentTree, self).reduce(start, end)

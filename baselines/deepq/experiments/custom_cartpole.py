@@ -1,20 +1,28 @@
-import gym
 import itertools
+import argparse
+
+import gym
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
-import baselines.common.tf_util as U
-
-from baselines import logger
-from baselines import deepq
+import baselines.common.tf_util as tf_utils
+from baselines import logger, deepq
 from baselines.deepq.replay_buffer import ReplayBuffer
 from baselines.deepq.utils import ObservationInput
 from baselines.common.schedules import LinearSchedule
 
 
 def model(inpt, num_actions, scope, reuse=False):
-    """This model takes as input an observation and returns values of all actions."""
+    """
+    This model takes as input an observation and returns values of all actions.
+
+    :param inpt: (TensorFlow Tensor) the input placeholder
+    :param num_actions: (int) size of the action space
+    :param scope: (str) the variable scope
+    :param reuse: (bool) is a reusable model
+    :return: (TensorFlow Tensor)
+    """
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.tanh)
@@ -23,7 +31,13 @@ def model(inpt, num_actions, scope, reuse=False):
 
 
 if __name__ == '__main__':
-    with U.make_session(8):
+    parser = argparse.ArgumentParser(description="Train DQN on cartpole using a custom mlp")
+    parser.add_argument('--no-render', default=False, action="store_true", help="Disable rendering")
+    parser.add_argument('--max-timesteps', default=50000, type=int,
+                        help="Maximum number of timesteps when not rendering")
+    args = parser.parse_args()
+
+    with tf_utils.make_session(8):
         # Create the environment
         env = gym.make("CartPole-v0")
         # Create all the functions necessary to train the model
@@ -40,7 +54,7 @@ if __name__ == '__main__':
         exploration = LinearSchedule(schedule_timesteps=10000, initial_p=1.0, final_p=0.02)
 
         # Initialize the parameters and copy them to the target network.
-        U.initialize()
+        tf_utils.initialize()
         update_target()
 
         episode_rewards = [0.0]
@@ -58,8 +72,19 @@ if __name__ == '__main__':
                 obs = env.reset()
                 episode_rewards.append(0)
 
-            is_solved = t > 100 and np.mean(episode_rewards[-101:-1]) >= 200
+            if len(episode_rewards[-101:-1]) == 0:
+                mean_100ep_reward = -np.inf
+            else:
+                mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
+
+            is_solved = t > 100 and mean_100ep_reward >= 200
+
+            if args.no_render and t > args.max_timesteps:
+                break
+
             if is_solved:
+                if args.no_render:
+                    break
                 # Show off the result
                 env.render()
             else:
@@ -74,6 +99,6 @@ if __name__ == '__main__':
             if done and len(episode_rewards) % 10 == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", len(episode_rewards))
-                logger.record_tabular("mean episode reward", round(np.mean(episode_rewards[-101:-1]), 1))
+                logger.record_tabular("mean episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()

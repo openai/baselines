@@ -3,43 +3,72 @@ import time
 from collections import deque
 import pickle
 
-from baselines.ddpg.ddpg import DDPG
-import baselines.common.tf_util as U
-
-from baselines import logger
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
 
+from baselines.ddpg.ddpg import DDPG
+import baselines.common.tf_util as tf_util
+from baselines import logger
+
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
-    normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
-    popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
-    tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+          normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
+          popart, gamma, clip_norm, nb_train_steps, nb_rollout_steps, nb_eval_steps, batch_size, memory,
+          tau=0.01, eval_env=None, param_noise_adaption_interval=50):
+    """
+    Runs the training of the Deep Deterministic Policy Gradien (DDPG) model
+
+    DDPG: https://arxiv.org/pdf/1509.02971.pdf
+
+    :param env: (Gym Environment) the environment
+    :param nb_epochs: (int) the number of training epochs
+    :param nb_epoch_cycles: (int) the number cycles within each epoch
+    :param render_eval: (bool) enable rendering of the evalution environment
+    :param reward_scale: (float) the value the reward should be scaled by
+    :param render: (bool) enable rendering of the environment
+    :param param_noise: (AdaptiveParamNoiseSpec) the parameter noise type (can be None)
+    :param actor: (TensorFlow Tensor) the actor model
+    :param critic: (TensorFlow Tensor) the critic model
+    :param normalize_returns: (bool) should the critic output be normalized
+    :param normalize_observations: (bool) should the observation be normalized
+    :param critic_l2_reg: (float) l2 regularizer coefficient
+    :param actor_lr: (float) the actor learning rate
+    :param critic_lr: (float) the critic learning rate
+    :param action_noise: (ActionNoise) the action noise type (can be None)
+    :param popart: (bool) enable pop-art normalization of the critic output
+        (https://arxiv.org/pdf/1602.07714.pdf)
+    :param gamma: (float) the discount rate
+    :param clip_norm: (float) clip the gradients (disabled if None)
+    :param nb_train_steps: (int) the number of training steps
+    :param nb_rollout_steps: (int) the number of rollout steps
+    :param nb_eval_steps: (int) the number of evalutation steps
+    :param batch_size: (int) the size of the batch for learning the policy
+    :param memory: (Memory) the replay buffer
+    :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
+    :param eval_env: (Gym Environment) the evaluation environment (can be None)
+    :param param_noise_adaption_interval: (int) apply param noise every N steps
+    """
     rank = MPI.COMM_WORLD.Get_rank()
 
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
     max_action = env.action_space.high
     logger.info('scaling actions by {} before executing in env'.format(max_action))
-    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape,
-        gamma=gamma, tau=tau, normalize_returns=normalize_returns, normalize_observations=normalize_observations,
-        batch_size=batch_size, action_noise=action_noise, param_noise=param_noise, critic_l2_reg=critic_l2_reg,
-        actor_lr=actor_lr, critic_lr=critic_lr, enable_popart=popart, clip_norm=clip_norm,
-        reward_scale=reward_scale)
+    agent = DDPG(actor, critic, memory, env.observation_space.shape, env.action_space.shape, param_noise=param_noise,
+                 action_noise=action_noise, gamma=gamma, tau=tau, normalize_returns=normalize_returns,
+                 enable_popart=popart, normalize_observations=normalize_observations, batch_size=batch_size,
+                 critic_l2_reg=critic_l2_reg, actor_lr=actor_lr, critic_lr=critic_lr, clip_norm=clip_norm,
+                 reward_scale=reward_scale)
     logger.info('Using agent with the following configuration:')
     logger.info(str(agent.__dict__.items()))
 
     # Set up logging stuff only for a single worker.
     if rank == 0:
-        saver = tf.train.Saver()
-    else:
-        saver = None
+        tf.train.Saver()
 
-    step = 0
-    episode = 0
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
-    with U.single_threaded_session() as sess:
+    with tf_util.single_threaded_session() as sess:
         # Prepare everything.
         agent.initialize(sess)
         sess.graph.finalize()
@@ -48,46 +77,42 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         obs = env.reset()
         if eval_env is not None:
             eval_obs = eval_env.reset()
-        done = False
         episode_reward = 0.
         episode_step = 0
         episodes = 0
-        t = 0
+        step = 0
 
-        epoch = 0
         start_time = time.time()
 
         epoch_episode_rewards = []
         epoch_episode_steps = []
-        epoch_episode_eval_rewards = []
-        epoch_episode_eval_steps = []
-        epoch_start_time = time.time()
         epoch_actions = []
         epoch_qs = []
         epoch_episodes = 0
         for epoch in range(nb_epochs):
-            for cycle in range(nb_epoch_cycles):
+            for _ in range(nb_epoch_cycles):
                 # Perform rollouts.
-                for t_rollout in range(nb_rollout_steps):
+                for _ in range(nb_rollout_steps):
                     # Predict next action.
-                    action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
+                    action, q_value = agent.policy(obs, apply_noise=True, compute_q=True)
                     assert action.shape == env.action_space.shape
 
                     # Execute next action.
                     if rank == 0 and render:
                         env.render()
                     assert max_action.shape == action.shape
-                    new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                    t += 1
+                    # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    new_obs, reward, done, _ = env.step(max_action * action)
+                    step += 1
                     if rank == 0 and render:
                         env.render()
-                    episode_reward += r
+                    episode_reward += reward
                     episode_step += 1
 
                     # Book-keeping.
                     epoch_actions.append(action)
-                    epoch_qs.append(q)
-                    agent.store_transition(obs, action, r, new_obs, done)
+                    epoch_qs.append(q_value)
+                    agent.store_transition(obs, action, reward, new_obs, done)
                     obs = new_obs
 
                     if done:
@@ -113,9 +138,9 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         distance = agent.adapt_param_noise()
                         epoch_adaptive_distances.append(distance)
 
-                    cl, al = agent.train()
-                    epoch_critic_losses.append(cl)
-                    epoch_actor_losses.append(al)
+                    critic_loss, actor_loss = agent.train()
+                    epoch_critic_losses.append(critic_loss)
+                    epoch_actor_losses.append(actor_loss)
                     agent.update_target_net()
 
                 # Evaluate.
@@ -123,9 +148,10 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 eval_qs = []
                 if eval_env is not None:
                     eval_episode_reward = 0.
-                    for t_rollout in range(nb_eval_steps):
-                        eval_action, eval_q = agent.pi(eval_obs, apply_noise=False, compute_Q=True)
-                        eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                    for _ in range(nb_eval_steps):
+                        eval_action, eval_q = agent.policy(eval_obs, apply_noise=False, compute_q=True)
+                        # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                        eval_obs, eval_r, eval_done, _ = eval_env.step(max_action * eval_action)
                         if render_eval:
                             eval_env.render()
                         eval_episode_reward += eval_r
@@ -152,7 +178,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
             combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
             combined_stats['total/duration'] = duration
-            combined_stats['total/steps_per_second'] = float(t) / float(duration)
+            combined_stats['total/steps_per_second'] = float(step) / float(duration)
             combined_stats['total/episodes'] = episodes
             combined_stats['rollout/episodes'] = epoch_episodes
             combined_stats['rollout/actions_std'] = np.std(epoch_actions)
@@ -162,20 +188,27 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
                 combined_stats['eval/Q'] = eval_qs
                 combined_stats['eval/episodes'] = len(eval_episode_rewards)
-            def as_scalar(x):
-                if isinstance(x, np.ndarray):
-                    assert x.size == 1
-                    return x[0]
-                elif np.isscalar(x):
-                    return x
+
+            def as_scalar(scalar):
+                """
+                check and return the input if it is a scalar, otherwise raise ValueError
+
+                :param scalar: (Any) the object to check
+                :return: (Number) the scalar if x is a scalar
+                """
+                if isinstance(scalar, np.ndarray):
+                    assert scalar.size == 1
+                    return scalar[0]
+                elif np.isscalar(scalar):
+                    return scalar
                 else:
-                    raise ValueError('expected scalar, got %s'%x)
+                    raise ValueError('expected scalar, got %s' % scalar)
             combined_stats_sums = MPI.COMM_WORLD.allreduce(np.array([as_scalar(x) for x in combined_stats.values()]))
-            combined_stats = {k : v / mpi_size for (k,v) in zip(combined_stats.keys(), combined_stats_sums)}
+            combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
 
             # Total statistics.
             combined_stats['total/epochs'] = epoch + 1
-            combined_stats['total/steps'] = t
+            combined_stats['total/steps'] = step
 
             for key in sorted(combined_stats.keys()):
                 logger.record_tabular(key, combined_stats[key])
@@ -184,8 +217,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
             logdir = logger.get_dir()
             if rank == 0 and logdir:
                 if hasattr(env, 'get_state'):
-                    with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as f:
-                        pickle.dump(env.get_state(), f)
+                    with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as file_handler:
+                        pickle.dump(env.get_state(), file_handler)
                 if eval_env and hasattr(eval_env, 'get_state'):
-                    with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as f:
-                        pickle.dump(eval_env.get_state(), f)
+                    with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
+                        pickle.dump(eval_env.get_state(), file_handler)

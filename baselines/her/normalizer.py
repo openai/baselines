@@ -9,15 +9,15 @@ from baselines.her.util import reshape_for_broadcasting
 
 class Normalizer:
     def __init__(self, size, eps=1e-2, default_clip_range=np.inf, sess=None):
-        """A normalizer that ensures that observations are approximately distributed according to
+        """
+        A normalizer that ensures that observations are approximately distributed according to
         a standard Normal distribution (i.e. have mean zero and variance one).
 
-        Args:
-            size (int): the size of the observation to be normalized
-            eps (float): a small constant that avoids underflows
-            default_clip_range (float): normalized observations are clipped to be in
-                [-default_clip_range, default_clip_range]
-            sess (object): the TensorFlow session to be used
+        :param size: (int) the size of the observation to be normalized
+        :param eps: (float) a small constant that avoids underflows
+        :param default_clip_range: (float) normalized observations are clipped to be in
+            [-default_clip_range, default_clip_range]
+        :param sess: (TensorFlow Session) the TensorFlow session to be used
         """
         self.size = size
         self.eps = eps
@@ -61,39 +61,69 @@ class Normalizer:
         )
         self.lock = threading.Lock()
 
-    def update(self, v):
-        v = v.reshape(-1, self.size)
+    def update(self, arr):
+        """
+        update the parameters from the input
+
+        :param arr: (numpy Number) the input
+        """
+        arr = arr.reshape(-1, self.size)
 
         with self.lock:
-            self.local_sum += v.sum(axis=0)
-            self.local_sumsq += (np.square(v)).sum(axis=0)
-            self.local_count[0] += v.shape[0]
+            self.local_sum += arr.sum(axis=0)
+            self.local_sumsq += (np.square(arr)).sum(axis=0)
+            self.local_count[0] += arr.shape[0]
 
-    def normalize(self, v, clip_range=None):
+    def normalize(self, arr, clip_range=None):
+        """
+        normalize the input
+
+        :param arr: (numpy Number) the input
+        :param clip_range: (float) the range to clip to [-clip_range, clip_range]
+        :return: (numpy Number) normalized input
+        """
         if clip_range is None:
             clip_range = self.default_clip_range
-        mean = reshape_for_broadcasting(self.mean, v)
-        std = reshape_for_broadcasting(self.std,  v)
-        return tf.clip_by_value((v - mean) / std, -clip_range, clip_range)
+        mean = reshape_for_broadcasting(self.mean, arr)
+        std = reshape_for_broadcasting(self.std, arr)
+        return tf.clip_by_value((arr - mean) / std, -clip_range, clip_range)
 
-    def denormalize(self, v):
-        mean = reshape_for_broadcasting(self.mean, v)
-        std = reshape_for_broadcasting(self.std,  v)
-        return mean + v * std
+    def denormalize(self, arr):
+        """
+        denormalize the input
 
-    def _mpi_average(self, x):
-        buf = np.zeros_like(x)
-        MPI.COMM_WORLD.Allreduce(x, buf, op=MPI.SUM)
+        :param arr: (numpy Number) the normalized input
+        :return: (numpy Number) original input
+        """
+        mean = reshape_for_broadcasting(self.mean, arr)
+        std = reshape_for_broadcasting(self.std, arr)
+        return mean + arr * std
+
+    @classmethod
+    def _mpi_average(cls, arr):
+        buf = np.zeros_like(arr)
+        MPI.COMM_WORLD.Allreduce(arr, buf, op=MPI.SUM)
         buf /= MPI.COMM_WORLD.Get_size()
         return buf
 
-    def synchronize(self, local_sum, local_sumsq, local_count, root=None):
+    def synchronize(self, local_sum, local_sumsq, local_count):
+        """
+        syncronize over mpi threads
+
+        :param local_sum: (numpy Number) the sum
+        :param local_sumsq: (numpy Number) the square root sum
+        :param local_count: (numpy Number) the number of values updated
+        :return: (numpy Number, numpy Number, numpy Number) the updated local_sum, local_sumsq, and local_count
+        """
         local_sum[...] = self._mpi_average(local_sum)
         local_sumsq[...] = self._mpi_average(local_sumsq)
         local_count[...] = self._mpi_average(local_count)
         return local_sum, local_sumsq, local_count
 
     def recompute_stats(self):
+        """
+        recompute the stats
+        """
         with self.lock:
             # Copy over results.
             local_count = self.local_count.copy()
@@ -120,21 +150,50 @@ class Normalizer:
 
 class IdentityNormalizer:
     def __init__(self, size, std=1.):
+        """
+        Normalizer that returns the input unchanged
+
+        :param size: (int or [int]) the shape of the input to normalize
+        :param std: (float) the initial standard deviation or the normalization
+        """
         self.size = size
         self.mean = tf.zeros(self.size, tf.float32)
         self.std = std * tf.ones(self.size, tf.float32)
 
-    def update(self, x):
+    def update(self, arr):
+        """
+        update the parameters from the input
+
+        :param arr: (numpy Number) the input
+        """
         pass
 
-    def normalize(self, x, clip_range=None):
-        return x / self.std
+    def normalize(self, arr, **_kwargs):
+        """
+        normalize the input
 
-    def denormalize(self, x):
-        return self.std * x
+        :param arr: (numpy Number) the input
+        :return: (numpy Number) normalized input
+        """
+        return arr / self.std
+
+    def denormalize(self, arr):
+        """
+        denormalize the input
+
+        :param arr: (numpy Number) the normalized input
+        :return: (numpy Number) original input
+        """
+        return self.std * arr
 
     def synchronize(self):
+        """
+        syncronize over mpi threads
+        """
         pass
 
     def recompute_stats(self):
+        """
+        recompute the stats
+        """
         pass
