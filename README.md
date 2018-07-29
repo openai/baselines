@@ -50,7 +50,11 @@ If using virtualenv, create a new virtualenv and activate it
 ```
 Install baselines package
 ```bash
-pip install -e .
+# tensorflow
+pip install -e ".[tf]"
+
+# tensorflow-gpu
+pip install -e ".[tf_gpu]"
 ```
 ### MuJoCo
 Some of the baselines examples use [MuJoCo](http://www.mujoco.org) (multi-joint dynamics in contact) physics simulator, which is proprietary and requires binaries and a license (temporary 30-day license can be obtained from [www.mujoco.org](http://www.mujoco.org)). Instructions on setting up MuJoCo can be found [here](https://github.com/openai/mujoco-py)
