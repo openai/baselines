@@ -79,7 +79,7 @@ Most of the algorithms in baselines repo are used as follows:
 ### Example 1. PPO with MuJoCo Humanoid
 For instance, to train a fully-connected network controlling MuJoCo humanoid using a2c for 20M timesteps
 ```bash
-    python -m baselines.run --alg=a2c --env=Humanoid-v2 --network=mlp --num_timesteps=2e7 --reward_scale=0.1
+    python -m baselines.run --alg=a2c --env=Humanoid-v2 --network=mlp --num_timesteps=2e7
 ```
 Note that for mujoco environments fully-connected network is default, so we can omit `--network=mlp`
 The hyperparameters for both network and the learning algorithm can be controlled via the command line, for instance:
@@ -100,11 +100,11 @@ DQN with Atari is at this point a classics of benchmarks. To run the baselines i
 ## Saving, loading and visualizing models
 The algorithms serialization API is not properly unified yet; however, there is a simple method to save / restore trained models. 
 `--save_path` and `--load_path` command-line option loads the tensorflow state from a given path before training, and saves it after the training, respectively. 
-Let's imagine you'd like to train ppo2 on MuJoCo humanoid, save the model and then later visualize what has it learnt. 
+Let's imagine you'd like to train ppo2 on MuJoCo humanoid, save the model and then later visualize what has it learnt.
 ```bash
     python -m baselines.run --alg=ppo2 --env=Humanoid-v2 --num-timesteps=2e7 --save_path=~/models/humanoid_20M_ppo2
 ```
-To load and visualize the model, we'll do the following - load the model, train it for 0 steps, and then visualize: 
+This should get to the mean reward per episode about 5k. To load and visualize the model, we'll do the following - load the model, train it for 0 steps, and then visualize: 
 ```bash
     python -m baselines.run --alg=ppo2 --env=Humanoid-v2 --num-timesteps=0 --load_path=~/models/humanoid_20M_ppo2 --play
 ```
