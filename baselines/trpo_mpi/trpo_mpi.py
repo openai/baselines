@@ -173,10 +173,6 @@ def learn(*,
     with tf.variable_scope("oldpi"):
         oldpi = policy(observ_placeholder=ob)
 
-    if load_path is not None:
-        pi.load(load_path)
-        oldpi.load(load_path)
-
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
 
@@ -247,6 +243,9 @@ def learn(*,
         return out
 
     U.initialize()
+    if load_path is not None:
+        pi.load(load_path)
+    
     th_init = get_flat()
     MPI.COMM_WORLD.Bcast(th_init, root=0)
     set_from_flat(th_init)
