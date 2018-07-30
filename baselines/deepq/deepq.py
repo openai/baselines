@@ -27,7 +27,7 @@ class ActWrapper(object):
         self.initial_state = None
 
     @staticmethod
-    def load(path):
+    def load_act(self, path):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         act = deepq.build_act(**act_params)
@@ -49,7 +49,7 @@ class ActWrapper(object):
     def step(self, observation, **kwargs):
         return self._act([observation], **kwargs), None, None, None
 
-    def save(self, path=None):
+    def save_act(self, path=None):
         """Save model to a pickle located at `path`"""
         if path is None:
             path = os.path.join(logger.get_dir(), "model.pkl")
@@ -68,8 +68,11 @@ class ActWrapper(object):
         with open(path, "wb") as f:
             cloudpickle.dump((model_data, self._act_params), f)
 
+    def save(self, path):
+        save_state(path)
 
-def load(path):
+
+def load_act(path):
     """Load act function that was returned by learn function.
 
     Parameters
@@ -83,7 +86,7 @@ def load(path):
         function that takes a batch of observations
         and returns actions.
     """
-    return ActWrapper.load(path)
+    return ActWrapper.load_act(path)
 
 
 def learn(env,
@@ -109,6 +112,7 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
+          load_path=None,
           **network_kwargs
             ):
     """Train a deepq model.
@@ -169,7 +173,10 @@ def learn(env,
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
-    
+    load_path: str
+        path to load the model from. (default: None)
+    **network_kwargs
+        additional keyword arguments to pass to the network builder. 
 
     Returns
     -------
@@ -180,7 +187,6 @@ def learn(env,
     # Create all the functions necessary to train the model
 
     sess = get_session()
-
     set_global_seeds(seed)
 
     q_func = build_q_func(network, **network_kwargs)
@@ -208,7 +214,7 @@ def learn(env,
     }
 
     act = ActWrapper(act, act_params)
-
+  
     # Create the replay buffer
     if prioritized_replay:
         replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
@@ -239,10 +245,15 @@ def learn(env,
 
         model_file = os.path.join(td, "model")
         model_saved = False
+        
         if tf.train.latest_checkpoint(td) is not None:
             load_state(model_file)
             logger.log('Loaded model from {}'.format(model_file))
             model_saved = True
+        elif load_path is not None:
+            load_state(load_path)
+            logger.log('Loaded model from {}'.format(load_path))
+        
 
         for t in range(total_timesteps):
             if callback is not None:

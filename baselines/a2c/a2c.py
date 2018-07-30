@@ -1,7 +1,7 @@
-import os.path as osp
 import time
-import joblib
+import functools
 import tensorflow as tf
+
 from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
@@ -9,7 +9,7 @@ from baselines.common import tf_util
 from baselines.common.policies import build_policy
 
 
-from baselines.a2c.utils import Scheduler, make_path, find_trainable_variables
+from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.a2c.runner import Runner
 
 from tensorflow import losses
@@ -67,17 +67,6 @@ class Model(object):
             )
             return policy_loss, value_loss, policy_entropy
 
-        def save(save_path):
-            ps = sess.run(params)
-            make_path(osp.dirname(save_path))
-            joblib.dump(ps, save_path)
-
-        def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
 
         self.train = train
         self.train_model = train_model
@@ -85,8 +74,8 @@ class Model(object):
         self.step = step_model.step
         self.value = step_model.value
         self.initial_state = step_model.initial_state
-        self.save = save
-        self.load = load
+        self.save = functools.partial(tf_util.save_variables, sess=sess, variables=params)
+        self.load = functools.partial(tf_util.load_variables, sess=sess, variables=params)
         tf.global_variables_initializer().run(session=sess)
 
 
@@ -105,6 +94,7 @@ def learn(
     alpha=0.99,
     gamma=0.99,
     log_interval=100,
+    load_path=None,
     **network_kwargs):
 
     ''' 
@@ -163,6 +153,8 @@ def learn(
    
     model = Model(policy=policy, env=env, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+    if load_path is not None:
+        model.load(load_path)
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 
     nbatch = nenvs*nsteps

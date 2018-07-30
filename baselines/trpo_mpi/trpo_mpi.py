@@ -98,6 +98,7 @@ def learn(*,
         vf_iters =3,
         max_episodes=0, max_iters=0,  # time constraint
         callback=None,
+        load_path=None,
         **network_kwargs
         ):
     '''
@@ -133,6 +134,10 @@ def learn(*,
     max_iters               maximum number of policy optimization iterations
 
     callback                function to be called with (locals(), globals()) each policy optimization step
+    
+    load_path               str, path to load the model from (default: None, i.e. no model is loaded)
+
+    **network_kwargs        keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
 
     Returns:
     -------
@@ -167,6 +172,10 @@ def learn(*,
         pi = policy(observ_placeholder=ob)
     with tf.variable_scope("oldpi"):
         oldpi = policy(observ_placeholder=ob)
+
+    if load_path is not None:
+        pi.load(load_path)
+        oldpi.load(load_path)
 
     atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
@@ -255,7 +264,12 @@ def learn(*,
     lenbuffer = deque(maxlen=40) # rolling buffer for episode lengths
     rewbuffer = deque(maxlen=40) # rolling buffer for episode rewards
 
-    assert sum([max_iters>0, total_timesteps>0, max_episodes>0])==1
+    if sum([max_iters>0, total_timesteps>0, max_episodes>0])==0:
+        # noththing to be done
+        return pi
+
+    assert sum([max_iters>0, total_timesteps>0, max_episodes>0]) < 2, \
+        'out of max_iters, total_timesteps, and max_episodes only one should be specified'
 
     while True:
         if callback: callback(locals(), globals())

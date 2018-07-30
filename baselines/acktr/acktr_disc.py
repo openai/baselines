@@ -1,13 +1,13 @@
 import os.path as osp
 import time
-import joblib
+import functools
 import numpy as np
 import tensorflow as tf
 from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
 from baselines.common.policies import build_policy
-from baselines.common.tf_util import get_session
+from baselines.common.tf_util import get_session, save_variables, load_variables
 
 from baselines.a2c.runner import Runner
 from baselines.a2c.utils import discount_with_dones
@@ -81,22 +81,10 @@ class Model(object):
             )
             return policy_loss, value_loss, policy_entropy
 
-        def save(save_path):
-            ps = sess.run(params)
-            joblib.dump(ps, save_path)
-
-        def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
-
-
 
         self.train = train
-        self.save = save
-        self.load = load
+        self.save = functools.partial(save_variables, variables=params, sess=sess)
+        self.load = functools.partial(load_variables, variables=params, sess=sess)
         self.train_model = train_model
         self.step_model = step_model
         self.step = step_model.step
@@ -106,7 +94,7 @@ class Model(object):
 
 def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
                  ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
-                 kfac_clip=0.001, save_interval=None, lrschedule='linear', **network_kwargs):
+                 kfac_clip=0.001, save_interval=None, lrschedule='linear', load_path=None, **network_kwargs):
     set_global_seeds(seed)
 
     
@@ -127,6 +115,9 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
+            
+    if load_path is not None:
+        model.load(load_path)
 
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
     nbatch = nenvs*nsteps

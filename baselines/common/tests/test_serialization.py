@@ -7,12 +7,13 @@ import numpy as np
 from baselines.common.tests.envs.mnist_env import MnistEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.run import get_learn_function
-from baselines.common.tf_util import make_session
+from baselines.common.tf_util import make_session, get_session
 
 from functools import partial
 
 
 learn_kwargs = {
+    'deepq': {},
     'a2c': {}, 
     'acktr': {},
     'ppo2': {'nminibatches': 1, 'nsteps': 10},
@@ -56,19 +57,30 @@ def test_serialization(learn_fn, network_fn):
         model_path = os.path.join(td, 'serialization_test_model')
 
         with tf.Graph().as_default(), make_session().as_default():
-            model = learn(total_timesteps=100)
+            model = learn(total_timesteps=100, seed=0)
             model.save(model_path)
             mean1, std1 = _get_action_stats(model, ob)
+            variables_dict1 = _serialize_variables()
 
         with tf.Graph().as_default(), make_session().as_default():
-            model = learn(total_timesteps=10)
-            model.load(model_path)
+            model = learn(total_timesteps=0, seed=0, load_path=model_path)
             mean2, std2 = _get_action_stats(model, ob)
+            variables_dict2 = _serialize_variables()
+
+        for k, v in variables_dict1.items():
+            np.testing.assert_allclose(v, variables_dict2[k])
 
         np.testing.assert_allclose(mean1, mean2, atol=0.5)
         np.testing.assert_allclose(std1, std2, atol=0.5)
 
  
+
+def _serialize_variables():
+    sess = get_session()
+    variables = tf.trainable_variables()    
+    values = sess.run(variables)
+    return {var.name: value for var, value in zip(variables, values)}
+    
 
 def _get_action_stats(model, ob):
     ntrials = 1000

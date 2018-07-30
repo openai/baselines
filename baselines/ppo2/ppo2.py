@@ -1,6 +1,6 @@
 import os
 import time
-import joblib
+import functools
 import numpy as np
 import os.path as osp
 import tensorflow as tf
@@ -9,7 +9,7 @@ from collections import deque
 from baselines.common import explained_variance, set_global_seeds
 from baselines.common.policies import build_policy
 from baselines.common.runners import AbstractEnvRunner
-from baselines.common.tf_util import get_session
+from baselines.common.tf_util import get_session, save_variables, load_variables
 from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
 
 from mpi4py import MPI
@@ -73,17 +73,6 @@ class Model(object):
             )[:-1]
         self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
-        def save(save_path):
-            ps = sess.run(params)
-            joblib.dump(ps, save_path)
-
-        def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
-            # If you want to load weights, also save/load observation scaling inside VecNormalize
 
         self.train = train
         self.train_model = train_model
@@ -91,8 +80,10 @@ class Model(object):
         self.step = act_model.step
         self.value = act_model.value
         self.initial_state = act_model.initial_state
-        self.save = save
-        self.load = load
+
+        # If you want to load weights, also save/load observation scaling inside VecNormalize ?
+        self.save = functools.partial(save_variables, sess=sess, variables=params)
+        self.load = functools.partial(load_variables, sess=sess, variables=params)
 
         if MPI.COMM_WORLD.Get_rank() == 0:
             initialize()

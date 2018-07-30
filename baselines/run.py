@@ -1,5 +1,6 @@
 import sys
 import multiprocessing 
+import os
 import os.path as osp
 import gym
 from collections import defaultdict
@@ -24,8 +25,7 @@ _game_envs = defaultdict(set)
 for env in gym.envs.registry.all():
     # solve this with regexes
     env_type = env._entry_point.split(':')[0].split('.')[-1]
-    if env.id[:-3].endswith('NoFrameskip'):
-        _game_envs[env_type].add(env.id)
+    _game_envs[env_type].add(env.id)
 
 # reading benchmark names directly from retro requires 
 # importing retro here, and for some reason that crashes tensorflow 
@@ -78,7 +78,7 @@ def build_env(args, render=False):
     env_type, env_id = get_env_type(args.env)
     if env_type == 'mujoco':
         if args.num_env:
-            env = SubprocVecEnv([lambda: make_mujoco_env(env_id, seed + i, args.reward_scale) for i in range(args.num_env)])    
+            env = SubprocVecEnv([lambda: make_mujoco_env(env_id, seed + i if seed is not None else None, args.reward_scale) for i in range(args.num_env)])    
         else:
             env = DummyVecEnv([lambda: make_mujoco_env(env_id, seed, args.reward_scale)])
 
@@ -184,14 +184,11 @@ def main():
         logger.configure(format_strs = [])
         rank = MPI.COMM_WORLD.Get_rank()
 
-    if args.model_path is not None:
-        if osp.exists(args.model_path):
-            load_state(osp.expanduser(args.model_path))
-
     model, _ = train(args, extra_args)
 
-    if args.model_path is not None and rank == 0:
-        save_state(osp.expanduser(args.model_path))
+    if args.save_path is not None and rank == 0:
+        save_path = osp.expanduser(args.save_path)
+        model.save(save_path)
     
 
     if args.play:

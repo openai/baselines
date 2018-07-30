@@ -33,15 +33,10 @@ def test_fixed_sequence(alg, rnn):
     kwargs = learn_kwargs[alg]
     kwargs.update(common_kwargs)
 
-    #rnn_fn = rnn_fns[rnn]
-    #nlstm=256
-    #rnn_fn = partial(rnn_fn, scope='lstm', nh=nlstm)
-    
     episode_len = 5
     env_fn = lambda: FixedSequenceEnv(10, episode_len=episode_len)
     learn = lambda e: get_learn_function(alg)(
         env=e, 
-        # policy=recurrent(env=e, rnn_fn=rnn_fn, input_embedding_fn=lambda _:_, state_shape=[2*nlstm]), 
         network=rnn,
         **kwargs
     )

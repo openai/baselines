@@ -1,7 +1,6 @@
-import joblib
-import os.path as osp
 import tensorflow as tf
-from baselines.a2c.utils import make_path, fc
+from baselines.common import tf_util
+from baselines.a2c.utils import fc
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_placeholder, encode_observation
 from baselines.common.tf_util import adjust_shape
@@ -110,20 +109,10 @@ class PolicyWithValue(object):
         return self._evaluate(self.vf, ob, *args, **kwargs)      
 
     def save(self, save_path):
-        sess = self.sess or tf.get_default_session()
-        params = tf.trainable_variables()
-        ps = sess.run(params)
-        make_path(osp.dirname(save_path))
-        joblib.dump(ps, save_path)
+        tf_util.save_state(save_path, sess=self.sess)
 
     def load(self, load_path):
-        sess = self.sess or tf.get_default_session()
-        params = tf.trainable_variables()
-        loaded_params = joblib.load(load_path)
-        restores = []
-        for p, loaded_p in zip(params, loaded_params):
-            restores.append(p.assign(loaded_p))
-        sess.run(restores)
+        tf_util.load_state(load_path, sess=self.sess)
   
 def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
     if isinstance(policy_network, str):

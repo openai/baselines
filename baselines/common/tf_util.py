@@ -1,3 +1,4 @@
+import joblib
 import numpy as np
 import tensorflow as tf  # pylint: ignore-module
 import copy
@@ -310,14 +311,38 @@ def get_available_gpus():
 # Saving variables
 # ================================================================
 
-def load_state(fname):
+def load_state(fname, sess=None):
+    sess = sess or get_session()
     saver = tf.train.Saver()
     saver.restore(tf.get_default_session(), fname)
 
-def save_state(fname):
+def save_state(fname, sess=None):
+    sess = sess or get_session()
     os.makedirs(os.path.dirname(fname), exist_ok=True)
     saver = tf.train.Saver()
     saver.save(tf.get_default_session(), fname)
+
+# The methods above and below are clearly doing the same thing, and in a rather similar way
+# TODO: ensure there is no subtle differences and remove one
+
+def save_variables(save_path, variables, sess=None):
+    if sess is None:
+        sess = get_session()
+    
+    ps = sess.run(variables)
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    joblib.dump(ps, save_path)
+
+def load_variables(load_path, variables, sess=None):
+    if sess is None:
+        sess = get_session()
+
+    loaded_params = joblib.load(load_path)
+    restores = []
+    for p, loaded_p in zip(variables, loaded_params):
+        restores.append(p.assign(loaded_p))
+    sess.run(restores)
+
 
 # ================================================================
 # Shape adjustment for feeding into tf placeholders

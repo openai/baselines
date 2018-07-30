@@ -1,22 +1,20 @@
 import time
-import joblib
+import functools
 import numpy as np
 import tensorflow as tf
 from baselines import logger
 
 from baselines.common import set_global_seeds
 from baselines.common.policies import build_policy
-from baselines.common.tf_util import get_session
+from baselines.common.tf_util import get_session, save_variables
 
 from baselines.a2c.utils import batch_to_seq, seq_to_batch
 from baselines.a2c.utils import cat_entropy_softmax
-from baselines.a2c.utils import Scheduler, make_path, find_trainable_variables
+from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.a2c.utils import EpisodeStats
 from baselines.a2c.utils import get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 from baselines.acer.buffer import Buffer
 from baselines.acer.runner import Runner
-
-import os.path as osp
 
 # remove last step
 def strip(var, nenvs, nsteps, flat = False):
@@ -212,18 +210,13 @@ class Model(object):
 
             return names_ops, sess.run(run_ops, td_map)[1:]  # strip off _train
 
-        def save(save_path):
-            ps = sess.run(params)
-            make_path(osp.dirname(save_path))
-            joblib.dump(ps, save_path)
-
         def _step(observation, **kwargs):
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
                 
                     
 
         self.train = train
-        self.save = save
+        self.save = functools.partial(save_variables, sess=sess, variables=params)
         self.train_model = train_model
         self.step_model = step_model
         self._step = _step
@@ -280,7 +273,7 @@ class Acer():
 def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
           max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
-          trust_region=True, alpha=0.99, delta=1, **network_kwargs):
+          trust_region=True, alpha=0.99, delta=1, load_path=None, **network_kwargs):
 
     '''
     Main entrypoint for ACER (Actor-Critic with Experience Replay) algorithm (https://arxiv.org/pdf/1611.01224.pdf)
@@ -338,6 +331,8 @@ def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6
     delta:              float, max KL divergence between the old policy and updated policy (default: 1)
 
     alpha:              float, momentum factor in the Polyak (exponential moving average) averaging of the model parameters (default: 0.99) 
+
+    load_path:          str, path to load the model from (default: None)
 
     **network_kwargs:               keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
                                     For instance, 'mlp' network architecture has arguments num_hidden and num_layers. 
