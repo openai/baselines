@@ -6,6 +6,21 @@ OpenAI Baselines is a set of high-quality implementations of reinforcement learn
 
 These algorithms will make it easier for the research community to replicate, refine, and identify new ideas, and will create good baselines to build research on top of. Our DQN implementation and its variants are roughly on par with the scores in published papers. We expect they will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. 
 
+## Implemented Algorithms
+
+| **Name** | **refactored**     | **Actions** ```spaces.Box``` |  **Actions** ```spaces.Discrete``` |  **Actions** ```spaces.MultiDiscrete``` |  **Actions** ```spaces.MultiBinary```|
+| -------- | ------------------ | ---------------------------- | ---------------------------------- | --------------------------------------- | ------------------------------------ |
+| A2C      | :heavy_check_mark: | :heavy_check_mark:           | :heavy_check_mark:                 | :heavy_check_mark:                      | :heavy_check_mark:                   |
+| ACER     | :heavy_check_mark: | :x:                          | :heavy_check_mark:                 | :x:                                     | :x:                                  |
+| ACKTR    | :heavy_check_mark: | :x:                          | :heavy_check_mark:                 | :x:                                     | :x:                                  |
+| DDPG     | :heavy_check_mark: | :heavy_check_mark:           | :x:                                | :x:                                     | :x:                                  |
+| DeepQ    | :heavy_check_mark: | :x:                          | :heavy_check_mark:                 | :x:                                     | :x:                                  |
+| GAIL     | :x:                | :heavy_check_mark:           | :heavy_check_mark:                 | :x:                                     | :x:                                  |
+| HER      | :x:                | :heavy_check_mark:           | :x:                                | :x:                                     | :x:                                  |
+| PPO1     | :heavy_check_mark: | :heavy_check_mark:           | :heavy_check_mark:                 | :x:                                     | :x:                                  |
+| PPO2     | :heavy_check_mark: | :heavy_check_mark:           | :heavy_check_mark:                 | :heavy_check_mark:                      | :heavy_check_mark:                   |
+| TRPO     | :heavy_check_mark: | :heavy_check_mark:           | :heavy_check_mark:                 | :x:                                     | :x:                                  |
+
 ## Prerequisites 
 Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows
 ### Ubuntu 
