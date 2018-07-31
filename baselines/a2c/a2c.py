@@ -6,7 +6,7 @@ import tensorflow as tf
 from baselines import logger
 from baselines.common import explained_variance, tf_util, BaseRLModel
 from baselines.common.runners import AbstractEnvRunner
-from baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, calc_entropy, mse
+from baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse
 
 
 class A2C(BaseRLModel):
@@ -59,6 +59,7 @@ class A2C(BaseRLModel):
         self.train_model = None
         self.step_model = None
         self.step = None
+        self.proba_step = None
         self.value = None
         self.initial_state = None
         self.learning_rate_schedule = None
@@ -103,6 +104,7 @@ class A2C(BaseRLModel):
             self.train_model = train_model
             self.step_model = step_model
             self.step = step_model.step
+            self.proba_step = step_model.proba_step
             self.value = step_model.value
             self.initial_state = step_model.initial_state
             tf.global_variables_initializer().run(session=self.sess)
@@ -182,8 +184,7 @@ class A2C(BaseRLModel):
             mask = [False for _ in range(self.n_envs)]
         observation = np.array(observation).reshape((1,) + self.observation_space.shape)
 
-        _, _, _, neglogp0 = self.step(observation, state, mask)
-        return self._softmax(neglogp0)
+        return self.proba_step(observation, state, mask)
 
     def save(self, save_path):
         data = {
@@ -264,10 +265,10 @@ class A2CRunner(AbstractEnvRunner):
         mb_dones.append(self.dones)
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype).swapaxes(1, 0).reshape(self.batch_ob_shape)
-        mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
-        mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
-        mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
-        mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
+        mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
+        mb_actions = np.asarray(mb_actions, dtype=np.int32)
+        mb_values = np.asarray(mb_values, dtype=np.float32)
+        mb_dones = np.asarray(mb_dones, dtype=np.bool)
         mb_masks = mb_dones[:, :-1]
         mb_dones = mb_dones[:, 1:]
         last_values = self.model.value(self.obs, self.states, self.dones).tolist()
@@ -280,6 +281,8 @@ class A2CRunner(AbstractEnvRunner):
             else:
                 rewards = discount_with_dones(rewards, dones, self.gamma)
             mb_rewards[n] = rewards
+
+        # convert from [n_env, n_steps, ...] to [n_steps * n_env, ...]
         mb_rewards = swap_and_flatten(mb_rewards)
         mb_actions = swap_and_flatten(mb_actions)
         mb_values = swap_and_flatten(mb_values)

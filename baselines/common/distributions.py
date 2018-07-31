@@ -452,7 +452,7 @@ def make_proba_dist_type(ac_space):
     :return: (ProbabilityDistributionType) the approriate instance of a ProbabilityDistributionType
     """
     if isinstance(ac_space, spaces.Box):
-        assert len(ac_space.shape) == 1
+        assert len(ac_space.shape) == 1, "Error: the action space must be a vector"
         return DiagGaussianProbabilityDistributionType(ac_space.shape[0])
     elif isinstance(ac_space, spaces.Discrete):
         return CategoricalProbabilityDistributionType(ac_space.n)

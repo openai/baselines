@@ -56,6 +56,17 @@ class A2CPolicy(object):
         """
         raise NotImplementedError
 
+    def proba_step(self, obs, state=None, mask=None):
+        """
+        Returns the action probability for a single step
+
+        :param obs: ([float] or [int]) The current observation of the environment
+        :param state: ([float]) The last states (used in reccurent policies)
+        :param mask: ([float]) The last masks (used in reccurent policies)
+        :return: ([float]) the action probability
+        """
+        raise NotImplementedError
+
     def value(self, obs, state=None, mask=None):
         """
         Returns the value for a single step
@@ -99,6 +110,9 @@ class LstmPolicy(A2CPolicy):
         return self.sess.run([self.action_0, self.value_0, self.snew, self.neglogp0],
                              {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(tf.nn.softmax(self.policy), {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+
     def value(self, obs, state=None, mask=None):
         return self.sess.run(self.value_0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
@@ -133,6 +147,9 @@ class FeedForwardPolicy(A2CPolicy):
     def step(self, obs, state=None, mask=None):
         action, value, neglogp = self.sess.run([self.action_0, self.value_fn, self.neglogp0], {self.obs_ph: obs})
         return action, value, self.initial_state, neglogp
+
+    def proba_step(self, obs, state=None, mask=None):
+        return self.sess.run(tf.nn.softmax(self.policy), {self.obs_ph: obs})
 
     def value(self, obs, state=None, mask=None):
         return self.sess.run(self.value_fn, {self.obs_ph: obs})

@@ -8,12 +8,11 @@ from baselines.ppo2 import PPO2
 from baselines.common.identity_env import IdentityEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.a2c.policies import MlpPolicy
-from baselines.acer.policies import AcerMlpPolicy
 from baselines.deepq import models as deepq_models
 
 learn_func_list = [
     lambda e: A2C(policy=MlpPolicy, env=e).learn(total_timesteps=50000, seed=0),
-    lambda e: ACER(policy=AcerMlpPolicy, env=e, learning_rate=5e-4).learn(total_timesteps=100000, seed=0),
+    #lambda e: ACER(policy=MlpPolicy, env=e, learning_rate=5e-4, verbose=1).learn(total_timesteps=100000, seed=0),
     lambda e: ACKTR(policy=MlpPolicy, env=e, learning_rate=5e-4, n_steps=4).learn(total_timesteps=100000, seed=0),
     lambda e: DeepQ(policy=deepq_models.mlp([32]), env=e).learn(total_timesteps=50000, seed=0),
     lambda e: PPO2(policy=MlpPolicy, env=e, learning_rate=1e-3).learn(total_timesteps=50000, seed=0),

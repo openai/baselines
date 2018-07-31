@@ -44,7 +44,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
     reward_seq = batch_to_seq(rewards, n_envs, n_steps, True)  # list of len steps, shape [n_envs]
     done_seq = batch_to_seq(dones, n_envs, n_steps, True)  # list of len steps, shape [n_envs]
     q_is = batch_to_seq(q_i, n_envs, n_steps, True)
-    value_sequence = batch_to_seq(values, n_envs, n_steps + 1, True)
+    value_sequence = batch_to_seq(values, n_envs, n_steps, True)
     final_value = value_sequence[-1]
     qret = final_value
     qrets = []
@@ -128,8 +128,9 @@ class ACER(BaseRLModel):
         self.train_model = None
         self.step_model = None
         self.step = None
+        self.proba_step = None
         self.initial_state = None
-        self.n_act = None
+        self.act_dim = None
         self.n_batch = None
 
         if _init_setup_model:
@@ -139,31 +140,34 @@ class ACER(BaseRLModel):
         super().setup_model()
 
         if isinstance(self.action_space, Discrete):
-            self.n_act = self.action_space.n
+            self.act_dim = 1
+            n_act = self.action_space.n
         else:
-            self.n_act = self.action_space.shape[-1]
+            self.act_dim = self.action_space.shape[-1]
+            n_act = self.action_space.shape[-1]
 
-        self.n_batch = self.n_envs * self.n_steps
+        self.n_batch = n_batch = self.n_envs * self.n_steps
 
         self.graph = tf.Graph()
         with self.graph.as_default():
             self.sess = tf_util.make_session(num_cpu=self.num_procs, graph=self.graph)
 
-            self.action_ph = tf.placeholder(tf.int32, [self.n_batch])  # actions
-            self.done_ph = tf.placeholder(tf.float32, [self.n_batch])  # dones
-            self.reward_ph = tf.placeholder(tf.float32, [self.n_batch])  # rewards, not returns
-            self.mu_ph = tf.placeholder(tf.float32, [self.n_batch, self.n_act])  # mu's
+            step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                     n_stack=self.nstack, reuse=False)
+            train_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                      self.n_envs * (self.n_steps + 1), self.n_steps + 1, n_stack=self.nstack,
+                                      reuse=True)
+
+            self.action_ph = train_model.pdtype.sample_placeholder([n_batch])
+            self.done_ph = tf.placeholder(tf.float32, [n_batch])  # dones
+            self.reward_ph = tf.placeholder(tf.float32, [n_batch])  # rewards, not returns
+            self.mu_ph = tf.placeholder(tf.float32, [n_batch, n_act])  # mu's
             self.learning_rate_ph = tf.placeholder(tf.float32, [])
             eps = 1e-6
 
-            step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, self.nstack,
-                                     reuse=False)
-            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                      self.n_steps + 1, self.nstack, reuse=True)
-
             self.params = find_trainable_variables("model")
 
-            # create polyak averaged model
+            # create averaged model
             ema = tf.train.ExponentialMovingAverage(self.alpha)
             ema_apply_op = ema.apply(self.params)
 
@@ -172,26 +176,36 @@ class ACER(BaseRLModel):
                 return val
 
             with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
-                self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                                               self.n_envs, self.n_steps + 1, self.nstack, reuse=True)
+                self.polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                                self.n_envs * (self.n_steps + 1), self.n_steps + 1,
+                                                n_stack=self.nstack, reuse=True)
+
+            train_policy = get_by_index(strip(tf.nn.softmax(train_model.policy), self.n_envs, self.n_steps),
+                                        self.action_ph)
+            polyak_policy = get_by_index(strip(tf.nn.softmax(self.polyak_model.policy), self.n_envs, self.n_steps),
+                                         self.action_ph)
+            train_value_fn = strip(train_model.value_fn, self.n_envs, self.n_steps)
 
             # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
             # shape is [n_envs * (n_steps + 1)]
-            value = tf.reduce_sum(train_model.policy * train_model.q_value, axis=-1)
+            value = train_policy * train_value_fn[:, 0]
 
             # strip off last step
             # f is a distribution, chosen to be Gaussian distributions
             # with fixed diagonal covariance and mean \phi(x)
             # in the paper
-            distribution_f, f_polyak, q_value = map(lambda variables: strip(variables, self.n_envs, self.n_steps),
-                                                    [train_model.policy, polyak_model.policy, train_model.q_value])
+            distribution_f = tf.reshape(train_policy, [n_batch, 1])
+            f_polyak = tf.reshape(polyak_policy, [n_batch, 1])
+            q_value = tf.reshape(train_value_fn, [n_batch, 1])
+
             # Get pi and q values for actions taken
-            f_i = get_by_index(distribution_f, self.action_ph)
-            q_i = get_by_index(q_value, self.action_ph)
+            f_i = distribution_f[:, 0]
+            q_i = q_value[:, 0]
+            mu_i = tf.reshape(get_by_index(self.mu_ph, self.action_ph), [n_batch, 1])
 
             # Compute ratios for importance truncation
-            rho = distribution_f / (self.mu_ph + eps)
-            rho_i = get_by_index(rho, self.action_ph)
+            rho = distribution_f / (mu_i + eps)
+            rho_i = rho[:, 0]
 
             # Calculate Q_retrace targets
             qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_envs, self.n_steps, self.gamma)
@@ -201,9 +215,8 @@ class ACER(BaseRLModel):
             entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
 
             # Policy Gradient loss, with truncated importance sampling & bias correction
-            value = strip(value, self.n_envs, self.n_steps, True)
             check_shape([qret, value, rho_i, f_i], [[self.n_envs * self.n_steps]] * 4)
-            check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.n_act]] * 2)
+            check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.act_dim]] * 2)
 
             # Truncated importance sampling
             adv = qret - value
@@ -214,7 +227,7 @@ class ACER(BaseRLModel):
             # Bias correction for the truncation
             adv_bc = (q_value - tf.reshape(value, [self.n_envs * self.n_steps, 1]))  # [n_envs * n_steps, n_act]
             log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
-            check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
+            check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.act_dim]] * 2)
             gain_bc = tf.reduce_sum(log_f_bc *
                                     tf.stop_gradient(
                                         adv_bc *
@@ -294,6 +307,7 @@ class ACER(BaseRLModel):
             self.train_model = train_model
             self.step_model = step_model
             self.step = step_model.step
+            self.proba_step = step_model.proba_step
             self.initial_state = step_model.initial_state
 
             tf.global_variables_initializer().run(session=self.sess)
@@ -316,7 +330,7 @@ class ACER(BaseRLModel):
         td_map = {self.train_model.obs_ph: obs, self.polyak_model.obs_ph: obs, self.action_ph: actions,
                   self.reward_ph: rewards, self.done_ph: dones, self.mu_ph: mus, self.learning_rate_ph: cur_lr}
 
-        if len(states) != 0:
+        if states is not None:
             td_map[self.train_model.states_ph] = states
             td_map[self.train_model.masks_ph] = masks
             td_map[self.polyak_model.states_ph] = states
@@ -423,7 +437,7 @@ class ACER(BaseRLModel):
         else:
             stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
 
-        actions, _, states = self.step(stacked_obs, state, mask)
+        actions, _, states, _ = self.step(stacked_obs, state, mask)
         return actions, states
 
     def action_probability(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W0221
@@ -457,8 +471,7 @@ class ACER(BaseRLModel):
         else:
             stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
 
-        _, proba, _ = self.step(stacked_obs, state, mask)
-        return proba
+        return self.proba_step(stacked_obs, state, mask)
 
     def save(self, save_path):
         data = {
@@ -579,7 +592,8 @@ class _Runner(AbstractEnvRunner):
             enc_obs = np.split(self.obs, self.nstack, axis=1)  # so now list of obs steps
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.n_steps):
-            actions, mus, states = self.model.step(self.obs, state=self.states, mask=self.dones)
+            actions, _, states, _ = self.model.step(self.obs, self.states, self.dones)
+            mus = self.model.proba_step(self.obs, self.states, self.dones)
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
             mb_mus.append(mus)
@@ -599,7 +613,6 @@ class _Runner(AbstractEnvRunner):
         mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         mb_mus = np.asarray(mb_mus, dtype=np.float32).swapaxes(1, 0)
-
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
 
         mb_masks = mb_dones  # Used for statefull models like LSTM's to mask state when done
