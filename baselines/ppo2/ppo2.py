@@ -18,7 +18,7 @@ class PPO2(BaseRLModel):
         """
         Return a trained PPO2 model.
 
-        :param policy: (A2CPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param env: (Gym environment) The environment to learn from
         :param gamma: (float) Discount factor
         :param n_steps: (int) The number of steps to run for each environment
@@ -76,6 +76,7 @@ class PPO2(BaseRLModel):
         self.train_model = None
         self.act_model = None
         self.step = None
+        self.proba_step = None
         self.value = None
         self.initial_state = None
         self.n_batch = None
@@ -140,6 +141,7 @@ class PPO2(BaseRLModel):
             self.train_model = train_model
             self.act_model = act_model
             self.step = act_model.step
+            self.proba_step = act_model.proba_step
             self.value = act_model.value
             self.initial_state = act_model.initial_state
             tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
@@ -254,8 +256,7 @@ class PPO2(BaseRLModel):
             mask = [False for _ in range(self.n_envs)]
         observation = np.array(observation).reshape((1,) + self.observation_space.shape)
 
-        _, _, _, neglogp0 = self.step(observation, state, mask)
-        return self._softmax(neglogp0)
+        return self.proba_step(observation, state, mask)
 
     def save(self, save_path):
         data = {

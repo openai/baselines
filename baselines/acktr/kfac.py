@@ -347,6 +347,11 @@ class KfacOptimizer:
 
         gradient_sampled = tf.gradients(loss_sampled, varlist, name='gradientsSampled')
         self.gradient_sampled = gradient_sampled
+
+        # remove unused variables
+        gradient_sampled, varlist = zip(*[(grad, var) for (grad, var) in zip(gradient_sampled, varlist)
+                                          if grad is not None])
+
         factors = self.get_factors(gradient_sampled, varlist)
         stats = self.get_stats(factors, varlist)
 
@@ -976,6 +981,9 @@ class KfacOptimizer:
                     sgd_step_op = tf.Print(
                         sgd_step_op, [self.sgd_step, tf.convert_to_tensor('doing cold sgd step')])
             return tf.group(*[sgd_step_op, cold_optim_op])
+
+        # remove unused variables
+        grads = [(grad, var) for (grad, var) in grads if grad is not None]
 
         kfac_optim_op, queue_runner = self.apply_gradients_kfac(grads)
 

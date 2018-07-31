@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from baselines import logger
 from baselines.acer import ACER
-from baselines.acer.policies import AcerCnnPolicy, AcerLstmPolicy
+from baselines.common.policies import CnnPolicy, CnnLstmPolicy
 from baselines.common.cmd_util import make_atari_env, atari_arg_parser
 
 
@@ -19,9 +19,9 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_cpu):
     """
     env = make_atari_env(env_id, num_cpu, seed)
     if policy == 'cnn':
-        policy_fn = AcerCnnPolicy
+        policy_fn = CnnPolicy
     elif policy == 'lstm':
-        policy_fn = AcerLstmPolicy
+        policy_fn = CnnLstmPolicy
     else:
         print("Policy {} not implemented".format(policy))
         return

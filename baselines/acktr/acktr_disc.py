@@ -21,7 +21,7 @@ class ACKTR(BaseRLModel):
         """
         The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
 
-        :param policy: (Object) The policy model to use (MLP, CNN, LSTM, ...)
+        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param env: (Gym environment) The environment to learn from
         :param gamma: (float) Discount factor
         :param nprocs: (int) The number of threads for TensorFlow operations
@@ -75,6 +75,7 @@ class ACKTR(BaseRLModel):
         self.train_model = None
         self.step_model = None
         self.step = None
+        self.proba_step = None
         self.value = None
         self.initial_state = None
         self.n_batch = None
@@ -134,6 +135,7 @@ class ACKTR(BaseRLModel):
             self.train_model = train_model
             self.step_model = step_model
             self.step = step_model.step
+            self.proba_step = step_model.proba_step
             self.value = step_model.value
             self.initial_state = step_model.initial_state
             tf.global_variables_initializer().run(session=self.sess)
@@ -220,8 +222,7 @@ class ACKTR(BaseRLModel):
             mask = [False for _ in range(self.n_envs)]
         observation = np.array(observation).reshape((1,) + self.observation_space.shape)
 
-        _, _, _, neglogp0 = self.step(observation, state, mask)
-        return self._softmax(neglogp0)
+        return self.proba_step(observation, state, mask)
 
     def save(self, save_path):
         data = {

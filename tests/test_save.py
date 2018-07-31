@@ -13,8 +13,7 @@ from baselines.trpo_mpi import TRPO
 from baselines.common import set_global_seeds
 from baselines.common.identity_env import IdentityEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.a2c.policies import MlpPolicy
-from baselines.acer.policies import AcerMlpPolicy
+from baselines.common.policies import MlpPolicy
 from baselines.deepq import models as deepq_models
 from baselines.ppo1.mlp_policy import MlpPolicy as PPO1MlpPolicy
 
@@ -24,7 +23,7 @@ ppo1_policy = partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)
 
 MODEL_POLICY_LIST = [
     (A2C, MlpPolicy),
-    (ACER, AcerMlpPolicy),
+    (ACER, MlpPolicy),
     (ACKTR, MlpPolicy),
     (DeepQ, deepq_models.mlp([32])),
     (PPO1, ppo1_policy),

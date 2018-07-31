@@ -7,7 +7,7 @@ from baselines import bench, logger
 from baselines.common import set_global_seeds
 from baselines.common.vec_env.vec_normalize import VecNormalize
 from baselines.ppo2 import PPO2
-from baselines.a2c.policies import MlpPolicy
+from baselines.common.policies import MlpPolicy
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
 

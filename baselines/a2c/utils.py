@@ -535,8 +535,9 @@ def gradient_add(grad_1, grad_2, param, verbose=1):
     """
     if verbose >= 1:
         print([grad_1, grad_2, param.name])
-    assert (not (grad_1 is None and grad_2 is None)), param.name
-    if grad_1 is None:
+    if grad_1 is None and grad_2 is None:
+        return None
+    elif grad_1 is None:
         return grad_2
     elif grad_2 is None:
         return grad_1

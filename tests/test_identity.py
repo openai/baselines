@@ -7,7 +7,7 @@ from baselines.deepq import DeepQ
 from baselines.ppo2 import PPO2
 from baselines.common.identity_env import IdentityEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.a2c.policies import MlpPolicy
+from baselines.common.policies import MlpPolicy
 from baselines.deepq import models as deepq_models
 
 learn_func_list = [

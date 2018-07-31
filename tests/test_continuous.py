@@ -14,8 +14,7 @@ from baselines.ppo2 import PPO2
 from baselines.trpo_mpi import TRPO
 from baselines.common import set_global_seeds
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.a2c.policies import MlpPolicy
-from baselines.acer.policies import AcerMlpPolicy
+from baselines.common.policies import MlpPolicy
 from baselines.ddpg.models import ActorMLP, CriticMLP
 from baselines.ppo1.mlp_policy import MlpPolicy as PPO1MlpPolicy
 from tests.test_common import _assert_eq

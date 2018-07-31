@@ -44,7 +44,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
     reward_seq = batch_to_seq(rewards, n_envs, n_steps, True)  # list of len steps, shape [n_envs]
     done_seq = batch_to_seq(dones, n_envs, n_steps, True)  # list of len steps, shape [n_envs]
     q_is = batch_to_seq(q_i, n_envs, n_steps, True)
-    value_sequence = batch_to_seq(values, n_envs, n_steps, True)
+    value_sequence = batch_to_seq(values, n_envs, n_steps + 1, True)
     final_value = value_sequence[-1]
     qret = final_value
     qrets = []
@@ -66,7 +66,7 @@ class ACER(BaseRLModel):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
-        :param policy: (ACERPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
         :param env: (Gym environment) The environment to learn from
         :param gamma: (float) The discount value
         :param n_steps: (int) The number of steps to run for each environment
@@ -130,7 +130,7 @@ class ACER(BaseRLModel):
         self.step = None
         self.proba_step = None
         self.initial_state = None
-        self.act_dim = None
+        self.n_act = None
         self.n_batch = None
 
         if _init_setup_model:
@@ -140,30 +140,28 @@ class ACER(BaseRLModel):
         super().setup_model()
 
         if isinstance(self.action_space, Discrete):
-            self.act_dim = 1
-            n_act = self.action_space.n
+            self.n_act = self.action_space.n
         else:
-            self.act_dim = self.action_space.shape[-1]
-            n_act = self.action_space.shape[-1]
+            self.n_act = self.action_space.shape[-1]
 
-        self.n_batch = n_batch = self.n_envs * self.n_steps
+        self.n_batch = self.n_envs * self.n_steps
 
         self.graph = tf.Graph()
         with self.graph.as_default():
             self.sess = tf_util.make_session(num_cpu=self.num_procs, graph=self.graph)
+
+            self.action_ph = tf.placeholder(tf.int32, [self.n_batch])  # actions
+            self.done_ph = tf.placeholder(tf.float32, [self.n_batch])  # dones
+            self.reward_ph = tf.placeholder(tf.float32, [self.n_batch])  # rewards, not returns
+            self.mu_ph = tf.placeholder(tf.float32, [self.n_batch, self.n_act])  # mu's
+            self.learning_rate_ph = tf.placeholder(tf.float32, [])
+            eps = 1e-6
 
             step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                      n_stack=self.nstack, reuse=False)
             train_model = self.policy(self.sess, self.observation_space, self.action_space,
                                       self.n_envs * (self.n_steps + 1), self.n_steps + 1, n_stack=self.nstack,
                                       reuse=True)
-
-            self.action_ph = train_model.pdtype.sample_placeholder([n_batch])
-            self.done_ph = tf.placeholder(tf.float32, [n_batch])  # dones
-            self.reward_ph = tf.placeholder(tf.float32, [n_batch])  # rewards, not returns
-            self.mu_ph = tf.placeholder(tf.float32, [n_batch, n_act])  # mu's
-            self.learning_rate_ph = tf.placeholder(tf.float32, [])
-            eps = 1e-6
 
             self.params = find_trainable_variables("model")
 
@@ -176,36 +174,29 @@ class ACER(BaseRLModel):
                 return val
 
             with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
-                self.polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                                self.n_envs * (self.n_steps + 1), self.n_steps + 1,
-                                                n_stack=self.nstack, reuse=True)
-
-            train_policy = get_by_index(strip(tf.nn.softmax(train_model.policy), self.n_envs, self.n_steps),
-                                        self.action_ph)
-            polyak_policy = get_by_index(strip(tf.nn.softmax(self.polyak_model.policy), self.n_envs, self.n_steps),
-                                         self.action_ph)
-            train_value_fn = strip(train_model.value_fn, self.n_envs, self.n_steps)
+                self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                                               self.n_envs * (self.n_steps + 1), self.n_steps + 1,
+                                                               n_stack=self.nstack, reuse=True)
 
             # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
             # shape is [n_envs * (n_steps + 1)]
-            value = train_policy * train_value_fn[:, 0]
+            value = tf.reduce_sum(train_model.policy_proba * train_model.q_value, axis=-1)
 
             # strip off last step
             # f is a distribution, chosen to be Gaussian distributions
             # with fixed diagonal covariance and mean \phi(x)
             # in the paper
-            distribution_f = tf.reshape(train_policy, [n_batch, 1])
-            f_polyak = tf.reshape(polyak_policy, [n_batch, 1])
-            q_value = tf.reshape(train_value_fn, [n_batch, 1])
+            distribution_f, f_polyak, q_value = \
+                map(lambda variables: strip(variables, self.n_envs, self.n_steps),
+                    [train_model.policy_proba, polyak_model.policy_proba, train_model.q_value])
 
             # Get pi and q values for actions taken
-            f_i = distribution_f[:, 0]
-            q_i = q_value[:, 0]
-            mu_i = tf.reshape(get_by_index(self.mu_ph, self.action_ph), [n_batch, 1])
+            f_i = get_by_index(distribution_f, self.action_ph)
+            q_i = get_by_index(q_value, self.action_ph)
 
             # Compute ratios for importance truncation
-            rho = distribution_f / (mu_i + eps)
-            rho_i = rho[:, 0]
+            rho = distribution_f / (self.mu_ph + eps)
+            rho_i = get_by_index(rho, self.action_ph)
 
             # Calculate Q_retrace targets
             qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_envs, self.n_steps, self.gamma)
@@ -215,8 +206,9 @@ class ACER(BaseRLModel):
             entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
 
             # Policy Gradient loss, with truncated importance sampling & bias correction
+            value = strip(value, self.n_envs, self.n_steps, True)
             check_shape([qret, value, rho_i, f_i], [[self.n_envs * self.n_steps]] * 4)
-            check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.act_dim]] * 2)
+            check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.n_act]] * 2)
 
             # Truncated importance sampling
             adv = qret - value
@@ -227,7 +219,7 @@ class ACER(BaseRLModel):
             # Bias correction for the truncation
             adv_bc = (q_value - tf.reshape(value, [self.n_envs * self.n_steps, 1]))  # [n_envs * n_steps, n_act]
             log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
-            check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.act_dim]] * 2)
+            check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
             gain_bc = tf.reduce_sum(log_f_bc *
                                     tf.stop_gradient(
                                         adv_bc *

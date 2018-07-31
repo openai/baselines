@@ -5,7 +5,7 @@ from baselines import logger
 from baselines.acktr import ACKTR
 from baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.a2c.policies import CnnPolicy
+from baselines.common.policies import CnnPolicy
 
 
 def train(env_id, num_timesteps, seed, num_cpu):

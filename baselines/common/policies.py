@@ -23,10 +23,10 @@ def nature_cnn(unscaled_images, **kwargs):
     return activ(linear(layer_3, 'fc1', n_hidden=512, init_scale=np.sqrt(2)))
 
 
-class A2CPolicy(object):
+class ActorCriticPolicy(object):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, n_stack=None, reuse=False):
         """
-        Policy object for A2C
+        Policy object that implements actor critic
 
         :param sess: (TensorFlow session) The current TensorFlow session
         :param ob_space: (Gym Space) The observation space of the environment
@@ -79,7 +79,7 @@ class A2CPolicy(object):
         raise NotImplementedError
 
 
-class LstmPolicy(A2CPolicy):
+class LstmPolicy(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, n_stack=None, reuse=False,
                  layer_norm=False, _type="cnn", **kwargs):
         super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, n_stack, reuse)
@@ -98,7 +98,8 @@ class LstmPolicy(A2CPolicy):
             rnn_output = seq_to_batch(rnn_output)
             value_fn = linear(rnn_output, 'v', 1)
 
-            self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(rnn_output)
+            self.proba_distribution, self.policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(rnn_output, rnn_output)
 
         self.value_0 = value_fn[:, 0]
         self.action_0 = self.proba_distribution.sample()
@@ -118,7 +119,7 @@ class LstmPolicy(A2CPolicy):
         return self.sess.run(self.value_0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
 
-class FeedForwardPolicy(A2CPolicy):
+class FeedForwardPolicy(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_batch, n_steps, n_lstm=256, n_stack=None, reuse=False, _type="cnn",
                  **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_batch, n_steps, n_lstm, n_stack, reuse)
@@ -128,6 +129,8 @@ class FeedForwardPolicy(A2CPolicy):
             if _type == "cnn":
                 extracted_features = nature_cnn(self.processed_x, **kwargs)
                 value_fn = linear(extracted_features, 'v', 1)[:, 0]
+                pi = extracted_features
+                vf = extracted_features
             else:
                 activ = tf.tanh
                 processed_x = tf.layers.flatten(self.processed_x)
@@ -136,10 +139,12 @@ class FeedForwardPolicy(A2CPolicy):
                 vf_h1 = activ(linear(processed_x, 'vf_fc1', n_hidden=64, init_scale=np.sqrt(2)))
                 vf_h2 = activ(linear(vf_h1, 'vf_fc2', n_hidden=64, init_scale=np.sqrt(2)))
                 value_fn = linear(vf_h2, 'vf', 1)[:, 0]
-                extracted_features = pi_h2
+                pi = pi_h2
+                vf = vf_h2
 
-            self.proba_distribution, self.policy = self.pdtype.proba_distribution_from_latent(extracted_features,
-                                                                                              init_scale=0.01)
+            self.proba_distribution, self.policy, self.q_value = \
+                self.pdtype.proba_distribution_from_latent(pi, vf, init_scale=0.01)
+
         self.action_0 = self.proba_distribution.sample()
         self.neglogp0 = self.proba_distribution.neglogp(self.action_0)
         self.policy_proba = tf.nn.softmax(self.policy)
