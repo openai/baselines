@@ -265,10 +265,10 @@ class A2CRunner(AbstractEnvRunner):
         mb_dones.append(self.dones)
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype).swapaxes(1, 0).reshape(self.batch_ob_shape)
-        mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
-        mb_actions = np.asarray(mb_actions, dtype=np.int32)
-        mb_values = np.asarray(mb_values, dtype=np.float32)
-        mb_dones = np.asarray(mb_dones, dtype=np.bool)
+        mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(0, 1)
+        mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(0, 1)
+        mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(0, 1)
+        mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(0, 1)
         mb_masks = mb_dones[:, :-1]
         mb_dones = mb_dones[:, 1:]
         last_values = self.model.value(self.obs, self.states, self.dones).tolist()
@@ -283,19 +283,8 @@ class A2CRunner(AbstractEnvRunner):
             mb_rewards[n] = rewards
 
         # convert from [n_env, n_steps, ...] to [n_steps * n_env, ...]
-        mb_rewards = swap_and_flatten(mb_rewards)
-        mb_actions = swap_and_flatten(mb_actions)
-        mb_values = swap_and_flatten(mb_values)
-        mb_masks = swap_and_flatten(mb_masks)
+        mb_rewards = mb_rewards.reshape(-1, *mb_rewards.shape[2:])
+        mb_actions = mb_actions.reshape(-1, *mb_actions.shape[2:])
+        mb_values = mb_values.reshape(-1, *mb_values.shape[2:])
+        mb_masks = mb_masks.reshape(-1, *mb_masks.shape[2:])
         return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
-
-
-def swap_and_flatten(arr):
-    """
-    swap and then flatten axes 0 and 1
-
-    :param arr: (numpy array)
-    :return: (numpy array)
-    """
-    shape = arr.shape
-    return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])

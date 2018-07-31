@@ -103,6 +103,7 @@ class LstmPolicy(A2CPolicy):
         self.value_0 = value_fn[:, 0]
         self.action_0 = self.proba_distribution.sample()
         self.neglogp0 = self.proba_distribution.neglogp(self.action_0)
+        self.policy_proba = tf.nn.softmax(self.policy)
         self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self.value_fn = value_fn
 
@@ -111,7 +112,7 @@ class LstmPolicy(A2CPolicy):
                              {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
     def proba_step(self, obs, state=None, mask=None):
-        return self.sess.run(tf.nn.softmax(self.policy), {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
     def value(self, obs, state=None, mask=None):
         return self.sess.run(self.value_0, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
@@ -141,6 +142,7 @@ class FeedForwardPolicy(A2CPolicy):
                                                                                               init_scale=0.01)
         self.action_0 = self.proba_distribution.sample()
         self.neglogp0 = self.proba_distribution.neglogp(self.action_0)
+        self.policy_proba = tf.nn.softmax(self.policy)
         self.initial_state = None
         self.value_fn = value_fn
 
@@ -149,7 +151,7 @@ class FeedForwardPolicy(A2CPolicy):
         return action, value, self.initial_state, neglogp
 
     def proba_step(self, obs, state=None, mask=None):
-        return self.sess.run(tf.nn.softmax(self.policy), {self.obs_ph: obs})
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
 
     def value(self, obs, state=None, mask=None):
         return self.sess.run(self.value_fn, {self.obs_ph: obs})
