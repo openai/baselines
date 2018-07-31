@@ -46,10 +46,7 @@ def reward_per_episode_test(env_fn, learn_fn, min_avg_reward, n_trials=N_EPISODE
     with tf.Graph().as_default(), tf.Session(config=tf.ConfigProto(allow_soft_placement=True)).as_default():
         model = learn_fn(env)
 
-        done = True
         N_TRIALS = 100    
-
-        rewards = []
 
         observations, actions, rewards = rollout(env, model, N_TRIALS)
         rewards = [sum(r) for r in rewards]
