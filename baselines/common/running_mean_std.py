@@ -46,10 +46,10 @@ class TfRunningMeanStd(object):
         _batch_count = tf.placeholder(shape=(), dtype=tf.float64)
 
         
-        with tf.variable_scope(scope, reuse=False):
-            _mean = tf.get_variable('mean', initializer=np.zeros(shape))
-            _var = tf.get_variable('std', initializer=np.ones(shape))    
-            _count = tf.get_variable('count', initializer=np.ones(shape=())*epsilon)
+        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+            _mean  = tf.get_variable('mean',  initializer=np.zeros(shape, 'float64'),     dtype=tf.float64)
+            _var   = tf.get_variable('std',   initializer=np.ones(shape, 'float64'),      dtype=tf.float64)    
+            _count = tf.get_variable('count', initializer=np.ones((), 'float64')*epsilon, dtype=tf.float64)
 
         delta = _batch_mean - _mean
         tot_count = _count + _batch_count

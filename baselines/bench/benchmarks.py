@@ -86,6 +86,7 @@ register_benchmark({
     'description': 'Some small 2D MuJoCo tasks, run for 1M timesteps',
     'tasks': [{'env_id': _envid, 'trials': 6, 'num_timesteps': int(1e6)} for _envid in _mujocosmall]
 })
+
 register_benchmark({
     'name': 'MujocoWalkers',
     'description': 'MuJoCo forward walkers, run for 8M, humanoid 100M',

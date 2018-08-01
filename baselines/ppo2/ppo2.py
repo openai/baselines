@@ -81,9 +81,8 @@ class Model(object):
         self.value = act_model.value
         self.initial_state = act_model.initial_state
 
-        # If you want to load weights, also save/load observation scaling inside VecNormalize ?
-        self.save = functools.partial(save_variables, sess=sess, variables=params)
-        self.load = functools.partial(load_variables, sess=sess, variables=params)
+        self.save = functools.partial(save_variables, sess=sess)
+        self.load = functools.partial(load_variables, sess=sess)
 
         if MPI.COMM_WORLD.Get_rank() == 0:
             initialize()

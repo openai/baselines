@@ -83,8 +83,8 @@ class Model(object):
 
 
         self.train = train
-        self.save = functools.partial(save_variables, variables=params, sess=sess)
-        self.load = functools.partial(load_variables, variables=params, sess=sess)
+        self.save = functools.partial(save_variables, sess=sess)
+        self.load = functools.partial(load_variables, sess=sess)
         self.train_model = train_model
         self.step_model = step_model
         self.step = step_model.step
