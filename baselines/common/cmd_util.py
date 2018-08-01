@@ -21,11 +21,12 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
     Create a wrapped, monitored SubprocVecEnv for Atari.
     """
     if wrapper_kwargs is None: wrapper_kwargs = {}
+    mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     def make_env(rank): # pylint: disable=C0111
         def _thunk():
             env = make_atari(env_id)
-            env.seed(seed + rank if seed is not None else None)
-            env = Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
+            env.seed(seed + 10000*mpi_rank + rank if seed is not None else None)
+            env = Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(mpi_rank) + '.' + str(rank)))
             return wrap_deepmind(env, **wrapper_kwargs)
         return _thunk
     set_global_seeds(seed)

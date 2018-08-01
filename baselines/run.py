@@ -72,8 +72,7 @@ def build_env(args, render=False):
     nenv = args.num_env or ncpu if not render else 1
     alg = args.alg
     rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
-
-    seed = args.seed + 10000 * rank if args.seed is not None else None
+    seed = args.seed    
 
     env_type, env_id = get_env_type(args.env)
     if env_type == 'mujoco':
