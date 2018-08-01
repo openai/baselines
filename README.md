@@ -8,27 +8,27 @@ These algorithms will make it easier for the research community to replicate, re
 
 ## Implemented Algorithms
 
-| **Name** | **refactored**<sup>(1)</sup> | **Actions** ```spaces.Box``` |  **Actions** ```spaces.Discrete``` |  **Actions** ```spaces.MultiDiscrete``` |  **Actions** ```spaces.MultiBinary```|
-| -------- | ---------------------------- | ---------------------------- | ---------------------------------- | --------------------------------------- | ------------------------------------ |
-| A2C      | :heavy_check_mark:           | :heavy_check_mark:           | :heavy_check_mark:                 | :heavy_check_mark:                      | :heavy_check_mark:                   |
-| ACER     | :heavy_check_mark:           | :x: <sup>(2)</sup>           | :heavy_check_mark:                 | :x: <sup>(2)</sup>                      | :x: <sup>(2)</sup>                   |
-| ACKTR    | :heavy_check_mark:           | :x: <sup>(2)</sup>           | :heavy_check_mark:                 | :x: <sup>(2)</sup>                      | :x: <sup>(2)</sup>                   |
-| DDPG     | :heavy_check_mark:           | :heavy_check_mark:           | :x:                                | :x:                                     | :x:                                  |
-| DeepQ    | :heavy_check_mark:           | :x:                          | :heavy_check_mark:                 | :x:                                     | :x:                                  |
-| GAIL     | :x: <sup>(2)</sup>           | :heavy_check_mark:           | :heavy_check_mark:                 | :x:                                     | :x:                                  |
-| HER      | :x: <sup>(2)</sup>           | :heavy_check_mark:           | :x:                                | :x:                                     | :x:                                  |
-| PPO1     | :heavy_check_mark:           | :heavy_check_mark:           | :heavy_check_mark:                 | :x:                                     | :x:                                  |
-| PPO2     | :heavy_check_mark:           | :heavy_check_mark:           | :heavy_check_mark:                 | :heavy_check_mark:                      | :heavy_check_mark:                   |
-| TRPO     | :heavy_check_mark:           | :heavy_check_mark:           | :heavy_check_mark:                 | :x:                                     | :x:                                  |
+| **Name** | **refactored**<sup>(1)</sup> | **Reccurent**      | **Actions** ```Box``` |  **Actions** ```Discrete``` |  **Actions** ```MultiDiscrete``` |  **Actions** ```MultiBinary```|
+| -------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- |
+| A2C      | :heavy_check_mark:           | :heavy_check_mark: |:heavy_check_mark:     | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
+| ACER     | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(2)</sup>    | :heavy_check_mark:          | :x: <sup>(2)</sup>               | :x: <sup>(2)</sup>            |
+| ACKTR    | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(2)</sup>    | :heavy_check_mark:          | :x: <sup>(2)</sup>               | :x: <sup>(2)</sup>            |
+| DDPG     | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
+| DeepQ    | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           |
+| GAIL     | :x: <sup>(2)</sup>           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x:                              | :x:                           |
+| HER      | :x: <sup>(2)</sup>           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
+| PPO1     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x:                              | :x:                           |
+| PPO2     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
+| TRPO     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x:                              | :x:                           |
 
 <sup><sup>(1): Whether or not the algorithm has be refactored to fit the ```BaseRLModel``` class.</sup></sup><br>
 <sup><sup>(2): TODO, in project scope.</sup></sup>
 
-Actions space:
- * ```spaces.Box```: A N-dimensional box that containes every point in the action space.
- * ```spaces.Discrete```: A list of possible actions, where each timestep only one of the actions can be used.
- * ```spaces.MultiDiscrete```: A list of possible actions, where each timestep only one action of each discrete set can be used.
- * ```spaces.MultiBinary```: A list of possible actions, where each timestep any of the actions can be used in any combination.
+Actions ```gym.spaces```:
+ * ```Box```: A N-dimensional box that containes every point in the action space.
+ * ```Discrete```: A list of possible actions, where each timestep only one of the actions can be used.
+ * ```MultiDiscrete```: A list of possible actions, where each timestep only one action of each discrete set can be used.
+ * ```MultiBinary```: A list of possible actions, where each timestep any of the actions can be used in any combination.
 
 ## Prerequisites 
 Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows

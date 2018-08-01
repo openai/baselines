@@ -15,7 +15,6 @@ from baselines.trpo_mpi import TRPO
 from baselines.common import set_global_seeds
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.policies import MlpPolicy
-from baselines.ddpg.models import ActorMLP, CriticMLP
 from baselines.ppo1.mlp_policy import MlpPolicy as PPO1MlpPolicy
 from tests.test_common import _assert_eq
 
@@ -26,8 +25,7 @@ MODEL_POLICY_LIST = [
     (A2C, {"policy": MlpPolicy}),
     #(ACER, {"policy": MlpPolicy}),
     #(ACKTR, {"policy": MlpPolicy}),
-    (DDPG, {"critic_policy": CriticMLP,
-            "actor_policy": ActorMLP}),
+    (DDPG, {"policy": MlpPolicy}),
     (PPO1, {"policy": partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)}),
     (PPO2, {"policy": MlpPolicy}),
     (TRPO, {"policy": partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)})
@@ -116,8 +114,8 @@ def test_model_manipulation(model_policy):
             os.remove("./test_model")
 
 
-# def test_ddpg():
-#     args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
-#     args = list(map(str, args))
-#     return_code = subprocess.call(['python', '-m', 'baselines.ddpg.main'] + args)
-#     _assert_eq(return_code, 0)
+def test_ddpg():
+    args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
+    args = list(map(str, args))
+    return_code = subprocess.call(['python', '-m', 'baselines.ddpg.main'] + args)
+    _assert_eq(return_code, 0)

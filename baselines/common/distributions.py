@@ -96,8 +96,8 @@ class ProbabilityDistributionType(object):
         """
         returns the probability distribution from latent values
 
-        :param latent_vector: ([float]) the latent pi values
-        :param latent_vector: ([float]) the latent vf values
+        :param pi_latent_vector: ([float]) the latent pi values
+        :param vf_latent_vector: ([float]) the latent vf values
         :param init_scale: (float) the inital scale of the distribution
         :param init_bias: (float) the inital bias of the distribution
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
@@ -163,8 +163,8 @@ class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
         pdparam = linear(pi_latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
-        q = linear(vf_latent_vector, 'q', self.ncat, init_scale=init_scale, init_bias=init_bias)
-        return self.proba_distribution_from_flat(pdparam), pdparam, q
+        q_values = linear(vf_latent_vector, 'q', self.ncat, init_scale=init_scale, init_bias=init_bias)
+        return self.proba_distribution_from_flat(pdparam), pdparam, q_values
 
     def param_shape(self):
         return [self.ncat]
@@ -193,8 +193,8 @@ class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
         pdparam = linear(pi_latent_vector, 'pi', sum(self.nvec), init_scale=init_scale, init_bias=init_bias)
-        q = linear(vf_latent_vector, 'q', sum(self.nvec), init_scale=init_scale, init_bias=init_bias)
-        return self.proba_distribution_from_flat(pdparam), pdparam, q
+        q_values = linear(vf_latent_vector, 'q', sum(self.nvec), init_scale=init_scale, init_bias=init_bias)
+        return self.proba_distribution_from_flat(pdparam), pdparam, q_values
 
     def param_shape(self):
         return [sum(self.nvec)]
@@ -222,8 +222,8 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
         mean = linear(pi_latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
-        q = linear(vf_latent_vector, 'q', self.size, init_scale=init_scale, init_bias=init_bias)
-        return self.proba_distribution_from_flat(pdparam), mean, q
+        q_values = linear(vf_latent_vector, 'q', self.size, init_scale=init_scale, init_bias=init_bias)
+        return self.proba_distribution_from_flat(pdparam), mean, q_values
 
     def param_shape(self):
         return [2*self.size]
@@ -249,8 +249,8 @@ class BernoulliProbabilityDistributionType(ProbabilityDistributionType):
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
         pdparam = linear(pi_latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
-        q = linear(vf_latent_vector, 'q', self.size, init_scale=init_scale, init_bias=init_bias)
-        return self.proba_distribution_from_flat(pdparam), pdparam, q
+        q_values = linear(vf_latent_vector, 'q', self.size, init_scale=init_scale, init_bias=init_bias)
+        return self.proba_distribution_from_flat(pdparam), pdparam, q_values
 
     def param_shape(self):
         return [self.size]

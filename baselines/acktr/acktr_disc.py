@@ -8,7 +8,7 @@ import tensorflow as tf
 import numpy as np
 
 from baselines import logger
-from baselines.common import explained_variance, BaseRLModel, tf_util
+from baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
 from baselines.a2c.a2c import A2CRunner
 from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
 from baselines.acktr import kfac
@@ -84,61 +84,62 @@ class ACKTR(BaseRLModel):
             self.setup_model()
 
     def setup_model(self):
-        super().setup_model()
+        with SetVerbosity(self.verbose):
 
-        self.n_batch = self.n_envs * self.n_steps
+            self.n_batch = self.n_envs * self.n_steps
 
-        self.graph = tf.Graph()
-        with self.graph.as_default():
-            self.sess = tf_util.make_session(num_cpu=self.nprocs, graph=self.graph)
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                self.sess = tf_util.make_session(num_cpu=self.nprocs, graph=self.graph)
 
-            self.action_ph = action_ph = tf.placeholder(tf.int32, [self.n_batch])
-            self.advs_ph = advs_ph = tf.placeholder(tf.float32, [self.n_batch])
-            self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [self.n_batch])
-            self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
+                self.action_ph = action_ph = tf.placeholder(tf.int32, [self.n_batch])
+                self.advs_ph = advs_ph = tf.placeholder(tf.float32, [self.n_batch])
+                self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [self.n_batch])
+                self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
 
-            self.model = step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                                  reuse=False)
-            self.model2 = train_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                                    self.n_envs * self.n_steps, self.n_steps, reuse=True)
+                self.model = step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
+                                                      1, self.n_envs, reuse=False)
+                self.model2 = train_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                                        self.n_envs, self.n_steps, self.n_envs * self.n_steps,
+                                                        reuse=True)
 
-            logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
-            self.logits = train_model.policy
+                logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
+                self.logits = train_model.policy
 
-            # training loss
-            pg_loss = tf.reduce_mean(advs_ph * logpac)
-            self.entropy = entropy = tf.reduce_mean(calc_entropy(train_model.policy))
-            self.pg_loss = pg_loss = pg_loss - self.ent_coef * entropy
-            self.vf_loss = vf_loss = mse(tf.squeeze(train_model.value_fn), rewards_ph)
-            train_loss = pg_loss + self.vf_coef * vf_loss
+                # training loss
+                pg_loss = tf.reduce_mean(advs_ph * logpac)
+                self.entropy = entropy = tf.reduce_mean(calc_entropy(train_model.policy))
+                self.pg_loss = pg_loss = pg_loss - self.ent_coef * entropy
+                self.vf_loss = vf_loss = mse(tf.squeeze(train_model.value_fn), rewards_ph)
+                train_loss = pg_loss + self.vf_coef * vf_loss
 
-            # Fisher loss construction
-            self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(logpac)
-            sample_net = train_model.value_fn + tf.random_normal(tf.shape(train_model.value_fn))
-            self.vf_fisher = vf_fisher_loss = - self.vf_fisher_coef * tf.reduce_mean(
-                tf.pow(train_model.value_fn - tf.stop_gradient(sample_net), 2))
-            self.joint_fisher = pg_fisher_loss + vf_fisher_loss
+                # Fisher loss construction
+                self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(logpac)
+                sample_net = train_model.value_fn + tf.random_normal(tf.shape(train_model.value_fn))
+                self.vf_fisher = vf_fisher_loss = - self.vf_fisher_coef * tf.reduce_mean(
+                    tf.pow(train_model.value_fn - tf.stop_gradient(sample_net), 2))
+                self.joint_fisher = pg_fisher_loss + vf_fisher_loss
 
-            self.params = params = find_trainable_variables("model")
+                self.params = params = find_trainable_variables("model")
 
-            self.grads_check = grads = tf.gradients(train_loss, params)
+                self.grads_check = grads = tf.gradients(train_loss, params)
 
-            with tf.device('/gpu:0'):
-                self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=self.kfac_clip,
-                                                        momentum=0.9, kfac_update=1, epsilon=0.01,
-                                                        stats_decay=0.99, async=1, cold_iter=10,
-                                                        max_grad_norm=self.max_grad_norm, verbose=self.verbose)
+                with tf.device('/gpu:0'):
+                    self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=self.kfac_clip,
+                                                            momentum=0.9, kfac_update=1, epsilon=0.01,
+                                                            stats_decay=0.99, async=1, cold_iter=10,
+                                                            max_grad_norm=self.max_grad_norm, verbose=self.verbose)
 
-                optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
-                self.train_op, self.q_runner = optim.apply_gradients(list(zip(grads, params)))
+                    optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
+                    self.train_op, self.q_runner = optim.apply_gradients(list(zip(grads, params)))
 
-            self.train_model = train_model
-            self.step_model = step_model
-            self.step = step_model.step
-            self.proba_step = step_model.proba_step
-            self.value = step_model.value
-            self.initial_state = step_model.initial_state
-            tf.global_variables_initializer().run(session=self.sess)
+                self.train_model = train_model
+                self.step_model = step_model
+                self.step = step_model.step
+                self.proba_step = step_model.proba_step
+                self.value = step_model.value
+                self.initial_state = step_model.initial_state
+                tf.global_variables_initializer().run(session=self.sess)
 
     def _train_step(self, obs, states, rewards, masks, actions, values):
         """
@@ -171,38 +172,39 @@ class ACKTR(BaseRLModel):
         return policy_loss, value_loss, policy_entropy
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        self._setup_learn(seed)
+        with SetVerbosity(self.verbose):
+            self._setup_learn(seed)
 
-        self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
-                                                schedule=self.lr_schedule)
+            self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
+                                                    schedule=self.lr_schedule)
 
-        runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
+            runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
 
-        t_start = time.time()
-        coord = tf.train.Coordinator()
-        enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
-        for update in range(1, total_timesteps // self.n_batch + 1):
-            obs, states, rewards, masks, actions, values = runner.run()
-            policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
-            n_seconds = time.time() - t_start
-            fps = int((update * self.n_batch) / n_seconds)
+            t_start = time.time()
+            coord = tf.train.Coordinator()
+            enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
+            for update in range(1, total_timesteps // self.n_batch + 1):
+                obs, states, rewards, masks, actions, values = runner.run()
+                policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
+                n_seconds = time.time() - t_start
+                fps = int((update * self.n_batch) / n_seconds)
 
-            if callback is not None:
-                callback(locals(), globals())
+                if callback is not None:
+                    callback(locals(), globals())
 
-            if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
-                explained_var = explained_variance(values, rewards)
-                logger.record_tabular("nupdates", update)
-                logger.record_tabular("total_timesteps", update * self.n_batch)
-                logger.record_tabular("fps", fps)
-                logger.record_tabular("policy_entropy", float(policy_entropy))
-                logger.record_tabular("policy_loss", float(policy_loss))
-                logger.record_tabular("value_loss", float(value_loss))
-                logger.record_tabular("explained_variance", float(explained_var))
-                logger.dump_tabular()
+                if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
+                    explained_var = explained_variance(values, rewards)
+                    logger.record_tabular("nupdates", update)
+                    logger.record_tabular("total_timesteps", update * self.n_batch)
+                    logger.record_tabular("fps", fps)
+                    logger.record_tabular("policy_entropy", float(policy_entropy))
+                    logger.record_tabular("policy_loss", float(policy_loss))
+                    logger.record_tabular("value_loss", float(value_loss))
+                    logger.record_tabular("explained_variance", float(explained_var))
+                    logger.dump_tabular()
 
-        coord.request_stop()
-        coord.join(enqueue_threads)
+            coord.request_stop()
+            coord.join(enqueue_threads)
         return self
 
     def predict(self, observation, state=None, mask=None):

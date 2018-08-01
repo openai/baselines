@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from baselines import logger
-from baselines.common import explained_variance, tf_util, BaseRLModel
+from baselines.common import explained_variance, tf_util, BaseRLModel, SetVerbosity
 from baselines.common.runners import AbstractEnvRunner
 from baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse
 
@@ -69,45 +69,46 @@ class A2C(BaseRLModel):
             self.setup_model()
 
     def setup_model(self):
-        super().setup_model()
+        with SetVerbosity(self.verbose):
 
-        self.graph = tf.Graph()
-        with self.graph.as_default():
-            self.sess = tf_util.make_session(graph=self.graph)
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                self.sess = tf_util.make_session(graph=self.graph)
 
-            self.n_batch = self.n_envs * self.n_steps
+                self.n_batch = self.n_envs * self.n_steps
 
-            step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
-            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs * self.n_steps,
-                                      self.n_steps, reuse=True)
+                step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                         self.n_envs, reuse=False)
+                train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
+                                          self.n_steps, self.n_envs * self.n_steps, reuse=True)
 
-            self.actions_ph = train_model.pdtype.sample_placeholder([None])
-            self.advs_ph = tf.placeholder(tf.float32, [None])
-            self.rewards_ph = tf.placeholder(tf.float32, [None])
-            self.learning_rate_ph = tf.placeholder(tf.float32, [])
+                self.actions_ph = train_model.pdtype.sample_placeholder([None])
+                self.advs_ph = tf.placeholder(tf.float32, [None])
+                self.rewards_ph = tf.placeholder(tf.float32, [None])
+                self.learning_rate_ph = tf.placeholder(tf.float32, [])
 
-            neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
-            self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
-            self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
-            self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
-            loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+                neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
+                self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
+                self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
+                self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
+                loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
 
-            self.params = find_trainable_variables("model")
-            grads = tf.gradients(loss, self.params)
-            if self.max_grad_norm is not None:
-                grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
-            grads = list(zip(grads, self.params))
-            trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha,
-                                                epsilon=self.epsilon)
-            self.apply_backprop = trainer.apply_gradients(grads)
+                self.params = find_trainable_variables("model")
+                grads = tf.gradients(loss, self.params)
+                if self.max_grad_norm is not None:
+                    grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
+                grads = list(zip(grads, self.params))
+                trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha,
+                                                    epsilon=self.epsilon)
+                self.apply_backprop = trainer.apply_gradients(grads)
 
-            self.train_model = train_model
-            self.step_model = step_model
-            self.step = step_model.step
-            self.proba_step = step_model.proba_step
-            self.value = step_model.value
-            self.initial_state = step_model.initial_state
-            tf.global_variables_initializer().run(session=self.sess)
+                self.train_model = train_model
+                self.step_model = step_model
+                self.step = step_model.step
+                self.proba_step = step_model.proba_step
+                self.value = step_model.value
+                self.initial_state = step_model.initial_state
+                tf.global_variables_initializer().run(session=self.sess)
 
     def _train_step(self, obs, states, rewards, masks, actions, values):
         """
@@ -138,32 +139,33 @@ class A2C(BaseRLModel):
         return policy_loss, value_loss, policy_entropy
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        self._setup_learn(seed)
+        with SetVerbosity(self.verbose):
+            self._setup_learn(seed)
 
-        self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
-                                                schedule=self.lr_schedule)
+            self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
+                                                    schedule=self.lr_schedule)
 
-        runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
+            runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
 
-        t_start = time.time()
-        for update in range(1, total_timesteps // self.n_batch + 1):
-            obs, states, rewards, masks, actions, values = runner.run()
-            _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
-            n_seconds = time.time() - t_start
-            fps = int((update * self.n_batch) / n_seconds)
+            t_start = time.time()
+            for update in range(1, total_timesteps // self.n_batch + 1):
+                obs, states, rewards, masks, actions, values = runner.run()
+                _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
+                n_seconds = time.time() - t_start
+                fps = int((update * self.n_batch) / n_seconds)
 
-            if callback is not None:
-                callback(locals(), globals())
+                if callback is not None:
+                    callback(locals(), globals())
 
-            if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
-                explained_var = explained_variance(values, rewards)
-                logger.record_tabular("nupdates", update)
-                logger.record_tabular("total_timesteps", update * self.n_batch)
-                logger.record_tabular("fps", fps)
-                logger.record_tabular("policy_entropy", float(policy_entropy))
-                logger.record_tabular("value_loss", float(value_loss))
-                logger.record_tabular("explained_variance", float(explained_var))
-                logger.dump_tabular()
+                if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
+                    explained_var = explained_variance(values, rewards)
+                    logger.record_tabular("nupdates", update)
+                    logger.record_tabular("total_timesteps", update * self.n_batch)
+                    logger.record_tabular("fps", fps)
+                    logger.record_tabular("policy_entropy", float(policy_entropy))
+                    logger.record_tabular("value_loss", float(value_loss))
+                    logger.record_tabular("explained_variance", float(explained_var))
+                    logger.dump_tabular()
 
         return self
 

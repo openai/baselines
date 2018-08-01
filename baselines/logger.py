@@ -364,6 +364,14 @@ def set_level(level):
     Logger.CURRENT.set_level(level)
 
 
+def get_level():
+    """
+    Get logging threshold on current logger.
+    :return: (int) the logging level (can be DEBUG=10, INFO=20, WARN=30, ERROR=40, DISABLED=50)
+    """
+    return Logger.CURRENT.level
+
+
 def get_dir():
     """
     Get directory that log files are being written to.

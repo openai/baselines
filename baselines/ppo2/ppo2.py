@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from baselines import logger
-from baselines.common import explained_variance, BaseRLModel, tf_util
+from baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
 from baselines.common.runners import AbstractEnvRunner
 
 
@@ -86,65 +86,67 @@ class PPO2(BaseRLModel):
             self.setup_model()
 
     def setup_model(self):
-        super().setup_model()
+        with SetVerbosity(self.verbose):
 
-        self.n_batch = self.n_envs * self.n_steps
-        self.n_batch_train = self.n_batch // self.nminibatches
+            self.n_batch = self.n_envs * self.n_steps
+            self.n_batch_train = self.n_batch // self.nminibatches
 
-        n_cpu = multiprocessing.cpu_count()
-        if sys.platform == 'darwin':
-            n_cpu //= 2
+            n_cpu = multiprocessing.cpu_count()
+            if sys.platform == 'darwin':
+                n_cpu //= 2
 
-        self.graph = tf.Graph()
-        with self.graph.as_default():
-            self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
 
-            act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1, reuse=False)
-            train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_batch_train,
-                                      self.n_steps, reuse=True)
+                act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                        self.n_envs, reuse=False)
+                train_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                          self.n_envs // self.nminibatches, self.n_steps, self.n_batch_train,
+                                          reuse=True)
 
-            self.action_ph = train_model.pdtype.sample_placeholder([None])
-            self.advs_ph = tf.placeholder(tf.float32, [None])
-            self.rewards_ph = tf.placeholder(tf.float32, [None])
-            self.old_neglog_pac_ph = tf.placeholder(tf.float32, [None])
-            self.old_vpred_ph = tf.placeholder(tf.float32, [None])
-            self.learning_rate_ph = tf.placeholder(tf.float32, [])
-            self.clip_range_ph = tf.placeholder(tf.float32, [])
+                self.action_ph = train_model.pdtype.sample_placeholder([None])
+                self.advs_ph = tf.placeholder(tf.float32, [None])
+                self.rewards_ph = tf.placeholder(tf.float32, [None])
+                self.old_neglog_pac_ph = tf.placeholder(tf.float32, [None])
+                self.old_vpred_ph = tf.placeholder(tf.float32, [None])
+                self.learning_rate_ph = tf.placeholder(tf.float32, [])
+                self.clip_range_ph = tf.placeholder(tf.float32, [])
 
-            neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
-            self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
+                neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
+                self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
-            vpred = train_model.value_fn
-            vpredclipped = self.old_vpred_ph + tf.clip_by_value(
-                train_model.value_fn - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
-            vf_losses1 = tf.square(vpred - self.rewards_ph)
-            vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
-            self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
-            ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
-            pg_losses = -self.advs_ph * ratio
-            pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
-            self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
-            self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
-            self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
-            loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
-            with tf.variable_scope('model'):
-                self.params = tf.trainable_variables()
-            grads = tf.gradients(loss, self.params)
-            if self.max_grad_norm is not None:
-                grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
-            grads = list(zip(grads, self.params))
-            trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
-            self._train = trainer.apply_gradients(grads)
+                vpred = train_model.value_fn
+                vpredclipped = self.old_vpred_ph + tf.clip_by_value(
+                    train_model.value_fn - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
+                vf_losses1 = tf.square(vpred - self.rewards_ph)
+                vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
+                self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
+                ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
+                pg_losses = -self.advs_ph * ratio
+                pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
+                self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
+                self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
+                self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
+                loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+                with tf.variable_scope('model'):
+                    self.params = tf.trainable_variables()
+                grads = tf.gradients(loss, self.params)
+                if self.max_grad_norm is not None:
+                    grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
+                grads = list(zip(grads, self.params))
+                trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
+                self._train = trainer.apply_gradients(grads)
 
-            self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
+                self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
-            self.train_model = train_model
-            self.act_model = act_model
-            self.step = act_model.step
-            self.proba_step = act_model.proba_step
-            self.value = act_model.value
-            self.initial_state = act_model.initial_state
-            tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
+                self.train_model = train_model
+                self.act_model = act_model
+                self.step = act_model.step
+                self.proba_step = act_model.proba_step
+                self.value = act_model.value
+                self.initial_state = act_model.initial_state
+                tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
 
     def _train_step(self, learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
         """
@@ -174,70 +176,71 @@ class PPO2(BaseRLModel):
                              td_map)[:-1]
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        self._setup_learn(seed)
+        with SetVerbosity(self.verbose):
+            self._setup_learn(seed)
 
-        runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
+            runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
 
-        ep_info_buf = deque(maxlen=100)
-        t_first_start = time.time()
+            ep_info_buf = deque(maxlen=100)
+            t_first_start = time.time()
 
-        nupdates = total_timesteps // self.n_batch
-        for update in range(1, nupdates + 1):
-            assert self.n_batch % self.nminibatches == 0
-            n_batch_train = self.n_batch // self.nminibatches
-            t_start = time.time()
-            frac = 1.0 - (update - 1.0) / nupdates
-            lr_now = self.learning_rate(frac)
-            cliprangenow = self.cliprange(frac)
-            obs, returns, masks, actions, values, neglogpacs, states, ep_infos = runner.run()  # pylint: disable=E0632
-            ep_info_buf.extend(ep_infos)
-            mb_loss_vals = []
-            if states is None:  # nonrecurrent version
-                inds = np.arange(self.n_batch)
-                for _ in range(self.noptepochs):
-                    np.random.shuffle(inds)
-                    for start in range(0, self.n_batch, n_batch_train):
-                        end = start + n_batch_train
-                        mbinds = inds[start:end]
-                        slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                        mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices))
-            else:  # recurrent version
-                assert self.n_envs % self.nminibatches == 0
-                envinds = np.arange(self.n_envs)
-                flatinds = np.arange(self.n_envs * self.n_steps).reshape(self.n_envs, self.n_steps)
-                envsperbatch = n_batch_train // self.n_steps
-                for _ in range(self.noptepochs):
-                    np.random.shuffle(envinds)
-                    for start in range(0, self.n_envs, envsperbatch):
-                        end = start + envsperbatch
-                        mb_env_inds = envinds[start:end]
-                        mb_flat_inds = flatinds[mb_env_inds].ravel()
-                        slices = (arr[mb_flat_inds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                        mb_states = states[mb_env_inds]
-                        mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, mb_states))
+            nupdates = total_timesteps // self.n_batch
+            for update in range(1, nupdates + 1):
+                assert self.n_batch % self.nminibatches == 0
+                n_batch_train = self.n_batch // self.nminibatches
+                t_start = time.time()
+                frac = 1.0 - (update - 1.0) / nupdates
+                lr_now = self.learning_rate(frac)
+                cliprangenow = self.cliprange(frac)
+                obs, returns, masks, actions, values, neglogpacs, states, ep_infos = runner.run()  # pylint: disable=E0632
+                ep_info_buf.extend(ep_infos)
+                mb_loss_vals = []
+                if states is None:  # nonrecurrent version
+                    inds = np.arange(self.n_batch)
+                    for _ in range(self.noptepochs):
+                        np.random.shuffle(inds)
+                        for start in range(0, self.n_batch, n_batch_train):
+                            end = start + n_batch_train
+                            mbinds = inds[start:end]
+                            slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices))
+                else:  # recurrent version
+                    assert self.n_envs % self.nminibatches == 0
+                    envinds = np.arange(self.n_envs)
+                    flatinds = np.arange(self.n_envs * self.n_steps).reshape(self.n_envs, self.n_steps)
+                    envsperbatch = n_batch_train // self.n_steps
+                    for _ in range(self.noptepochs):
+                        np.random.shuffle(envinds)
+                        for start in range(0, self.n_envs, envsperbatch):
+                            end = start + envsperbatch
+                            mb_env_inds = envinds[start:end]
+                            mb_flat_inds = flatinds[mb_env_inds].ravel()
+                            slices = (arr[mb_flat_inds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+                            mb_states = states[mb_env_inds]
+                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, mb_states))
 
-            loss_vals = np.mean(mb_loss_vals, axis=0)
-            t_now = time.time()
-            fps = int(self.n_batch / (t_now - t_start))
+                loss_vals = np.mean(mb_loss_vals, axis=0)
+                t_now = time.time()
+                fps = int(self.n_batch / (t_now - t_start))
 
-            if callback is not None:
-                callback(locals(), globals())
+                if callback is not None:
+                    callback(locals(), globals())
 
-            if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
-                explained_var = explained_variance(values, returns)
-                logger.logkv("serial_timesteps", update * self.n_steps)
-                logger.logkv("nupdates", update)
-                logger.logkv("total_timesteps", update * self.n_batch)
-                logger.logkv("fps", fps)
-                logger.logkv("explained_variance", float(explained_var))
-                logger.logkv('ep_rewmean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
-                logger.logkv('eplenmean', safe_mean([ep_info['l'] for ep_info in ep_info_buf]))
-                logger.logkv('time_elapsed', t_start - t_first_start)
-                for (loss_val, loss_name) in zip(loss_vals, self.loss_names):
-                    logger.logkv(loss_name, loss_val)
-                logger.dumpkvs()
+                if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
+                    explained_var = explained_variance(values, returns)
+                    logger.logkv("serial_timesteps", update * self.n_steps)
+                    logger.logkv("nupdates", update)
+                    logger.logkv("total_timesteps", update * self.n_batch)
+                    logger.logkv("fps", fps)
+                    logger.logkv("explained_variance", float(explained_var))
+                    logger.logkv('ep_rewmean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
+                    logger.logkv('eplenmean', safe_mean([ep_info['l'] for ep_info in ep_info_buf]))
+                    logger.logkv('time_elapsed', t_start - t_first_start)
+                    for (loss_val, loss_name) in zip(loss_vals, self.loss_names):
+                        logger.logkv(loss_name, loss_val)
+                    logger.dumpkvs()
 
-        return self
+            return self
 
     def predict(self, observation, state=None, mask=None):
         if state is None:

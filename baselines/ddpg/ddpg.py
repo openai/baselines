@@ -12,7 +12,8 @@ from mpi4py import MPI
 
 from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
-from baselines.common import tf_util, BaseRLModel
+from baselines.common import tf_util, BaseRLModel, SetVerbosity
+from baselines.common.policies import LstmPolicy
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.a2c.utils import find_trainable_variables
 from baselines.ddpg.memory import Memory
@@ -96,29 +97,50 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
     """
     get the actor update, with noise.
 
-    :param actor: (TensorFlow Tensor) the actor
-    :param perturbed_actor: (TensorFlow Tensor) the pertubed actor
+    :param actor: (str) the actor
+    :param perturbed_actor: (str) the pertubed actor
     :param param_noise_stddev: (float) the std of the parameter noise
     :return: (TensorFlow Operation) the update function
     """
-    assert len(actor.vars) == len(perturbed_actor.vars)
-    assert len(actor.perturbable_vars) == len(perturbed_actor.perturbable_vars)
+    assert len(get_globals_vars(actor)) == len(get_globals_vars(perturbed_actor))
+    assert len([var for var in get_trainable_vars(actor) if 'LayerNorm' not in var.name]) == \
+        len([var for var in get_trainable_vars(perturbed_actor) if 'LayerNorm' not in var.name])
 
     updates = []
-    for var, perturbed_var in zip(actor.vars, perturbed_actor.vars):
-        if var in actor.perturbable_vars:
+    for var, perturbed_var in zip(get_globals_vars(actor), get_globals_vars(perturbed_actor)):
+        if var in [var for var in get_trainable_vars(actor) if 'LayerNorm' not in var.name]:
             logger.info('  {} <- {} + noise'.format(perturbed_var.name, var.name))
             updates.append(tf.assign(perturbed_var,
                                      var + tf.random_normal(tf.shape(var), mean=0., stddev=param_noise_stddev)))
         else:
             logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
             updates.append(tf.assign(perturbed_var, var))
-    assert len(updates) == len(actor.vars)
+    assert len(updates) == len(get_globals_vars(actor))
     return tf.group(*updates)
 
 
+def get_trainable_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+
+
+def get_globals_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+
+
 class DDPG(BaseRLModel):
-    def __init__(self, actor_policy, critic_policy, env, gamma=0.99, memory_policy=None, eval_env=None,
+    def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None,
                  nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
                  action_range=(-1., 1.), normalize_observations=True, tau=0.001, batch_size=128,
                  param_noise_adaption_interval=50, normalize_returns=False, enable_popart=False,
@@ -130,8 +152,7 @@ class DDPG(BaseRLModel):
 
         DDPG: https://arxiv.org/pdf/1509.02971.pdf
 
-        :param actor_policy: (TensorFlow Tensor) the actor model
-        :param critic_policy: (TensorFlow Tensor) the critic model
+        :param policy: (ActorCriticPolicy) the policy
         :param env: (Gym Environment) the environment
         :param gamma: (float) the discount rate
         :param memory_policy: (Memory) the replay buffer (if None, default to baselines.ddpg.memory.Memory)
@@ -165,10 +186,13 @@ class DDPG(BaseRLModel):
         """
         super(DDPG, self).__init__(env=env, requires_vec_env=False, verbose=verbose)
 
+        assert not issubclass(policy, LstmPolicy), "Error: cannot use a reccurent policy for the DDPG model."
+
         # Parameters.
         self.gamma = gamma
         self.tau = tau
         self.memory_policy = memory_policy or Memory
+        self.policy = policy
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.action_noise = action_noise
@@ -176,8 +200,6 @@ class DDPG(BaseRLModel):
         self.action_range = action_range
         self.return_range = return_range
         self.observation_range = observation_range
-        self.critic_policy = critic_policy
-        self.actor_policy = actor_policy
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.clip_norm = clip_norm
@@ -198,9 +220,8 @@ class DDPG(BaseRLModel):
         # init
         self.graph = None
         self.stats_sample = None
-        self.actor = None
-        self.critic = None
         self.memory = None
+        self.policy_tf = None
         self.target_init_updates = None
         self.target_soft_updates = None
         self.critic_loss = None
@@ -221,16 +242,17 @@ class DDPG(BaseRLModel):
         self.renormalize_q_outputs_op = None
         self.obs_rms = None
         self.ret_rms = None
-        self.target_actor = None
-        self.target_critic = None
+        self.target_policy = None
         self.actor_tf = None
         self.normalized_critic_tf = None
         self.critic_tf = None
         self.normalized_critic_with_actor_tf = None
         self.critic_with_actor_tf = None
         self.target_q = None
-        self.obs0 = None
-        self.obs1 = None
+        self.obs_train = None
+        self.obs_target = None
+        self.obs_noise = None
+        self.obs_adapt_noise = None
         self.terminals1 = None
         self.rewards = None
         self.actions = None
@@ -242,111 +264,102 @@ class DDPG(BaseRLModel):
             self.setup_model()
 
     def setup_model(self):
-        super().setup_model()
+        with SetVerbosity(self.verbose):
 
-        self.graph = tf.Graph()
-        with self.graph.as_default():
-            self.sess = tf_util.single_threaded_session(graph=self.graph)
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                self.sess = tf_util.single_threaded_session(graph=self.graph)
 
-            self.memory = self.memory_policy(limit=self.memory_limit, action_shape=self.action_space.shape,
-                                             observation_shape=self.observation_space.shape)
-            self.actor = self.actor_policy(self.action_space.shape[-1], layer_norm=self.layer_norm)
-            self.critic = self.critic_policy(layer_norm=self.layer_norm)
+                self.memory = self.memory_policy(limit=self.memory_limit, action_shape=self.action_space.shape,
+                                                 observation_shape=self.observation_space.shape)
 
-            # Inputs.
-            self.obs0 = tf.placeholder(tf.float32, shape=(None,) + self.observation_space.shape, name='obs0')
-            self.obs1 = tf.placeholder(tf.float32, shape=(None,) + self.observation_space.shape, name='obs1')
-            self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
-            self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
-            self.actions = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape, name='actions')
-            self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
-            self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
+                with tf.variable_scope("train", reuse=False):
+                    self.policy_tf = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
 
-            # Observation normalization.
-            if self.normalize_observations:
-                with tf.variable_scope('obs_rms'):
-                    self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
-            else:
-                self.obs_rms = None
-            normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms), self.observation_range[0],
-                                               self.observation_range[1])
-            normalized_obs1 = tf.clip_by_value(normalize(self.obs1, self.obs_rms), self.observation_range[0],
-                                               self.observation_range[1])
+                # Inputs.
+                self.obs_train = self.policy_tf.obs_ph
+                self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
+                self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
+                self.actions = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape, name='actions')
+                self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
+                self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
 
-            # Return normalization.
-            if self.normalize_returns:
-                with tf.variable_scope('ret_rms'):
-                    self.ret_rms = RunningMeanStd()
-            else:
-                self.ret_rms = None
+                # Observation normalization.
+                if self.normalize_observations:
+                    with tf.variable_scope('obs_rms'):
+                        self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
+                else:
+                    self.obs_rms = None
 
-            # Create target networks.
-            target_actor = copy(self.actor)
-            target_actor.name = 'target_actor'
-            self.target_actor = target_actor
-            target_critic = copy(self.critic)
-            target_critic.name = 'target_critic'
-            self.target_critic = target_critic
+                # Return normalization.
+                if self.normalize_returns:
+                    with tf.variable_scope('ret_rms'):
+                        self.ret_rms = RunningMeanStd()
+                else:
+                    self.ret_rms = None
 
-            # Create networks and core TF parts that are shared across setup parts.
-            self.actor_tf = self.actor(normalized_obs0)
-            self.normalized_critic_tf = self.critic(normalized_obs0, self.actions)
-            self.critic_tf = denormalize(
-                tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]), self.ret_rms)
-            self.normalized_critic_with_actor_tf = self.critic(normalized_obs0, self.actor_tf, reuse=True)
-            self.critic_with_actor_tf = denormalize(
-                tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]),
-                self.ret_rms)
-            q_obs1 = denormalize(target_critic(normalized_obs1, target_actor(normalized_obs1)), self.ret_rms)
-            self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
+                # Create target networks.
+                with tf.variable_scope("target", reuse=False):
+                    self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
+                    self.obs_target = self.target_policy.obs_ph
 
-            # Set up parts.
-            if self.param_noise is not None:
-                self._setup_param_noise(normalized_obs0)
-            self._setup_actor_optimizer()
-            self._setup_critic_optimizer()
-            if self.normalize_returns and self.enable_popart:
-                self._setup_popart()
-            self._setup_stats()
-            self._setup_target_network_updates()
+                # Create networks and core TF parts that are shared across setup parts.
+                self.actor_tf = self.policy_tf.action_0
+                self.normalized_critic_tf = self.policy_tf.value_fn
+                self.critic_tf = denormalize(
+                    tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]),
+                    self.ret_rms)
+                self.normalized_critic_with_actor_tf = self.policy_tf.value_fn
+                self.critic_with_actor_tf = denormalize(
+                    tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]),
+                    self.ret_rms)
+                q_obs1 = denormalize(self.target_policy.value_fn, self.ret_rms)
+                self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
 
-            self.params = []
-            self.params.extend(find_trainable_variables(self.actor.name))
-            self.params.extend(find_trainable_variables(self.critic.name))
+                # Set up parts.
+                if self.param_noise is not None:
+                    self._setup_param_noise()
+                self._setup_actor_optimizer()
+                self._setup_critic_optimizer()
+                if self.normalize_returns and self.enable_popart:
+                    self._setup_popart()
+                self._setup_stats()
+                self._setup_target_network_updates()
 
-            with self.sess.as_default():
-                self._initialize(self.sess)
+                self.params = find_trainable_variables("train")
+
+                with self.sess.as_default():
+                    self._initialize(self.sess)
 
     def _setup_target_network_updates(self):
         """
         set the target update operations
         """
-        actor_init_updates, actor_soft_updates = get_target_updates(self.actor.vars, self.target_actor.vars, self.tau)
-        critic_init_updates, critic_soft_updates = get_target_updates(self.critic.vars, self.target_critic.vars,
-                                                                      self.tau)
-        self.target_init_updates = [actor_init_updates, critic_init_updates]
-        self.target_soft_updates = [actor_soft_updates, critic_soft_updates]
+        init_updates, soft_updates = get_target_updates(get_trainable_vars('train'),
+                                                        get_trainable_vars('target'), self.tau)
+        self.target_init_updates = init_updates
+        self.target_soft_updates = soft_updates
 
-    def _setup_param_noise(self, normalized_obs0):
+    def _setup_param_noise(self):
         """
         set the parameter noise operations
-        :param normalized_obs0: (TensorFlow Tensor) the normalized observation
         """
         assert self.param_noise is not None
 
         # Configure perturbed actor.
-        param_noise_actor = copy(self.actor)
-        param_noise_actor.name = 'param_noise_actor'
-        self.perturbed_actor_tf = param_noise_actor(normalized_obs0)
+        with tf.variable_scope("noise", reuse=False):
+            param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
+            self.obs_noise = param_noise_actor.obs_ph
+        self.perturbed_actor_tf = param_noise_actor.action_0
         logger.info('setting up param noise')
-        self.perturb_policy_ops = get_perturbed_actor_updates(self.actor, param_noise_actor, self.param_noise_stddev)
+        self.perturb_policy_ops = get_perturbed_actor_updates('train', 'noise', self.param_noise_stddev)
 
         # Configure separate copy for stddev adoption.
-        adaptive_param_noise_actor = copy(self.actor)
-        adaptive_param_noise_actor.name = 'adaptive_param_noise_actor'
-        adaptive_actor_tf = adaptive_param_noise_actor(normalized_obs0)
-        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates(self.actor, adaptive_param_noise_actor,
-                                                                       self.param_noise_stddev)
+        with tf.variable_scope("noise_adapt", reuse=False):
+            adaptive_param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
+            self.obs_adapt_noise = adaptive_param_noise_actor.obs_ph
+        adaptive_actor_tf = adaptive_param_noise_actor.action_0
+        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('train', 'noise_adapt', self.param_noise_stddev)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
     def _setup_actor_optimizer(self):
@@ -355,13 +368,12 @@ class DDPG(BaseRLModel):
         """
         logger.info('setting up actor optimizer')
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
-        actor_shapes = [var.get_shape().as_list() for var in self.actor.trainable_vars]
+        actor_shapes = [var.get_shape().as_list() for var in get_trainable_vars('train')]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in actor_shapes])
         logger.info('  actor shapes: {}'.format(actor_shapes))
         logger.info('  actor params: {}'.format(actor_nb_params))
-        self.actor_grads = tf_util.flatgrad(self.actor_loss, self.actor.trainable_vars, clip_norm=self.clip_norm)
-        self.actor_optimizer = MpiAdam(var_list=self.actor.trainable_vars,
-                                       beta1=0.9, beta2=0.999, epsilon=1e-08)
+        self.actor_grads = tf_util.flatgrad(self.actor_loss, get_trainable_vars('train'), clip_norm=self.clip_norm)
+        self.actor_optimizer = MpiAdam(var_list=get_trainable_vars('train'), beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def _setup_critic_optimizer(self):
         """
@@ -372,8 +384,8 @@ class DDPG(BaseRLModel):
                                                        self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
-            critic_reg_vars = [var for var in self.critic.trainable_vars if
-                               'kernel' in var.name and 'output' not in var.name]
+            critic_reg_vars = [var for var in get_trainable_vars('train')
+                               if 'bias' not in var.name and 'output' not in var.name and 'b' not in var.name]
             for var in critic_reg_vars:
                 logger.info('  regularizing: {}'.format(var.name))
             logger.info('  applying l2 regularization with {}'.format(self.critic_l2_reg))
@@ -382,12 +394,12 @@ class DDPG(BaseRLModel):
                 weights_list=critic_reg_vars
             )
             self.critic_loss += critic_reg
-        critic_shapes = [var.get_shape().as_list() for var in self.critic.trainable_vars]
+        critic_shapes = [var.get_shape().as_list() for var in get_trainable_vars('train')]
         critic_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in critic_shapes])
         logger.info('  critic shapes: {}'.format(critic_shapes))
         logger.info('  critic params: {}'.format(critic_nb_params))
-        self.critic_grads = tf_util.flatgrad(self.critic_loss, self.critic.trainable_vars, clip_norm=self.clip_norm)
-        self.critic_optimizer = MpiAdam(var_list=self.critic.trainable_vars, beta1=0.9, beta2=0.999, epsilon=1e-08)
+        self.critic_grads = tf_util.flatgrad(self.critic_loss, get_trainable_vars('train'), clip_norm=self.clip_norm)
+        self.critic_optimizer = MpiAdam(var_list=get_trainable_vars('train'), beta1=0.9, beta2=0.999, epsilon=1e-08)
 
     def _setup_popart(self):
         """
@@ -402,7 +414,8 @@ class DDPG(BaseRLModel):
         new_mean = self.ret_rms.mean
 
         self.renormalize_q_outputs_op = []
-        for out_vars in [self.critic.output_vars, self.target_critic.output_vars]:
+        for out_vars in [[var for var in get_trainable_vars('train') if 'output' in var.name],
+                         [var for var in get_trainable_vars('target') if 'output' in var.name]]:
             assert len(out_vars) == 2
             # wieght and bias of the last layer
             weight, bias = out_vars
@@ -461,11 +474,12 @@ class DDPG(BaseRLModel):
         :param compute_q: (bool) compute the critic output
         :return: ([float], float) the action and critic value
         """
+        feed_dict = {self.obs_train: [obs]}
         if self.param_noise is not None and apply_noise:
             actor_tf = self.perturbed_actor_tf
+            feed_dict[self.obs_noise] = [obs]
         else:
             actor_tf = self.actor_tf
-        feed_dict = {self.obs0: [obs]}
         if compute_q:
             action, q_value = self.sess.run([actor_tf, self.critic_with_actor_tf], feed_dict=feed_dict)
         else:
@@ -506,7 +520,7 @@ class DDPG(BaseRLModel):
         if self.normalize_returns and self.enable_popart:
             old_mean, old_std, target_q = self.sess.run([self.ret_rms.mean, self.ret_rms.std, self.target_q],
                                                         feed_dict={
-                                                            self.obs1: batch['obs1'],
+                                                            self.obs_target: batch['obs1'],
                                                             self.rewards: batch['rewards'],
                                                             self.terminals1: batch['terminals1'].astype('float32'),
                                                         })
@@ -518,7 +532,7 @@ class DDPG(BaseRLModel):
 
         else:
             target_q = self.sess.run(self.target_q, feed_dict={
-                self.obs1: batch['obs1'],
+                self.obs_target: batch['obs1'],
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32'),
             })
@@ -526,7 +540,7 @@ class DDPG(BaseRLModel):
         # Get all gradients and perform a synced update.
         ops = [self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss]
         actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, feed_dict={
-            self.obs0: batch['obs0'],
+            self.obs_train: batch['obs0'],
             self.actions: batch['actions'],
             self.critic_target: target_q,
         })
@@ -564,7 +578,10 @@ class DDPG(BaseRLModel):
             # This allows us to estimate the change in value for the same set of inputs.
             self.stats_sample = self.memory.sample(batch_size=self.batch_size)
         values = self.sess.run(self.stats_ops, feed_dict={
-            self.obs0: self.stats_sample['obs0'],
+            self.obs_train: self.stats_sample['obs0'],
+            self.obs_noise: self.stats_sample['obs0'],
+            self.obs_target: self.stats_sample['obs0'],
+            self.obs_adapt_noise: self.stats_sample['obs0'],
             self.actions: self.stats_sample['actions'],
         })
 
@@ -592,7 +609,7 @@ class DDPG(BaseRLModel):
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
         distance = self.sess.run(self.adaptive_policy_distance, feed_dict={
-            self.obs0: batch['obs0'],
+            self.obs_adapt_noise: batch['obs0'], self.obs_train: batch['obs0'],
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
 
@@ -612,189 +629,190 @@ class DDPG(BaseRLModel):
             })
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        self._setup_learn(seed)
+        with SetVerbosity(self.verbose):
+            self._setup_learn(seed)
 
-        rank = MPI.COMM_WORLD.Get_rank()
+            rank = MPI.COMM_WORLD.Get_rank()
+            # we assume symmetric actions.
+            assert np.all(np.abs(self.env.action_space.low) == self.env.action_space.high)
+            max_action = self.env.action_space.high
+            logger.log('scaling actions by {} before executing in env'.format(max_action))
+            logger.log('Using agent with the following configuration:')
+            logger.log(str(self.__dict__.items()))
 
-        assert np.all(np.abs(self.env.action_space.low) == self.env.action_space.high)  # we assume symmetric actions.
-        max_action = self.env.action_space.high
-        logger.log('scaling actions by {} before executing in env'.format(max_action))
-        logger.log('Using agent with the following configuration:')
-        logger.log(str(self.__dict__.items()))
+            eval_episode_rewards_history = deque(maxlen=100)
+            episode_rewards_history = deque(maxlen=100)
+            with self.sess.as_default(), self.graph.as_default():
+                # Prepare everything.
+                self._reset()
+                obs = self.env.reset()
+                eval_obs = None
+                if self.eval_env is not None:
+                    eval_obs = self.eval_env.reset()
+                episode_reward = 0.
+                episode_step = 0
+                episodes = 0
+                step = 0
+                total_steps = 0
 
-        eval_episode_rewards_history = deque(maxlen=100)
-        episode_rewards_history = deque(maxlen=100)
-        with self.sess.as_default(), self.graph.as_default():
-            # Prepare everything.
-            self._reset()
-            obs = self.env.reset()
-            eval_obs = None
-            if self.eval_env is not None:
-                eval_obs = self.eval_env.reset()
-            episode_reward = 0.
-            episode_step = 0
-            episodes = 0
-            step = 0
-            total_steps = 0
+                start_time = time.time()
 
-            start_time = time.time()
-
-            epoch_episode_rewards = []
-            epoch_episode_steps = []
-            epoch_actor_losses = []
-            epoch_critic_losses = []
-            epoch_adaptive_distances = []
-            eval_episode_rewards = []
-            eval_qs = []
-            epoch_actions = []
-            epoch_qs = []
-            epoch_episodes = 0
-            epoch = 0
-            while True:
-                for _ in range(log_interval):
-                    # Perform rollouts.
-                    for _ in range(self.nb_rollout_steps):
-                        if total_steps >= total_timesteps:
-                            return self
-
-                        # Predict next action.
-                        action, q_value = self._policy(obs, apply_noise=True, compute_q=True)
-                        assert action.shape == self.env.action_space.shape
-
-                        # Execute next action.
-                        if rank == 0 and self.render:
-                            self.env.render()
-                        assert max_action.shape == action.shape
-                        # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                        new_obs, reward, done, _ = self.env.step(max_action * action)
-                        step += 1
-                        total_steps += 1
-                        if rank == 0 and self.render:
-                            self.env.render()
-                        episode_reward += reward
-                        episode_step += 1
-
-                        # Book-keeping.
-                        epoch_actions.append(action)
-                        epoch_qs.append(q_value)
-                        self._store_transition(obs, action, reward, new_obs, done)
-                        obs = new_obs
-                        if callback is not None:
-                            callback(locals(), globals())
-
-                        if done:
-                            # Episode done.
-                            epoch_episode_rewards.append(episode_reward)
-                            episode_rewards_history.append(episode_reward)
-                            epoch_episode_steps.append(episode_step)
-                            episode_reward = 0.
-                            episode_step = 0
-                            epoch_episodes += 1
-                            episodes += 1
-
-                            self._reset()
-                            obs = self.env.reset()
-
-                    # Train.
-                    epoch_actor_losses = []
-                    epoch_critic_losses = []
-                    epoch_adaptive_distances = []
-                    for t_train in range(self.nb_train_steps):
-                        # Adapt param noise, if necessary.
-                        if self.memory.nb_entries >= self.batch_size and \
-                                t_train % self.param_noise_adaption_interval == 0:
-                            distance = self._adapt_param_noise()
-                            epoch_adaptive_distances.append(distance)
-
-                        critic_loss, actor_loss = self.train_step()
-                        epoch_critic_losses.append(critic_loss)
-                        epoch_actor_losses.append(actor_loss)
-                        self.update_target_net()
-
-                    # Evaluate.
-                    eval_episode_rewards = []
-                    eval_qs = []
-                    if self.eval_env is not None:
-                        eval_episode_reward = 0.
-                        for _ in range(self.nb_eval_steps):
+                epoch_episode_rewards = []
+                epoch_episode_steps = []
+                epoch_actor_losses = []
+                epoch_critic_losses = []
+                epoch_adaptive_distances = []
+                eval_episode_rewards = []
+                eval_qs = []
+                epoch_actions = []
+                epoch_qs = []
+                epoch_episodes = 0
+                epoch = 0
+                while True:
+                    for _ in range(log_interval):
+                        # Perform rollouts.
+                        for _ in range(self.nb_rollout_steps):
                             if total_steps >= total_timesteps:
                                 return self
 
-                            eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
+                            # Predict next action.
+                            action, q_value = self._policy(obs, apply_noise=True, compute_q=True)
+                            assert action.shape == self.env.action_space.shape
+
+                            # Execute next action.
+                            if rank == 0 and self.render:
+                                self.env.render()
+                            assert max_action.shape == action.shape
                             # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                            eval_obs, eval_r, eval_done, _ = self.eval_env.step(max_action * eval_action)
-                            if self.render_eval:
-                                self.eval_env.render()
-                            eval_episode_reward += eval_r
+                            new_obs, reward, done, _ = self.env.step(max_action * action)
+                            step += 1
+                            total_steps += 1
+                            if rank == 0 and self.render:
+                                self.env.render()
+                            episode_reward += reward
+                            episode_step += 1
 
-                            eval_qs.append(eval_q)
-                            if eval_done:
-                                eval_obs = self.eval_env.reset()
-                                eval_episode_rewards.append(eval_episode_reward)
-                                eval_episode_rewards_history.append(eval_episode_reward)
-                                eval_episode_reward = 0.
+                            # Book-keeping.
+                            epoch_actions.append(action)
+                            epoch_qs.append(q_value)
+                            self._store_transition(obs, action, reward, new_obs, done)
+                            obs = new_obs
+                            if callback is not None:
+                                callback(locals(), globals())
 
-                mpi_size = MPI.COMM_WORLD.Get_size()
-                # Log stats.
-                # XXX shouldn't call np.mean on variable length lists
-                duration = time.time() - start_time
-                stats = self._get_stats()
-                combined_stats = stats.copy()
-                combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
-                combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
-                combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
-                combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
-                combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
-                combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
-                combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
-                combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
-                combined_stats['total/duration'] = duration
-                combined_stats['total/steps_per_second'] = float(step) / float(duration)
-                combined_stats['total/episodes'] = episodes
-                combined_stats['rollout/episodes'] = epoch_episodes
-                combined_stats['rollout/actions_std'] = np.std(epoch_actions)
-                # Evaluation statistics.
-                if self.eval_env is not None:
-                    combined_stats['eval/return'] = eval_episode_rewards
-                    combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-                    combined_stats['eval/Q'] = eval_qs
-                    combined_stats['eval/episodes'] = len(eval_episode_rewards)
+                            if done:
+                                # Episode done.
+                                epoch_episode_rewards.append(episode_reward)
+                                episode_rewards_history.append(episode_reward)
+                                epoch_episode_steps.append(episode_step)
+                                episode_reward = 0.
+                                episode_step = 0
+                                epoch_episodes += 1
+                                episodes += 1
 
-                def as_scalar(scalar):
-                    """
-                    check and return the input if it is a scalar, otherwise raise ValueError
+                                self._reset()
+                                obs = self.env.reset()
 
-                    :param scalar: (Any) the object to check
-                    :return: (Number) the scalar if x is a scalar
-                    """
-                    if isinstance(scalar, np.ndarray):
-                        assert scalar.size == 1
-                        return scalar[0]
-                    elif np.isscalar(scalar):
-                        return scalar
-                    else:
-                        raise ValueError('expected scalar, got %s' % scalar)
+                        # Train.
+                        epoch_actor_losses = []
+                        epoch_critic_losses = []
+                        epoch_adaptive_distances = []
+                        for t_train in range(self.nb_train_steps):
+                            # Adapt param noise, if necessary.
+                            if self.memory.nb_entries >= self.batch_size and \
+                                    t_train % self.param_noise_adaption_interval == 0:
+                                distance = self._adapt_param_noise()
+                                epoch_adaptive_distances.append(distance)
 
-                combined_stats_sums = MPI.COMM_WORLD.allreduce(
-                    np.array([as_scalar(x) for x in combined_stats.values()]))
-                combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
+                            critic_loss, actor_loss = self.train_step()
+                            epoch_critic_losses.append(critic_loss)
+                            epoch_actor_losses.append(actor_loss)
+                            self.update_target_net()
 
-                # Total statistics.
-                combined_stats['total/epochs'] = epoch + 1
-                combined_stats['total/steps'] = step
+                        # Evaluate.
+                        eval_episode_rewards = []
+                        eval_qs = []
+                        if self.eval_env is not None:
+                            eval_episode_reward = 0.
+                            for _ in range(self.nb_eval_steps):
+                                if total_steps >= total_timesteps:
+                                    return self
 
-                for key in sorted(combined_stats.keys()):
-                    logger.record_tabular(key, combined_stats[key])
-                logger.dump_tabular()
-                logger.info('')
-                logdir = logger.get_dir()
-                if rank == 0 and logdir:
-                    if hasattr(self.env, 'get_state'):
-                        with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as file_handler:
-                            pickle.dump(self.env.get_state(), file_handler)
-                    if self.eval_env and hasattr(self.eval_env, 'get_state'):
-                        with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
-                            pickle.dump(self.eval_env.get_state(), file_handler)
+                                eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
+                                # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
+                                eval_obs, eval_r, eval_done, _ = self.eval_env.step(max_action * eval_action)
+                                if self.render_eval:
+                                    self.eval_env.render()
+                                eval_episode_reward += eval_r
+
+                                eval_qs.append(eval_q)
+                                if eval_done:
+                                    eval_obs = self.eval_env.reset()
+                                    eval_episode_rewards.append(eval_episode_reward)
+                                    eval_episode_rewards_history.append(eval_episode_reward)
+                                    eval_episode_reward = 0.
+
+                    mpi_size = MPI.COMM_WORLD.Get_size()
+                    # Log stats.
+                    # XXX shouldn't call np.mean on variable length lists
+                    duration = time.time() - start_time
+                    stats = self._get_stats()
+                    combined_stats = stats.copy()
+                    combined_stats['rollout/return'] = np.mean(epoch_episode_rewards)
+                    combined_stats['rollout/return_history'] = np.mean(episode_rewards_history)
+                    combined_stats['rollout/episode_steps'] = np.mean(epoch_episode_steps)
+                    combined_stats['rollout/actions_mean'] = np.mean(epoch_actions)
+                    combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
+                    combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
+                    combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
+                    combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
+                    combined_stats['total/duration'] = duration
+                    combined_stats['total/steps_per_second'] = float(step) / float(duration)
+                    combined_stats['total/episodes'] = episodes
+                    combined_stats['rollout/episodes'] = epoch_episodes
+                    combined_stats['rollout/actions_std'] = np.std(epoch_actions)
+                    # Evaluation statistics.
+                    if self.eval_env is not None:
+                        combined_stats['eval/return'] = eval_episode_rewards
+                        combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
+                        combined_stats['eval/Q'] = eval_qs
+                        combined_stats['eval/episodes'] = len(eval_episode_rewards)
+
+                    def as_scalar(scalar):
+                        """
+                        check and return the input if it is a scalar, otherwise raise ValueError
+
+                        :param scalar: (Any) the object to check
+                        :return: (Number) the scalar if x is a scalar
+                        """
+                        if isinstance(scalar, np.ndarray):
+                            assert scalar.size == 1
+                            return scalar[0]
+                        elif np.isscalar(scalar):
+                            return scalar
+                        else:
+                            raise ValueError('expected scalar, got %s' % scalar)
+
+                    combined_stats_sums = MPI.COMM_WORLD.allreduce(
+                        np.array([as_scalar(x) for x in combined_stats.values()]))
+                    combined_stats = {k: v / mpi_size for (k, v) in zip(combined_stats.keys(), combined_stats_sums)}
+
+                    # Total statistics.
+                    combined_stats['total/epochs'] = epoch + 1
+                    combined_stats['total/steps'] = step
+
+                    for key in sorted(combined_stats.keys()):
+                        logger.record_tabular(key, combined_stats[key])
+                    logger.dump_tabular()
+                    logger.info('')
+                    logdir = logger.get_dir()
+                    if rank == 0 and logdir:
+                        if hasattr(self.env, 'get_state'):
+                            with open(os.path.join(logdir, 'env_state.pkl'), 'wb') as file_handler:
+                                pickle.dump(self.env.get_state(), file_handler)
+                        if self.eval_env and hasattr(self.eval_env, 'get_state'):
+                            with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
+                                pickle.dump(self.eval_env.get_state(), file_handler)
 
     def predict(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
@@ -839,8 +857,7 @@ class DDPG(BaseRLModel):
             "reward_scale": self.reward_scale,
             "layer_norm": self.layer_norm,
             "memory_limit": self.memory_limit,
-            "actor_policy": self.actor_policy,
-            "critic_policy": self.critic_policy,
+            "policy": self.policy,
             "memory_policy": self.memory_policy,
             "n_envs": self.n_envs
         }
@@ -853,7 +870,7 @@ class DDPG(BaseRLModel):
     def load(cls, load_path, env=None, **kwargs):
         data, params = cls._load_from_file(load_path)
 
-        model = cls(None, None, None, env, _init_setup_model=False)
+        model = cls(None, env, _init_setup_model=False)
         model.__dict__.update(data)
         model.__dict__.update(kwargs)
         model.set_env(env)

@@ -85,12 +85,12 @@ class BaseRLModel(ABC):
 
         self.env = env
 
+    @abstractmethod
     def setup_model(self):
         """
         Create all the functions and tensorflow graphs necessary to train the model
         """
-        if self.verbose <= 1:
-            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        pass
 
     def _setup_learn(self, seed):
         """
@@ -103,8 +103,6 @@ class BaseRLModel(ABC):
                              "set_env(self, env) method.")
         if seed is not None:
             set_global_seeds(seed)
-
-        logger.set_level(logger.INFO if self.verbose >= 1 else logger.DISABLED)
 
     @abstractmethod
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
@@ -224,3 +222,30 @@ class _UnvecWrapper(VecEnvWrapper):
 
     def render(self, mode='human'):
         return self.venv.render(mode)[0]
+
+
+class SetVerbosity:
+    def __init__(self, verbose=0):
+        """
+        define a region of code for certain level of verbosity
+
+        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+        """
+        self.verbose = verbose
+
+    def __enter__(self):
+        self.tf_level = os.environ.get('TF_CPP_MIN_LOG_LEVEL', '0')
+        self.log_level = logger.get_level()
+
+        if self.verbose <= 1:
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+        if self.verbose <= 0:
+            logger.set_level(logger.DISABLED)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.verbose <= 1:
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = self.tf_level
+
+        if self.verbose <= 0:
+            logger.set_level(self.log_level)

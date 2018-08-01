@@ -9,8 +9,8 @@ from mpi4py import MPI
 
 from baselines import logger, bench
 from baselines.common.misc_util import set_global_seeds, boolean_flag
+from baselines.common.policies import MlpPolicy
 from baselines.ddpg import DDPG
-from baselines.ddpg.models import ActorMLP, CriticMLP
 from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
 
@@ -78,9 +78,8 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     start_time = 0
     if rank == 0:
         start_time = time.time()
-    model = DDPG(actor_policy=ActorMLP, critic_policy=CriticMLP, memory_policy=Memory, env=env, eval_env=eval_env,
-                 param_noise=param_noise, action_noise=action_noise, memory_limit=int(1e6), layer_norm=layer_norm,
-                 **kwargs)
+    model = DDPG(policy=MlpPolicy, env=env, memory_policy=Memory, eval_env=eval_env, param_noise=param_noise,
+                 action_noise=action_noise, memory_limit=int(1e6), layer_norm=layer_norm, verbose=2, **kwargs)
     model.learn(total_timesteps=10000)
     env.close()
     if eval_env is not None:
