@@ -47,11 +47,16 @@ class Mujoco_Dset(object):
         obs = traj_data['obs'][:traj_limitation]
         acs = traj_data['acs'][:traj_limitation]
 
-        # obs, acs: shape (N, L, ) + S where N = # episodes, L = episode length
-        # and S is the environment observation/action space.
-        # Flatten to (N * L, prod(S))
-        self.obs = np.reshape(obs, [-1, np.prod(obs.shape[2:])])
-        self.acs = np.reshape(acs, [-1, np.prod(acs.shape[2:])])
+        def flatten(x):
+            '''Either a float64 array of shape (N, L, ) + S or an object array of shape N,
+               containing arrays of shape (L_i, ) + S where L_i may vary.
+               Flattens to (N * L, prod(S)) or (sum(L_i), prod(S)).'''
+            # (N, L, ) + S -> (N * L) + S or (N, ) nested -> (sum(L_i), ) + S 
+            x = np.concatenate([y for y in x])
+            # Flatten the S part
+            return np.reshape(x, [-1, np.prod(x.shape[1:])])
+        self.obs = flatten(obs) 
+        self.acs = flatten(acs) 
 
         self.rets = traj_data['ep_rets'][:traj_limitation]
         self.avg_ret = sum(self.rets)/len(self.rets)
