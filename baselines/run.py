@@ -30,8 +30,16 @@ for env in gym.envs.registry.all():
 # reading benchmark names directly from retro requires 
 # importing retro here, and for some reason that crashes tensorflow 
 # in ubuntu 
-if hasattr(bench.benchmarks, '_retro'):
-    _game_envs['retro'] = set([g[0] for g in bench.benchmarks._retro])
+_game_envs['retro'] = set([
+    'BubbleBobble-Nes',
+    'SuperMarioBros-Nes',
+    'TwinBee3PokoPokoDaimaou-Nes',
+    'SpaceHarrier-Nes',
+    'SonicTheHedgehog-Genesis',
+    'Vectorman-Genesis',
+    'FinalFight-Snes',
+    'SpaceInvaders-Snes',
+])
 
 
 def train(args, extra_args):
