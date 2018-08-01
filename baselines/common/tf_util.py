@@ -325,20 +325,20 @@ def save_state(fname, sess=None):
 # The methods above and below are clearly doing the same thing, and in a rather similar way
 # TODO: ensure there is no subtle differences and remove one
 
-def save_variables(save_path, variables, sess=None):
-    if sess is None:
-        sess = get_session()
+def save_variables(save_path, variables=None, sess=None):
+    sess = sess or get_session()
+    variables = variables or tf.trainable_variables()
     
     ps = sess.run(variables)
     save_dict = {v.name: value for v, value in zip(variables, ps)}
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     joblib.dump(save_dict, save_path)
 
-def load_variables(load_path, variables, sess=None):
-    if sess is None:
-        sess = get_session()
+def load_variables(load_path, variables=None, sess=None):
+    sess = sess or get_session()
+    variables = variables or tf.trainable_variables()
 
-    loaded_params = joblib.load(load_path)
+    loaded_params = joblib.load(os.path.expanduser(load_path))
     restores = []
     for v in variables:
         restores.append(v.assign(loaded_params[v.name]))
