@@ -41,15 +41,15 @@ class TfRunningMeanStd(object):
     def __init__(self, epsilon=1e-4, shape=(), scope=''):
         sess = get_session()
 
-        _batch_mean = tf.placeholder(shape=shape, dtype=tf.float32)
-        _batch_var = tf.placeholder(shape=shape, dtype=tf.float32)
-        _batch_count = tf.placeholder(shape=(), dtype=tf.float32)
+        _batch_mean = tf.placeholder(shape=shape, dtype=tf.float64)
+        _batch_var = tf.placeholder(shape=shape, dtype=tf.float64)
+        _batch_count = tf.placeholder(shape=(), dtype=tf.float64)
 
         
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
-            _mean  = tf.get_variable('mean',  initializer=np.zeros(shape, 'float32'),      dtype=tf.float32)
-            _var   = tf.get_variable('std',   initializer=np.ones(shape, 'float32'),       dtype=tf.float32)    
-            _count = tf.get_variable('count', initializer=np.full((), epsilon, 'float32'), dtype=tf.float32)
+            _mean  = tf.get_variable('mean',  initializer=np.zeros(shape, 'float64'),      dtype=tf.float64)
+            _var   = tf.get_variable('std',   initializer=np.ones(shape, 'float64'),       dtype=tf.float64)    
+            _count = tf.get_variable('count', initializer=np.full((), epsilon, 'float64'), dtype=tf.float64)
 
         delta = _batch_mean - _mean
         tot_count = _count + _batch_count
@@ -89,17 +89,25 @@ class TfRunningMeanStd(object):
         sess.run(tf.variables_initializer([_mean, _var, _count]))
         self.sess = sess
         self.update_from_moments = update_from_moments
-        self._set_mean_var_count()
 
-    def _set_mean_var_count(self):
-        self.mean, self.var, self.count = self.sess.run([self._mean, self._var, self._count])
+    @property
+    def mean(self):
+        return self.sess.run(self._mean)
+
+    @property
+    def var(self):
+        return self.sess.run(self._var)
+
+    @property
+    def count(self):
+        return self.sess.run(self._count)
+
          
     def update(self, x):
         batch_mean = np.mean(x, axis=0)
         batch_var = np.var(x, axis=0)
         batch_count = x.shape[0]
         self.update_from_moments(batch_mean, batch_var, batch_count)
-        self._set_mean_var_count()
         
 
           
