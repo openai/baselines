@@ -4,7 +4,9 @@ from baselines.a2c import A2C
 from baselines.acer import ACER
 from baselines.acktr import ACKTR
 from baselines.deepq import DeepQ
+from baselines.ppo1 import PPO1
 from baselines.ppo2 import PPO2
+from baselines.trpo_mpi import TRPO
 from baselines.common.identity_env import IdentityEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.policies import MlpPolicy
@@ -15,7 +17,10 @@ learn_func_list = [
     lambda e: ACER(policy=MlpPolicy, env=e, learning_rate=5e-4).learn(total_timesteps=100000, seed=0),
     lambda e: ACKTR(policy=MlpPolicy, env=e, learning_rate=5e-4, n_steps=4).learn(total_timesteps=100000, seed=0),
     lambda e: DeepQ(policy=deepq_models.mlp([32]), env=e).learn(total_timesteps=50000, seed=0),
+    lambda e: PPO1(policy=MlpPolicy, env=e, optim_stepsize=5e-3).learn(total_timesteps=75000, seed=0),
     lambda e: PPO2(policy=MlpPolicy, env=e, learning_rate=1e-3).learn(total_timesteps=50000, seed=0),
+    lambda e: TRPO(policy=MlpPolicy, env=e, timesteps_per_batch=256, vf_stepsize=1e-1,
+                   d_stepsize=1e-1).learn(total_timesteps=200000, seed=0),
 ]
 
 

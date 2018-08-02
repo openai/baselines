@@ -3,9 +3,10 @@ import os
 
 import gym
 
-from baselines.ppo1 import mlp_policy, PPO1
+from baselines.ppo1 import PPO1
 from baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
 from baselines.common import tf_util
+from baselines.common.policies import MlpPolicy
 from baselines import logger
 
 
@@ -19,17 +20,13 @@ def train(num_timesteps, seed, model_path=None):
     """
     env_id = 'Humanoid-v2'
 
-    def policy_fn(name, ob_space, ac_space, sess=None, placeholders=None):
-        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, hid_size=64, num_hid_layers=2,
-                                    sess=sess, placeholders=placeholders)
-
     env = make_mujoco_env(env_id, seed)
 
     # parameters below were the best found in a simple random search
     # these are good enough to make humanoid walk, but whether those are
     # an absolute best or not is not certain
     env = RewScale(env, 0.1)
-    model = PPO1(policy_fn, env, timesteps_per_actorbatch=2048, clip_param=0.2, entcoeff=0.0, optim_epochs=10,
+    model = PPO1(MlpPolicy, env, timesteps_per_actorbatch=2048, clip_param=0.2, entcoeff=0.0, optim_epochs=10,
                  optim_stepsize=3e-4, optim_batchsize=64, gamma=0.99, lam=0.95, schedule='linear')
     model.learn(total_timesteps=num_timesteps)
     env.close()

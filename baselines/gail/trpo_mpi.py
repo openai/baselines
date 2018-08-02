@@ -16,14 +16,33 @@ from baselines.a2c.utils import find_trainable_variables
 # from baselines.gail.statistics import Stats
 
 
-def traj_segment_generator(policy, env, horizon, stochastic, reward_giver=None, gail=False):
+def get_trainable_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+
+
+def get_globals_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+
+
+def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     """
     Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
 
     :param policy: (MLPPolicy) the policy
     :param env: (Gym Environment) the environment
     :param horizon: (int) the number of timesteps to run per batch
-    :param stochastic: (bool) use a stochastic policy
     :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
     :param gail: (bool) Whether we are using this generator for standard trpo or with gail
     :return: (dict) generator that returns a dict with the following keys:
@@ -63,10 +82,12 @@ def traj_segment_generator(policy, env, horizon, stochastic, reward_giver=None, 
     news = np.zeros(horizon, 'int32')
     actions = np.array([action for _ in range(horizon)])
     prev_actions = actions.copy()
+    states = policy.initial_state
+    done = None
 
     while True:
         prevac = action
-        action, vpred = policy.act(stochastic, observation)
+        action, vpred, states, _ = policy.step(observation.reshape(-1, *observation.shape), states, done)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
@@ -75,7 +96,7 @@ def traj_segment_generator(policy, env, horizon, stochastic, reward_giver=None, 
                    "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
                    "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets,
                    "total_timestep": sum(ep_lens) + cur_ep_len}
-            _, vpred = policy.act(stochastic, observation)
+            _, vpred, _, _ = policy.step(observation.reshape(-1, *observation.shape))
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
@@ -83,16 +104,16 @@ def traj_segment_generator(policy, env, horizon, stochastic, reward_giver=None, 
             ep_lens = []
         i = step % horizon
         observations[i] = observation
-        vpreds[i] = vpred
+        vpreds[i] = vpred[0]
         news[i] = new
-        actions[i] = action
+        actions[i] = action[0]
         prev_actions[i] = prevac
 
         if gail:
-            rew = reward_giver.get_reward(observation, action)
-            observation, true_rew, new, _ = env.step(action)
+            rew = reward_giver.get_reward(observation, action[0])
+            observation, true_rew, new, done = env.step(action[0])
         else:
-            observation, rew, new, _ = env.step(action)
+            observation, rew, new, done = env.step(action[0])
             true_rew = rew
         rews[i] = rew
         true_rews[i] = true_rew
@@ -141,7 +162,7 @@ class TRPO(BaseRLModel):
                  checkpoint_dir="/tmp/gail/ckpt/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4,
                  using_gail=False, verbose=0, _init_setup_model=True):
         """
-        learns a GAIL policy using the given environment
+        learns a TRPO or GAIL policy using the given environment
 
         :param policy: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
         :param env: (Gym Environment) the environment
@@ -207,6 +228,9 @@ class TRPO(BaseRLModel):
         self.allmean = None
         self.nworkers = None
         self.rank = None
+        self.step = None
+        self.proba_step = None
+        self.initial_state = None
         self.params = None
 
         if _init_setup_model:
@@ -223,28 +247,33 @@ class TRPO(BaseRLModel):
             with self.graph.as_default():
                 self.sess = tf_util.single_threaded_session(graph=self.graph)
 
-                self.policy_pi = policy_pi = self.policy("pi", self.observation_space, self.action_space,
-                                                         sess=self.sess)
-                old_policy = self.policy("oldpi", self.observation_space, self.action_space, sess=self.sess,
-                                         placeholders={"obs": policy_pi.obs_ph, "processed_obs": policy_pi.processed_x,
-                                                       "stochastic": policy_pi.stochastic_ph})
+                # Construct network for new policy
+                with tf.variable_scope("pi", reuse=False):
+                    self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                                 None, reuse=False)
+
+                # Network for old policy
+                with tf.variable_scope("oldpi", reuse=False):
+                    old_policy = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                             None, reuse=False)
 
                 atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
                 ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-                observation = policy_pi.obs_ph
-                action = policy_pi.pdtype.sample_placeholder([None])
+                observation = self.policy_pi.obs_ph
+                action = self.policy_pi.pdtype.sample_placeholder([None])
 
-                kloldnew = old_policy.proba_distribution.kl(policy_pi.proba_distribution)
-                ent = policy_pi.proba_distribution.entropy()
+                kloldnew = old_policy.proba_distribution.kl(self.policy_pi.proba_distribution)
+                ent = self.policy_pi.proba_distribution.entropy()
                 meankl = tf.reduce_mean(kloldnew)
                 meanent = tf.reduce_mean(ent)
                 entbonus = self.entcoeff * meanent
 
-                vferr = tf.reduce_mean(tf.square(policy_pi.vpred - ret))
+                vferr = tf.reduce_mean(tf.square(self.policy_pi.value_0 - ret))
 
                 # advantage * pnew / pold
-                ratio = tf.exp(policy_pi.proba_distribution.logp(action) - old_policy.proba_distribution.logp(action))
+                ratio = tf.exp(self.policy_pi.proba_distribution.logp(action) -
+                               old_policy.proba_distribution.logp(action))
                 surrgain = tf.reduce_mean(ratio * atarg)
 
                 optimgain = surrgain + entbonus
@@ -253,7 +282,7 @@ class TRPO(BaseRLModel):
 
                 dist = meankl
 
-                all_var_list = policy_pi.get_trainable_variables()
+                all_var_list = get_trainable_vars("pi")
                 if self.using_gail:
                     var_list = [v for v in all_var_list
                                 if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
@@ -264,8 +293,8 @@ class TRPO(BaseRLModel):
                     self.get_flat = tf_util.GetFlat(var_list)
                     self.set_from_flat = tf_util.SetFromFlat(var_list)
                 else:
-                    var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("pol")]
-                    vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
+                    var_list = [v for v in all_var_list if "/vf" not in v.name and "/q/" not in v.name]
+                    vf_var_list = [v for v in all_var_list if "/pi" not in v.name]
                     self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
                     self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
                     self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
@@ -284,13 +313,14 @@ class TRPO(BaseRLModel):
                 fvp = tf_util.flatgrad(gvp, var_list)
 
                 self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                                                           zipsame(old_policy.get_variables(),
-                                                                                   policy_pi.get_variables())])
-                self.compute_losses = tf_util.function([observation, action, atarg], losses)
-                self.compute_lossandgrad = tf_util.function([observation, action, atarg],
+                                                                           zipsame(get_globals_vars("oldpi"),
+                                                                                   get_globals_vars("pi"))])
+                self.compute_losses = tf_util.function([observation, old_policy.obs_ph, action, atarg], losses)
+                self.compute_lossandgrad = tf_util.function([observation, old_policy.obs_ph, action, atarg],
                                                             losses + [tf_util.flatgrad(optimgain, var_list)])
-                self.compute_fvp = tf_util.function([flat_tangent, observation, action, atarg], fvp)
-                self.compute_vflossandgrad = tf_util.function([observation, ret], tf_util.flatgrad(vferr, vf_var_list))
+                self.compute_fvp = tf_util.function([flat_tangent, observation, old_policy.obs_ph, action, atarg], fvp)
+                self.compute_vflossandgrad = tf_util.function([observation, old_policy.obs_ph, ret],
+                                                              tf_util.flatgrad(vferr, vf_var_list))
 
                 @contextmanager
                 def timed(msg):
@@ -322,6 +352,10 @@ class TRPO(BaseRLModel):
                 self.timed = timed
                 self.allmean = allmean
 
+                self.step = self.policy_pi.step
+                self.proba_step = self.policy_pi.proba_step
+                self.initial_state = self.policy_pi.initial_state
+
                 self.params = find_trainable_variables("pi")
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
@@ -331,10 +365,9 @@ class TRPO(BaseRLModel):
             with self.sess.as_default():
                 if self.using_gail:
                     seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch,
-                                                     stochastic=True, reward_giver=self.reward_giver, gail=True)
+                                                     reward_giver=self.reward_giver, gail=True)
                 else:
-                    seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch,
-                                                     stochastic=True)
+                    seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch)
 
                 episodes_so_far = 0
                 timesteps_so_far = 0
@@ -353,8 +386,7 @@ class TRPO(BaseRLModel):
 
                     # if provide pretrained weight
                     if self.pretrained_weight is not None:
-                        tf_util.load_state(self.pretrained_weight, var_list=self.policy_pi.get_variables(),
-                                           sess=self.sess)
+                        tf_util.load_state(self.pretrained_weight, var_list=get_globals_vars("pi"), sess=self.sess)
 
                 while True:
                     if callback:
@@ -394,12 +426,7 @@ class TRPO(BaseRLModel):
                         vpredbefore = seg["vpred"]  # predicted value function before udpate
                         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
-                        if hasattr(self.policy_pi, "ret_rms"):
-                            self.policy_pi.ret_rms.update(tdlamret)
-                        if hasattr(self.policy_pi, "ob_rms"):
-                            self.policy_pi.ob_rms.update(observation)  # update running mean/std for policy
-
-                        args = seg["ob"], seg["ac"], atarg
+                        args = seg["ob"], seg["ob"], seg["ac"], atarg
                         fvpargs = [arr[::5] for arr in args]
 
                         self.assign_old_eq_new(sess=self.sess)
@@ -455,9 +482,7 @@ class TRPO(BaseRLModel):
                                 for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                                                                          include_final_partial_batch=False,
                                                                          batch_size=128):
-                                    if hasattr(self.policy_pi, "ob_rms"):
-                                        self.policy_pi.ob_rms.update(mbob)  # update running mean/std for policy
-                                    grad = self.allmean(self.compute_vflossandgrad(mbob, mbret, sess=self.sess))
+                                    grad = self.allmean(self.compute_vflossandgrad(mbob, mbob, mbret, sess=self.sess))
                                     self.vfadam.update(grad, self.vf_stepsize)
 
                     for (loss_name, loss_val) in zip(self.loss_names, mean_losses):
@@ -514,22 +539,23 @@ class TRPO(BaseRLModel):
         return self
 
     def predict(self, observation, state=None, mask=None):
-        observation = np.array(observation).reshape(self.observation_space.shape)
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation).reshape((1,) + self.observation_space.shape)
 
-        action, _ = self.policy_pi.act(True, observation)
-        if self._vectorize_action:
-            return [action], [None]
-        else:
-            return action, None
+        actions, _, states, _ = self.step(observation, state, mask)
+        return actions, states
 
     def action_probability(self, observation, state=None, mask=None):
-        observation = np.array(observation).reshape(self.observation_space.shape)
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation).reshape((1,) + self.observation_space.shape)
 
-        neglogp0 = self.policy_pi.proba_distribution.neglogp(self.policy_pi.proba_distribution.sample())
-        if self._vectorize_action:
-            return [self._softmax(self.sess.run(neglogp0, feed_dict={self.policy_pi.obs_ph: observation}))]
-        else:
-            return self._softmax(self.sess.run(neglogp0, feed_dict={self.policy_pi.obs_ph: observation}))
+        return self.proba_step(observation, state, mask)
 
     def save(self, save_path):
         data = {

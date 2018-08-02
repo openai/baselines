@@ -186,8 +186,6 @@ class DDPG(BaseRLModel):
         """
         super(DDPG, self).__init__(env=env, requires_vec_env=False, verbose=verbose)
 
-        assert not issubclass(policy, LstmPolicy), "Error: cannot use a reccurent policy for the DDPG model."
-
         # Parameters.
         self.gamma = gamma
         self.tau = tau
@@ -265,6 +263,8 @@ class DDPG(BaseRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
+
+            assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the DDPG model."
 
             self.graph = tf.Graph()
             with self.graph.as_default():

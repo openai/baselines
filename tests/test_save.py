@@ -1,4 +1,3 @@
-from functools import partial
 import os
 
 import pytest
@@ -15,20 +14,17 @@ from baselines.common.identity_env import IdentityEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.policies import MlpPolicy
 from baselines.deepq import models as deepq_models
-from baselines.ppo1.mlp_policy import MlpPolicy as PPO1MlpPolicy
 
 N_TRIALS = 1000
-
-ppo1_policy = partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)
 
 MODEL_POLICY_LIST = [
     (A2C, MlpPolicy),
     (ACER, MlpPolicy),
     (ACKTR, MlpPolicy),
     (DeepQ, deepq_models.mlp([32])),
-    (PPO1, ppo1_policy),
+    (PPO1, MlpPolicy),
     (PPO2, MlpPolicy),
-    (TRPO, ppo1_policy)
+    (TRPO, MlpPolicy)
 ]
 
 

@@ -10,16 +10,16 @@ These algorithms will make it easier for the research community to replicate, re
 
 | **Name** | **refactored**<sup>(1)</sup> | **Reccurent**      | **Actions** ```Box``` |  **Actions** ```Discrete``` |  **Actions** ```MultiDiscrete``` |  **Actions** ```MultiBinary```|
 | -------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- |
-| A2C      | :heavy_check_mark:           | :heavy_check_mark: |:heavy_check_mark:     | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
+| A2C      | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | ACER     | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(2)</sup>    | :heavy_check_mark:          | :x: <sup>(2)</sup>               | :x: <sup>(2)</sup>            |
 | ACKTR    | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(2)</sup>    | :heavy_check_mark:          | :x: <sup>(2)</sup>               | :x: <sup>(2)</sup>            |
 | DDPG     | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
 | DeepQ    | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           |
-| GAIL     | :x: <sup>(2)</sup>           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x:                              | :x:                           |
+| GAIL     | :x: <sup>(2)</sup>           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x: <sup>(2)</sup>               | :x: <sup>(2)</sup>            |
 | HER      | :x: <sup>(2)</sup>           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
-| PPO1     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x:                              | :x:                           |
+| PPO1     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | PPO2     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| TRPO     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x:                              | :x:                           |
+| TRPO     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 
 <sup><sup>(1): Whether or not the algorithm has be refactored to fit the ```BaseRLModel``` class.</sup></sup><br>
 <sup><sup>(2): TODO, in project scope.</sup></sup>

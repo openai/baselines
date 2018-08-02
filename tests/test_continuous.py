@@ -1,5 +1,4 @@
 import subprocess
-from functools import partial
 import os
 
 import pytest
@@ -15,40 +14,37 @@ from baselines.trpo_mpi import TRPO
 from baselines.common import set_global_seeds
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.policies import MlpPolicy
-from baselines.ppo1.mlp_policy import MlpPolicy as PPO1MlpPolicy
 from tests.test_common import _assert_eq
 
 ENV_ID = 'Pendulum-v0'
 N_TRIALS = 1000
 
-MODEL_POLICY_LIST = [
-    (A2C, {"policy": MlpPolicy}),
-    #(ACER, {"policy": MlpPolicy}),
-    #(ACKTR, {"policy": MlpPolicy}),
-    (DDPG, {"policy": MlpPolicy}),
-    (PPO1, {"policy": partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)}),
-    (PPO2, {"policy": MlpPolicy}),
-    (TRPO, {"policy": partial(PPO1MlpPolicy, hid_size=32, num_hid_layers=1)})
+MODEL_LIST = [
+    A2C,
+    #ACER,
+    #ACKTR,
+    DDPG,
+    PPO1,
+    PPO2,
+    TRPO
 ]
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_policy", MODEL_POLICY_LIST)
-def test_model_manipulation(model_policy):
+@pytest.mark.parametrize("model_class", MODEL_LIST)
+def test_model_manipulation(model_class):
     """
-    Test if the algorithm (with a given policy) can be loaded and saved without any issues, the environment switching
+    Test if the algorithm can be loaded and saved without any issues, the environment switching
     works and that the action prediction works
 
-    :param model_policy: (BaseRLModel, {Object}) A model, policy pair
+    :param model_class: (BaseRLModel) A model
     """
-    model_class, policies = model_policy
-
     try:
         env = gym.make(ENV_ID)
         env = DummyVecEnv([lambda: env])
 
         # create and train
-        model = model_class(env=env, **policies)
+        model = model_class(policy=MlpPolicy, env=env)
         model.learn(total_timesteps=5000)
 
         # predict and measure the acc reward

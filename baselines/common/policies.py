@@ -98,7 +98,7 @@ class LstmPolicy(ActorCriticPolicy):
             rnn_output, self.snew = lstm(input_sequence, masks, self.states_ph, 'lstm1', n_hidden=n_lstm,
                                          layer_norm=layer_norm)
             rnn_output = seq_to_batch(rnn_output)
-            value_fn = linear(rnn_output, 'v', 1)
+            value_fn = linear(rnn_output, 'vf', 1)
 
             self.proba_distribution, self.policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(rnn_output, rnn_output)
@@ -131,7 +131,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         with tf.variable_scope("model", reuse=reuse):
             if _type == "cnn":
                 extracted_features = nature_cnn(self.processed_x, **kwargs)
-                value_fn = linear(extracted_features, 'v', 1)
+                value_fn = linear(extracted_features, 'vf', 1)
                 pi_latent = extracted_features
                 vf_latent = extracted_features
             else:
