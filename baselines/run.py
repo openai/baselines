@@ -4,10 +4,11 @@ import os
 import os.path as osp
 import gym
 from collections import defaultdict
+import tensorflow as tf
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_mujoco_env, make_atari_env
-from baselines.common.tf_util import save_state, load_state
+from baselines.common.tf_util import save_state, load_state, get_session
 from baselines import bench, logger
 from importlib import import_module
 
@@ -84,6 +85,10 @@ def build_env(args, render=False):
 
     env_type, env_id = get_env_type(args.env)
     if env_type == 'mujoco':
+        get_session(tf.ConfigProto(allow_soft_placement=True,
+                                   intra_op_parallelism_threads=1, 
+                                   inter_op_parallelism_threads=1))
+
         if args.num_env:
             env = SubprocVecEnv([lambda: make_mujoco_env(env_id, seed + i if seed is not None else None, args.reward_scale) for i in range(args.num_env)])    
         else:
@@ -193,6 +198,7 @@ def main():
     args, unknown_args = arg_parser.parse_known_args()
     extra_args = {k: parse(v) for k,v in parse_unknown_args(unknown_args).items()}
 
+    
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
         rank = 0
         logger.configure()
