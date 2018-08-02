@@ -11,7 +11,7 @@ import baselines.common.tf_util as tf_util
 from baselines.common.policies import LstmPolicy
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.mpi_moments import mpi_moments
-from baselines.gail.trpo_mpi import traj_segment_generator, add_vtarg_and_adv, flatten_lists
+from baselines.trpo_mpi.trpo_mpi import traj_segment_generator, add_vtarg_and_adv, flatten_lists
 
 
 def get_trainable_vars(name):

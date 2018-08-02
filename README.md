@@ -15,7 +15,7 @@ These algorithms will make it easier for the research community to replicate, re
 | ACKTR    | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(2)</sup>    | :heavy_check_mark:          | :x: <sup>(2)</sup>               | :x: <sup>(2)</sup>            |
 | DDPG     | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
 | DeepQ    | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           |
-| GAIL     | :x: <sup>(2)</sup>           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :x: <sup>(2)</sup>               | :x: <sup>(2)</sup>            |
+| GAIL     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | HER      | :x: <sup>(2)</sup>           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
 | PPO1     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | PPO2     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |

@@ -12,7 +12,7 @@ import numpy as np
 import gym
 
 from baselines.gail import mlp_policy, behavior_clone
-from baselines.gail.trpo_mpi import TRPO
+from baselines.trpo_mpi.trpo_mpi import TRPO
 from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
 from baselines import bench, logger
@@ -156,10 +156,20 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo, g_step, d_step, pol
         set_global_seeds(workerseed)
         env.seed(workerseed)
         model = TRPO(policy_fn, env, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, gamma=0.995, lam=0.97,
-                     entcoeff=policy_entcoeff, cg_damping=0.1, vf_stepsize=1e-3, vf_iters=5,
-                     pretrained_weight=pretrained_weight, reward_giver=reward_giver, expert_dataset=dataset,
-                     save_per_iter=save_per_iter, checkpoint_dir=checkpoint_dir, g_step=g_step, d_step=d_step,
-                     task_name=task_name, using_gail=True)
+                     entcoeff=policy_entcoeff, cg_damping=0.1, vf_stepsize=1e-3, vf_iters=5, _init_setup_model=False)
+
+        # GAIL param
+        model.pretrained_weight = pretrained_weight
+        model.reward_giver = reward_giver
+        model.expert_dataset = dataset
+        model.save_per_iter = save_per_iter
+        model.checkpoint_dir = checkpoint_dir
+        model.g_step = g_step
+        model.d_step = d_step
+        model.task_name = task_name
+        model.using_gail = True
+        model.setup_model()
+
         model.learn(total_timesteps=num_timesteps)
     else:
         raise NotImplementedError

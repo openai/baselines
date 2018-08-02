@@ -13,6 +13,7 @@ from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import conjugate_gradient
 from baselines.a2c.utils import find_trainable_variables
+from baselines.gail.adversary import TransitionClassifier
 # from baselines.gail.statistics import Stats
 
 
@@ -156,13 +157,9 @@ def add_vtarg_and_adv(seg, gamma, lam):
 
 class TRPO(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, lam=0.98,
-                 entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3,
-                 # GAIL Params
-                 pretrained_weight=None, reward_giver=None, expert_dataset=None, save_per_iter=1,
-                 checkpoint_dir="/tmp/gail/ckpt/", g_step=1, d_step=1, task_name="task_name", d_stepsize=3e-4,
-                 using_gail=False, verbose=0, _init_setup_model=True):
+                 entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0, _init_setup_model=True):
         """
-        learns a TRPO or GAIL policy using the given environment
+        learns a TRPO policy using the given environment
 
         :param policy: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
         :param env: (Gym Environment) the environment
@@ -175,41 +172,34 @@ class TRPO(BaseRLModel):
         :param cg_damping: (float) the compute gradient dampening factor
         :param vf_stepsize: (float) the value function stepsize
         :param vf_iters: (int) the value function's number iterations for learning
-        :param pretrained_weight: (str) the save location for the pretrained weights
-        :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
-        :param expert_dataset: (MujocoDset) the dataset manager
-        :param save_per_iter: (int) the number of iterations before saving
-        :param checkpoint_dir: (str) the location for saving checkpoints
-        :param g_step: (int) number of steps to train policy in each epoch
-        :param d_step: (int) number of steps to train discriminator in each epoch
-        :param task_name: (str) the name of the task (can be None)
-        :param d_stepsize: (float) the reward giver stepsize
-        :param using_gail: (bool) using the GAIL model
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(TRPO, self).__init__(env=env, requires_vec_env=False, verbose=verbose)
 
         self.policy = policy
-        self.using_gail = using_gail
+        self.using_gail = False
         self.timesteps_per_batch = timesteps_per_batch
-        self.reward_giver = reward_giver
-        self.pretrained_weight = pretrained_weight
-        self.checkpoint_dir = checkpoint_dir
-        self.task_name = task_name
-        self.save_per_iter = save_per_iter
         self.cg_iters = cg_iters
         self.cg_damping = cg_damping
-        self.g_step = g_step
         self.gamma = gamma
         self.lam = lam
         self.max_kl = max_kl
         self.vf_iters = vf_iters
         self.vf_stepsize = vf_stepsize
-        self.d_step = d_step
-        self.d_stepsize = d_stepsize
-        self.expert_dataset = expert_dataset
         self.entcoeff = entcoeff
+
+        # GAIL Params
+        self.pretrained_weight = None
+        self.hidden_size_adversary = 100
+        self.adversary_entcoeff = 1e-3
+        self.expert_dataset = None
+        self.save_per_iter = 1
+        self.checkpoint_dir = "/tmp/gail/ckpt/"
+        self.g_step = 1
+        self.d_step = 1
+        self.task_name = "task_name"
+        self.d_stepsize = 3e-4
 
         self.graph = None
         self.sess = None
@@ -228,6 +218,7 @@ class TRPO(BaseRLModel):
         self.allmean = None
         self.nworkers = None
         self.rank = None
+        self.reward_giver = None
         self.step = None
         self.proba_step = None
         self.initial_state = None
@@ -246,6 +237,10 @@ class TRPO(BaseRLModel):
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.sess = tf_util.single_threaded_session(graph=self.graph)
+
+                if self.using_gail:
+                    self.reward_giver = TransitionClassifier(self.env, self.hidden_size_adversary,
+                                                             entcoeff=self.adversary_entcoeff)
 
                 # Construct network for new policy
                 with tf.variable_scope("pi", reuse=False):
@@ -283,21 +278,14 @@ class TRPO(BaseRLModel):
                 dist = meankl
 
                 all_var_list = get_trainable_vars("pi")
+                var_list = [v for v in all_var_list if "/vf" not in v.name and "/q/" not in v.name]
+                vf_var_list = [v for v in all_var_list if "/pi" not in v.name and "/logstd" not in v.name]
+                self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
+                self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
+                self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
+
                 if self.using_gail:
-                    var_list = [v for v in all_var_list
-                                if v.name.startswith("pi/pol") or v.name.startswith("pi/logstd")]
-                    vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
-                    assert len(var_list) == len(vf_var_list) + 1
                     self.d_adam = MpiAdam(self.reward_giver.get_trainable_variables())
-                    self.vfadam = MpiAdam(vf_var_list)
-                    self.get_flat = tf_util.GetFlat(var_list)
-                    self.set_from_flat = tf_util.SetFromFlat(var_list)
-                else:
-                    var_list = [v for v in all_var_list if "/vf" not in v.name and "/q/" not in v.name]
-                    vf_var_list = [v for v in all_var_list if "/pi" not in v.name]
-                    self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
-                    self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
-                    self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
 
                 klgrads = tf.gradients(dist, var_list)
                 flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
@@ -357,17 +345,16 @@ class TRPO(BaseRLModel):
                 self.initial_state = self.policy_pi.initial_state
 
                 self.params = find_trainable_variables("pi")
+                if self.using_gail:
+                    self.params.extend(self.reward_giver.get_trainable_variables())
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         with SetVerbosity(self.verbose):
             self._setup_learn(seed)
 
             with self.sess.as_default():
-                if self.using_gail:
-                    seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch,
-                                                     reward_giver=self.reward_giver, gail=True)
-                else:
-                    seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch)
+                seg_gen = traj_segment_generator(self.policy_pi, self.env, self.timesteps_per_batch,
+                                                 reward_giver=self.reward_giver, gail=self.using_gail)
 
                 episodes_so_far = 0
                 timesteps_so_far = 0
@@ -393,16 +380,6 @@ class TRPO(BaseRLModel):
                         callback(locals(), globals())
                     if total_timesteps and timesteps_so_far >= total_timesteps:
                         break
-
-                    # Save model
-                    if (self.using_gail and
-                       self.rank == 0 and
-                       iters_so_far % self.save_per_iter == 0 and
-                       self.checkpoint_dir is not None):
-                        fname = os.path.join(self.checkpoint_dir, self.task_name)
-                        os.makedirs(os.path.dirname(fname), exist_ok=True)
-                        saver = tf.train.Saver()
-                        saver.save(tf.get_default_session(), fname)
 
                     logger.log("********** Iteration %i ************" % iters_so_far)
 

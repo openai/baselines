@@ -3,6 +3,7 @@ import os
 
 import cloudpickle
 import numpy as np
+import gym
 
 from baselines.common import set_global_seeds
 from baselines.common.vec_env import VecEnvWrapper, VecEnv
@@ -238,12 +239,14 @@ class SetVerbosity:
     def __enter__(self):
         self.tf_level = os.environ.get('TF_CPP_MIN_LOG_LEVEL', '0')
         self.log_level = logger.get_level()
+        self.gym_level = gym.logger.MIN_LEVEL
 
         if self.verbose <= 1:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
         if self.verbose <= 0:
             logger.set_level(logger.DISABLED)
+            gym.logger.set_level(gym.logger.DISABLED)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.verbose <= 1:
@@ -251,3 +254,4 @@ class SetVerbosity:
 
         if self.verbose <= 0:
             logger.set_level(self.log_level)
+            gym.logger.set_level(self.gym_level)
