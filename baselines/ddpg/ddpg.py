@@ -1,4 +1,3 @@
-from copy import copy
 from functools import reduce
 import os
 import time
@@ -102,41 +101,21 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
     :param param_noise_stddev: (float) the std of the parameter noise
     :return: (TensorFlow Operation) the update function
     """
-    assert len(get_globals_vars(actor)) == len(get_globals_vars(perturbed_actor))
-    assert len([var for var in get_trainable_vars(actor) if 'LayerNorm' not in var.name]) == \
-        len([var for var in get_trainable_vars(perturbed_actor) if 'LayerNorm' not in var.name])
+    assert len(tf_util.get_globals_vars(actor)) == len(tf_util.get_globals_vars(perturbed_actor))
+    assert len([var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]) == \
+        len([var for var in tf_util.get_trainable_vars(perturbed_actor) if 'LayerNorm' not in var.name])
 
     updates = []
-    for var, perturbed_var in zip(get_globals_vars(actor), get_globals_vars(perturbed_actor)):
-        if var in [var for var in get_trainable_vars(actor) if 'LayerNorm' not in var.name]:
+    for var, perturbed_var in zip(tf_util.get_globals_vars(actor), tf_util.get_globals_vars(perturbed_actor)):
+        if var in [var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]:
             logger.info('  {} <- {} + noise'.format(perturbed_var.name, var.name))
             updates.append(tf.assign(perturbed_var,
                                      var + tf.random_normal(tf.shape(var), mean=0., stddev=param_noise_stddev)))
         else:
             logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
             updates.append(tf.assign(perturbed_var, var))
-    assert len(updates) == len(get_globals_vars(actor))
+    assert len(updates) == len(tf_util.get_globals_vars(actor))
     return tf.group(*updates)
-
-
-def get_trainable_vars(name):
-    """
-    returns the trainable variables
-
-    :param name: (str) the scope
-    :return: ([TensorFlow Variable])
-    """
-    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
-
-
-def get_globals_vars(name):
-    """
-    returns the trainable variables
-
-    :param name: (str) the scope
-    :return: ([TensorFlow Variable])
-    """
-    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
 
 
 class DDPG(BaseRLModel):
@@ -335,8 +314,8 @@ class DDPG(BaseRLModel):
         """
         set the target update operations
         """
-        init_updates, soft_updates = get_target_updates(get_trainable_vars('train'),
-                                                        get_trainable_vars('target'), self.tau)
+        init_updates, soft_updates = get_target_updates(tf_util.get_trainable_vars('train'),
+                                                        tf_util.get_trainable_vars('target'), self.tau)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
 
@@ -368,12 +347,14 @@ class DDPG(BaseRLModel):
         """
         logger.info('setting up actor optimizer')
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
-        actor_shapes = [var.get_shape().as_list() for var in get_trainable_vars('train')]
+        actor_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('train')]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in actor_shapes])
         logger.info('  actor shapes: {}'.format(actor_shapes))
         logger.info('  actor params: {}'.format(actor_nb_params))
-        self.actor_grads = tf_util.flatgrad(self.actor_loss, get_trainable_vars('train'), clip_norm=self.clip_norm)
-        self.actor_optimizer = MpiAdam(var_list=get_trainable_vars('train'), beta1=0.9, beta2=0.999, epsilon=1e-08)
+        self.actor_grads = tf_util.flatgrad(self.actor_loss, tf_util.get_trainable_vars('train'),
+                                            clip_norm=self.clip_norm)
+        self.actor_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('train'), beta1=0.9, beta2=0.999,
+                                       epsilon=1e-08)
 
     def _setup_critic_optimizer(self):
         """
@@ -384,7 +365,7 @@ class DDPG(BaseRLModel):
                                                        self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
-            critic_reg_vars = [var for var in get_trainable_vars('train')
+            critic_reg_vars = [var for var in tf_util.get_trainable_vars('train')
                                if 'bias' not in var.name and 'output' not in var.name and 'b' not in var.name]
             for var in critic_reg_vars:
                 logger.info('  regularizing: {}'.format(var.name))
@@ -394,12 +375,14 @@ class DDPG(BaseRLModel):
                 weights_list=critic_reg_vars
             )
             self.critic_loss += critic_reg
-        critic_shapes = [var.get_shape().as_list() for var in get_trainable_vars('train')]
+        critic_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('train')]
         critic_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in critic_shapes])
         logger.info('  critic shapes: {}'.format(critic_shapes))
         logger.info('  critic params: {}'.format(critic_nb_params))
-        self.critic_grads = tf_util.flatgrad(self.critic_loss, get_trainable_vars('train'), clip_norm=self.clip_norm)
-        self.critic_optimizer = MpiAdam(var_list=get_trainable_vars('train'), beta1=0.9, beta2=0.999, epsilon=1e-08)
+        self.critic_grads = tf_util.flatgrad(self.critic_loss, tf_util.get_trainable_vars('train'),
+                                             clip_norm=self.clip_norm)
+        self.critic_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('train'), beta1=0.9, beta2=0.999,
+                                        epsilon=1e-08)
 
     def _setup_popart(self):
         """
@@ -414,8 +397,8 @@ class DDPG(BaseRLModel):
         new_mean = self.ret_rms.mean
 
         self.renormalize_q_outputs_op = []
-        for out_vars in [[var for var in get_trainable_vars('train') if 'output' in var.name],
-                         [var for var in get_trainable_vars('target') if 'output' in var.name]]:
+        for out_vars in [[var for var in tf_util.get_trainable_vars('train') if 'output' in var.name],
+                         [var for var in tf_util.get_trainable_vars('target') if 'output' in var.name]]:
             assert len(out_vars) == 2
             # wieght and bias of the last layer
             weight, bias = out_vars
@@ -508,7 +491,7 @@ class DDPG(BaseRLModel):
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
-    def train_step(self):
+    def _train_step(self):
         """
         run a step of training from batch
 
@@ -561,7 +544,7 @@ class DDPG(BaseRLModel):
         self.critic_optimizer.sync()
         self.sess.run(self.target_init_updates)
 
-    def update_target_net(self):
+    def _update_target_net(self):
         """
         run target soft update operation
         """
@@ -724,10 +707,10 @@ class DDPG(BaseRLModel):
                                 distance = self._adapt_param_noise()
                                 epoch_adaptive_distances.append(distance)
 
-                            critic_loss, actor_loss = self.train_step()
+                            critic_loss, actor_loss = self._train_step()
                             epoch_critic_losses.append(critic_loss)
                             epoch_actor_losses.append(actor_loss)
-                            self.update_target_net()
+                            self._update_target_net()
 
                         # Evaluate.
                         eval_episode_rewards = []

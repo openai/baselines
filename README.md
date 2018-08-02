@@ -6,7 +6,9 @@ OpenAI Baselines is a set of high-quality implementations of reinforcement learn
 
 These algorithms will make it easier for the research community to replicate, refine, and identify new ideas, and will create good baselines to build research on top of. Our DQN implementation and its variants are roughly on par with the scores in published papers. We expect they will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. 
 
-## Implemented Algorithms
+## Usage
+
+### Implemented Algorithms
 
 | **Name** | **refactored**<sup>(1)</sup> | **Reccurent**      | **Actions** ```Box``` |  **Actions** ```Discrete``` |  **Actions** ```MultiDiscrete``` |  **Actions** ```MultiBinary```|
 | -------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- |
@@ -16,7 +18,7 @@ These algorithms will make it easier for the research community to replicate, re
 | DDPG     | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
 | DeepQ    | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           |
 | GAIL     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| HER      | :x: <sup>(2)</sup>           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
+| HER      | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
 | PPO1     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | PPO2     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | TRPO     | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
@@ -29,6 +31,115 @@ Actions ```gym.spaces```:
  * ```Discrete```: A list of possible actions, where each timestep only one of the actions can be used.
  * ```MultiDiscrete```: A list of possible actions, where each timestep only one action of each discrete set can be used.
  * ```MultiBinary```: A list of possible actions, where each timestep any of the actions can be used in any combination.
+
+### Examples
+
+here are a few barebones examples of how to use this library:
+
+ACKTR with ```CartPole-v0```:
+```python
+import gym
+
+from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
+    CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.acktr import ACKTR
+
+env = gym.make('CartPole-v0')
+env = DummyVecEnv([lambda: env])
+
+model = ACKTR(MlpPolicy, env, gamma=0.5, verbose=1)
+model.learn(25000)
+model.save("ppo2_env")
+
+obs = env.reset()
+while True:
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
+```
+
+A2C with ```Breakout-v0```:
+```python
+import gym
+
+from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
+    CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.a2c import A2C
+
+env = gym.make('Breakout-v0')
+env = DummyVecEnv([lambda: env])
+
+model = A2C(CnnPolicy, env, verbose=1)
+model.learn(25000)
+model.save("a2c_env")
+
+obs = env.reset()
+while True:
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
+```
+
+DeepQ with ```MsPacman-v0```:
+```python
+import gym
+
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.deepq import DeepQ, models
+
+env = gym.make('MsPacman-v0')
+env = DummyVecEnv([lambda: env])
+
+# Here deepq does not use the standard Actor-Critic policies
+model = DeepQ(models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[64]), env, verbose=1)
+model.learn(5000)
+model.save("deepq_env")
+
+obs = env.reset()
+while True:
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
+```
+
+
+You can also move from one environment to an other for continuous learning (PPO2 on ```DemonAttack-v0```,  then transfered on ```SpaceInvaders-v0```):
+```python
+import gym
+
+from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
+    CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.ppo2 import PPO2
+
+env = gym.make('DemonAttack-v0')
+env = DummyVecEnv([lambda: env])
+
+model = PPO2(CnnPolicy, env, verbose=1)
+model.learn(10000)
+
+obs = env.reset()
+for i in range(1000):
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
+    
+
+env = gym.make('SpaceInvaders-v0')
+env = DummyVecEnv([lambda: env])
+
+# change env
+model.set_env(env)
+model.learn(10000)
+
+obs = env.reset()
+while True:
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
+```
 
 ## Prerequisites 
 Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows

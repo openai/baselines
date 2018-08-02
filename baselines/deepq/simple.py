@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 from baselines import logger, deepq
-from baselines.common import tf_util, BaseRLModel
+from baselines.common import tf_util, BaseRLModel, SetVerbosity
 from baselines.common.schedules import LinearSchedule
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
@@ -88,129 +88,130 @@ class DeepQ(BaseRLModel):
             self.setup_model()
 
     def setup_model(self):
-        super().setup_model()
+        with SetVerbosity(self.verbose):
 
-        self.graph = tf.Graph()
-        with self.graph.as_default():
-            self.sess = tf_util.make_session(graph=self.graph)
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                self.sess = tf_util.make_session(graph=self.graph)
 
-            # capture the shape outside the closure so that the env object is not serialized
-            # by cloudpickle when serializing make_obs_ph
-            observation_space = self.observation_space
+                # capture the shape outside the closure so that the env object is not serialized
+                # by cloudpickle when serializing make_obs_ph
+                observation_space = self.observation_space
 
-            def make_obs_ph(name):
-                """
-                makes the observation placeholder
+                def make_obs_ph(name):
+                    """
+                    makes the observation placeholder
 
-                :param name: (str) the placeholder name
-                :return: (TensorFlow Tensor) the placeholder
-                """
-                return ObservationInput(observation_space, name=name)
+                    :param name: (str) the placeholder name
+                    :return: (TensorFlow Tensor) the placeholder
+                    """
+                    return ObservationInput(observation_space, name=name)
 
-            self.act, self._train_step, self.update_target, _ = deepq.build_train(
-                make_obs_ph=make_obs_ph,
-                q_func=self.policy,
-                num_actions=self.action_space.n,
-                optimizer=tf.train.AdamOptimizer(learning_rate=self.learning_rate),
-                gamma=self.gamma,
-                grad_norm_clipping=10,
-                param_noise=self.param_noise
-            )
+                self.act, self._train_step, self.update_target, _ = deepq.build_train(
+                    make_obs_ph=make_obs_ph,
+                    q_func=self.policy,
+                    num_actions=self.action_space.n,
+                    optimizer=tf.train.AdamOptimizer(learning_rate=self.learning_rate),
+                    gamma=self.gamma,
+                    grad_norm_clipping=10,
+                    param_noise=self.param_noise
+                )
 
-            self.params = find_trainable_variables("deepq")
+                self.params = find_trainable_variables("deepq")
 
-            # Initialize the parameters and copy them to the target network.
-            tf_util.initialize(self.sess)
-            self.update_target(sess=self.sess)
-
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        self._setup_learn(seed)
-
-        # Create the replay buffer
-        if self.prioritized_replay:
-            self.replay_buffer = PrioritizedReplayBuffer(self.buffer_size, alpha=self.prioritized_replay_alpha)
-            if self.prioritized_replay_beta_iters is None:
-                prioritized_replay_beta_iters = total_timesteps
-                self.beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
-                                                    initial_p=self.prioritized_replay_beta0,
-                                                    final_p=1.0)
-        else:
-            self.replay_buffer = ReplayBuffer(self.buffer_size)
-            self.beta_schedule = None
-        # Create the schedule for exploration starting from 1.
-        self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
-                                          initial_p=1.0,
-                                          final_p=self.exploration_final_eps)
-
-        episode_rewards = [0.0]
-        obs = self.env.reset()
-        reset = True
-
-        for step in range(total_timesteps):
-            if callback is not None:
-                callback(locals(), globals())
-            # Take action and update exploration to the newest value
-            kwargs = {}
-            if not self.param_noise:
-                update_eps = self.exploration.value(step)
-                update_param_noise_threshold = 0.
-            else:
-                update_eps = 0.
-                # Compute the threshold such that the KL divergence between perturbed and non-perturbed
-                # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
-                # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
-                # for detailed explanation.
-                update_param_noise_threshold = \
-                    -np.log(1. - self.exploration.value(step) +
-                            self.exploration.value(step) / float(self.env.action_space.n))
-                kwargs['reset'] = reset
-                kwargs['update_param_noise_threshold'] = update_param_noise_threshold
-                kwargs['update_param_noise_scale'] = True
-            with self.sess.as_default():
-                action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
-            env_action = action
-            reset = False
-            new_obs, rew, done, _ = self.env.step(env_action)
-            # Store transition in the replay buffer.
-            self.replay_buffer.add(obs, action, rew, new_obs, float(done))
-            obs = new_obs
-
-            episode_rewards[-1] += rew
-            if done:
-                obs = self.env.reset()
-                episode_rewards.append(0.0)
-                reset = True
-
-            if step > self.learning_starts and step % self.train_freq == 0:
-                # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                if self.prioritized_replay:
-                    experience = self.replay_buffer.sample(self.batch_size, beta=self.beta_schedule.value(step))
-                    (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
-                else:
-                    obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
-                    weights, batch_idxes = np.ones_like(rewards), None
-                td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
-                                             sess=self.sess)
-                if self.prioritized_replay:
-                    new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
-                    self.replay_buffer.update_priorities(batch_idxes, new_priorities)
-
-            if step > self.learning_starts and step % self.target_network_update_freq == 0:
-                # Update target network periodically.
+                # Initialize the parameters and copy them to the target network.
+                tf_util.initialize(self.sess)
                 self.update_target(sess=self.sess)
 
-            if len(episode_rewards[-101:-1]) == 0:
-                mean_100ep_reward = -np.inf
-            else:
-                mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
+        with SetVerbosity(self.verbose):
+            self._setup_learn(seed)
 
-            num_episodes = len(episode_rewards)
-            if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
-                logger.record_tabular("steps", step)
-                logger.record_tabular("episodes", num_episodes)
-                logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
-                logger.record_tabular("% time spent exploring", int(100 * self.exploration.value(step)))
-                logger.dump_tabular()
+            # Create the replay buffer
+            if self.prioritized_replay:
+                self.replay_buffer = PrioritizedReplayBuffer(self.buffer_size, alpha=self.prioritized_replay_alpha)
+                if self.prioritized_replay_beta_iters is None:
+                    prioritized_replay_beta_iters = total_timesteps
+                    self.beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+                                                        initial_p=self.prioritized_replay_beta0,
+                                                        final_p=1.0)
+            else:
+                self.replay_buffer = ReplayBuffer(self.buffer_size)
+                self.beta_schedule = None
+            # Create the schedule for exploration starting from 1.
+            self.exploration = LinearSchedule(schedule_timesteps=int(self.exploration_fraction * total_timesteps),
+                                              initial_p=1.0,
+                                              final_p=self.exploration_final_eps)
+
+            episode_rewards = [0.0]
+            obs = self.env.reset()
+            reset = True
+
+            for step in range(total_timesteps):
+                if callback is not None:
+                    callback(locals(), globals())
+                # Take action and update exploration to the newest value
+                kwargs = {}
+                if not self.param_noise:
+                    update_eps = self.exploration.value(step)
+                    update_param_noise_threshold = 0.
+                else:
+                    update_eps = 0.
+                    # Compute the threshold such that the KL divergence between perturbed and non-perturbed
+                    # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
+                    # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
+                    # for detailed explanation.
+                    update_param_noise_threshold = \
+                        -np.log(1. - self.exploration.value(step) +
+                                self.exploration.value(step) / float(self.env.action_space.n))
+                    kwargs['reset'] = reset
+                    kwargs['update_param_noise_threshold'] = update_param_noise_threshold
+                    kwargs['update_param_noise_scale'] = True
+                with self.sess.as_default():
+                    action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+                env_action = action
+                reset = False
+                new_obs, rew, done, _ = self.env.step(env_action)
+                # Store transition in the replay buffer.
+                self.replay_buffer.add(obs, action, rew, new_obs, float(done))
+                obs = new_obs
+
+                episode_rewards[-1] += rew
+                if done:
+                    obs = self.env.reset()
+                    episode_rewards.append(0.0)
+                    reset = True
+
+                if step > self.learning_starts and step % self.train_freq == 0:
+                    # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
+                    if self.prioritized_replay:
+                        experience = self.replay_buffer.sample(self.batch_size, beta=self.beta_schedule.value(step))
+                        (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
+                    else:
+                        obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
+                        weights, batch_idxes = np.ones_like(rewards), None
+                    td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
+                                                 sess=self.sess)
+                    if self.prioritized_replay:
+                        new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
+                        self.replay_buffer.update_priorities(batch_idxes, new_priorities)
+
+                if step > self.learning_starts and step % self.target_network_update_freq == 0:
+                    # Update target network periodically.
+                    self.update_target(sess=self.sess)
+
+                if len(episode_rewards[-101:-1]) == 0:
+                    mean_100ep_reward = -np.inf
+                else:
+                    mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
+
+                num_episodes = len(episode_rewards)
+                if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
+                    logger.record_tabular("steps", step)
+                    logger.record_tabular("episodes", num_episodes)
+                    logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
+                    logger.record_tabular("% time spent exploring", int(100 * self.exploration.value(step)))
+                    logger.dump_tabular()
 
         return self
 

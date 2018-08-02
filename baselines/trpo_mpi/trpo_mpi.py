@@ -1,5 +1,4 @@
 import time
-import os
 from contextlib import contextmanager
 from collections import deque
 
@@ -13,146 +12,8 @@ from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import conjugate_gradient
 from baselines.a2c.utils import find_trainable_variables
-from baselines.gail.adversary import TransitionClassifier
+from baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
 # from baselines.gail.statistics import Stats
-
-
-def get_trainable_vars(name):
-    """
-    returns the trainable variables
-
-    :param name: (str) the scope
-    :return: ([TensorFlow Variable])
-    """
-    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
-
-
-def get_globals_vars(name):
-    """
-    returns the trainable variables
-
-    :param name: (str) the scope
-    :return: ([TensorFlow Variable])
-    """
-    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
-
-
-def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
-    """
-    Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
-
-    :param policy: (MLPPolicy) the policy
-    :param env: (Gym Environment) the environment
-    :param horizon: (int) the number of timesteps to run per batch
-    :param reward_giver: (TransitionClassifier) the reward predicter from obsevation and action
-    :param gail: (bool) Whether we are using this generator for standard trpo or with gail
-    :return: (dict) generator that returns a dict with the following keys:
-
-        - ob: (numpy Number) observations
-        - rew: (numpy float) rewards (if gail is used it is the predicted reward)
-        - vpred: (numpy float) action logits
-        - new: (numpy bool) dones (is end of episode)
-        - ac: (numpy Number) actions
-        - prevac: (numpy Number) previous actions
-        - nextvpred: (numpy float) next action logits
-        - ep_rets: (float) cumulated current episode reward
-        - ep_lens: (int) the length of the current episode
-        - ep_true_rets: (float) the real environment reward
-    """
-    # Check when using GAIL
-    assert not (gail and reward_giver is None), "You must pass a reward giver when using GAIL"
-
-    # Initialize state variables
-    step = 0
-    action = env.action_space.sample()  # not used, just so we have the datatype
-    new = True
-    observation = env.reset()
-
-    cur_ep_ret = 0  # return in current episode
-    cur_ep_len = 0  # len of current episode
-    cur_ep_true_ret = 0
-    ep_true_rets = []
-    ep_rets = []  # returns of completed episodes in this segment
-    ep_lens = []  # Episode lengths
-
-    # Initialize history arrays
-    observations = np.array([observation for _ in range(horizon)])
-    true_rews = np.zeros(horizon, 'float32')
-    rews = np.zeros(horizon, 'float32')
-    vpreds = np.zeros(horizon, 'float32')
-    news = np.zeros(horizon, 'int32')
-    actions = np.array([action for _ in range(horizon)])
-    prev_actions = actions.copy()
-    states = policy.initial_state
-    done = None
-
-    while True:
-        prevac = action
-        action, vpred, states, _ = policy.step(observation.reshape(-1, *observation.shape), states, done)
-        # Slight weirdness here because we need value function at time T
-        # before returning segment [0, T-1] so we get the correct
-        # terminal value
-        if step > 0 and step % horizon == 0:
-            yield {"ob": observations, "rew": rews, "vpred": vpreds, "new": news,
-                   "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
-                   "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets,
-                   "total_timestep": sum(ep_lens) + cur_ep_len}
-            _, vpred, _, _ = policy.step(observation.reshape(-1, *observation.shape))
-            # Be careful!!! if you change the downstream algorithm to aggregate
-            # several of these batches, then be sure to do a deepcopy
-            ep_rets = []
-            ep_true_rets = []
-            ep_lens = []
-        i = step % horizon
-        observations[i] = observation
-        vpreds[i] = vpred[0]
-        news[i] = new
-        actions[i] = action[0]
-        prev_actions[i] = prevac
-
-        if gail:
-            rew = reward_giver.get_reward(observation, action[0])
-            observation, true_rew, new, done = env.step(action[0])
-        else:
-            observation, rew, new, done = env.step(action[0])
-            true_rew = rew
-        rews[i] = rew
-        true_rews[i] = true_rew
-
-        cur_ep_ret += rew
-        cur_ep_true_ret += true_rew
-        cur_ep_len += 1
-        if new:
-            ep_rets.append(cur_ep_ret)
-            ep_true_rets.append(cur_ep_true_ret)
-            ep_lens.append(cur_ep_len)
-            cur_ep_ret = 0
-            cur_ep_true_ret = 0
-            cur_ep_len = 0
-            observation = env.reset()
-        step += 1
-
-
-def add_vtarg_and_adv(seg, gamma, lam):
-    """
-    Compute target value using TD(lambda) estimator, and advantage with GAE(lambda)
-
-    :param seg: (dict) the current segment of the trajectory (see traj_segment_generator return for more information)
-    :param gamma: (float) Discount factor
-    :param lam: (float) GAE factor
-    """
-    # last element is only used for last vtarg, but we already zeroed it if last new = 1
-    new = np.append(seg["new"], 0)
-    vpred = np.append(seg["vpred"], seg["nextvpred"])
-    rew_len = len(seg["rew"])
-    seg["adv"] = gaelam = np.empty(rew_len, 'float32')
-    rew = seg["rew"]
-    lastgaelam = 0
-    for step in reversed(range(rew_len)):
-        nonterminal = 1 - new[step + 1]
-        delta = rew[step] + gamma * vpred[step + 1] * nonterminal - vpred[step]
-        gaelam[step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
-    seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 
 class TRPO(BaseRLModel):
@@ -228,6 +89,9 @@ class TRPO(BaseRLModel):
             self.setup_model()
 
     def setup_model(self):
+        # prevent import loops
+        from baselines.gail.adversary import TransitionClassifier
+
         with SetVerbosity(self.verbose):
 
             self.nworkers = MPI.COMM_WORLD.Get_size()
@@ -277,7 +141,7 @@ class TRPO(BaseRLModel):
 
                 dist = meankl
 
-                all_var_list = get_trainable_vars("pi")
+                all_var_list = tf_util.get_trainable_vars("pi")
                 var_list = [v for v in all_var_list if "/vf" not in v.name and "/q/" not in v.name]
                 vf_var_list = [v for v in all_var_list if "/pi" not in v.name and "/logstd" not in v.name]
                 self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
@@ -301,8 +165,8 @@ class TRPO(BaseRLModel):
                 fvp = tf_util.flatgrad(gvp, var_list)
 
                 self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                                                           zipsame(get_globals_vars("oldpi"),
-                                                                                   get_globals_vars("pi"))])
+                                                                           zipsame(tf_util.get_globals_vars("oldpi"),
+                                                                                   tf_util.get_globals_vars("pi"))])
                 self.compute_losses = tf_util.function([observation, old_policy.obs_ph, action, atarg], losses)
                 self.compute_lossandgrad = tf_util.function([observation, old_policy.obs_ph, action, atarg],
                                                             losses + [tf_util.flatgrad(optimgain, var_list)])
@@ -373,7 +237,8 @@ class TRPO(BaseRLModel):
 
                     # if provide pretrained weight
                     if self.pretrained_weight is not None:
-                        tf_util.load_state(self.pretrained_weight, var_list=get_globals_vars("pi"), sess=self.sess)
+                        tf_util.load_state(self.pretrained_weight, var_list=tf_util.get_globals_vars("pi"),
+                                           sess=self.sess)
 
                 while True:
                     if callback:
@@ -582,13 +447,3 @@ class TRPO(BaseRLModel):
         model.sess.run(restores)
 
         return model
-
-
-def flatten_lists(listoflists):
-    """
-    Flatten a python list of list
-
-    :param listoflists: (list(list))
-    :return: (list)
-    """
-    return [el for list_ in listoflists for el in list_]

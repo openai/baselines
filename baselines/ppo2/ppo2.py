@@ -226,7 +226,7 @@ class PPO2(BaseRLModel):
                 if callback is not None:
                     callback(locals(), globals())
 
-                if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
+                if self.verbose >= 1 and (update % log_interval//100 == 0 or update == 1):
                     explained_var = explained_variance(values, returns)
                     logger.logkv("serial_timesteps", update * self.n_steps)
                     logger.logkv("nupdates", update)

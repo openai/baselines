@@ -11,27 +11,7 @@ import baselines.common.tf_util as tf_util
 from baselines.common.policies import LstmPolicy
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.mpi_moments import mpi_moments
-from baselines.trpo_mpi.trpo_mpi import traj_segment_generator, add_vtarg_and_adv, flatten_lists
-
-
-def get_trainable_vars(name):
-    """
-    returns the trainable variables
-
-    :param name: (str) the scope
-    :return: ([TensorFlow Variable])
-    """
-    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
-
-
-def get_globals_vars(name):
-    """
-    returns the trainable variables
-
-    :param name: (str) the scope
-    :return: ([TensorFlow Variable])
-    """
-    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+from baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
 
 
 class PPO1(BaseRLModel):
@@ -140,14 +120,14 @@ class PPO1(BaseRLModel):
                 losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
                 self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
-                self.params = get_trainable_vars("pi")
+                self.params = tf_util.get_trainable_vars("pi")
                 self.lossandgrad = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
                                                     losses + [tf_util.flatgrad(total_loss, self.params)])
                 self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
 
                 self.assign_old_eq_new = tf_util.function(
                     [], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                     zipsame(get_globals_vars("oldpi"), get_globals_vars("pi"))])
+                                     zipsame(tf_util.get_globals_vars("oldpi"), tf_util.get_globals_vars("pi"))])
                 self.compute_losses = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult], losses)
 
                 self.step = self.policy_pi.step

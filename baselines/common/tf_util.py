@@ -478,3 +478,27 @@ def save_state(fname, sess=None, var_list=None):
 
     saver = tf.train.Saver(var_list=var_list)
     saver.save(sess, fname)
+
+
+# ================================================================
+# retrieving variables
+# ================================================================
+
+def get_trainable_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+
+
+def get_globals_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)

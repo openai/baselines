@@ -24,7 +24,8 @@ def nature_cnn(unscaled_images, **kwargs):
 
 
 class ActorCriticPolicy(object):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, goal_shape=None,
+                 reuse=False):
         """
         Policy object that implements actor critic
 
@@ -36,6 +37,7 @@ class ActorCriticPolicy(object):
         :param n_batch: (int) The number of batch to run (n_envs * n_steps)
         :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
         :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param goal_shape: ([int]) the shape for the goal (None for no goal)
         :param reuse: (bool) If the policy is reusable or not
         """
         self.n_env = n_env
