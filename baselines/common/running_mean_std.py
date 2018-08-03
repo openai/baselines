@@ -155,6 +155,8 @@ def profile_tf_runningmeanstd():
     for _ in range(n_trials):
         z2 = tfrms.mean
 
+    assert z1 == z2
+
     tic3 = time.time()
 
     print('rms get mean time ({} trials): {} s'.format(n_trials, tic2 - tic1))
