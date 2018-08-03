@@ -13,12 +13,12 @@ These algorithms will make it easier for the research community to replicate, re
 | **Name**            | **refactored**<sup>(1)</sup> | **Reccurent**      | **Actions** ```Box``` |  **Actions** ```Discrete``` |  **Actions** ```MultiDiscrete``` |  **Actions** ```MultiBinary```|
 | ------------------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- |
 | A2C                 | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| ACER                | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x: <sup>(4)</sup>               | :x: <sup>(4)</sup>            |
-| ACKTR               | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x: <sup>(4)</sup>               | :x: <sup>(4)</sup>            |
+| ACER                | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           |
+| ACKTR               | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           |
 | DDPG                | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
 | DeepQ               | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           |
 | GAIL <sup>(2)</sup> | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| HER <sup>(3)</sup>  | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
+| HER <sup>(3)</sup>  | :x:                          | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
 | PPO1                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | PPO2                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
 | TRPO                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |

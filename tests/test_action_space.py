@@ -1,9 +1,6 @@
 import pytest
-import profile
 
 from baselines.a2c import A2C
-from baselines.acer import ACER
-from baselines.acktr import ACKTR
 from baselines.ppo1 import PPO1
 from baselines.ppo2 import PPO2
 from baselines.trpo_mpi import TRPO
@@ -11,10 +8,8 @@ from baselines.common.identity_env import IdentityEnvMultiBinary, IdentityEnvMul
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.policies import MlpPolicy
 
-model_func_list = [
+MODEL_FUNC_LIST = [
     lambda e: A2C(policy=MlpPolicy, env=e),
-    #lambda e: ACER(policy=MlpPolicy, env=e),
-    #lambda e: ACKTR(policy=MlpPolicy, env=e),
     lambda e: PPO1(policy=MlpPolicy, env=e),
     lambda e: PPO2(policy=MlpPolicy, env=e),
     lambda e: TRPO(policy=MlpPolicy, env=e),
@@ -22,7 +17,7 @@ model_func_list = [
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_func", model_func_list)
+@pytest.mark.parametrize("model_func", MODEL_FUNC_LIST)
 def test_identity_multidiscrete(model_func):
     """
     Test if the algorithm (with a given policy)
@@ -46,7 +41,7 @@ def test_identity_multidiscrete(model_func):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_func", model_func_list)
+@pytest.mark.parametrize("model_func", MODEL_FUNC_LIST)
 def test_identity_multibinary(model_func):
     """
     Test if the algorithm (with a given policy)

@@ -92,7 +92,6 @@ class ACKTR(BaseRLModel):
             with self.graph.as_default():
                 self.sess = tf_util.make_session(num_cpu=self.nprocs, graph=self.graph)
 
-                self.action_ph = action_ph = tf.placeholder(tf.int32, [self.n_batch])
                 self.advs_ph = advs_ph = tf.placeholder(tf.float32, [self.n_batch])
                 self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [self.n_batch])
                 self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
@@ -102,6 +101,8 @@ class ACKTR(BaseRLModel):
                 self.model2 = train_model = self.policy(self.sess, self.observation_space, self.action_space,
                                                         self.n_envs, self.n_steps, self.n_envs * self.n_steps,
                                                         reuse=True)
+
+                self.action_ph = action_ph = train_model.pdtype.sample_placeholder([self.n_batch])
 
                 logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
                 self.logits = train_model.policy

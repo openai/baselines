@@ -141,8 +141,13 @@ class ACER(BaseRLModel):
 
             if isinstance(self.action_space, Discrete):
                 self.n_act = self.action_space.n
+                continuous = False
+            elif isinstance(self.action_space, Box):
+                # self.n_act = self.action_space.shape[-1]
+                # continuous = True
+                raise NotImplementedError("WIP: Acer does not support Continuous actions yet.")
             else:
-                self.n_act = self.action_space.shape[-1]
+                raise ValueError("Error: ACER does not work with {} actions space.".format(self.action_space))
 
             self.n_batch = self.n_envs * self.n_steps
 
@@ -150,7 +155,6 @@ class ACER(BaseRLModel):
             with self.graph.as_default():
                 self.sess = tf_util.make_session(num_cpu=self.num_procs, graph=self.graph)
 
-                self.action_ph = tf.placeholder(tf.int32, [self.n_batch])  # actions
                 self.done_ph = tf.placeholder(tf.float32, [self.n_batch])  # dones
                 self.reward_ph = tf.placeholder(tf.float32, [self.n_batch])  # rewards, not returns
                 self.mu_ph = tf.placeholder(tf.float32, [self.n_batch, self.n_act])  # mu's
@@ -162,6 +166,8 @@ class ACER(BaseRLModel):
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
                                           self.n_steps + 1, self.n_envs * (self.n_steps + 1), n_stack=self.n_stack,
                                           reuse=True)
+
+                self.action_ph = train_model.pdtype.sample_placeholder([self.n_batch])
 
                 self.params = find_trainable_variables("model")
 
@@ -182,35 +188,67 @@ class ACER(BaseRLModel):
                 # Notation: (var) = batch variable, (var)s = sequence variable,
                 # (var)_i = variable index by action at step i
                 # shape is [n_envs * (n_steps + 1)]
-                value = tf.reduce_sum(train_model.policy_proba * train_model.q_value, axis=-1)
+                if continuous:
+                    value = train_model.value_fn[:, 0]
+                else:
+                    value = tf.reduce_sum(train_model.policy_proba * train_model.q_value, axis=-1)
 
-                # strip off last step
-                # f is a distribution, chosen to be Gaussian distributions
-                # with fixed diagonal covariance and mean \phi(x)
-                # in the paper
-                distribution_f, f_polyak, q_value = \
-                    map(lambda variables: strip(variables, self.n_envs, self.n_steps),
-                        [train_model.policy_proba, polyak_model.policy_proba, train_model.q_value])
+                rho, rho_i_ = None, None
+                if continuous:
+                    action_ = strip(train_model.proba_distribution.sample(), self.n_envs, self.n_steps)
+                    distribution_f = tf.contrib.distributions.MultivariateNormalDiag(
+                        loc=strip(train_model.proba_distribution.mean, self.n_envs, self.n_steps),
+                        scale_diag=strip(train_model.proba_distribution.logstd, self.n_envs, self.n_steps))
+                    f_polyak = tf.contrib.distributions.MultivariateNormalDiag(
+                        loc=strip(polyak_model.proba_distribution.mean, self.n_envs, self.n_steps),
+                        scale_diag=strip(polyak_model.proba_distribution.logstd, self.n_envs, self.n_steps))
 
-                # Get pi and q values for actions taken
-                f_i = get_by_index(distribution_f, self.action_ph)
-                q_i = get_by_index(q_value, self.action_ph)
+                    f_i = distribution_f.prob(self.action_ph)
+                    f_i_ = distribution_f.prob(action_)
+                    f_polyak_i = f_polyak.prob(self.action_ph)
+                    phi_i = strip(train_model.proba_distribution.mean, self.n_envs, self.n_steps)
 
-                # Compute ratios for importance truncation
-                rho = distribution_f / (self.mu_ph + eps)
-                rho_i = get_by_index(rho, self.action_ph)
+                    q_value = strip(train_model.value_fn, self.n_envs, self.n_steps)
+                    q_i = q_value[:, 0]
 
-                # Calculate Q_retrace targets
-                qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_envs, self.n_steps, self.gamma)
+                    rho_i = tf.reshape(f_i, [-1, 1]) / (self.mu_ph + eps)
+                    rho_i_ = tf.reshape(f_i_, [-1, 1]) / (self.mu_ph + eps)
+
+                    qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, tf.pow(rho_i, 1/self.n_act), self.n_envs,
+                                     self.n_steps, self.gamma)
+                else:
+                    # strip off last step
+                    # f is a distribution, chosen to be Gaussian distributions
+                    # with fixed diagonal covariance and mean \phi(x)
+                    # in the paper
+                    distribution_f, f_polyak, q_value = \
+                        map(lambda variables: strip(variables, self.n_envs, self.n_steps),
+                            [train_model.policy_proba, polyak_model.policy_proba, train_model.q_value])
+
+                    # Get pi and q values for actions taken
+                    f_i = get_by_index(distribution_f, self.action_ph)
+                    f_i_ = distribution_f
+                    phi_i = distribution_f
+                    f_polyak_i = f_polyak
+
+                    q_i = get_by_index(q_value, self.action_ph)
+
+                    # Compute ratios for importance truncation
+                    rho = distribution_f / (self.mu_ph + eps)
+                    rho_i = get_by_index(rho, self.action_ph)
+
+                    # Calculate Q_retrace targets
+                    qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, rho_i, self.n_envs, self.n_steps,
+                                     self.gamma)
 
                 # Calculate losses
                 # Entropy
-                entropy = tf.reduce_mean(calc_entropy_softmax(distribution_f))
+                entropy = tf.reduce_sum(train_model.proba_distribution.entropy())
 
                 # Policy Gradient loss, with truncated importance sampling & bias correction
                 value = strip(value, self.n_envs, self.n_steps, True)
-                check_shape([qret, value, rho_i, f_i], [[self.n_envs * self.n_steps]] * 4)
-                check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.n_act]] * 2)
+                # check_shape([qret, value, rho_i, f_i], [[self.n_envs * self.n_steps]] * 4)
+                # check_shape([rho, distribution_f, q_value], [[self.n_envs * self.n_steps, self.n_act]] * 2)
 
                 # Truncated importance sampling
                 adv = qret - value
@@ -220,14 +258,20 @@ class ACER(BaseRLModel):
 
                 # Bias correction for the truncation
                 adv_bc = (q_value - tf.reshape(value, [self.n_envs * self.n_steps, 1]))  # [n_envs * n_steps, n_act]
-                log_f_bc = tf.log(distribution_f + eps)  # / (f_old + eps)
-                check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
-                gain_bc = tf.reduce_sum(log_f_bc *
-                                        tf.stop_gradient(
-                                            adv_bc *
-                                            tf.nn.relu(1.0 - (self.correction_term / (rho + eps))) *
-                                            distribution_f),
-                                        axis=1)
+
+                # check_shape([adv_bc, log_f_bc], [[self.n_envs * self.n_steps, self.n_act]] * 2)
+                if continuous:
+                    gain_bc = tf.stop_gradient(adv_bc *
+                                               tf.nn.relu(1.0 - (self.correction_term / (rho_i_ + eps))) *
+                                               f_i_)
+                else:
+                    log_f_bc = tf.log(f_i_ + eps)  # / (f_old + eps)
+                    gain_bc = tf.reduce_sum(log_f_bc *
+                                            tf.stop_gradient(
+                                                adv_bc *
+                                                tf.nn.relu(1.0 - (self.correction_term / (rho + eps))) *
+                                                f_i_),
+                                            axis=1)
                 # IMP: This is sum, as expectation wrt f
                 loss_bc = -tf.reduce_mean(gain_bc)
 
@@ -248,9 +292,10 @@ class ACER(BaseRLModel):
                 if self.trust_region:
                     # [n_envs * n_steps, n_act]
                     grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs,
-                                        distribution_f)
+                                        phi_i)
+                    print(grad)
                     # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
-                    kl_grad = - f_polyak / (distribution_f + eps)
+                    kl_grad = - f_polyak_i / (f_i_ + eps)
                     k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
                     adj = tf.maximum(0.0, (tf.reduce_sum(kl_grad * grad, axis=-1) - self.delta) / (
                             tf.reduce_sum(tf.square(kl_grad), axis=-1) + eps))  # [n_envs * n_steps]
@@ -264,7 +309,7 @@ class ACER(BaseRLModel):
                     grad = grad - tf.reshape(adj, [self.n_envs * self.n_steps, 1]) * kl_grad
                     # These are turst region adjusted gradients wrt f ie statistics of policy pi
                     grads_f = -grad / (self.n_envs * self.n_steps)
-                    grads_policy = tf.gradients(distribution_f, self.params, grads_f)
+                    grads_policy = tf.gradients(f_i_, self.params, grads_f)
                     grads_q = tf.gradients(loss_q * self.q_coef, self.params)
                     grads = [gradient_add(g1, g2, param, verbose=self.verbose)
                              for (g1, g2, param) in zip(grads_policy, grads_q, self.params)]
