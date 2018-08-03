@@ -19,7 +19,6 @@ learn_kwargs = {
     'trpo_mpi': {}
 }
 
-
 @pytest.mark.slow
 @pytest.mark.parametrize("alg", learn_kwargs.keys())
 def test_cartpole(alg):
@@ -39,7 +38,3 @@ def test_cartpole(alg):
         return env
 
     reward_per_episode_test(env_fn, learn_fn, 100)
-    
-
-if __name__ == '__main__':
-    test_cartpole('a2c')
