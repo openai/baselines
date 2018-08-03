@@ -69,8 +69,8 @@ def evaluate_env(env_name, seed, policy_hidden_size, stochastic, reuse, prefix):
                 return checkpoint
         return None
 
-    def _policy_fn(name, ob_space, ac_space, reuse=False):
-        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
+    def _policy_fn(name, ob_space, ac_space, reuse=False, sess=None):
+        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, sess=sess,
                                     reuse=reuse, hid_size=policy_hidden_size, num_hid_layers=2)
 
     data_path = os.path.join('data', 'deterministic.trpo.' + env_name + '.0.00.npz')

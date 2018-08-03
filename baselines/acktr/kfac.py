@@ -10,7 +10,6 @@ KFAC_OPS = ['MatMul', 'Conv2D', 'BiasAdd']
 KFAC_DEBUG = False
 
 
-# TODO: fix missing/inacurate comments
 class KfacOptimizer:
     def __init__(self, learning_rate=0.01, momentum=0.9, clip_kl=0.01, kfac_update=2, stats_accum_iter=60,
                  full_stats_init=False, cold_iter=100, cold_lr=None, async=False, async_stats=False, epsilon=1e-2,
@@ -256,7 +255,7 @@ class KfacOptimizer:
                             if op_type == 'Conv2D':
                                 kernel_height = var.get_shape()[0]
                                 kernel_width = var.get_shape()[1]
-                                chan = fprop_factor.get_shape()[-1]
+                                n_channels = fprop_factor.get_shape()[-1]
 
                                 operator_height = bprop_factor.get_shape()[1]
                                 operator_width = bprop_factor.get_shape()[2]
@@ -275,11 +274,11 @@ class KfacOptimizer:
                                     self.stats[var]['fprop_concat_stats'].append(
                                         slot_fprop_factor_stats2)
 
-                                    fprop_factor_size = chan
+                                    fprop_factor_size = n_channels
                                 else:
                                     # 2K-1 x 2K-1 x C x C covariance matrix
                                     # assume BHWC
-                                    fprop_factor_size = kernel_height * kernel_width * chan
+                                    fprop_factor_size = kernel_height * kernel_width * n_channels
                             else:
                                 # D x D covariance matrix
                                 fprop_factor_size = fprop_factor.get_shape()[-1]
@@ -688,12 +687,12 @@ class KfacOptimizer:
                     # reshape conv kernel parameters
                     kernel_width = int(grad.get_shape()[0])
                     kernel_height = int(grad.get_shape()[1])
-                    chan = int(grad.get_shape()[2])
+                    n_channels = int(grad.get_shape()[2])
                     depth = int(grad.get_shape()[3])
 
                     if len(fprop_factored_fishers) > 1 and self._channel_fac:
                         # reshape conv kernel parameters into tensor
-                        grad = tf.reshape(grad, [kernel_width * kernel_height, chan, depth])
+                        grad = tf.reshape(grad, [kernel_width * kernel_height, n_channels, depth])
                     else:
                         # reshape conv kernel parameters into 2D grad
                         grad = tf.reshape(grad, [-1, depth])
@@ -822,7 +821,7 @@ class KfacOptimizer:
             local_vg = tf.reduce_sum(grad * grad_1 * (self._lr * self._lr))
             v_g += local_vg
 
-        # recale everything
+        # rescale everything
         if KFAC_DEBUG:
             print('apply vFv clipping')
 

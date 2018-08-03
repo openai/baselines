@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from gym.spaces import Box, Discrete, MultiBinary, MultiDiscrete
+import gym
 
 from baselines.common import BaseRLModel, SetVerbosity
 from baselines.common.policies import LstmPolicy
@@ -83,6 +83,8 @@ class HER(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
+            assert isinstance(self.action_space, gym.spaces.Box), \
+                "Error: HER cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
             assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the HER model."
 
             self.graph = tf.Graph()

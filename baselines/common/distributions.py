@@ -10,6 +10,7 @@ class ProbabilityDistribution(object):
     """
     A particular probability distribution
     """
+
     def flatparam(self):
         """
         Return the direct probabilities
@@ -75,6 +76,7 @@ class ProbabilityDistributionType(object):
     """
     Parametrized family of probability distributions
     """
+
     def probability_distribution_class(self):
         """
         returns the ProbabilityDistribution class of this type
@@ -136,7 +138,7 @@ class ProbabilityDistributionType(object):
         :param name: (str) the placeholder name
         :return: (TensorFlow Tensor) the placeholder
         """
-        return tf.placeholder(dtype=tf.float32, shape=prepend_shape+self.param_shape(), name=name)
+        return tf.placeholder(dtype=tf.float32, shape=prepend_shape + self.param_shape(), name=name)
 
     def sample_placeholder(self, prepend_shape, name=None):
         """
@@ -146,28 +148,28 @@ class ProbabilityDistributionType(object):
         :param name: (str) the placeholder name
         :return: (TensorFlow Tensor) the placeholder
         """
-        return tf.placeholder(dtype=self.sample_dtype(), shape=prepend_shape+self.sample_shape(), name=name)
+        return tf.placeholder(dtype=self.sample_dtype(), shape=prepend_shape + self.sample_shape(), name=name)
 
 
 class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
-    def __init__(self, ncat):
+    def __init__(self, n_cat):
         """
         The probability distribution type for categorical input
 
-        :param ncat: (int) the number of categories
+        :param n_cat: (int) the number of categories
         """
-        self.ncat = ncat
+        self.n_cat = n_cat
 
     def probability_distribution_class(self):
         return CategoricalProbabilityDistribution
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
-        pdparam = linear(pi_latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
-        q_values = linear(vf_latent_vector, 'q', self.ncat, init_scale=init_scale, init_bias=init_bias)
+        pdparam = linear(pi_latent_vector, 'pi', self.n_cat, init_scale=init_scale, init_bias=init_bias)
+        q_values = linear(vf_latent_vector, 'q', self.n_cat, init_scale=init_scale, init_bias=init_bias)
         return self.proba_distribution_from_flat(pdparam), pdparam, q_values
 
     def param_shape(self):
-        return [self.ncat]
+        return [self.n_cat]
 
     def sample_shape(self):
         return []
@@ -177,30 +179,30 @@ class CategoricalProbabilityDistributionType(ProbabilityDistributionType):
 
 
 class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
-    def __init__(self, nvec):
+    def __init__(self, n_vec):
         """
         The probability distribution type for multiple categorical input
 
-        :param nvec: ([int]) the vectors
+        :param n_vec: ([int]) the vectors
         """
-        self.nvec = nvec
+        self.n_vec = n_vec
 
     def probability_distribution_class(self):
         return MultiCategoricalProbabilityDistribution
 
     def proba_distribution_from_flat(self, flat):
-        return MultiCategoricalProbabilityDistribution(self.nvec, flat)
+        return MultiCategoricalProbabilityDistribution(self.n_vec, flat)
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
-        pdparam = linear(pi_latent_vector, 'pi', sum(self.nvec), init_scale=init_scale, init_bias=init_bias)
-        q_values = linear(vf_latent_vector, 'q', sum(self.nvec), init_scale=init_scale, init_bias=init_bias)
+        pdparam = linear(pi_latent_vector, 'pi', sum(self.n_vec), init_scale=init_scale, init_bias=init_bias)
+        q_values = linear(vf_latent_vector, 'q', sum(self.n_vec), init_scale=init_scale, init_bias=init_bias)
         return self.proba_distribution_from_flat(pdparam), pdparam, q_values
 
     def param_shape(self):
-        return [sum(self.nvec)]
+        return [sum(self.n_vec)]
 
     def sample_shape(self):
-        return [len(self.nvec)]
+        return [len(self.n_vec)]
 
     def sample_dtype(self):
         return tf.int32
@@ -226,7 +228,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
         return self.proba_distribution_from_flat(pdparam), mean, q_values
 
     def param_shape(self):
-        return [2*self.size]
+        return [2 * self.size]
 
     def sample_shape(self):
         return [self.size]
@@ -366,7 +368,7 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
         :param flat: ([float]) the multivariate gaussian input data
         """
         self.flat = flat
-        mean, logstd = tf.split(axis=len(flat.shape)-1, num_or_size_splits=2, value=flat)
+        mean, logstd = tf.split(axis=len(flat.shape) - 1, num_or_size_splits=2, value=flat)
         self.mean = mean
         self.logstd = logstd
         self.std = tf.exp(logstd)
@@ -427,8 +429,8 @@ class BernoulliProbabilityDistribution(ProbabilityDistribution):
     def kl(self, other):
         return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=other.logits,
                                                                      labels=self.probabilities), axis=-1) - \
-            tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
-                                                                  labels=self.probabilities), axis=-1)
+               tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
+                                                                     labels=self.probabilities), axis=-1)
 
     def entropy(self):
         return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,

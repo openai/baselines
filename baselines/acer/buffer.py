@@ -2,18 +2,18 @@ import numpy as np
 
 
 class Buffer(object):
-    def __init__(self, env, n_steps, nstack, size=50000):
+    def __init__(self, env, n_steps, n_stack, size=50000):
         """
         A buffer for observations, actions, rewards, mu's, states, masks and dones values
 
         :param env: (Gym environment) The environment to learn from
         :param n_steps: (int) The number of steps to run for each environment
-        :param nstack: (int) The number of stacked frames
+        :param n_stack: (int) The number of stacked frames
         :param size: (int) The buffer size in number of steps
         """
         self.n_env = env.num_envs
         self.n_steps = n_steps
-        self.nstack = nstack
+        self.n_stack = n_stack
         self.n_batch = self.n_env * self.n_steps
         # Each loc contains n_env * n_steps frames, thus total buffer is n_env * size frames
         self.size = size // self.n_steps
@@ -69,10 +69,10 @@ class Buffer(object):
         :param dones: ([bool])
         :return: ([float]) the decoded observation
         """
-        # enc_obs has shape [n_envs, n_steps + nstack, nh, nw, nc]
+        # enc_obs has shape [n_envs, n_steps + n_stack, nh, nw, nc]
         # dones has shape [n_envs, n_steps, nh, nw, nc]
         # returns stacked obs of shape [n_env, (n_steps + 1), nh, nw, nstack*nc]
-        n_stack, n_env, n_steps = self.nstack, self.n_env, self.n_steps
+        n_stack, n_env, n_steps = self.n_stack, self.n_env, self.n_steps
         if self.raw_pixels:
             obs_dim = [self.height, self.width, self.n_channels]
         else:
@@ -108,7 +108,7 @@ class Buffer(object):
         :param dones: ([bool])
         :param masks: ([bool])
         """
-        # enc_obs [n_env, (n_steps + nstack), nh, nw, nc]
+        # enc_obs [n_env, (n_steps + n_stack), nh, nw, nc]
         # actions, rewards, dones [n_env, n_steps]
         # mus [n_env, n_steps, n_act]
 
@@ -153,7 +153,7 @@ class Buffer(object):
                  observations, actions, rewards, mus, dones, maskes
         """
         # returns
-        # obs [n_env, (n_steps + 1), nh, nw, nstack*nc]
+        # obs [n_env, (n_steps + 1), nh, nw, n_stack*nc]
         # actions, rewards, dones [n_env, n_steps]
         # mus [n_env, n_steps, n_act]
         n_env = self.n_env

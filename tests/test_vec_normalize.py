@@ -35,7 +35,7 @@ def test_vec_env():
         return gym.make(ENV_ID)
 
     env = DummyVecEnv([make_env])
-    env = VecNormalize(env, ob=True, ret=True, clipob=10., cliprew=10.)
+    env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10., clip_reward=10.)
     _, done = env.reset(), [False]
     obs = None
     while not done[0]:

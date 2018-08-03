@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import gym
 
 from baselines import logger, deepq
 from baselines.common import tf_util, BaseRLModel, SetVerbosity
@@ -89,6 +90,10 @@ class DeepQ(BaseRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
+
+            assert isinstance(self.action_space, gym.spaces.Discrete), \
+                "Error: DeepQ cannot output a {} action space, only spaces.Discrete is supported."\
+                .format(self.action_space)
 
             self.graph = tf.Graph()
             with self.graph.as_default():

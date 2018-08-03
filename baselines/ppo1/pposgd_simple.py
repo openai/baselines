@@ -115,7 +115,7 @@ class PPO1(BaseRLModel):
 
                 # PPO's pessimistic surrogate (L^CLIP)
                 pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
-                vf_loss = tf.reduce_mean(tf.square(self.policy_pi.value_0 - ret))
+                vf_loss = tf.reduce_mean(tf.square(self.policy_pi.value_fn[:, 0] - ret))
                 total_loss = pol_surr + pol_entpen + vf_loss
                 losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
                 self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]

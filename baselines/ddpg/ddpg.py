@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
 from mpi4py import MPI
+import gym
 
 from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
@@ -243,6 +244,8 @@ class DDPG(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
+            assert isinstance(self.action_space, gym.spaces.Box), \
+                "Error: DDPG cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
             assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the DDPG model."
 
             self.graph = tf.Graph()
@@ -283,7 +286,7 @@ class DDPG(BaseRLModel):
                     self.obs_target = self.target_policy.obs_ph
 
                 # Create networks and core TF parts that are shared across setup parts.
-                self.actor_tf = self.policy_tf.action_0
+                self.actor_tf = self.policy_tf.action
                 self.normalized_critic_tf = self.policy_tf.value_fn
                 self.critic_tf = denormalize(
                     tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]),
@@ -329,7 +332,7 @@ class DDPG(BaseRLModel):
         with tf.variable_scope("noise", reuse=False):
             param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
             self.obs_noise = param_noise_actor.obs_ph
-        self.perturbed_actor_tf = param_noise_actor.action_0
+        self.perturbed_actor_tf = param_noise_actor.action
         logger.info('setting up param noise')
         self.perturb_policy_ops = get_perturbed_actor_updates('train', 'noise', self.param_noise_stddev)
 
@@ -337,7 +340,7 @@ class DDPG(BaseRLModel):
         with tf.variable_scope("noise_adapt", reuse=False):
             adaptive_param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
             self.obs_adapt_noise = adaptive_param_noise_actor.obs_ph
-        adaptive_actor_tf = adaptive_param_noise_actor.action_0
+        adaptive_actor_tf = adaptive_param_noise_actor.action
         self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('train', 'noise_adapt', self.param_noise_stddev)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 

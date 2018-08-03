@@ -33,8 +33,15 @@ class ConstantSchedule(Schedule):
         return self._value
 
 
-def linear_interpolation(start, end, alpha):
-    return start + alpha * (end - start)
+def linear_interpolation(left, right, alpha):
+    """
+    Linear interpolation between `left` and `right`
+    :param left: (float) left boundary
+    :param right: (float) right boundary
+    :param alpha: (float) coeff in [0, 1]
+    :return: (float)
+    """
+    return left + alpha * (right - left)
 
 
 class PiecewiseSchedule(Schedule):
@@ -65,10 +72,10 @@ class PiecewiseSchedule(Schedule):
         self._endpoints = endpoints
 
     def value(self, step):
-        for (l_t, l), (r_t, r) in zip(self._endpoints[:-1], self._endpoints[1:]):
-            if l_t <= step < r_t:
-                alpha = float(step - l_t) / (r_t - l_t)
-                return self._interpolation(l, r, alpha)
+        for (left_t, left), (right_t, right) in zip(self._endpoints[:-1], self._endpoints[1:]):
+            if left_t <= step < right_t:
+                alpha = float(step - left_t) / (right_t - left_t)
+                return self._interpolation(left, right, alpha)
 
         # t does not belong to any of the pieces, so doom.
         assert self._outside_value is not None

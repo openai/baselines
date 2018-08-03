@@ -59,7 +59,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
 
 
 class ACER(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, n_steps=20, nstack=4, num_procs=1, q_coef=0.5, ent_coef=0.01,
+    def __init__(self, policy, env, gamma=0.99, n_steps=20, n_stack=4, num_procs=1, q_coef=0.5, ent_coef=0.01,
                  max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5,
                  buffer_size=5000, replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True,
                  alpha=0.99, delta=1, verbose=0, _init_setup_model=True):
@@ -70,7 +70,7 @@ class ACER(BaseRLModel):
         :param env: (Gym environment) The environment to learn from
         :param gamma: (float) The discount value
         :param n_steps: (int) The number of steps to run for each environment
-        :param nstack: (int) The number of stacked frames
+        :param n_stack: (int) The number of stacked frames
         :param num_procs: (int) The number of threads for TensorFlow operations
         :param q_coef: (float) The weight for the loss on the Q value
         :param ent_coef: (float) The weight for the entropic loss
@@ -95,7 +95,7 @@ class ACER(BaseRLModel):
 
         self.n_steps = n_steps
         self.replay_ratio = replay_ratio
-        self.nstack = nstack
+        self.n_stack = n_stack
         self.buffer_size = buffer_size
         self.replay_start = replay_start
         self.policy = policy
@@ -158,9 +158,9 @@ class ACER(BaseRLModel):
                 eps = 1e-6
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         self.n_envs, n_stack=self.nstack, reuse=False)
+                                         self.n_envs, n_stack=self.n_stack, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                          self.n_steps + 1, self.n_envs * (self.n_steps + 1), n_stack=self.nstack,
+                                          self.n_steps + 1, self.n_envs * (self.n_steps + 1), n_stack=self.n_stack,
                                           reuse=True)
 
                 self.params = find_trainable_variables("model")
@@ -177,7 +177,7 @@ class ACER(BaseRLModel):
                     self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
                                                                    self.n_envs, self.n_steps + 1,
                                                                    self.n_envs * (self.n_steps + 1),
-                                                                   n_stack=self.nstack, reuse=True)
+                                                                   n_stack=self.n_stack, reuse=True)
 
                 # Notation: (var) = batch variable, (var)s = sequence variable,
                 # (var)_i = variable index by action at step i
@@ -341,9 +341,9 @@ class ACER(BaseRLModel):
 
             episode_stats = EpisodeStats(self.n_steps, self.n_envs)
 
-            runner = _Runner(env=self.env, model=self, n_steps=self.n_steps, nstack=self.nstack)
+            runner = _Runner(env=self.env, model=self, n_steps=self.n_steps, n_stack=self.n_stack)
             if self.replay_ratio > 0:
-                buffer = Buffer(env=self.env, n_steps=self.n_steps, nstack=self.nstack, size=self.buffer_size)
+                buffer = Buffer(env=self.env, n_steps=self.n_steps, n_stack=self.n_stack, size=self.buffer_size)
             else:
                 buffer = None
 
@@ -427,10 +427,10 @@ class ACER(BaseRLModel):
 
         # if the input need stacking, make an empty stack (as we dont know the order of prediction
         if stack:
-            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
             stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape(obs_shape)[:]
         else:
-            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
 
         actions, _, states, _ = self.step(stacked_obs, state, mask)
         return actions, states
@@ -461,10 +461,10 @@ class ACER(BaseRLModel):
 
         # if the input need stacking, make an empty stack (as we dont know the order of prediction
         if stack:
-            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
             stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape(obs_shape)[:]
         else:
-            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.nstack,))
+            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
 
         return self.proba_step(stacked_obs, state, mask)
 
@@ -472,7 +472,7 @@ class ACER(BaseRLModel):
         data = {
             "gamma": self.gamma,
             "n_steps": self.n_steps,
-            "nstack": self.nstack,
+            "n_stack": self.n_stack,
             "q_coef": self.q_coef,
             "ent_coef": self.ent_coef,
             "max_grad_norm": self.max_grad_norm,
@@ -512,19 +512,19 @@ class ACER(BaseRLModel):
 
 
 class _Runner(AbstractEnvRunner):
-    def __init__(self, env, model, n_steps, nstack):
+    def __init__(self, env, model, n_steps, n_stack):
         """
         A runner to learn the policy of an environment for a model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param n_steps: (int) The number of steps to run for each environment
-        :param nstack: (int) The number of stacked frames
+        :param n_stack: (int) The number of stacked frames
         """
 
         super(_Runner, self).__init__(env=env, model=model, n_steps=n_steps)
         self.env = env
-        self.nstack = nstack
+        self.n_stack = n_stack
         self.model = model
         self.n_env = n_env = env.num_envs
         if isinstance(env.action_space, Discrete):
@@ -536,9 +536,9 @@ class _Runner(AbstractEnvRunner):
         if len(env.observation_space.shape) > 1:
             self.raw_pixels = True
             obs_height, obs_width, obs_num_channels = env.observation_space.shape
-            self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * nstack)
+            self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * n_stack)
             self.obs_dtype = np.uint8
-            self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * nstack), dtype=self.obs_dtype)
+            self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * n_stack), dtype=self.obs_dtype)
             self.num_channels = obs_num_channels
         else:
             if len(env.observation_space.shape) == 1:
@@ -546,9 +546,9 @@ class _Runner(AbstractEnvRunner):
             else:
                 self.obs_dim = 1
             self.raw_pixels = False
-            self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim * nstack)
+            self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim * n_stack)
             self.obs_dtype = np.float32
-            self.obs = np.zeros((n_env, self.obs_dim * nstack), dtype=self.obs_dtype)
+            self.obs = np.zeros((n_env, self.obs_dim * n_stack), dtype=self.obs_dtype)
 
         obs = env.reset()
         self.update_obs(obs)
@@ -582,9 +582,9 @@ class _Runner(AbstractEnvRunner):
                  encoded observation, observations, actions, rewards, mus, dones, masks
         """
         if self.raw_pixels:
-            enc_obs = np.split(self.obs, self.nstack, axis=3)  # so now list of obs steps
+            enc_obs = np.split(self.obs, self.n_stack, axis=3)  # so now list of obs steps
         else:
-            enc_obs = np.split(self.obs, self.nstack, axis=1)  # so now list of obs steps
+            enc_obs = np.split(self.obs, self.n_stack, axis=1)  # so now list of obs steps
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.n_steps):
             actions, _, states, _ = self.model.step(self.obs, self.states, self.dones)
