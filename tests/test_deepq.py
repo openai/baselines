@@ -4,14 +4,14 @@ from .test_common import _assert_eq
 
 
 def test_custom_cartpole():
-    args = ['--no-render', '--max-timesteps', 1000]
+    args = ['--no-render', '--max-timesteps', 200]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'baselines.deepq.experiments.custom_cartpole'] + args)
     _assert_eq(return_code, 0)
 
 
 def test_cartpole():
-    args = ['--max-timesteps', 1000]
+    args = ['--max-timesteps', 200]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'baselines.deepq.experiments.train_cartpole'] + args)
     _assert_eq(return_code, 0)
@@ -21,7 +21,7 @@ def test_cartpole():
 
 
 def test_mountaincar():
-    args = ['--max-timesteps', 1000]
+    args = ['--max-timesteps', 200]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'baselines.deepq.experiments.train_mountaincar'] + args)
     _assert_eq(return_code, 0)

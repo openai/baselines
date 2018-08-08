@@ -19,7 +19,7 @@ learn_func_list = [
     lambda e: DeepQ(policy=deepq_models.mlp([32]), env=e).learn(total_timesteps=50000, seed=0),
     lambda e: PPO1(policy=MlpPolicy, env=e, optim_stepsize=5e-3).learn(total_timesteps=75000, seed=0),
     lambda e: PPO2(policy=MlpPolicy, env=e, learning_rate=1e-3).learn(total_timesteps=50000, seed=0),
-    lambda e: TRPO(policy=MlpPolicy, env=e, timesteps_per_batch=256, vf_stepsize=1e-1).learn(total_timesteps=200000,
+    lambda e: TRPO(policy=MlpPolicy, env=e, max_kl=0.05, lam=0.9, timesteps_per_batch=128, vf_stepsize=1e-1).learn(total_timesteps=50000,
                                                                                              seed=0),
 ]
 
@@ -28,7 +28,7 @@ learn_func_list = [
 @pytest.mark.parametrize("learn_func", learn_func_list)
 def test_identity(learn_func):
     """
-    Test if the algorithm (with a given policy) 
+    Test if the algorithm (with a given policy)
     can learn an identity transformation (i.e. return observation as an action)
 
     :param learn_func: (lambda (Gym Environment): A2CPolicy) the policy generator

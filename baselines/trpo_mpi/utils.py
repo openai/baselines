@@ -64,7 +64,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
                 ep_true_rets = [cur_ep_true_ret]
                 total_timesteps = cur_ep_len
             else:
-                total_timesteps =  sum(ep_lens) + cur_ep_len
+                total_timesteps = sum(ep_lens) + cur_ep_len
 
             yield {"ob": observations, "rew": rews, "vpred": vpreds, "new": news,
                    "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),

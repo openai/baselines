@@ -26,7 +26,7 @@ class TRPO(BaseRLModel):
         :param env: (Gym Environment) the environment
         :param gamma: (float) the discount value
         :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
-        :param max_kl: (float) the kullback leiber loss threashold
+        :param max_kl: (float) the kullback leiber loss threshold
         :param cg_iters: (int) the number of iterations for the conjugate gradient calculation
         :param lam: (float) GAE factor
         :param entcoeff: (float) the weight for the entropy loss
