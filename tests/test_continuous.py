@@ -1,4 +1,4 @@
-import subprocess
+# import subprocess
 import os
 
 import pytest
@@ -111,8 +111,8 @@ def test_model_manipulation(model_class):
             os.remove("./test_model")
 
 
-def test_ddpg():
-    args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
-    args = list(map(str, args))
-    return_code = subprocess.call(['python', '-m', 'baselines.ddpg.main'] + args)
-    _assert_eq(return_code, 0)
+# def test_ddpg():
+#     args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
+#     args = list(map(str, args))
+#     return_code = subprocess.call(['python', '-m', 'baselines.ddpg.main'] + args)
+#     _assert_eq(return_code, 0)
