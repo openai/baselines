@@ -5,11 +5,11 @@ import tensorflow as tf
 from gym.spaces import Discrete, Box
 
 from baselines import logger
+from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, EpisodeStats, \
+    get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
+from baselines.acer.buffer import Buffer
 from baselines.common import BaseRLModel, tf_util, SetVerbosity
 from baselines.common.runners import AbstractEnvRunner
-from baselines.acer.buffer import Buffer
-from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, calc_entropy_softmax, \
-    EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 
 
 def strip(var, n_envs, n_steps, flat=False):

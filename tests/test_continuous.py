@@ -5,8 +5,9 @@ import pytest
 import gym
 
 from baselines.a2c import A2C
-from baselines.acer import ACER
-from baselines.acktr import ACKTR
+# TODO: add support for continuous actions
+# from baselines.acer import ACER
+# from baselines.acktr import ACKTR
 from baselines.ddpg import DDPG
 from baselines.ppo1 import PPO1
 from baselines.ppo2 import PPO2
@@ -21,8 +22,8 @@ N_TRIALS = 1000
 
 MODEL_LIST = [
     A2C,
-    #ACER,
-    #ACKTR,
+    # ACER,
+    # ACKTR,
     DDPG,
     PPO1,
     PPO2,
