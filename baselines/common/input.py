@@ -1,20 +1,19 @@
 import tensorflow as tf
 from gym.spaces import Discrete, Box
 
-def observation_input(ob_space, batch_size=None, name='Ob'):
-    '''
-    Build observation input with encoding depending on the 
-    observation space type
-    Params:
-    
-    ob_space: observation space (should be one of gym.spaces)
-    batch_size: batch size for input (default is None, so that resulting input placeholder can take tensors with any batch size)
-    name: tensorflow variable name for input placeholder
 
-    returns: tuple (input_placeholder, processed_input_tensor)
-    '''
+def observation_input(ob_space, batch_size=None, name='Ob'):
+    """
+    Build observation input with encoding depending on the observation space type
+
+    :param ob_space: (Gym Space) The observation space
+    :param batch_size: (int) batch size for input
+                       (default is None, so that resulting input placeholder can take tensors with any batch size)
+    :param name: (str) tensorflow variable name for input placeholder
+    :return: (TensorFlow Tensor, TensorFlow Tensor) input_placeholder, processed_input_tensor
+    """
     if isinstance(ob_space, Discrete):
-        input_x  = tf.placeholder(shape=(batch_size,), dtype=tf.int32, name=name)
+        input_x = tf.placeholder(shape=(batch_size,), dtype=tf.int32, name=name)
         processed_x = tf.to_float(tf.one_hot(input_x, ob_space.n))
         return input_x, processed_x
 
@@ -26,5 +25,3 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
 
     else:
         raise NotImplementedError
-
- 

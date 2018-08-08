@@ -1,46 +1,75 @@
 import numpy as np
 
-# http://www.johndcook.com/blog/standard_deviation/
+
 class RunningStat(object):
     def __init__(self, shape):
-        self._n = 0
-        self._M = np.zeros(shape)
-        self._S = np.zeros(shape)
-    def push(self, x):
-        x = np.asarray(x)
-        assert x.shape == self._M.shape
-        self._n += 1
-        if self._n == 1:
-            self._M[...] = x
+        """
+        calulates the running mean and std of a data stream
+        http://www.johndcook.com/blog/standard_deviation/
+
+        :param shape: (tuple) the shape of the data stream's output
+        """
+        self._step = 0
+        self._mean = np.zeros(shape)
+        self._std = np.zeros(shape)
+
+    def push(self, value):
+        """
+        update the running mean and std
+
+        :param value: (numpy Number) the data
+        """
+        value = np.asarray(value)
+        assert value.shape == self._mean.shape
+        self._step += 1
+        if self._step == 1:
+            self._mean[...] = value
         else:
-            oldM = self._M.copy()
-            self._M[...] = oldM + (x - oldM)/self._n
-            self._S[...] = self._S + (x - oldM)*(x - self._M)
+            old_m = self._mean.copy()
+            self._mean[...] = old_m + (value - old_m) / self._step
+            self._std[...] = self._std + (value - old_m) * (value - self._mean)
+
     @property
     def n(self):
-        return self._n
+        """
+        the number of data points
+
+        :return: (int)
+        """
+        return self._step
+
     @property
     def mean(self):
-        return self._M
+        """
+        the average value
+
+        :return: (float)
+        """
+        return self._mean
+
     @property
     def var(self):
-        return self._S/(self._n - 1) if self._n > 1 else np.square(self._M)
+        """
+        the variation of the data points
+
+        :return: (float)
+        """
+        return self._std / (self._step - 1) if self._step > 1 else np.square(self._mean)
+
     @property
     def std(self):
+        """
+        the standard deviation of the data points
+
+        :return: (float)
+        """
         return np.sqrt(self.var)
+
     @property
     def shape(self):
-        return self._M.shape
+        """
+        the shape of the data points
 
-def test_running_stat():
-    for shp in ((), (3,), (3,4)):
-        li = []
-        rs = RunningStat(shp)
-        for _ in range(5):
-            val = np.random.randn(*shp)
-            rs.push(val)
-            li.append(val)
-            m = np.mean(li, axis=0)
-            assert np.allclose(rs.mean, m)
-            v = np.square(m) if (len(li) == 1) else np.var(li, ddof=1, axis=0)
-            assert np.allclose(rs.var, v)
+        :return: (tuple)
+        """
+        return self._mean.shape

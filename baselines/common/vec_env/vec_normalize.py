@@ -1,47 +1,50 @@
-from baselines.common.vec_env import VecEnvWrapper
-from baselines.common.running_mean_std import RunningMeanStd
 import numpy as np
 
+from baselines.common.vec_env import VecEnvWrapper
+from baselines.common.running_mean_std import RunningMeanStd
+
+
 class VecNormalize(VecEnvWrapper):
-    """
-    Vectorized environment base class
-    """
-    def __init__(self, venv, ob=True, ret=True, clipob=10., cliprew=10., gamma=0.99, epsilon=1e-8):
+    def __init__(self, venv, norm_obs=True, norm_reward=True,
+                 clip_obs=10., clip_reward=10., gamma=0.99, epsilon=1e-8):
+        """
+        A rolling average, normalizing, vectorized wrapepr for environment base class
+        
+        :param venv: ([Gym Environment]) the list of environments to vectorize and normalize
+        :param norm_obs: (bool) normalize observation
+        :param norm_reward: (bool) normalize reward with discounting (r = sum(r_old) * gamma + r_new)
+        :param clip_obs: (float) clipping value for nomalizing observation
+        :param clip_reward: (float) clipping value for nomalizing reward
+        :param gamma: (float) discount factor
+        :param epsilon: (float) epsilon value to avoid arithmetic issues
+        """
         VecEnvWrapper.__init__(self, venv)
-        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if ob else None
-        self.ret_rms = RunningMeanStd(shape=()) if ret else None
-        self.clipob = clipob
-        self.cliprew = cliprew
+        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if norm_obs else None
+        self.ret_rms = RunningMeanStd(shape=()) if norm_reward else None
+        self.clip_obs = clip_obs
+        self.clip_reward = clip_reward
         self.ret = np.zeros(self.num_envs)
         self.gamma = gamma
         self.epsilon = epsilon
 
     def step_wait(self):
-        """
-        Apply sequence of actions to sequence of environments
-        actions -> (observations, rewards, news)
-
-        where 'news' is a boolean vector indicating whether each element is new.
-        """
-        obs, rews, news, infos = self.venv.step_wait()
-        self.ret = self.ret * self.gamma + rews
+        obs, rewards, dones, infos = self.venv.step_wait()
+        self.ret = self.ret * self.gamma + rewards
         obs = self._obfilt(obs)
         if self.ret_rms:
             self.ret_rms.update(self.ret)
-            rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
-        return obs, rews, news, infos
+            rewards = np.clip(rewards / np.sqrt(self.ret_rms.var + self.epsilon), -self.clip_reward, self.clip_reward)
+        return obs, rewards, dones, infos
 
     def _obfilt(self, obs):
         if self.ob_rms:
             self.ob_rms.update(obs)
-            obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon), -self.clipob, self.clipob)
+            obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
+                          -self.clip_obs, self.clip_obs)
             return obs
         else:
             return obs
 
     def reset(self):
-        """
-        Reset all environments
-        """
         obs = self.venv.reset()
         return self._obfilt(obs)

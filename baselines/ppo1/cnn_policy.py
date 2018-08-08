@@ -1,56 +1,71 @@
-import baselines.common.tf_util as U
 import tensorflow as tf
-import gym
-from baselines.common.distributions import make_pdtype
 
-class CnnPolicy(object):
+import baselines.common.tf_util as tf_util
+from baselines.ppo1.mlp_policy import BasePolicy
+
+
+class CnnPolicy(BasePolicy):
     recurrent = False
-    def __init__(self, name, ob_space, ac_space, kind='large'):
-        with tf.variable_scope(name):
-            self._init(ob_space, ac_space, kind)
-            self.scope = tf.get_variable_scope().name
 
-    def _init(self, ob_space, ac_space, kind):
-        assert isinstance(ob_space, gym.spaces.Box)
+    def __init__(self, name, ob_space, ac_space, architecture_size='large', sess=None, reuse=False, placeholders=None):
+        """
+        A CNN policy object for PPO1
 
-        self.pdtype = pdtype = make_pdtype(ac_space)
-        sequence_length = None
+        :param name: (str) type of the policy (lin, logits, value)
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param architecture_size: (str) size of the policy's architecture
+               (small as in A3C paper, large as in Nature DQN)
+        :param sess: (TensorFlow session) The current TensorFlow session containing the variables.
+        :param reuse: (bool) If the policy is reusable or not
+        :param placeholders: (dict) To feed existing placeholders if needed
+        """
+        super(CnnPolicy, self).__init__(placeholders=placeholders)
+        self.reuse = reuse
+        self.name = name
+        self._init(ob_space, ac_space, architecture_size)
+        self.scope = tf.get_variable_scope().name
+        self.sess = sess
 
-        ob = U.get_placeholder(name="ob", dtype=tf.float32, shape=[sequence_length] + list(ob_space.shape))
+    def _init(self, ob_space, ac_space, architecture_size):
+        """
 
-        x = ob / 255.0
-        if kind == 'small': # from A3C paper
-            x = tf.nn.relu(U.conv2d(x, 16, "l1", [8, 8], [4, 4], pad="VALID"))
-            x = tf.nn.relu(U.conv2d(x, 32, "l2", [4, 4], [2, 2], pad="VALID"))
-            x = U.flattenallbut0(x)
-            x = tf.nn.relu(tf.layers.dense(x, 256, name='lin', kernel_initializer=U.normc_initializer(1.0)))
-        elif kind == 'large': # Nature DQN
-            x = tf.nn.relu(U.conv2d(x, 32, "l1", [8, 8], [4, 4], pad="VALID"))
-            x = tf.nn.relu(U.conv2d(x, 64, "l2", [4, 4], [2, 2], pad="VALID"))
-            x = tf.nn.relu(U.conv2d(x, 64, "l3", [3, 3], [1, 1], pad="VALID"))
-            x = U.flattenallbut0(x)
-            x = tf.nn.relu(tf.layers.dense(x, 512, name='lin', kernel_initializer=U.normc_initializer(1.0)))
-        else:
-            raise NotImplementedError
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param architecture_size: (str) size of the policy's architecture
+               (small as in A3C paper, large as in Nature DQN)
+        """
+        obs, pdtype = self.get_obs_and_pdtype(ob_space, ac_space)
 
-        logits = tf.layers.dense(x, pdtype.param_shape()[0], name='logits', kernel_initializer=U.normc_initializer(0.01))
-        self.pd = pdtype.pdfromflat(logits)
-        self.vpred = tf.layers.dense(x, 1, name='value', kernel_initializer=U.normc_initializer(1.0))[:,0]
+        with tf.variable_scope(self.name, reuse=self.reuse):
+            normalized_obs = obs / 255.0
+            if architecture_size == 'small':  # from A3C paper
+                layer_1 = tf.nn.relu(tf_util.conv2d(normalized_obs, 16, "l1", [8, 8], [4, 4], pad="VALID"))
+                layer_2 = tf.nn.relu(tf_util.conv2d(layer_1, 32, "l2", [4, 4], [2, 2], pad="VALID"))
+                flattened_layer_2 = tf_util.flattenallbut0(layer_2)
+                last_layer = tf.nn.relu(tf.layers.dense(flattened_layer_2, 256,
+                                                        name='lin', kernel_initializer=tf_util.normc_initializer(1.0)))
+            elif architecture_size == 'large':  # Nature DQN
+                layer_1 = tf.nn.relu(tf_util.conv2d(normalized_obs, 32, "l1", [8, 8], [4, 4], pad="VALID"))
+                layer_2 = tf.nn.relu(tf_util.conv2d(layer_1, 64, "l2", [4, 4], [2, 2], pad="VALID"))
+                layer_3 = tf.nn.relu(tf_util.conv2d(layer_2, 64, "l3", [3, 3], [1, 1], pad="VALID"))
+                flattened_layer_3 = tf_util.flattenallbut0(layer_3)
+                last_layer = tf.nn.relu(tf.layers.dense(flattened_layer_3, 512,
+                                                        name='lin', kernel_initializer=tf_util.normc_initializer(1.0)))
+            else:
+                raise NotImplementedError
+
+            logits = tf.layers.dense(last_layer, pdtype.param_shape()[0], name='logits',
+                                     kernel_initializer=tf_util.normc_initializer(0.01))
+
+            self.proba_distribution = pdtype.proba_distribution_from_flat(logits)
+            self.vpred = tf.layers.dense(last_layer, 1,
+                                         name='value', kernel_initializer=tf_util.normc_initializer(1.0))[:, 0]
 
         self.state_in = []
         self.state_out = []
 
-        stochastic = tf.placeholder(dtype=tf.bool, shape=())
-        ac = self.pd.sample() # XXX
-        self._act = U.function([stochastic, ob], [ac, self.vpred])
-
-    def act(self, stochastic, ob):
-        ac1, vpred1 =  self._act(stochastic, ob[None])
-        return ac1[0], vpred1[0]
-    def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, self.scope)
-    def get_trainable_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope)
-    def get_initial_state(self):
-        return []
-
+        if self.stochastic_ph is None:
+            self.stochastic_ph = tf.placeholder(dtype=tf.bool, shape=())
+        action = self.proba_distribution.sample()
+        self._act = tf_util.function([self.stochastic_ph, obs], [action, self.vpred])

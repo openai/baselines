@@ -5,8 +5,7 @@ import tensorflow as tf
 from tensorflow.contrib.staging import StagingArea
 
 from baselines import logger
-from baselines.her.util import (
-    import_function, store_args, flatten_grads, transitions_in_episode_batch)
+from baselines.her.util import import_function, flatten_grads, transitions_in_episode_batch
 from baselines.her.normalizer import Normalizer
 from baselines.her.replay_buffer import ReplayBuffer
 from baselines.common.mpi_adam import MpiAdam
@@ -17,49 +16,74 @@ def dims_to_shapes(input_dims):
 
 
 class DDPG(object):
-    @store_args
     def __init__(self, input_dims, buffer_size, hidden, layers, network_class, polyak, batch_size,
-                 Q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, T,
+                 q_lr, pi_lr, norm_eps, norm_clip, max_u, action_l2, clip_obs, scope, time_horizon,
                  rollout_batch_size, subtract_goals, relative_goals, clip_pos_returns, clip_return,
-                 sample_transitions, gamma, reuse=False, **kwargs):
-        """Implementation of DDPG that is used in combination with Hindsight Experience Replay (HER).
-
-        Args:
-            input_dims (dict of ints): dimensions for the observation (o), the goal (g), and the
-                actions (u)
-            buffer_size (int): number of transitions that are stored in the replay buffer
-            hidden (int): number of units in the hidden layers
-            layers (int): number of hidden layers
-            network_class (str): the network class that should be used (e.g. 'baselines.her.ActorCritic')
-            polyak (float): coefficient for Polyak-averaging of the target network
-            batch_size (int): batch size for training
-            Q_lr (float): learning rate for the Q (critic) network
-            pi_lr (float): learning rate for the pi (actor) network
-            norm_eps (float): a small value used in the normalizer to avoid numerical instabilities
-            norm_clip (float): normalized inputs are clipped to be in [-norm_clip, norm_clip]
-            max_u (float): maximum action magnitude, i.e. actions are in [-max_u, max_u]
-            action_l2 (float): coefficient for L2 penalty on the actions
-            clip_obs (float): clip observations before normalization to be in [-clip_obs, clip_obs]
-            scope (str): the scope used for the TensorFlow graph
-            T (int): the time horizon for rollouts
-            rollout_batch_size (int): number of parallel rollouts per DDPG agent
-            subtract_goals (function): function that subtracts goals from each other
-            relative_goals (boolean): whether or not relative goals should be fed into the network
-            clip_pos_returns (boolean): whether or not positive returns should be clipped
-            clip_return (float): clip returns to be in [-clip_return, clip_return]
-            sample_transitions (function) function that samples from the replay buffer
-            gamma (float): gamma used for Q learning updates
-            reuse (boolean): whether or not the networks should be reused
+                 sample_transitions, gamma, reuse=False):
         """
+        Implementation of DDPG that is used in combination with Hindsight Experience Replay (HER).
+
+        :param input_dims: ({str: int}) dimensions for the observation (o), the goal (g), and the actions (u)
+        :param buffer_size: (int) number of transitions that are stored in the replay buffer
+        :param hidden: (int) number of units in the hidden layers
+        :param layers: (int) number of hidden layers
+        :param network_class: (str) the network class that should be used (e.g. 'baselines.her.ActorCritic')
+        :param polyak: (float) coefficient for Polyak-averaging of the target network
+        :param batch_size: (int) batch size for training
+        :param q_lr: (float) learning rate for the Q (critic) network
+        :param pi_lr: (float) learning rate for the pi (actor) network
+        :param norm_eps: (float) a small value used in the normalizer to avoid numerical instabilities
+        :param norm_clip: (float) normalized inputs are clipped to be in [-norm_clip, norm_clip]
+        :param max_u: (float) maximum action magnitude, i.e. actions are in [-max_u, max_u]
+        :param action_l2: (float) coefficient for L2 penalty on the actions
+        :param clip_obs: (float) clip observations before normalization to be in [-clip_obs, clip_obs]
+        :param scope: (str) the scope used for the TensorFlow graph
+        :param time_horizon: (int) the time horizon for rollouts
+        :param rollout_batch_size: (int) number of parallel rollouts per DDPG agent
+        :param subtract_goals: (function (numpy Number, numpy Number): numpy Number) function that subtracts goals
+            from each other
+        :param relative_goals: (boolean) whether or not relative goals should be fed into the network
+        :param clip_pos_returns: (boolean) whether or not positive returns should be clipped
+        :param clip_return: (float) clip returns to be in [-clip_return, clip_return]
+        :param sample_transitions: (function (dict, int): dict) function that samples from the replay buffer
+        :param gamma: (float) gamma used for Q learning updates
+        :param reuse: (boolean) whether or not the networks should be reused
+        """
+        # Updated in experiments/config.py
+        self.input_dims = input_dims
+        self.buffer_size = buffer_size
+        self.hidden = hidden
+        self.layers = layers
+        self.network_class = network_class
+        self.polyak = polyak
+        self.batch_size = batch_size
+        self.q_lr = q_lr
+        self.pi_lr = pi_lr
+        self.norm_eps = norm_eps
+        self.norm_clip = norm_clip
+        self.max_u = max_u
+        self.action_l2 = action_l2
+        self.clip_obs = clip_obs
+        self.scope = scope
+        self.time_horizon = time_horizon
+        self.rollout_batch_size = rollout_batch_size
+        self.subtract_goals = subtract_goals
+        self.relative_goals = relative_goals
+        self.clip_pos_returns = clip_pos_returns
+        self.clip_return = clip_return
+        self.sample_transitions = sample_transitions
+        self.gamma = gamma
+        self.reuse = reuse
+
         if self.clip_return is None:
             self.clip_return = np.inf
 
         self.create_actor_critic = import_function(self.network_class)
 
         input_shapes = dims_to_shapes(self.input_dims)
-        self.dimo = self.input_dims['o']
-        self.dimg = self.input_dims['g']
-        self.dimu = self.input_dims['u']
+        self.dim_obs = self.input_dims['o']
+        self.dim_goal = self.input_dims['g']
+        self.dim_action = self.input_dims['u']
 
         # Prepare staging area for feeding data to the model.
         stage_shapes = OrderedDict()
@@ -84,54 +108,67 @@ class DDPG(object):
             self._create_network(reuse=reuse)
 
         # Configure the replay buffer.
-        buffer_shapes = {key: (self.T if key != 'o' else self.T+1, *input_shapes[key])
+        buffer_shapes = {key: (self.time_horizon if key != 'o' else self.time_horizon + 1, *input_shapes[key])
                          for key, val in input_shapes.items()}
-        buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
-        buffer_shapes['ag'] = (self.T+1, self.dimg)
+        buffer_shapes['g'] = (buffer_shapes['g'][0], self.dim_goal)
+        buffer_shapes['ag'] = (self.time_horizon + 1, self.dim_goal)
 
         buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
-        self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions)
+        self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.time_horizon, self.sample_transitions)
 
-    def _random_action(self, n):
-        return np.random.uniform(low=-self.max_u, high=self.max_u, size=(n, self.dimu))
+    def _random_action(self, num):
+        return np.random.uniform(low=-self.max_u, high=self.max_u, size=(num, self.dim_action))
 
-    def _preprocess_og(self, o, ag, g):
+    def _preprocess_obs_goal(self, obs, achieved_goal, goal):
         if self.relative_goals:
-            g_shape = g.shape
-            g = g.reshape(-1, self.dimg)
-            ag = ag.reshape(-1, self.dimg)
-            g = self.subtract_goals(g, ag)
-            g = g.reshape(*g_shape)
-        o = np.clip(o, -self.clip_obs, self.clip_obs)
-        g = np.clip(g, -self.clip_obs, self.clip_obs)
-        return o, g
+            g_shape = goal.shape
+            goal = goal.reshape(-1, self.dim_goal)
+            achieved_goal = achieved_goal.reshape(-1, self.dim_goal)
+            goal = self.subtract_goals(goal, achieved_goal)
+            goal = goal.reshape(*g_shape)
+        obs = np.clip(obs, -self.clip_obs, self.clip_obs)
+        goal = np.clip(goal, -self.clip_obs, self.clip_obs)
+        return obs, goal
 
-    def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False,
-                    compute_Q=False):
-        o, g = self._preprocess_og(o, ag, g)
+    def get_actions(self, obs, achieved_goal, goal, noise_eps=0., random_eps=0., use_target_net=False, compute_q=False):
+        """
+        return the action from an observation and goal
+
+        :param obs: (numpy Number) the observation
+        :param achieved_goal: (numpy Number) the achieved goal
+        :param goal: (numpy Number) the goal
+        :param noise_eps: (float) the noise epsilon
+        :param random_eps: (float) the random epsilon
+        :param use_target_net: (bool) whether or not to use the target network
+        :param compute_q: (bool) whether or not to compute Q value
+        :return: (numpy float or float) the actions
+        """
+        obs, goal = self._preprocess_obs_goal(obs, achieved_goal, goal)
         policy = self.target if use_target_net else self.main
         # values to compute
         vals = [policy.pi_tf]
-        if compute_Q:
-            vals += [policy.Q_pi_tf]
+        if compute_q:
+            vals += [policy.q_pi_tf]
         # feed
         feed = {
-            policy.o_tf: o.reshape(-1, self.dimo),
-            policy.g_tf: g.reshape(-1, self.dimg),
-            policy.u_tf: np.zeros((o.size // self.dimo, self.dimu), dtype=np.float32)
+            policy.o_tf: obs.reshape(-1, self.dim_obs),
+            policy.g_tf: goal.reshape(-1, self.dim_goal),
+            policy.u_tf: np.zeros((obs.size // self.dim_obs, self.dim_action), dtype=np.float32)
         }
 
         ret = self.sess.run(vals, feed_dict=feed)
         # action postprocessing
-        u = ret[0]
-        noise = noise_eps * self.max_u * np.random.randn(*u.shape)  # gaussian noise
-        u += noise
-        u = np.clip(u, -self.max_u, self.max_u)
-        u += np.random.binomial(1, random_eps, u.shape[0]).reshape(-1, 1) * (self._random_action(u.shape[0]) - u)  # eps-greedy
-        if u.shape[0] == 1:
-            u = u[0]
-        u = u.copy()
-        ret[0] = u
+        action = ret[0]
+        noise = noise_eps * self.max_u * np.random.randn(*action.shape)  # gaussian noise
+        action += noise
+        action = np.clip(action, -self.max_u, self.max_u)
+        # eps-greedy
+        n_ac = action.shape[0]
+        action += np.random.binomial(1, random_eps, n_ac).reshape(-1, 1) * (self._random_action(n_ac) - action)
+        if action.shape[0] == 1:
+            action = action[0]
+        action = action.copy()
+        ret[0] = action
 
         if len(ret) == 1:
             return ret[0]
@@ -140,8 +177,11 @@ class DDPG(object):
 
     def store_episode(self, episode_batch, update_stats=True):
         """
-        episode_batch: array of batch_size x (T or T+1) x dim_key
-                       'o' is of size T+1, others are of size T
+        Story the episode transitions
+
+        :param episode_batch: (numpy Number) array of batch_size x (T or T+1) x dim_key 'o' is of size T+1,
+            others are of size T
+        :param update_stats: (bool) whether to update stats or not
         """
 
         self.buffer.store_episode(episode_batch)
@@ -153,8 +193,8 @@ class DDPG(object):
             num_normalizing_transitions = transitions_in_episode_batch(episode_batch)
             transitions = self.sample_transitions(episode_batch, num_normalizing_transitions)
 
-            o, o_2, g, ag = transitions['o'], transitions['o_2'], transitions['g'], transitions['ag']
-            transitions['o'], transitions['g'] = self._preprocess_og(o, ag, g)
+            obs, _, goal, achieved_goal = transitions['o'], transitions['o_2'], transitions['g'], transitions['ag']
+            transitions['o'], transitions['g'] = self._preprocess_obs_goal(obs, achieved_goal, goal)
             # No need to preprocess the o_2 and g_2 since this is only used for stats
 
             self.o_stats.update(transitions['o'])
@@ -164,56 +204,83 @@ class DDPG(object):
             self.g_stats.recompute_stats()
 
     def get_current_buffer_size(self):
+        """
+        returns the current buffer size
+
+        :return: (int) buffer size
+        """
         return self.buffer.get_current_size()
 
     def _sync_optimizers(self):
-        self.Q_adam.sync()
+        self.q_adam.sync()
         self.pi_adam.sync()
 
     def _grads(self):
         # Avoid feed_dict here for performance!
-        critic_loss, actor_loss, Q_grad, pi_grad = self.sess.run([
-            self.Q_loss_tf,
-            self.main.Q_pi_tf,
-            self.Q_grad_tf,
+        critic_loss, actor_loss, q_grad, pi_grad = self.sess.run([
+            self.q_loss_tf,
+            self.main.q_pi_tf,
+            self.q_grad_tf,
             self.pi_grad_tf
         ])
-        return critic_loss, actor_loss, Q_grad, pi_grad
+        return critic_loss, actor_loss, q_grad, pi_grad
 
-    def _update(self, Q_grad, pi_grad):
-        self.Q_adam.update(Q_grad, self.Q_lr)
+    def _update(self, q_grad, pi_grad):
+        self.q_adam.update(q_grad, self.q_lr)
         self.pi_adam.update(pi_grad, self.pi_lr)
 
     def sample_batch(self):
+        """
+        sample a batch
+
+        :return: (dict) the batch
+        """
         transitions = self.buffer.sample(self.batch_size)
-        o, o_2, g = transitions['o'], transitions['o_2'], transitions['g']
-        ag, ag_2 = transitions['ag'], transitions['ag_2']
-        transitions['o'], transitions['g'] = self._preprocess_og(o, ag, g)
-        transitions['o_2'], transitions['g_2'] = self._preprocess_og(o_2, ag_2, g)
+        obs, obs_2, goal = transitions['o'], transitions['o_2'], transitions['g']
+        achieved_goal, achieved_goal_2 = transitions['ag'], transitions['ag_2']
+        transitions['o'], transitions['g'] = self._preprocess_obs_goal(obs, achieved_goal, goal)
+        transitions['o_2'], transitions['g_2'] = self._preprocess_obs_goal(obs_2, achieved_goal_2, goal)
 
         transitions_batch = [transitions[key] for key in self.stage_shapes.keys()]
         return transitions_batch
 
     def stage_batch(self, batch=None):
+        """
+        apply a batch to staging
+
+        :param batch: (dict) the batch to add to staging, if None: self.sample_batch()
+        """
         if batch is None:
             batch = self.sample_batch()
         assert len(self.buffer_ph_tf) == len(batch)
         self.sess.run(self.stage_op, feed_dict=dict(zip(self.buffer_ph_tf, batch)))
 
     def train(self, stage=True):
+        """
+        train DDPG
+
+        :param stage: (bool) enable staging
+        :return: (float, float) critic loss, actor loss
+        """
         if stage:
             self.stage_batch()
-        critic_loss, actor_loss, Q_grad, pi_grad = self._grads()
-        self._update(Q_grad, pi_grad)
+        critic_loss, actor_loss, q_grad, pi_grad = self._grads()
+        self._update(q_grad, pi_grad)
         return critic_loss, actor_loss
 
     def _init_target_net(self):
         self.sess.run(self.init_target_net_op)
 
     def update_target_net(self):
+        """
+        update the target network
+        """
         self.sess.run(self.update_target_net_op)
 
     def clear_buffer(self):
+        """
+        clears the replay buffer
+        """
         self.buffer.clear_buffer()
 
     def _vars(self, scope):
@@ -226,21 +293,21 @@ class DDPG(object):
         return res
 
     def _create_network(self, reuse=False):
-        logger.info("Creating a DDPG agent with action space %d x %s..." % (self.dimu, self.max_u))
+        logger.info("Creating a DDPG agent with action space %d x %s..." % (self.dim_action, self.max_u))
 
         self.sess = tf.get_default_session()
         if self.sess is None:
             self.sess = tf.InteractiveSession()
 
         # running averages
-        with tf.variable_scope('o_stats') as vs:
+        with tf.variable_scope('o_stats') as scope:
             if reuse:
-                vs.reuse_variables()
-            self.o_stats = Normalizer(self.dimo, self.norm_eps, self.norm_clip, sess=self.sess)
-        with tf.variable_scope('g_stats') as vs:
+                scope.reuse_variables()
+            self.o_stats = Normalizer(self.dim_obs, self.norm_eps, self.norm_clip, sess=self.sess)
+        with tf.variable_scope('g_stats') as scope:
             if reuse:
-                vs.reuse_variables()
-            self.g_stats = Normalizer(self.dimg, self.norm_eps, self.norm_clip, sess=self.sess)
+                scope.reuse_variables()
+            self.g_stats = Normalizer(self.dim_goal, self.norm_eps, self.norm_clip, sess=self.sess)
 
         # mini-batch sampling.
         batch = self.staging_tf.get()
@@ -249,40 +316,44 @@ class DDPG(object):
         batch_tf['r'] = tf.reshape(batch_tf['r'], [-1, 1])
 
         # networks
-        with tf.variable_scope('main') as vs:
+        with tf.variable_scope('main') as scope:
             if reuse:
-                vs.reuse_variables()
+                scope.reuse_variables()
             self.main = self.create_actor_critic(batch_tf, net_type='main', **self.__dict__)
-            vs.reuse_variables()
-        with tf.variable_scope('target') as vs:
+            scope.reuse_variables()
+        with tf.variable_scope('target') as scope:
             if reuse:
-                vs.reuse_variables()
+                scope.reuse_variables()
             target_batch_tf = batch_tf.copy()
             target_batch_tf['o'] = batch_tf['o_2']
             target_batch_tf['g'] = batch_tf['g_2']
             self.target = self.create_actor_critic(
                 target_batch_tf, net_type='target', **self.__dict__)
-            vs.reuse_variables()
+            scope.reuse_variables()
         assert len(self._vars("main")) == len(self._vars("target"))
 
         # loss functions
-        target_Q_pi_tf = self.target.Q_pi_tf
+        target_q_pi_tf = self.target.q_pi_tf
         clip_range = (-self.clip_return, 0. if self.clip_pos_returns else np.inf)
-        target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_Q_pi_tf, *clip_range)
-        self.Q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.Q_tf))
-        self.pi_loss_tf = -tf.reduce_mean(self.main.Q_pi_tf)
+        target_tf = tf.clip_by_value(batch_tf['r'] + self.gamma * target_q_pi_tf, *clip_range)
+
+        self.q_loss_tf = tf.reduce_mean(tf.square(tf.stop_gradient(target_tf) - self.main.q_tf))
+        self.pi_loss_tf = -tf.reduce_mean(self.main.q_pi_tf)
         self.pi_loss_tf += self.action_l2 * tf.reduce_mean(tf.square(self.main.pi_tf / self.max_u))
-        Q_grads_tf = tf.gradients(self.Q_loss_tf, self._vars('main/Q'))
+
+        q_grads_tf = tf.gradients(self.q_loss_tf, self._vars('main/Q'))
         pi_grads_tf = tf.gradients(self.pi_loss_tf, self._vars('main/pi'))
-        assert len(self._vars('main/Q')) == len(Q_grads_tf)
+
+        assert len(self._vars('main/Q')) == len(q_grads_tf)
         assert len(self._vars('main/pi')) == len(pi_grads_tf)
-        self.Q_grads_vars_tf = zip(Q_grads_tf, self._vars('main/Q'))
+
+        self.q_grads_vars_tf = zip(q_grads_tf, self._vars('main/Q'))
         self.pi_grads_vars_tf = zip(pi_grads_tf, self._vars('main/pi'))
-        self.Q_grad_tf = flatten_grads(grads=Q_grads_tf, var_list=self._vars('main/Q'))
+        self.q_grad_tf = flatten_grads(grads=q_grads_tf, var_list=self._vars('main/Q'))
         self.pi_grad_tf = flatten_grads(grads=pi_grads_tf, var_list=self._vars('main/pi'))
 
         # optimizers
-        self.Q_adam = MpiAdam(self._vars('main/Q'), scale_grad_by_procs=False)
+        self.q_adam = MpiAdam(self._vars('main/Q'), scale_grad_by_procs=False)
         self.pi_adam = MpiAdam(self._vars('main/pi'), scale_grad_by_procs=False)
 
         # polyak averaging
@@ -292,7 +363,8 @@ class DDPG(object):
         self.init_target_net_op = list(
             map(lambda v: v[0].assign(v[1]), zip(self.target_vars, self.main_vars)))
         self.update_target_net_op = list(
-            map(lambda v: v[0].assign(self.polyak * v[0] + (1. - self.polyak) * v[1]), zip(self.target_vars, self.main_vars)))
+            map(lambda v: v[0].assign(self.polyak * v[0] + (1. - self.polyak) * v[1]),
+                zip(self.target_vars, self.main_vars)))
 
         # initialize all variables
         tf.variables_initializer(self._global_vars('')).run()
@@ -300,6 +372,11 @@ class DDPG(object):
         self._init_target_net()
 
     def logs(self, prefix=''):
+        """
+        create a log dictionary
+        :param prefix: (str) the prefix for evey index
+        :return: ({str: Any}) the log
+        """
         logs = []
         logs += [('stats_o/mean', np.mean(self.sess.run([self.o_stats.mean])))]
         logs += [('stats_o/std', np.mean(self.sess.run([self.o_stats.std])))]
@@ -318,7 +395,7 @@ class DDPG(object):
                              'main', 'target', 'lock', 'env', 'sample_transitions',
                              'stage_shapes', 'create_actor_critic']
 
-        state = {k: v for k, v in self.__dict__.items() if all([not subname in k for subname in excluded_subnames])}
+        state = {k: v for k, v in self.__dict__.items() if all([subname not in k for subname in excluded_subnames])}
         state['buffer_size'] = self.buffer_size
         state['tf'] = self.sess.run([x for x in self._global_vars('') if 'buffer' not in x.name])
         return state
@@ -330,11 +407,11 @@ class DDPG(object):
 
         self.__init__(**state)
         # set up stats (they are overwritten in __init__)
-        for k, v in state.items():
-            if k[-6:] == '_stats':
-                self.__dict__[k] = v
+        for key, value in state.items():
+            if key[-6:] == '_stats':
+                self.__dict__[key] = value
         # load TF variables
-        vars = [x for x in self._global_vars('') if 'buffer' not in x.name]
-        assert(len(vars) == len(state["tf"]))
-        node = [tf.assign(var, val) for var, val in zip(vars, state["tf"])]
+        _vars = [x for x in self._global_vars('') if 'buffer' not in x.name]
+        assert len(_vars) == len(state["tf"])
+        node = [tf.assign(var, val) for var, val in zip(_vars, state["tf"])]
         self.sess.run(node)

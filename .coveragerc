@@ -1,0 +1,16 @@
+[run]
+branch = False
+omit =
+    baselines/common/tests/*
+    # Mujoco requires a licence
+    baselines/*/run_mujoco.py
+    baselines/ppo1/run_humanoid.py
+    baselines/ppo1/run_robotics.py
+    # HER requires mpi and Mujoco
+    baselines/her/experiment/
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError()
+    if KFAC_DEBUG:

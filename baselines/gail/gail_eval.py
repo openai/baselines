@@ -1,22 +1,21 @@
-'''
+"""
 This code is used to evalaute the imitators trained with different number of trajectories
 and plot the results in the same figure for easy comparison.
-'''
+"""
 
 import argparse
 import os
 import glob
-import gym
 
+import gym
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
-from baselines.gail import run_mujoco
-from baselines.gail import mlp_policy
-from baselines.common import set_global_seeds, tf_util as U
+from baselines.gail import run_mujoco, mlp_policy
+from baselines.common import set_global_seeds, tf_util
 from baselines.common.misc_util import boolean_flag
-from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
+from baselines.gail.dataset.mujocodset import MujocoDset
 
 
 plt.style.use('ggplot')
@@ -26,30 +25,52 @@ CONFIG = {
 
 
 def load_dataset(expert_path):
-    dataset = Mujoco_Dset(expert_path=expert_path)
+    """
+    load mujoco dataset
+
+    :param expert_path: (str) the path to trajectory data
+    :return: (MujocoDset) the dataset manager object
+    """
+    dataset = MujocoDset(expert_path=expert_path)
     return dataset
 
 
 def argsparser():
+    """
+    make a argument parser for evaluation of gail
+
+    :return: (ArgumentParser)
+    """
     parser = argparse.ArgumentParser('Do evaluation')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     parser.add_argument('--env', type=str, choices=['Hopper', 'Walker2d', 'HalfCheetah',
                                                     'Humanoid', 'HumanoidStandup'])
-    boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
+    boolean_flag(parser, 'stochastic_policy', default=False, help_msg='use stochastic/deterministic policy to evaluate')
     return parser.parse_args()
 
 
 def evaluate_env(env_name, seed, policy_hidden_size, stochastic, reuse, prefix):
+    """
+    Evaluate an environment
 
-    def get_checkpoint_dir(checkpoint_list, limit, prefix):
+    :param env_name: (str) the environment name
+    :param seed: (int) the initial random seed
+    :param policy_hidden_size: (int) the number of hidden neurons in the 4 layer MLP
+    :param stochastic: (bool) use a stochastic policy
+    :param reuse: (bool) allow reuse of the graph
+    :param prefix: (str) the checkpoint prefix for the type ('BC' or 'gail')
+    :return: (dict) the logging information of the evaluation
+    """
+
+    def _get_checkpoint_dir(checkpoint_list, limit, prefix):
         for checkpoint in checkpoint_list:
             if ('limitation_'+str(limit) in checkpoint) and (prefix in checkpoint):
                 return checkpoint
         return None
 
-    def policy_fn(name, ob_space, ac_space, reuse=False):
-        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
+    def _policy_fn(name, ob_space, ac_space, reuse=False, sess=None):
+        return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, sess=sess,
                                     reuse=reuse, hid_size=policy_hidden_size, num_hid_layers=2)
 
     data_path = os.path.join('data', 'deterministic.trpo.' + env_name + '.0.00.npz')
@@ -65,13 +86,13 @@ def evaluate_env(env_name, seed, policy_hidden_size, stochastic, reuse, prefix):
     for i, limit in enumerate(CONFIG['traj_limitation']):
         # Do one evaluation
         upper_bound = sum(dataset.rets[:limit])/limit
-        checkpoint_dir = get_checkpoint_dir(checkpoint_list, limit, prefix=prefix)
+        checkpoint_dir = _get_checkpoint_dir(checkpoint_list, limit, prefix=prefix)
         checkpoint_path = tf.train.latest_checkpoint(checkpoint_dir)
         env = gym.make(env_name + '-v1')
         env.seed(seed)
         print('Trajectory limitation: {}, Load checkpoint: {}, '.format(limit, checkpoint_path))
         avg_len, avg_ret = run_mujoco.runner(env,
-                                             policy_fn,
+                                             _policy_fn,
                                              checkpoint_path,
                                              timesteps_per_batch=1024,
                                              number_trajs=10,
@@ -90,6 +111,14 @@ def evaluate_env(env_name, seed, policy_hidden_size, stochastic, reuse, prefix):
 
 
 def plot(env_name, bc_log, gail_log, stochastic):
+    """
+    plot and display all the evalutation results
+
+    :param env_name: (str) the environment name
+    :param bc_log: (dict) the behavior_clone log
+    :param gail_log: (dict) the gail log
+    :param stochastic: (bool) use a stochastic policy
+    """
     upper_bound = bc_log['upper_bound']
     bc_avg_ret = bc_log['avg_ret']
     gail_avg_ret = gail_log['avg_ret']
@@ -128,18 +157,23 @@ def plot(env_name, bc_log, gail_log, stochastic):
 
 
 def main(args):
-    U.make_session(num_cpu=1).__enter__()
-    set_global_seeds(args.seed)
-    print('Evaluating {}'.format(args.env))
-    bc_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
-                          args.stochastic_policy, False, 'BC')
-    print('Evaluation for {}'.format(args.env))
-    print(bc_log)
-    gail_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
-                            args.stochastic_policy, True, 'gail')
-    print('Evaluation for {}'.format(args.env))
-    print(gail_log)
-    plot(args.env, bc_log, gail_log, args.stochastic_policy)
+    """
+    evaluate and plot Behavior clone and gail
+
+    :param args: (ArgumentParser) the arguments for training and evaluating
+    """
+    with tf_util.make_session(num_cpu=1):
+        set_global_seeds(args.seed)
+        print('Evaluating {}'.format(args.env))
+        bc_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
+                              args.stochastic_policy, False, 'BC')
+        print('Evaluation for {}'.format(args.env))
+        print(bc_log)
+        gail_log = evaluate_env(args.env, args.seed, args.policy_hidden_size,
+                                args.stochastic_policy, True, 'gail')
+        print('Evaluation for {}'.format(args.env))
+        print(gail_log)
+        plot(args.env, bc_log, gail_log, args.stochastic_policy)
 
 
 if __name__ == '__main__':

@@ -2,9 +2,13 @@
 *.pyc
 *.pkl
 *.py~
+*.bak
 .pytest_cache
 .DS_Store
 .idea
+.coverage
+.coverage.*
+__pycache__/
 
 # Setuptools distribution and build folders.
 /dist/
@@ -34,5 +38,3 @@ src
 .cache
 
 MUJOCO_LOG.TXT
-
-

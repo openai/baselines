@@ -21,10 +21,16 @@ setup(name='baselines',
           'cloudpickle',
           'tensorflow>=1.4.0',
           'click',
-          'opencv-python'
+          'opencv-python',
+          'numpy',
+          'pandas',
+          'pytest',
+          'matplotlib',
+          'seaborn',
+          'glob2'
       ],
       description='OpenAI baselines: high quality implementations of reinforcement learning algorithms',
       author='OpenAI',
       url='https://github.com/openai/baselines',
       author_email='gym@openai.com',
-      version='0.1.5')
+      version='0.1.6')
