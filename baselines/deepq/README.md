@@ -32,7 +32,7 @@ In particular notice that once `deepq.learn` finishes training it returns `act` 
 
 
 - [baselines/deepq/experiments/custom_cartpole.py](experiments/custom_cartpole.py) - Cartpole training with more fine grained control over the internals of DQN algorithm.
-- [baselines/deepq/experiments/atari/train.py](experiments/atari/train.py) - more robust setup for training at scale.
+- [baselines/deepq/experiments/run_atari.py](experiments/run_atari.py) - more robust setup for training at scale.
 
 
 ##### Download a pretrained Atari agent
