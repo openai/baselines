@@ -57,10 +57,19 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if step > 0 and step % horizon == 0:
+            # Fix to avoid "mean of empty slice" warning when there is only one episode
+            if len(ep_rets) == 0:
+                ep_rets = [cur_ep_ret]
+                ep_lens = [cur_ep_len]
+                ep_true_rets = [cur_ep_true_ret]
+                total_timesteps = cur_ep_len
+            else:
+                total_timesteps =  sum(ep_lens) + cur_ep_len
+
             yield {"ob": observations, "rew": rews, "vpred": vpreds, "new": news,
                    "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
                    "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets,
-                   "total_timestep": sum(ep_lens) + cur_ep_len}
+                   "total_timestep": total_timesteps}
             _, vpred, _, _ = policy.step(observation.reshape(-1, *observation.shape))
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
