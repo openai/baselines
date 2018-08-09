@@ -107,12 +107,18 @@ def test_model_manipulation(model_class):
             action, _ = model.predict(obs)
             obs, _, _, _ = env.step(action)
 
+        # Free memory
+        del model
+        del obs
+
     finally:
         if os.path.exists("./test_model"):
             os.remove("./test_model")
 
 
 def test_ddpg():
+    # Free memory, otherwise, travis will complain with an out of memory error:
+    # OSError: [Errno 12] Cannot allocate memory
     gc.collect()
     args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
     args = list(map(str, args))
