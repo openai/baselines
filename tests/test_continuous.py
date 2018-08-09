@@ -1,5 +1,6 @@
 import subprocess
 import os
+import gc
 
 import pytest
 import gym
@@ -112,6 +113,7 @@ def test_model_manipulation(model_class):
 
 
 def test_ddpg():
+    gc.collect()
     args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'baselines.ddpg.main'] + args)
