@@ -30,13 +30,11 @@ def model(inpt, num_actions, scope, reuse=False):
         return out
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Train DQN on cartpole using a custom mlp")
-    parser.add_argument('--no-render', default=False, action="store_true", help="Disable rendering")
-    parser.add_argument('--max-timesteps', default=50000, type=int,
-                        help="Maximum number of timesteps when not rendering")
-    args = parser.parse_args()
-
+def main(args):
+    """
+    Train a DeepQ agent on cartpole env
+    :param args: (Parsed Arguments) the input arguments
+    """
     with tf_utils.make_session(8):
         # Create the environment
         env = gym.make("CartPole-v0")
@@ -102,3 +100,14 @@ if __name__ == '__main__':
                 logger.record_tabular("mean episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Train DQN on cartpole using a custom mlp")
+    parser.add_argument('--no-render', default=False, action="store_true", help="Disable rendering")
+    parser.add_argument('--max-timesteps', default=50000, type=int,
+                        help="Maximum number of timesteps when not rendering")
+    args = parser.parse_args()
+    main(args)
+
+

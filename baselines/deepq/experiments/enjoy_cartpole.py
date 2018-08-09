@@ -7,7 +7,7 @@ from baselines.deepq import DeepQ
 
 def main(args):
     """
-    run a trained model for the cartpole problem
+    Run a trained model for the cartpole problem
 
     :param args: (ArgumentParser) the input arguments
     """
