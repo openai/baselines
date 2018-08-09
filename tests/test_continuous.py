@@ -113,6 +113,8 @@ def test_model_manipulation(model_class):
 
 
 def test_ddpg():
+    # Free memory, otherwise, travis will complain with an out of memory error:
+    # OSError: [Errno 12] Cannot allocate memory
     gc.collect()
     args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
     args = list(map(str, args))
