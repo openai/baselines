@@ -11,7 +11,7 @@ RUN \
     . $VENV/bin/activate && \
     cd $CODE_DIR && \
     pip install --upgrade pip && \
-    pip install -e baselines && \
+    pip install -e baselines[tf] && \
     pip install pytest
 
 ENV PATH=$VENV/bin:$PATH
