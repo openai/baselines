@@ -120,6 +120,7 @@ def test_ddpg():
     # Free memory, otherwise, travis will complain with an out of memory error:
     # OSError: [Errno 12] Cannot allocate memory
     gc.collect()
+    gc.collect()
     args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'baselines.ddpg.main'] + args)
