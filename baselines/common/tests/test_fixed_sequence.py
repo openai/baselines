@@ -6,7 +6,8 @@ from baselines.run import get_learn_function
 
 common_kwargs = dict(
     seed=0,
-    total_timesteps=50000,
+    total_timesteps=20000,
+    nlstm=64
 )
     
 learn_kwargs = {
@@ -19,7 +20,7 @@ learn_kwargs = {
 
 
 alg_list = learn_kwargs.keys()
-rnn_list = ['lstm']
+rnn_list = ['lstm', 'tflstm', 'tflstm_static']
 
 @pytest.mark.slow
 @pytest.mark.parametrize("alg", alg_list)
@@ -41,11 +42,11 @@ def test_fixed_sequence(alg, rnn):
         **kwargs
     )
 
-    simple_test(env_fn, learn, 0.7)
+    simple_test(env_fn, learn, 0.3)
 
 
 if __name__ == '__main__':
-    test_fixed_sequence('ppo2', 'lstm')
+    test_fixed_sequence('ppo2', 'tflstm')
 
     
 
