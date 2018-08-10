@@ -213,7 +213,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
         """
         The probability distribution type for multivariate gaussian input
 
-        :param size: (int) the number of dimentions of the multivariate gaussian
+        :param size: (int) the number of dimensions of the multivariate gaussian
         """
         self.size = size
 
@@ -242,7 +242,7 @@ class BernoulliProbabilityDistributionType(ProbabilityDistributionType):
         """
         The probability distribution type for bernoulli input
 
-        :param size: (int) the number of dimentions of the bernoulli distribution
+        :param size: (int) the number of dimensions of the bernoulli distribution
         """
         self.size = size
 

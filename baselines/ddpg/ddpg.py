@@ -51,7 +51,7 @@ def reduce_std(tensor, axis=None, keepdims=False):
 
     :param tensor: (TensorFlow Tensor) the input tensor
     :param axis: (int or [int]) the axis to itterate the std over
-    :param keepdims: (bool) keep the other dimentions the same
+    :param keepdims: (bool) keep the other dimensions the same
     :return: (TensorFlow Tensor) the std of the tensor
     """
     return tf.sqrt(reduce_var(tensor, axis=axis, keepdims=keepdims))
@@ -63,7 +63,7 @@ def reduce_var(tensor, axis=None, keepdims=False):
 
     :param tensor: (TensorFlow Tensor) the input tensor
     :param axis: (int or [int]) the axis to itterate the variance over
-    :param keepdims: (bool) keep the other dimentions the same
+    :param keepdims: (bool) keep the other dimensions the same
     :return: (TensorFlow Tensor) the variance of the tensor
     """
     tensor_mean = tf.reduce_mean(tensor, axis=axis, keep_dims=True)

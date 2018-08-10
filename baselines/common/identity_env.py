@@ -9,7 +9,7 @@ class IdentityEnv(Env):
         """
         Identity environment for testing purposes
 
-        :param dim: (int) the size of the dimentions you want to learn
+        :param dim: (int) the size of the dimensions you want to learn
         :param ep_length: (int) the length of each episodes in timesteps
         """
         self.action_space = Discrete(dim)
@@ -41,7 +41,7 @@ class IdentityEnvMultiDiscrete(Env):
         """
         Identity environment for testing purposes
 
-        :param dim: (int) the size of the dimentions you want to learn
+        :param dim: (int) the size of the dimensions you want to learn
         :param ep_length: (int) the length of each episodes in timesteps
         """
         self.action_space = MultiDiscrete([dim, dim])
@@ -78,7 +78,7 @@ class IdentityEnvMultiBinary(Env):
         """
         Identity environment for testing purposes
 
-        :param dim: (int) the size of the dimentions you want to learn
+        :param dim: (int) the size of the dimensions you want to learn
         :param ep_length: (int) the length of each episodes in timesteps
         """
         self.action_space = MultiBinary(dim)
