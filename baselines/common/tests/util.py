@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from gym.spaces import np_random
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.bench.monitor import Monitor
 
 N_TRIALS = 10000
 N_EPISODES = 100
@@ -10,7 +11,7 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
     np.random.seed(0)
     np_random.seed(0)
 
-    env = DummyVecEnv([env_fn])
+    env = DummyVecEnv([lambda: Monitor(env_fn(), None, allow_early_resets=True)])
 
 
     with tf.Graph().as_default(), tf.Session(config=tf.ConfigProto(allow_soft_placement=True)).as_default():
