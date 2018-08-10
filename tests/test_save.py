@@ -109,6 +109,8 @@ def test_model_manipulation(model_policy):
             action, _ = model.predict(obs)
             obs, _, _, _ = env.step(action)
 
+        del model, env
+
     finally:
         if os.path.exists("./test_model"):
             os.remove("./test_model")
