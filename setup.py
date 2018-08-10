@@ -14,7 +14,6 @@ setup(name='baselines',
           'scipy',
           'tqdm',
           'joblib',
-          'zmq',
           'dill',
           'progressbar2',
           'mpi4py',
@@ -23,6 +22,12 @@ setup(name='baselines',
           'click',
           'opencv-python'
       ],
+      extras_require={
+        'test': [
+            'filelock',
+            'pytest'
+        ]
+      },
       description='OpenAI baselines: high quality implementations of reinforcement learning algorithms',
       author='OpenAI',
       url='https://github.com/openai/baselines',

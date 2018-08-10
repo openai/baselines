@@ -85,7 +85,7 @@ class DiagGaussianPdType(PdType):
 
     def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
         mean = fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
-        logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
+        logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         return self.pdfromflat(pdparam), mean
 
@@ -143,26 +143,26 @@ class CategoricalPd(Pd):
         # Note: we can't use sparse_softmax_cross_entropy_with_logits because
         #       the implementation does not allow second-order derivatives...
         one_hot_actions = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
-        return tf.nn.softmax_cross_entropy_with_logits(
+        return tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=self.logits,
             labels=one_hot_actions)
     def kl(self, other):
-        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
-        a1 = other.logits - tf.reduce_max(other.logits, axis=-1, keep_dims=True)
+        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
+        a1 = other.logits - tf.reduce_max(other.logits, axis=-1, keepdims=True)
         ea0 = tf.exp(a0)
         ea1 = tf.exp(a1)
-        z0 = tf.reduce_sum(ea0, axis=-1, keep_dims=True)
-        z1 = tf.reduce_sum(ea1, axis=-1, keep_dims=True)
+        z0 = tf.reduce_sum(ea0, axis=-1, keepdims=True)
+        z1 = tf.reduce_sum(ea1, axis=-1, keepdims=True)
         p0 = ea0 / z0
         return tf.reduce_sum(p0 * (a0 - tf.log(z0) - a1 + tf.log(z1)), axis=-1)
     def entropy(self):
-        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
+        a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
         ea0 = tf.exp(a0)
-        z0 = tf.reduce_sum(ea0, axis=-1, keep_dims=True)
+        z0 = tf.reduce_sum(ea0, axis=-1, keepdims=True)
         p0 = ea0 / z0
         return tf.reduce_sum(p0 * (tf.log(z0) - a0), axis=-1)
     def sample(self):
-        u = tf.random_uniform(tf.shape(self.logits))
+        u = tf.random_uniform(tf.shape(self.logits), dtype=self.logits.dtype)
         return tf.argmax(self.logits - tf.log(-tf.log(u)), axis=-1)
     @classmethod
     def fromflat(cls, flat):

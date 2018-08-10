@@ -1,4 +1,6 @@
 import numpy as np
+import os
+os.environ.setdefault('PATH', '')
 from collections import deque
 import gym
 from gym import spaces

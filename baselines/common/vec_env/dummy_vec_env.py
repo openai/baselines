@@ -30,15 +30,30 @@ class DummyVecEnv(VecEnv):
         self.actions = None
 
     def step_async(self, actions):
-        self.actions = actions
+        listify = True
+        try:
+            if len(actions) == self.num_envs:
+                listify = False
+        except TypeError:
+            pass
+
+        if not listify:
+            self.actions = actions
+        else:
+            assert self.num_envs == 1, "actions {} is either not a list or has a wrong size - cannot match to {} environments".format(actions, self.num_envs)
+            self.actions = [actions]
 
     def step_wait(self):
         for e in range(self.num_envs):
-            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(self.actions[e])
+            action = self.actions[e]
+            if isinstance(self.envs[e].action_space, spaces.Discrete):
+                action = int(action)
+
+            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(action)
             if self.buf_dones[e]:
                 obs = self.envs[e].reset()
             self._save_obs(e, obs)
-        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
+        return (np.copy(self._obs_from_buf()), np.copy(self.buf_rews), np.copy(self.buf_dones),
                 self.buf_infos.copy())
 
     def reset(self):
