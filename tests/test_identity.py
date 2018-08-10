@@ -42,7 +42,6 @@ def test_identity(learn_func):
     obs = env.reset()
     for _ in range(n_trials):
         action, _ = model.predict(obs)
-        del obs
         obs, reward, _, _ = env.step(action)
         reward_sum += reward
     assert reward_sum > 0.9 * n_trials

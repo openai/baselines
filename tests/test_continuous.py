@@ -19,6 +19,7 @@ from tests.test_common import _assert_eq
 
 ENV_ID = 'Pendulum-v0'
 N_TRIALS = 1000
+NUM_TIMESTEPS = 1000
 
 MODEL_LIST = [
     A2C,
@@ -46,7 +47,7 @@ def test_model_manipulation(model_class):
 
         # create and train
         model = model_class(policy=MlpPolicy, env=env)
-        model.learn(total_timesteps=5000)
+        model.learn(total_timesteps=NUM_TIMESTEPS)
 
         # predict and measure the acc reward
         acc_reward = 0
@@ -54,7 +55,6 @@ def test_model_manipulation(model_class):
         set_global_seeds(0)
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
-            del obs
             obs, reward, _, _ = env.step(action)
             acc_reward += reward
         acc_reward = sum(acc_reward) / N_TRIALS
@@ -78,7 +78,6 @@ def test_model_manipulation(model_class):
         set_global_seeds(0)
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
-            del obs
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
@@ -87,7 +86,7 @@ def test_model_manipulation(model_class):
             "Error: the prediction seems to have changed between loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=1000)
+        model.learn(total_timesteps=int(NUM_TIMESTEPS / 2))
 
         # validate no reset post learning
         loaded_acc_reward = 0
@@ -95,7 +94,6 @@ def test_model_manipulation(model_class):
         set_global_seeds(0)
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
-            del obs
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
@@ -107,7 +105,6 @@ def test_model_manipulation(model_class):
         obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
-            del obs
             obs, _, _, _ = env.step(action)
 
         # Free memory
