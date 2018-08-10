@@ -68,6 +68,7 @@ def test_deepq():
     model.learn(total_timesteps=NUM_TIMESTEPS)
 
     env.close()
+    del model, env
 
 
 @pytest.mark.slow
