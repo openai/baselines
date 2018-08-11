@@ -13,6 +13,8 @@ def train(env_id, num_timesteps, seed, policy, lrschedule, num_env):
         policy_fn = LstmPolicy
     elif policy == 'lnlstm':
         policy_fn = LnLstmPolicy
+
+    #  Creates a vector of n environments to run them simultaneously.
     env = VecFrameStack(make_atari_env(env_id, num_env, seed), 4)
     learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lrschedule=lrschedule)
     env.close()

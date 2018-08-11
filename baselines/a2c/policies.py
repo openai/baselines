@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
+
+# This function selects the probability distribution over actions
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_input
 
@@ -90,21 +92,34 @@ class LstmPolicy(object):
 class CnnPolicy(object):
 
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False, **conv_kwargs): #pylint: disable=W0613
+        # Based on the action space, will select what probability distribution type
+        # we will use to distribute action in our stochastic policy.
         self.pdtype = make_pdtype(ac_space)
+        
         X, processed_x = observation_input(ob_space, nbatch)
         with tf.variable_scope("model", reuse=reuse):
             h = nature_cnn(processed_x, **conv_kwargs)
+
+            # Calculate the v(s)
             vf = fc(h, 'v', 1)[:,0]
+
+            # This build a fc connected layer that returns a probability distribution
+            # over actions (self.pd) and our pi logits (self.pi).
             self.pd, self.pi = self.pdtype.pdfromlatent(h, init_scale=0.01)
 
+        # Take an action in the action distribution (remember we are in a situation
+        # of stochastic policy so we don't always take the action with the highest probability
+        # for instance if we have 2 actions 0.7 and 0.3 we have 30% chance to take the second)
         a0 = self.pd.sample()
         neglogp0 = self.pd.neglogp(a0)
         self.initial_state = None
 
+        # Function use to take a step returns action to take and V(s)
         def step(ob, *_args, **_kwargs):
             a, v, neglogp = sess.run([a0, vf, neglogp0], {X:ob})
             return a, v, self.initial_state, neglogp
 
+        # Function that calculates only the V(s)
         def value(ob, *_args, **_kwargs):
             return sess.run(vf, {X:ob})
 
