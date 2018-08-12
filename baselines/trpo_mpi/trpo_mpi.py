@@ -216,6 +216,8 @@ def learn(env, policy_fn, *,
         with timed("computegrad"):
             *lossbefore, g = compute_lossandgrad(*args)
         lossbefore = allmean(np.array(lossbefore))
+        meanlosses = None
+
         g = allmean(g)
         if np.allclose(g, 0):
             logger.log("Got zero gradient. not updating")
@@ -254,8 +256,9 @@ def learn(env, policy_fn, *,
                 paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), vfadam.getflat().sum())) # list of tuples
                 assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
 
-        for (lossname, lossval) in zip(loss_names, meanlosses):
-            logger.record_tabular(lossname, lossval)
+        if meanlosses is not None:
+            for (lossname, lossval) in zip(loss_names, meanlosses):
+                logger.record_tabular(lossname, lossval)
 
         with timed("vf"):
 
