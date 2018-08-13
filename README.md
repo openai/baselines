@@ -112,10 +112,6 @@ This should get to the mean reward per episode about 5k. To load and visualize t
 *NOTE:* At the moment Mujoco training uses VecNormalize wrapper for the environment which is not being saved correctly; so loading the models trained on Mujoco will not work well if the environment is recreated. If necessary, you can work around that by replacing RunningMeanStd by TfRunningMeanStd in [baselines/common/vec_env/vec_normalize.py](baselines/common/vec_env/vec_normalize.py#L12). This way, mean and std of environment normalizing wrapper will be saved in tensorflow variables and included in the model file; however, training is slower that way - hence not including it by default
 
 
-
-
-
-
 ## Subpackages
 
 - [A2C](baselines/a2c)
@@ -125,9 +121,18 @@ This should get to the mean reward per episode about 5k. To load and visualize t
 - [DQN](baselines/deepq)
 - [GAIL](baselines/gail)
 - [HER](baselines/her)
-- [PPO1](baselines/ppo1) (Multi-CPU using MPI)
-- [PPO2](baselines/ppo2) (Optimized for GPU)
+- [PPO1](baselines/ppo1) (obsolete version, left here temporarily)
+- [PPO2](baselines/ppo2) 
 - [TRPO](baselines/trpo_mpi)
+
+
+
+## Benchmarks
+Results of benchmarks on Mujoco (1M timesteps) and Atari (10M timesteps) are available 
+[here for Mujoco](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/peterz_publish_benchmark_results/benchmarks_mujoco1M.htm) 
+and
+[here for Atari](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/peterz_publish_benchmark_results/benchmarks_atari10M.htm) 
+respectively. Note that these results may be not on the latest version of the code, particular commit hash with which results were obtained is specified on the benchmarks page. 
 
 To cite this repository in publications:
 
