@@ -121,9 +121,10 @@ This should get to the mean reward per episode about 5k. To load and visualize t
 - [DQN](baselines/deepq)
 - [GAIL](baselines/gail)
 - [HER](baselines/her)
-- [PPO1](baselines/ppo1) (Multi-CPU using MPI)
-- [PPO2](baselines/ppo2) (Optimized for GPU)
+- [PPO1](baselines/ppo1) (obsolete version, left here temporarily)
+- [PPO2](baselines/ppo2) 
 - [TRPO](baselines/trpo_mpi)
+
 
 
 ## Benchmarks
