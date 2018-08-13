@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from baselines.ppo2.policies import nature_cnn
+from baselines.common.policies import nature_cnn
 from baselines.a2c.utils import fc, batch_to_seq, seq_to_batch, lstm, sample
 
 
@@ -18,11 +18,13 @@ class AcerCnnPolicy(object):
             pi = tf.nn.softmax(pi_logits)
             q = fc(h, 'q', nact)
 
-        a = sample(pi_logits)  # could change this to use self.pi instead
+        a = sample(tf.nn.softmax(pi_logits))  # could change this to use self.pi instead
         self.initial_state = []  # not stateful
         self.X = X
         self.pi = pi  # actual policy params now
+        self.pi_logits = pi_logits
         self.q = q
+        self.vf = q
 
         def step(ob, *args, **kwargs):
             # returns actions, mus, states

@@ -112,6 +112,8 @@ def load_results(dir):
         with open(fname, 'rt') as fh:
             if fname.endswith('csv'):
                 firstline = fh.readline()
+                if not firstline:
+                    continue
                 assert firstline[0] == '#'
                 header = json.loads(firstline[1:])
                 df = pandas.read_csv(fh, index_col=None)
