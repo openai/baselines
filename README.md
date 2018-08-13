@@ -65,13 +65,14 @@ A2C with ```Breakout-v0```:
 ```python
 import gym
 
+from baselines.common.cmd_util import make_atari_env
 from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.a2c import A2C
 
-env = gym.make('Breakout-v0')
-env = DummyVecEnv([lambda: env])
+# there already exists an environment generator that will wrap atari environments correctly
+env = make_atari_env('Breakout-v0', num_env=8, seed=0)
 
 model = A2C(CnnPolicy, env, verbose=1)
 model.learn(25000)
@@ -91,8 +92,8 @@ import gym
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.deepq import DeepQ, models
 
-env = gym.make('MsPacman-v0')
-env = DummyVecEnv([lambda: env])
+# there already exists an environment generator that will wrap atari environments correctly
+env = make_atari_env('MsPacman-v0', num_env=1, seed=0)
 
 # Here deepq does not use the standard Actor-Critic policies
 model = DeepQ(models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[64]), env, verbose=1)
@@ -116,8 +117,8 @@ from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy,
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.ppo2 import PPO2
 
-env = gym.make('DemonAttack-v0')
-env = DummyVecEnv([lambda: env])
+# there already exists an environment generator that will wrap atari environments correctly
+env = make_atari_env('DemonAttack-v0', num_env=8, seed=0)
 
 model = PPO2(CnnPolicy, env, verbose=1)
 model.learn(10000)
@@ -129,8 +130,9 @@ for i in range(1000):
     env.render()
 
 
-env = gym.make('SpaceInvaders-v0')
-env = DummyVecEnv([lambda: env])
+
+# there already exists an environment generator that will wrap atari environments correctly
+env = make_atari_env('SpaceInvaders-v0', num_env=8, seed=0)
 
 # change env
 model.set_env(env)
