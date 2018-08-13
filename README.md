@@ -10,18 +10,18 @@ These algorithms will make it easier for the research community to replicate, re
 
 ### Implemented Algorithms
 
-| **Name**            | **refactored**<sup>(1)</sup> | **Reccurent**      | **Actions** ```Box``` |  **Actions** ```Discrete``` |  **Actions** ```MultiDiscrete``` |  **Actions** ```MultiBinary```|
-| ------------------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- |
-| A2C                 | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| ACER                | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           |
-| ACKTR               | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           |
-| DDPG                | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
-| DeepQ               | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           |
-| GAIL <sup>(2)</sup> | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| HER <sup>(3)</sup>  | :x:                          | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           |
+| **Name**            | **refactored**<sup>(1)</sup> | **Reccurent**      | **Actions** ```Box``` |  **Actions** ```Discrete``` |  **Actions** ```MultiDiscrete``` |  **Actions** ```MultiBinary```| **MultiProcessing** |
+| ------------------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- | ------------------- |
+| A2C                 | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :heavy_check_mark:  |
+| ACER                | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           | :heavy_check_mark:  |
+| ACKTR               | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           | :heavy_check_mark:  |
+| DDPG                | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                 |
+| DeepQ               | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           | :x:                 |
+| GAIL <sup>(2)</sup> | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                 |
+| HER <sup>(3)</sup>  | :x:                          | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                 |
 | PPO1                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| PPO2                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| TRPO                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
+| PPO2                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :heavy_check_mark:  |
+| TRPO                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :x:                 |
 
 <sup><sup>(1): Whether or not the algorithm has be refactored to fit the ```BaseRLModel``` class.</sup></sup><br>
 <sup><sup>(2): Only implemented for TRPO.</sup></sup><br>
@@ -71,8 +71,8 @@ from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy,
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.a2c import A2C
 
-# there already exists an environment generator that will wrap atari environments correctly
-env = make_atari_env('Breakout-v0', num_env=8, seed=0)
+# There already exists an environment generator that will wrap atari environments correctly.
+env = make_atari_env('BreakoutNoFrameskip-v0', num_env=8, seed=0)
 
 model = A2C(CnnPolicy, env, verbose=1)
 model.learn(25000)
@@ -89,11 +89,13 @@ DeepQ with ```MsPacman-v0```:
 ```python
 import gym
 
+from baselines.common.cmd_util import make_atari_env
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.deepq import DeepQ, models
 
-# there already exists an environment generator that will wrap atari environments correctly
-env = make_atari_env('MsPacman-v0', num_env=1, seed=0)
+# There already exists an environment generator that will wrap atari environments correctly
+# Here we set the num_env to 1, as DeepQ does not support multi-environments
+env = make_atari_env('MsPacmanNoFrameskip-v0', num_env=1, seed=0)
 
 # Here deepq does not use the standard Actor-Critic policies
 model = DeepQ(models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[64]), env, verbose=1)
@@ -112,13 +114,14 @@ You can also move from one environment to an other for continuous learning (PPO2
 ```python
 import gym
 
+from baselines.common.cmd_util import make_atari_env
 from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.ppo2 import PPO2
 
-# there already exists an environment generator that will wrap atari environments correctly
-env = make_atari_env('DemonAttack-v0', num_env=8, seed=0)
+# There already exists an environment generator that will wrap atari environments correctly
+env = make_atari_env('DemonAttackNoFrameskip-v0', num_env=8, seed=0)
 
 model = PPO2(CnnPolicy, env, verbose=1)
 model.learn(10000)
@@ -129,10 +132,8 @@ for i in range(1000):
     obs, rewards, dones, info = env.step(action)
     env.render()
 
-
-
-# there already exists an environment generator that will wrap atari environments correctly
-env = make_atari_env('SpaceInvaders-v0', num_env=8, seed=0)
+# The number of environments must be identical when changing environments
+env = make_atari_env('SpaceInvadersNoFrameskip-v0', num_env=8, seed=0)
 
 # change env
 model.set_env(env)
