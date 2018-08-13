@@ -10,18 +10,18 @@ These algorithms will make it easier for the research community to replicate, re
 
 ### Implemented Algorithms
 
-| **Name**            | **refactored**<sup>(1)</sup> | **Reccurent**      | **Actions** ```Box``` |  **Actions** ```Discrete``` |  **Actions** ```MultiDiscrete``` |  **Actions** ```MultiBinary```| **MultiProcessing** |
-| ------------------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- | ------------------- |
-| A2C                 | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :heavy_check_mark:  |
-| ACER                | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           | :heavy_check_mark:  |
-| ACKTR               | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           | :heavy_check_mark:  |
-| DDPG                | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                 |
-| DeepQ               | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           | :x:                 |
-| GAIL <sup>(2)</sup> | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                 |
-| HER <sup>(3)</sup>  | :x:                          | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                 |
-| PPO1                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            |
-| PPO2                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :heavy_check_mark:  |
-| TRPO                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :x:                 |
+| **Name**            | **refactored**<sup>(1)</sup> | **Reccurent**      | ```Box```             | ```Discrete```              | ```MultiDiscrete```              | ```MultiBinary```             | **Multi Processing** |
+| ------------------- | ---------------------------- | ------------------ | --------------------- | --------------------------- | -------------------------------- | ----------------------------- | -------------------- |
+| A2C                 | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :heavy_check_mark:   |
+| ACER                | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           | :heavy_check_mark:   |
+| ACKTR               | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(4)</sup>    | :heavy_check_mark:          | :x:                              | :x:                           | :heavy_check_mark:   |
+| DDPG                | :heavy_check_mark:           | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                  |
+| DeepQ               | :heavy_check_mark:           | :x:                | :x:                   | :heavy_check_mark:          | :x:                              | :x:                           | :x:                  |
+| GAIL <sup>(2)</sup> | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                  |
+| HER <sup>(3)</sup>  | :x:                          | :x:                | :heavy_check_mark:    | :x:                         | :x:                              | :x:                           | :x:                  |
+| PPO1                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :x:                  |
+| PPO2                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :heavy_check_mark:   |
+| TRPO                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark:    | :heavy_check_mark:          | :heavy_check_mark:               | :heavy_check_mark:            | :x:                  |
 
 <sup><sup>(1): Whether or not the algorithm has be refactored to fit the ```BaseRLModel``` class.</sup></sup><br>
 <sup><sup>(2): Only implemented for TRPO.</sup></sup><br>
@@ -48,6 +48,7 @@ from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.acktr import ACKTR
 
 env = gym.make('CartPole-v0')
+# Vectorize the environment, as some models requires it. But all the models can use vectorized environments
 env = DummyVecEnv([lambda: env])
 
 model = ACKTR(MlpPolicy, env, gamma=0.5, verbose=1)
