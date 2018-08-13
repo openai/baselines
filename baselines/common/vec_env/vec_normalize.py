@@ -21,7 +21,7 @@ class VecNormalize(VecEnvWrapper):
     :param epsilon: (float) To avoid division by zero
     """
 
-    def __init__(self, venv, training=True, norm_obs=True, norm_rewards=False,
+    def __init__(self, venv, training=True, norm_obs=True, norm_rewards=True,
                  clip_obs=10., clip_reward=10., gamma=0.99, epsilon=1e-8):
         VecEnvWrapper.__init__(self, venv)
         self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
