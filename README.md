@@ -127,7 +127,8 @@ This should get to the mean reward per episode about 5k. To load and visualize t
 
 
 ## Benchmarks
-Results of benchmarks on Mujoco (1M timesteps) and Atari (10M timesteps) are available [here](benchmarks_mujoco1M.htm) and [here](benchmarks_atari10M.htm) respectively. Note that these results may be not on the latest version of the code, particular commit hash with which results were obtained is specified on the benchmarks page. 
+Results of benchmarks on Mujoco (1M timesteps) and Atari (10M timesteps) are available [here for Mujoco](htmlpreview.github.com/?https://github.com/openai/baselines/blob/peterz_publish_benchmark_results/benchmarks_mujoco1M.htm) 
+and [here for Atari](htmlpreview.github.com/?https://github.com/openai/baselines/blob/peterz_publish_benchmark_results/benchmarks_mujoco1M.htm) respectively. Note that these results may be not on the latest version of the code, particular commit hash with which results were obtained is specified on the benchmarks page. 
 
 To cite this repository in publications:
 
