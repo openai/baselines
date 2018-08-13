@@ -1,3 +1,5 @@
+import gym
+
 from baselines.common import BaseRLModel
 from baselines.trpo_mpi import TRPO
 
@@ -55,6 +57,8 @@ class GAIL(BaseRLModel):
         self.trpo.set_env(env)
 
     def setup_model(self):
+        assert isinstance(self.action_space, gym.spaces.Box), "Error: GAIL requires a continuous action space."
+
         self.trpo.setup_model()
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):

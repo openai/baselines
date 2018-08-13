@@ -213,7 +213,7 @@ class ACKTR(BaseRLModel):
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((1,) + self.observation_space.shape)
+        observation = np.array(observation).reshape((self.n_envs,) + self.observation_space.shape)
 
         actions, _, states, _ = self.step(observation, state, mask)
         return actions, states
@@ -223,7 +223,7 @@ class ACKTR(BaseRLModel):
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((1,) + self.observation_space.shape)
+        observation = np.array(observation).reshape((self.n_envs,) + self.observation_space.shape)
 
         return self.proba_step(observation, state, mask)
 

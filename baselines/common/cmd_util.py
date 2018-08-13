@@ -15,7 +15,7 @@ from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 
 
-def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
+def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0, allow_early_resets=True):
     """
     Create a wrapped, monitored SubprocVecEnv for Atari.
     
@@ -24,6 +24,7 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
     :param seed: (int) the inital seed for RNG
     :param wrapper_kwargs: (dict) the parameters for wrap_deepmind function
     :param start_index: (int) start rank index
+    :param allow_early_resets: (bool) allows early reset of the environment
     :return: (Gym Environment) The atari environment
     """
     if wrapper_kwargs is None:
@@ -33,36 +34,39 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0):
         def _thunk():
             env = make_atari(env_id)
             env.seed(seed + rank)
-            env = Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
+            env = Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
+                          allow_early_resets=allow_early_resets)
             return wrap_deepmind(env, **wrapper_kwargs)
         return _thunk
     set_global_seeds(seed)
     return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)])
 
 
-def make_mujoco_env(env_id, seed):
+def make_mujoco_env(env_id, seed, allow_early_resets=True):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
     
     :param env_id: (str) the environment ID
     :param seed: (int) the inital seed for RNG
+    :param allow_early_resets: (bool) allows early reset of the environment
     :return: (Gym Environment) The mujoco environment
     """
     rank = MPI.COMM_WORLD.Get_rank()
     set_global_seeds(seed + 10000 * rank)
     env = gym.make(env_id)
-    env = Monitor(env, os.path.join(logger.get_dir(), str(rank)))
+    env = Monitor(env, os.path.join(logger.get_dir(), str(rank)), allow_early_resets=allow_early_resets)
     env.seed(seed)
     return env
 
 
-def make_robotics_env(env_id, seed, rank=0):
+def make_robotics_env(env_id, seed, rank=0, allow_early_resets=True):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
     
     :param env_id: (str) the environment ID
     :param seed: (int) the inital seed for RNG
     :param rank: (int) the rank of the environment (for logging)
+    :param allow_early_resets: (bool) allows early reset of the environment
     :return: (Gym Environment) The robotic environment
     """
     set_global_seeds(seed)
@@ -70,7 +74,7 @@ def make_robotics_env(env_id, seed, rank=0):
     env = FlattenDictWrapper(env, ['observation', 'desired_goal'])
     env = Monitor(
         env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)),
-        info_keywords=('is_success',))
+        info_keywords=('is_success',), allow_early_resets=allow_early_resets)
     env.seed(seed)
     return env
 

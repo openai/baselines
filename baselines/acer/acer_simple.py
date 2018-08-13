@@ -463,9 +463,9 @@ class ACER(BaseRLModel):
 
         # some trickery is required for stacking Discrete obs space
         if isinstance(self.observation_space, Discrete):
-            obs_shape = (1, 1)
+            obs_shape = (self.n_envs, 1)
         elif isinstance(self.observation_space, Box):
-            obs_shape = (1,) + self.observation_space.shape
+            obs_shape = (self.n_envs,) + self.observation_space.shape
         else:
             raise NotImplementedError("Error: ACER does not support input space of type {}".format(
                 type(self.observation_space).__name__))
