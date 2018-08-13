@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 
 from baselines.common.vec_env import VecEnvWrapper
@@ -5,46 +7,97 @@ from baselines.common.running_mean_std import RunningMeanStd
 
 
 class VecNormalize(VecEnvWrapper):
-    def __init__(self, venv, norm_obs=True, norm_reward=True,
-                 clip_obs=10., clip_reward=10., gamma=0.99, epsilon=1e-8):
-        """
-        A rolling average, normalizing wrapper for vectorized environment
+    """
+    A rolling average, normalizing wrapper for vectorized environment.
+    has support for saving/loading moving average,
 
-        :param venv: (VecEnv) the vectorized environment to wrap
-        :param norm_obs: (bool) normalize observation
-        :param norm_reward: (bool) normalize reward with discounting (r = sum(r_old) * gamma + r_new)
-        :param clip_obs: (float) clipping value for nomalizing observation
-        :param clip_reward: (float) clipping value for nomalizing reward
-        :param gamma: (float) discount factor
-        :param epsilon: (float) epsilon value to avoid arithmetic issues
-        """
+    :param venv: (VecEnv) the vectorized environment to wrap
+    :param training: (bool) Whether to update or not the moving average
+    :param norm_obs: (bool) Whether to normalize observation or not (default: True)
+    :param norm_rewards: (bool) Whether to normalize rewards or not (default: False)
+    :param clip_obs: (float) Max absolute value for observation
+    :param clip_reward: (float) Max value absolute for discounted reward
+    :param gamma: (float) discount factor
+    :param epsilon: (float) To avoid division by zero
+    """
+
+    def __init__(self, venv, training=True, norm_obs=True, norm_rewards=False,
+                 clip_obs=10., clip_reward=10., gamma=0.99, epsilon=1e-8):
         VecEnvWrapper.__init__(self, venv)
-        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if norm_obs else None
-        self.ret_rms = RunningMeanStd(shape=()) if norm_reward else None
+        self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
+        self.ret_rms = RunningMeanStd(shape=())
         self.clip_obs = clip_obs
         self.clip_reward = clip_reward
+        # Returns: discounted rewards
         self.ret = np.zeros(self.num_envs)
         self.gamma = gamma
         self.epsilon = epsilon
+        self.training = training
+        self.norm_obs = norm_obs
+        self.norm_rewards = norm_rewards
+        self.old_obs = np.array([])
 
     def step_wait(self):
-        obs, rewards, dones, infos = self.venv.step_wait()
-        self.ret = self.ret * self.gamma + rewards
-        obs = self._obfilt(obs)
-        if self.ret_rms:
-            self.ret_rms.update(self.ret)
-            rewards = np.clip(rewards / np.sqrt(self.ret_rms.var + self.epsilon), -self.clip_reward, self.clip_reward)
-        return obs, rewards, dones, infos
+        """
+        Apply sequence of actions to sequence of environments
+        actions -> (observations, rewards, news)
 
-    def _obfilt(self, obs):
-        if self.ob_rms:
-            self.ob_rms.update(obs)
-            obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon),
-                          -self.clip_obs, self.clip_obs)
+        where 'news' is a boolean vector indicating whether each element is new.
+        """
+        obs, rews, news, infos = self.venv.step_wait()
+        self.ret = self.ret * self.gamma + rews
+        self.old_obs = obs
+        obs = self._normalize_observation(obs)
+        if self.norm_rewards:
+            if self.training:
+                self.ret_rms.update(self.ret)
+            rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.clip_reward, self.clip_reward)
+        return obs, rews, news, infos
+
+    def _normalize_observation(self, obs):
+        """
+        :param obs: (numpy tensor)
+        """
+        if self.norm_obs:
+            if self.training:
+                self.obs_rms.update(obs)
+            obs = np.clip((obs - self.obs_rms.mean) / np.sqrt(self.obs_rms.var + self.epsilon), -self.clip_obs,
+                          self.clip_obs)
             return obs
         else:
             return obs
 
+    def get_original_obs(self):
+        """
+        returns the unnormalized observation
+
+        :return: (numpy float)
+        """
+        return self.old_obs
+
     def reset(self):
+        """
+        Reset all environments
+        """
         obs = self.venv.reset()
-        return self._obfilt(obs)
+        if len(np.array(obs).shape) == 1:  # for when num_cpu is 1
+            self.old_obs = [obs]
+        else:
+            self.old_obs = obs
+        return self._normalize_observation(obs)
+
+    def save_running_average(self, path):
+        """
+        :param path: (str) path to log dir
+        """
+        for rms, name in zip([self.obs_rms, self.ret_rms], ['obs_rms', 'ret_rms']):
+            with open("{}/{}.pkl".format(path, name), 'wb') as f:
+                pickle.dump(rms, f)
+
+    def load_running_average(self, path):
+        """
+        :param path: (str) path to log dir
+        """
+        for name in ['obs_rms', 'ret_rms']:
+            with open("{}/{}.pkl".format(path, name), 'rb') as f:
+                setattr(self, name, pickle.load(f))
