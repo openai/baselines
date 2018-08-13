@@ -25,7 +25,8 @@ setup(name='baselines',
       extras_require={
         'test': [
             'filelock',
-            'pytest'
+            'pytest',
+            'pytest-cov',
         ]
       },
       description='OpenAI baselines: high quality implementations of reinforcement learning algorithms',
