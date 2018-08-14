@@ -24,9 +24,9 @@ Here is a quick example of how to train and run PPO2 on a cartpole environment:
 ```python
 import gym
 
-from baselines.common.policies import MlpPolicy
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.ppo2 import PPO2
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.ppo2 import PPO2
 
 env = gym.make('CartPole-v0')
 env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
@@ -76,10 +76,10 @@ ACKTR with ```CartPole-v0```:
 ```python
 import gym
 
-from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
+from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.acktr import ACKTR
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.acktr import ACKTR
 
 env = gym.make('CartPole-v0')
 # Vectorize the environment, as some models requires it. But all the models can use vectorized environments
@@ -98,13 +98,11 @@ while True:
 
 A2C with ```Breakout-v0```:
 ```python
-import gym
-
-from baselines.common.cmd_util import make_atari_env
-from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
+from stable_baselines.common.cmd_util import make_atari_env
+from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.a2c import A2C
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.a2c import A2C
 
 # There already exists an environment generator that will make and wrap atari environments correctly.
 env = make_atari_env('BreakoutNoFrameskip-v4', num_env=8, seed=0)
@@ -122,11 +120,9 @@ while True:
 
 DeepQ with ```MsPacman-v0```:
 ```python
-import gym
-
-from baselines.common.cmd_util import make_atari_env
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.deepq import DeepQ, models
+from stable_baselines.common.cmd_util import make_atari_env
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.deepq import DeepQ, models
 
 # There already exists an environment generator that will make and wrap atari environments correctly
 # Here we set the num_env to 1, as DeepQ does not support multi-environments
@@ -147,13 +143,11 @@ while True:
 
 You can also move from one environment to an other for continuous learning (PPO2 on ```DemonAttack-v0```,  then transfered on ```SpaceInvaders-v0```):
 ```python
-import gym
-
-from baselines.common.cmd_util import make_atari_env
-from baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
+from stable_baselines.common.cmd_util import make_atari_env
+from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.ppo2 import PPO2
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.ppo2 import PPO2
 
 # There already exists an environment generator that will make and wrap atari environments correctly
 env = make_atari_env('DemonAttackNoFrameskip-v4', num_env=8, seed=0)
@@ -213,19 +207,9 @@ More thorough tutorial on virtualenvs and options can be found [here](https://vi
 
 
 ## Installation
-Clone the repo and cd into it:
+Install the Stable Baselines package
 ```bash
-git clone https://github.com/openai/baselines.git
-cd baselines
-```
-If using virtualenv, create a new virtualenv and activate it
-```bash
-    virtualenv env --python=python3
-    . env/bin/activate
-```
-Install baselines package
-```bash
-pip install -e .
+pip install git+https://github.com/hill-a/stable-baselines
 ```
 ### MuJoCo
 Some of the baselines examples use [MuJoCo](http://www.mujoco.org) (multi-joint dynamics in contact) physics simulator, which is proprietary and requires binaries and a license (temporary 30-day license can be obtained from [www.mujoco.org](http://www.mujoco.org)). Instructions on setting up MuJoCo can be found [here](https://github.com/openai/mujoco-py)
@@ -233,8 +217,8 @@ Some of the baselines examples use [MuJoCo](http://www.mujoco.org) (multi-joint 
 ## Testing the installation
 All unit tests in baselines can be run using pytest runner:
 ```
-pip install pytest
-pytest
+pip install pytest pytest-cov
+pytest --cov-config .coveragerc --cov-report html --cov-report term --cov=.
 ```
 
 ## Subpackages
@@ -249,14 +233,3 @@ pytest
 - [PPO1](stable_baselines/ppo1) (Multi-CPU using MPI)
 - [PPO2](stable_baselines/ppo2) (Optimized for GPU)
 - [TRPO](stable_baselines/trpo_mpi)
-
-To cite this repository in publications:
-
-    @misc{baselines,
-      author = {Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
-      title = {OpenAI Baselines},
-      year = {2017},
-      publisher = {GitHub},
-      journal = {GitHub repository},
-      howpublished = {\url{https://github.com/openai/baselines}},
-    }
