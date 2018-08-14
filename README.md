@@ -32,7 +32,7 @@ env = gym.make('CartPole-v0')
 env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
 
 model = PPO2(MlpPolicy, env, verbose=1)
-model.learn(10000)
+model.learn(total_timesteps=10000)
 
 obs = env.reset()
 for i in range(1000):
@@ -86,8 +86,8 @@ env = gym.make('CartPole-v0')
 env = DummyVecEnv([lambda: env])
 
 model = ACKTR(MlpPolicy, env, gamma=0.5, verbose=1)
-model.learn(25000)
-model.save("acktr_env")
+model.learn(total_timesteps=25000)
+model.save(save_path="acktr_env")
 
 obs = env.reset()
 while True:
@@ -108,8 +108,8 @@ from stable_baselines.a2c import A2C
 env = make_atari_env('BreakoutNoFrameskip-v4', num_env=8, seed=0)
 
 model = A2C(CnnPolicy, env, verbose=1)
-model.learn(25000)
-model.save("a2c_env")
+model.learn(total_timesteps=25000)
+model.save(save_path="a2c_env")
 
 obs = env.reset()
 while True:
@@ -130,8 +130,8 @@ env = make_atari_env('MsPacmanNoFrameskip-v4', num_env=1, seed=0)
 
 # Here deepq does not use the standard Actor-Critic policies
 model = DeepQ(models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[64]), env, verbose=1)
-model.learn(5000)
-model.save("deepq_env")
+model.learn(total_timesteps=5000)
+model.save(save_path="deepq_env")
 
 obs = env.reset()
 while True:
@@ -153,7 +153,7 @@ from stable_baselines.ppo2 import PPO2
 env = make_atari_env('DemonAttackNoFrameskip-v4', num_env=8, seed=0)
 
 model = PPO2(CnnPolicy, env, verbose=1)
-model.learn(10000)
+model.learn(total_timesteps=10000)
 
 obs = env.reset()
 for i in range(1000):
@@ -166,7 +166,7 @@ env = make_atari_env('SpaceInvadersNoFrameskip-v4', num_env=8, seed=0)
 
 # change env
 model.set_env(env)
-model.learn(10000)
+model.learn(total_timesteps=10000)
 
 obs = env.reset()
 while True:
