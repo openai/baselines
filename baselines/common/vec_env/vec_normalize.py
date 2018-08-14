@@ -14,14 +14,14 @@ class VecNormalize(VecEnvWrapper):
     :param venv: (VecEnv) the vectorized environment to wrap
     :param training: (bool) Whether to update or not the moving average
     :param norm_obs: (bool) Whether to normalize observation or not (default: True)
-    :param norm_rewards: (bool) Whether to normalize rewards or not (default: False)
+    :param norm_reward: (bool) Whether to normalize rewards or not (default: False)
     :param clip_obs: (float) Max absolute value for observation
     :param clip_reward: (float) Max value absolute for discounted reward
     :param gamma: (float) discount factor
     :param epsilon: (float) To avoid division by zero
     """
 
-    def __init__(self, venv, training=True, norm_obs=True, norm_rewards=True,
+    def __init__(self, venv, training=True, norm_obs=True, norm_reward=True,
                  clip_obs=10., clip_reward=10., gamma=0.99, epsilon=1e-8):
         VecEnvWrapper.__init__(self, venv)
         self.obs_rms = RunningMeanStd(shape=self.observation_space.shape)
@@ -34,7 +34,7 @@ class VecNormalize(VecEnvWrapper):
         self.epsilon = epsilon
         self.training = training
         self.norm_obs = norm_obs
-        self.norm_rewards = norm_rewards
+        self.norm_reward = norm_reward
         self.old_obs = np.array([])
 
     def step_wait(self):
@@ -48,7 +48,7 @@ class VecNormalize(VecEnvWrapper):
         self.ret = self.ret * self.gamma + rews
         self.old_obs = obs
         obs = self._normalize_observation(obs)
-        if self.norm_rewards:
+        if self.norm_reward:
             if self.training:
                 self.ret_rms.update(self.ret)
             rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.clip_reward, self.clip_reward)
