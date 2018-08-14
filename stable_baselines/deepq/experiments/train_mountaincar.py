@@ -2,11 +2,7 @@ import argparse
 
 import gym
 
-<<<<<<< HEAD:stable_baselines/deepq/experiments/train_mountaincar.py
-from stable_baselines import deepq
-=======
-from baselines.deepq import DeepQ, models as deepq_models
->>>>>>> refactoring:baselines/deepq/experiments/train_mountaincar.py
+from stable_baselines.deepq import DeepQ, models as deepq_models
 
 
 def main(args):

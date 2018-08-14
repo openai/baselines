@@ -3,17 +3,10 @@ import time
 import numpy as np
 import tensorflow as tf
 
-<<<<<<< HEAD:stable_baselines/a2c/a2c.py
 from stable_baselines import logger
-from stable_baselines.common import set_global_seeds, explained_variance, tf_util
+from stable_baselines.common import explained_variance, tf_util, BaseRLModel, SetVerbosity
 from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.a2c.utils import discount_with_dones, Scheduler, make_path, find_trainable_variables, calc_entropy, mse
-=======
-from baselines import logger
-from baselines.common import explained_variance, tf_util, BaseRLModel, SetVerbosity
-from baselines.common.runners import AbstractEnvRunner
-from baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse
->>>>>>> refactoring:baselines/a2c/a2c.py
+from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse
 
 
 class A2C(BaseRLModel):

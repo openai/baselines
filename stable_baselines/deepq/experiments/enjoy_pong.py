@@ -1,11 +1,7 @@
 import gym
 
-<<<<<<< HEAD:stable_baselines/deepq/experiments/enjoy_pong.py
 from stable_baselines import deepq
-=======
-from baselines import deepq
-from baselines.deepq import DeepQ
->>>>>>> refactoring:baselines/deepq/experiments/enjoy_pong.py
+from stable_baselines.deepq import DeepQ
 
 
 def main():

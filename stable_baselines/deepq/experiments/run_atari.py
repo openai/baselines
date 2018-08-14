@@ -1,17 +1,9 @@
 import argparse
 
-<<<<<<< HEAD:stable_baselines/deepq/experiments/run_atari.py
-import tensorflow as tf
-
-from stable_baselines import deepq, bench, logger
+from stable_baselines import bench, logger
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.atari_wrappers import make_atari
-=======
-from baselines import bench, logger
-from baselines.common import set_global_seeds
-from baselines.common.atari_wrappers import make_atari
-from baselines.deepq import DeepQ, wrap_atari_dqn, models as deepq_models
->>>>>>> refactoring:baselines/deepq/experiments/run_atari.py
+from stable_baselines.deepq import DeepQ, wrap_atari_dqn, models as deepq_models
 
 
 def main():

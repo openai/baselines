@@ -4,21 +4,12 @@ import numpy as np
 import tensorflow as tf
 from gym.spaces import Discrete, Box
 
-<<<<<<< HEAD:stable_baselines/acer/acer_simple.py
 from stable_baselines import logger
-from stable_baselines.common import set_global_seeds
-from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.acer.buffer import Buffer
-from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, make_path, find_trainable_variables, \
-    calc_entropy_softmax, EpisodeStats, get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
-=======
-from baselines import logger
-from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, EpisodeStats, \
+from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, EpisodeStats, \
     get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
-from baselines.acer.buffer import Buffer
-from baselines.common import BaseRLModel, tf_util, SetVerbosity
-from baselines.common.runners import AbstractEnvRunner
->>>>>>> refactoring:baselines/acer/acer_simple.py
+from stable_baselines.acer.buffer import Buffer
+from stable_baselines.common import BaseRLModel, tf_util, SetVerbosity
+from stable_baselines.common.runners import AbstractEnvRunner
 
 
 def strip(var, n_envs, n_steps, flat=False):

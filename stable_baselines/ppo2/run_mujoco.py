@@ -2,23 +2,13 @@
 import numpy as np
 import gym
 
-<<<<<<< HEAD:stable_baselines/ppo2/run_mujoco.py
 from stable_baselines.common.cmd_util import mujoco_arg_parser
 from stable_baselines import bench, logger
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.vec_env.vec_normalize import VecNormalize
-from stable_baselines.ppo2 import ppo2
-from stable_baselines.a2c.policies import MlpPolicy
+from stable_baselines.ppo2 import PPO2
+from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-=======
-from baselines.common.cmd_util import mujoco_arg_parser
-from baselines import bench, logger
-from baselines.common import set_global_seeds
-from baselines.common.vec_env.vec_normalize import VecNormalize
-from baselines.ppo2 import PPO2
-from baselines.common.policies import MlpPolicy
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
->>>>>>> refactoring:baselines/ppo2/run_mujoco.py
 
 
 def train(env_id, num_timesteps, seed):

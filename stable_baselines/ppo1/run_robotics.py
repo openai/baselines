@@ -3,16 +3,10 @@
 from mpi4py import MPI
 import mujoco_py
 
-<<<<<<< HEAD:stable_baselines/ppo1/run_robotics.py
 from stable_baselines.common import set_global_seeds
+from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.cmd_util import make_robotics_env, robotics_arg_parser
-from stable_baselines.ppo1 import mlp_policy, pposgd_simple
-=======
-from baselines.common import set_global_seeds
-from baselines.common.policies import MlpPolicy
-from baselines.common.cmd_util import make_robotics_env, robotics_arg_parser
-from baselines.ppo1 import PPO1
->>>>>>> refactoring:baselines/ppo1/run_robotics.py
+from stable_baselines.ppo1 import PPO1
 
 
 def train(env_id, num_timesteps, seed):

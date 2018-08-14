@@ -1,6 +1,6 @@
 from stable_baselines.deepq import models  # noqa
 from stable_baselines.deepq.build_graph import build_act, build_train  # noqa
-from stable_baselines.deepq.simple import learn, load  # noqa
+from stable_baselines.deepq.simple import DeepQ
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer  # noqa
 
 

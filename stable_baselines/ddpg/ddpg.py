@@ -10,20 +10,13 @@ import tensorflow.contrib as tc
 from mpi4py import MPI
 import gym
 
-<<<<<<< HEAD:stable_baselines/ddpg/ddpg.py
 from stable_baselines import logger
 from stable_baselines.common.mpi_adam import MpiAdam
-import stable_baselines.common.tf_util as tf_util
+from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
-=======
-from baselines import logger
-from baselines.common.mpi_adam import MpiAdam
-from baselines.common import tf_util, BaseRLModel, SetVerbosity
-from baselines.common.policies import LstmPolicy
-from baselines.common.mpi_running_mean_std import RunningMeanStd
-from baselines.a2c.utils import find_trainable_variables
-from baselines.ddpg.memory import Memory
->>>>>>> refactoring:baselines/ddpg/ddpg.py
+from stable_baselines.a2c.utils import find_trainable_variables
+from stable_baselines.ddpg.memory import Memory
 
 
 def normalize(tensor, stats):

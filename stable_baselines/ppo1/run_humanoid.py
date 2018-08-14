@@ -3,18 +3,11 @@ import os
 
 import gym
 
-<<<<<<< HEAD:stable_baselines/ppo1/run_humanoid.py
-from stable_baselines.ppo1 import mlp_policy, pposgd_simple
+from stable_baselines.ppo1 import PPO1
 from stable_baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
 from stable_baselines.common import tf_util
+from stable_baselines.common.policies import MlpPolicy
 from stable_baselines import logger
-=======
-from baselines.ppo1 import PPO1
-from baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
-from baselines.common import tf_util
-from baselines.common.policies import MlpPolicy
-from baselines import logger
->>>>>>> refactoring:baselines/ppo1/run_humanoid.py
 
 
 def train(num_timesteps, seed, model_path=None):

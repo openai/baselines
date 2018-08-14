@@ -7,19 +7,11 @@ import time
 import tensorflow as tf
 import numpy as np
 
-<<<<<<< HEAD:stable_baselines/acktr/acktr_disc.py
 from stable_baselines import logger
-from stable_baselines.common import set_global_seeds, explained_variance
-from stable_baselines.a2c.a2c import Runner
+from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
+from stable_baselines.a2c.a2c import A2CRunner
 from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
 from stable_baselines.acktr import kfac
-=======
-from baselines import logger
-from baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
-from baselines.a2c.a2c import A2CRunner
-from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
-from baselines.acktr import kfac
->>>>>>> refactoring:baselines/acktr/acktr_disc.py
 
 
 class ACKTR(BaseRLModel):

@@ -1,1 +1,1 @@
-from baselines.acktr.acktr_disc import ACKTR
+from stable_baselines.acktr.acktr_disc import ACKTR

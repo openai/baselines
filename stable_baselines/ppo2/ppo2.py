@@ -6,15 +6,9 @@ import multiprocessing
 import numpy as np
 import tensorflow as tf
 
-<<<<<<< HEAD:stable_baselines/ppo2/ppo2.py
 from stable_baselines import logger
-from stable_baselines.common import explained_variance
+from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
 from stable_baselines.common.runners import AbstractEnvRunner
-=======
-from baselines import logger
-from baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
-from baselines.common.runners import AbstractEnvRunner
->>>>>>> refactoring:baselines/ppo2/ppo2.py
 
 
 class PPO2(BaseRLModel):

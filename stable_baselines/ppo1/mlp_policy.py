@@ -1,13 +1,7 @@
 import tensorflow as tf
 
-<<<<<<< HEAD:stable_baselines/ppo1/mlp_policy.py
-from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
-import stable_baselines.common.tf_util as tf_util
+from stable_baselines.common.input import observation_input
 from stable_baselines.common.distributions import make_proba_dist_type
-=======
-from baselines.common.input import observation_input
-from baselines.common.distributions import make_proba_dist_type
->>>>>>> refactoring:baselines/ppo1/mlp_policy.py
 
 
 class BasePolicy(object):

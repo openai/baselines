@@ -2,21 +2,12 @@ import tensorflow as tf
 import numpy as np
 import gym
 
-<<<<<<< HEAD:stable_baselines/deepq/simple.py
 from stable_baselines import logger, deepq
-from stable_baselines.common import tf_util
-from stable_baselines.common.tf_util import load_state, save_state
+from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity
 from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from stable_baselines.deepq.utils import ObservationInput
-=======
-from baselines import logger, deepq
-from baselines.common import tf_util, BaseRLModel, SetVerbosity
-from baselines.common.schedules import LinearSchedule
-from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines.deepq.utils import ObservationInput
-from baselines.a2c.utils import find_trainable_variables
->>>>>>> refactoring:baselines/deepq/simple.py
+from stable_baselines.a2c.utils import find_trainable_variables
 
 
 class DeepQ(BaseRLModel):
@@ -240,94 +231,8 @@ class DeepQ(BaseRLModel):
         else:
             return action, None
 
-<<<<<<< HEAD:stable_baselines/deepq/simple.py
-        :param path: (str) the save location
-        """
-        if path is None:
-            path = os.path.join(logger.get_dir(), "model.pkl")
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            save_state(os.path.join(temp_dir, "model"), self.sess)
-            arc_name = os.path.join(temp_dir, "packed.zip")
-            with zipfile.ZipFile(arc_name, 'w') as zipf:
-                for root, _, files in os.walk(temp_dir):
-                    for fname in files:
-                        file_path = os.path.join(root, fname)
-                        if file_path != arc_name:
-                            zipf.write(file_path, os.path.relpath(file_path, temp_dir))
-            with open(arc_name, "rb") as file_handler:
-                model_data = file_handler.read()
-        with open(path, "wb") as file_handler:
-            cloudpickle.dump((model_data, self._act_params), file_handler)
-
-
-def load(path):
-    """
-    Load act function that was returned by learn function.
-
-    :param path: (str) path to the act function pickle
-
-    :return: (ActWrapper) function that takes a batch of observations and returns actions.
-    """
-    return ActWrapper.load(path)
-
-
-def learn(env, q_func, learning_rate=5e-4, max_timesteps=100000, buffer_size=50000, exploration_fraction=0.1,
-          exploration_final_eps=0.02, train_freq=1, batch_size=32, print_freq=100, checkpoint_freq=10000,
-          checkpoint_path=None, learning_starts=1000, gamma=1.0, target_network_update_freq=500,
-          prioritized_replay=False, prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4,
-          prioritized_replay_beta_iters=None, prioritized_replay_eps=1e-6, param_noise=False, callback=None):
-    """
-    Train a deepq model.
-
-    :param env: (Gym Environment) environment to train on
-    :param q_func: (function (TensorFlow Tensor, int, str, bool): TensorFlow Tensor)
-        the model that takes the following inputs:
-            - observation_in: (object) the output of observation placeholder
-            - num_actions: (int) number of actions
-            - scope: (str)
-            - reuse: (bool) should be passed to outer variable scope
-        and returns a tensor of shape (batch_size, num_actions) with values of every action.
-    :param learning_rate: (float) learning rate for adam optimizer
-    :param max_timesteps: (int) number of env steps to optimizer for
-    :param buffer_size: (int) size of the replay buffer
-    :param exploration_fraction: (float) fraction of entire training period over which the exploration rate is annealed
-    :param exploration_final_eps: (float) final value of random action probability
-    :param train_freq: (int) update the model every `train_freq` steps. set to None to disable printing
-    :param batch_size: (int) size of a batched sampled from replay buffer for training
-    :param print_freq: (int) how often to print out training progress set to None to disable printing
-    :param checkpoint_freq: (int) how often to save the model. This is so that the best version is restored at the end
-        of the training. If you do not wish to restore the best version at the end of the training set this variable
-        to None.
-    :param checkpoint_path: (str) replacement path used if you need to log to somewhere else than a temporary directory.
-    :param learning_starts: (int) how many steps of the model to collect transitions for before learning starts
-    :param gamma: (float) discount factor
-    :param target_network_update_freq: (int) update the target network every `target_network_update_freq` steps.
-    :param prioritized_replay: (bool) if True prioritized replay buffer will be used.
-    :param prioritized_replay_alpha: (float) alpha parameter for prioritized replay buffer
-    :param prioritized_replay_beta0: (float) initial value of beta for prioritized replay buffer
-    :param prioritized_replay_beta_iters: (int) number of iterations over which beta will be annealed from initial value
-        to 1.0. If set to None equals to max_timesteps.
-    :param prioritized_replay_eps: (float) epsilon to add to the TD errors when updating priorities.
-    :param param_noise: (bool) Whether or not to apply noise to the parameters of the policy.
-    :param callback: (function (dict, dict)) function called at every steps with state of the algorithm.
-        If callback returns true training stops. It takes the local and global variables.
-    :return: (ActWrapper) Wrapper over act function. Adds ability to save it and load it. See header of
-        stable_baselines/deepq/categorical.py for details on the act function.
-    """
-    # Create all the functions necessary to train the model
-
-    # capture the shape outside the closure so that the env object is not serialized
-    # by cloudpickle when serializing make_obs_ph
-    observation_space_shape = env.observation_space
-
-    def make_obs_ph(name):
-        """
-        makes the observation placeholder
-=======
     def action_probability(self, observation, state=None, mask=None):
         observation = np.array(observation).reshape(self.observation_space.shape)
->>>>>>> refactoring:baselines/deepq/simple.py
 
         # Get the tensor just before the softmax function in the TensorFlow graph,
         # then execute the graph from the input observation to this tensor.

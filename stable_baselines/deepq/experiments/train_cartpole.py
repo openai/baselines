@@ -3,11 +3,7 @@ import argparse
 import gym
 import numpy as np
 
-<<<<<<< HEAD:stable_baselines/deepq/experiments/train_cartpole.py
-from stable_baselines import deepq
-=======
-from baselines.deepq import DeepQ, models as deepq_models
->>>>>>> refactoring:baselines/deepq/experiments/train_cartpole.py
+from stable_baselines.deepq import DeepQ, models as deepq_models
 
 
 def callback(lcl, _glb):

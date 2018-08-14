@@ -1,12 +1,12 @@
 import pytest
 
-from baselines.a2c import A2C
-from baselines.ppo1 import PPO1
-from baselines.ppo2 import PPO2
-from baselines.trpo_mpi import TRPO
-from baselines.common.identity_env import IdentityEnvMultiBinary, IdentityEnvMultiDiscrete
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.policies import MlpPolicy
+from stable_baselines.a2c import A2C
+from stable_baselines.ppo1 import PPO1
+from stable_baselines.ppo2 import PPO2
+from stable_baselines.trpo_mpi import TRPO
+from stable_baselines.common.identity_env import IdentityEnvMultiBinary, IdentityEnvMultiDiscrete
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.common.policies import MlpPolicy
 
 MODEL_FUNC_LIST = [
     lambda e: A2C(policy=MlpPolicy, env=e),

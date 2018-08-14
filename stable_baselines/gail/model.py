@@ -1,7 +1,7 @@
 import gym
 
-from baselines.common import BaseRLModel
-from baselines.trpo_mpi import TRPO
+from stable_baselines.common import BaseRLModel
+from stable_baselines.trpo_mpi import TRPO
 
 
 class GAIL(BaseRLModel):

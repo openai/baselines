@@ -2,12 +2,7 @@ import argparse
 
 import gym
 
-<<<<<<< HEAD:stable_baselines/deepq/experiments/enjoy_cartpole.py
-from stable_baselines import deepq
-=======
-from baselines.deepq import DeepQ
->>>>>>> refactoring:baselines/deepq/experiments/enjoy_cartpole.py
-
+from stable_baselines.deepq import DeepQ
 
 def main(args):
     """

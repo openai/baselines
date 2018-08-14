@@ -1,18 +1,10 @@
 #!/usr/bin/env python3
 
-<<<<<<< HEAD:stable_baselines/a2c/run_atari.py
 from stable_baselines import logger
 from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from stable_baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from stable_baselines.a2c.a2c import learn
-from stable_baselines.a2c.policies import CnnPolicy, LstmPolicy, LnLstmPolicy
-=======
-from baselines import logger
-from baselines.common.cmd_util import make_atari_env, atari_arg_parser
-from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.a2c import A2C
-from baselines.common.policies import CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
->>>>>>> refactoring:baselines/a2c/run_atari.py
+from stable_baselines.a2c import A2C
+from stable_baselines.common.policies import CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
 
 
 def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):

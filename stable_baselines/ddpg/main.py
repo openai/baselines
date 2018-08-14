@@ -7,21 +7,12 @@ import tensorflow as tf
 import numpy as np
 from mpi4py import MPI
 
-<<<<<<< HEAD:stable_baselines/ddpg/main.py
 from stable_baselines import logger, bench
 from stable_baselines.common.misc_util import set_global_seeds, boolean_flag
-import stable_baselines.ddpg.training as training
-from stable_baselines.ddpg.models import Actor, Critic
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.ddpg import DDPG
 from stable_baselines.ddpg.memory import Memory
 from stable_baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
-=======
-from baselines import logger, bench
-from baselines.common.misc_util import set_global_seeds, boolean_flag
-from baselines.common.policies import MlpPolicy
-from baselines.ddpg import DDPG
-from baselines.ddpg.memory import Memory
-from baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
->>>>>>> refactoring:baselines/ddpg/main.py
 
 
 def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):

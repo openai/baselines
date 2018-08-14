@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
 
-<<<<<<< HEAD:stable_baselines/ppo1/run_mujoco.py
-from stable_baselines.ppo1 import mlp_policy, pposgd_simple
+from stable_baselines.ppo1 import PPO1
+from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
 from stable_baselines import logger
-=======
-from baselines.ppo1 import PPO1
-from baselines.common.policies import MlpPolicy
-from baselines.common.cmd_util import make_mujoco_env, mujoco_arg_parser
-from baselines import logger
->>>>>>> refactoring:baselines/ppo1/run_mujoco.py
 
 
 def train(env_id, num_timesteps, seed):

@@ -3,22 +3,13 @@ import os
 
 from mpi4py import MPI
 
-<<<<<<< HEAD:stable_baselines/trpo_mpi/run_atari.py
 from stable_baselines.common import set_global_seeds
 from stable_baselines import bench, logger
 from stable_baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from stable_baselines.common.cmd_util import atari_arg_parser
-from stable_baselines.trpo_mpi.nosharing_cnn_policy import CnnPolicy
-from stable_baselines.trpo_mpi import trpo_mpi
-=======
-from baselines.common import set_global_seeds
-from baselines import bench, logger
-from baselines.common.atari_wrappers import make_atari, wrap_deepmind
-from baselines.common.cmd_util import atari_arg_parser
-from baselines.common.policies import CnnPolicy
-#from baselines.trpo_mpi.nosharing_cnn_policy import CnnPolicy
-from baselines.trpo_mpi import TRPO
->>>>>>> refactoring:baselines/trpo_mpi/run_atari.py
+from stable_baselines.common.policies import CnnPolicy
+# from stable_baselines.trpo_mpi.nosharing_cnn_policy import CnnPolicy
+from stable_baselines.trpo_mpi import TRPO
 
 
 def train(env_id, num_timesteps, seed):

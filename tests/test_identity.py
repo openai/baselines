@@ -1,25 +1,16 @@
 import pytest
 
-<<<<<<< HEAD
-from stable_baselines.a2c import a2c
-from stable_baselines.ppo2 import ppo2
+from stable_baselines.a2c import A2C
+from stable_baselines.acer import ACER
+from stable_baselines.acktr import ACKTR
+from stable_baselines.deepq import DeepQ
+from stable_baselines.ppo1 import PPO1
+from stable_baselines.ppo2 import PPO2
+from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common.identity_env import IdentityEnv
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.a2c.policies import MlpPolicy
-
-=======
-from baselines.a2c import A2C
-from baselines.acer import ACER
-from baselines.acktr import ACKTR
-from baselines.deepq import DeepQ
-from baselines.ppo1 import PPO1
-from baselines.ppo2 import PPO2
-from baselines.trpo_mpi import TRPO
-from baselines.common.identity_env import IdentityEnv
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.policies import MlpPolicy
-from baselines.deepq import models as deepq_models
->>>>>>> refactoring
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.deepq import models as deepq_models
 
 learn_func_list = [
     lambda e: A2C(policy=MlpPolicy, env=e).learn(total_timesteps=50000, seed=0),

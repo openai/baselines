@@ -11,22 +11,13 @@ from tqdm import tqdm
 import numpy as np
 import gym
 
-<<<<<<< HEAD:stable_baselines/gail/run_mujoco.py
-from stable_baselines.gail import mlp_policy, behavior_clone, trpo_mpi
+from stable_baselines.gail import mlp_policy, behavior_clone
+from stable_baselines.trpo_mpi.trpo_mpi import TRPO
 from stable_baselines.common import set_global_seeds, tf_util
 from stable_baselines.common.misc_util import boolean_flag
 from stable_baselines import bench, logger
 from stable_baselines.gail.dataset.mujocodset import MujocoDset
 from stable_baselines.gail.adversary import TransitionClassifier
-=======
-from baselines.gail import mlp_policy, behavior_clone
-from baselines.trpo_mpi.trpo_mpi import TRPO
-from baselines.common import set_global_seeds, tf_util
-from baselines.common.misc_util import boolean_flag
-from baselines import bench, logger
-from baselines.gail.dataset.mujocodset import MujocoDset
-from baselines.gail.adversary import TransitionClassifier
->>>>>>> refactoring:baselines/gail/run_mujoco.py
 
 
 def argsparser():

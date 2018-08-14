@@ -5,9 +5,9 @@ import cloudpickle
 import numpy as np
 import gym
 
-from baselines.common import set_global_seeds
-from baselines.common.vec_env import VecEnvWrapper, VecEnv
-from baselines import logger
+from stable_baselines.common import set_global_seeds
+from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv
+from stable_baselines import logger
 
 
 class BaseRLModel(ABC):
