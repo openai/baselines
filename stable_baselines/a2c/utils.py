@@ -523,18 +523,21 @@ def avg_norm(tensor):
     return tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(tensor), axis=-1)))
 
 
-def gradient_add(grad_1, grad_2, param):
+def gradient_add(grad_1, grad_2, param, verbose=1):
     """
     Sum two gradients
 
     :param grad_1: (TensorFlow Tensor) The first gradient
     :param grad_2: (TensorFlow Tensor) The second gradient
     :param param: (TensorFlow parameters) The trainable parameters
+    :param verbose: (int) verbosity level
     :return: (TensorFlow Tensor) the sum of the gradients
     """
-    print([grad_1, grad_2, param.name])
-    assert (not (grad_1 is None and grad_2 is None)), param.name
-    if grad_1 is None:
+    if verbose >= 1:
+        print([grad_1, grad_2, param.name])
+    if grad_1 is None and grad_2 is None:
+        return None
+    elif grad_1 is None:
         return grad_2
     elif grad_2 is None:
         return grad_1

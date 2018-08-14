@@ -7,9 +7,9 @@ from stable_baselines.common.vec_env import VecEnvWrapper
 class VecFrameStack(VecEnvWrapper):
     def __init__(self, venv, n_stack):
         """
-        Vectorized environment base class
-        
-        :param venv: ([Gym Environment]) the list of environments to vectorize and normalize
+        Frame stacking wrapper for vectorized environment
+
+        :param venv: (VecEnv) the vectorized environment to wrap
         :param n_stack:
         """
         self.venv = venv

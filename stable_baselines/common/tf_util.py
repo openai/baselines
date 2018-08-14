@@ -83,21 +83,26 @@ def make_session(num_cpu=None, make_default=False, graph=None):
     if num_cpu is None:
         num_cpu = int(os.getenv('RCALL_NUM_CPU', multiprocessing.cpu_count()))
     tf_config = tf.ConfigProto(
+        allow_soft_placement=True,
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
+    # Prevent tensorflow from taking all the gpu memory
+    tf_config.gpu_options.allow_growth = True
     if make_default:
         return tf.InteractiveSession(config=tf_config, graph=graph)
     else:
         return tf.Session(config=tf_config, graph=graph)
 
 
-def single_threaded_session():
+def single_threaded_session(make_default=False, graph=None):
     """
     Returns a session which will only use a single CPU
 
+    :param make_default: (bool) if this should return an InteractiveSession or a normal Session
+    :param graph: (TensorFlow Graph) the graph of the session
     :return: (TensorFlow session)
     """
-    return make_session(num_cpu=1)
+    return make_session(num_cpu=1, make_default=make_default, graph=graph)
 
 
 def in_session(func):
@@ -445,6 +450,11 @@ def load_state(fname, sess=None, var_list=None):
     """
     if sess is None:
         sess = tf.get_default_session()
+
+    # avoir crashing when loading the direct name without explicitly adding the root folder
+    if os.path.dirname(fname) == '':
+        fname = os.path.join('./', fname)
+
     saver = tf.train.Saver(var_list=var_list)
     saver.restore(sess, fname)
 
@@ -460,6 +470,37 @@ def save_state(fname, sess=None, var_list=None):
     """
     if sess is None:
         sess = tf.get_default_session()
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
+
+    dir_name = os.path.dirname(fname)
+    # avoir crashing when saving the direct name without explicitly adding the root folder
+    if dir_name == '':
+        dir_name = './'
+        fname = os.path.join(dir_name, fname)
+    os.makedirs(dir_name, exist_ok=True)
+
     saver = tf.train.Saver(var_list=var_list)
     saver.save(sess, fname)
+
+
+# ================================================================
+# retrieving variables
+# ================================================================
+
+def get_trainable_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+
+
+def get_globals_vars(name):
+    """
+    returns the trainable variables
+
+    :param name: (str) the scope
+    :return: ([TensorFlow Variable])
+    """
+    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)

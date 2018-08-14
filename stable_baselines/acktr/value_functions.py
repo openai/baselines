@@ -9,12 +9,13 @@ from stable_baselines.acktr.utils import dense
 
 
 class NeuralNetValueFunction(object):
-    def __init__(self, ob_dim, ac_dim):
+    def __init__(self, ob_dim, ac_dim, verbose=1):
         """
         Create an MLP policy for a value function
 
         :param ob_dim: (int) Observation dimention
         :param ac_dim: (int) action dimention
+        :param verbose: (int) verbosity level
         """
         obs_ph = tf.placeholder(tf.float32, shape=[None, ob_dim * 2 + ac_dim * 2 + 2])  # batch of observations
         vtarg_n = tf.placeholder(tf.float32, shape=[None], name='vtarg')
@@ -36,7 +37,7 @@ class NeuralNetValueFunction(object):
         optim = kfac.KfacOptimizer(learning_rate=0.001, cold_lr=0.001 * (1 - 0.9), momentum=0.9,
                                    clip_kl=0.3, epsilon=0.1, stats_decay=0.95,
                                    async=1, kfac_update=2, cold_iter=50,
-                                   weight_decay_dict=wd_dict, max_grad_norm=None)
+                                   weight_decay_dict=wd_dict, max_grad_norm=None, verbose=verbose)
         vf_var_list = []
         for var in tf.trainable_variables():
             if "vf" in var.name:

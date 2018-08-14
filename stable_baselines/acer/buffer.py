@@ -5,7 +5,7 @@ class Buffer(object):
     def __init__(self, env, n_steps, n_stack, size=50000):
         """
         A buffer for observations, actions, rewards, mu's, states, masks and dones values
-        
+
         :param env: (Gym environment) The environment to learn from
         :param n_steps: (int) The number of steps to run for each environment
         :param n_stack: (int) The number of stacked frames
@@ -13,11 +13,22 @@ class Buffer(object):
         """
         self.n_env = env.num_envs
         self.n_steps = n_steps
-        self.height, self.width, self.n_channels = env.observation_space.shape
         self.n_stack = n_stack
         self.n_batch = self.n_env * self.n_steps
         # Each loc contains n_env * n_steps frames, thus total buffer is n_env * size frames
         self.size = size // self.n_steps
+
+        if len(env.observation_space.shape) > 1:
+            self.raw_pixels = True
+            self.height, self.width, self.n_channels = env.observation_space.shape
+            self.obs_dtype = np.uint8
+        else:
+            self.raw_pixels = False
+            if len(env.observation_space.shape) == 1:
+                self.obs_dim = env.observation_space.shape[-1]
+            else:
+                self.obs_dim = 1
+            self.obs_dtype = np.float32
 
         # Memory
         self.enc_obs = None
@@ -60,14 +71,18 @@ class Buffer(object):
         """
         # enc_obs has shape [n_envs, n_steps + n_stack, nh, nw, nc]
         # dones has shape [n_envs, n_steps, nh, nw, nc]
-        # returns stacked obs of shape [n_env, (n_steps + 1), nh, nw, n_stack*nc]
+        # returns stacked obs of shape [n_env, (n_steps + 1), nh, nw, nstack*nc]
         n_stack, n_env, n_steps = self.n_stack, self.n_env, self.n_steps
-        height, width, n_channels = self.height, self.width, self.n_channels
-        y_var = np.empty([n_steps + n_stack - 1, n_env, 1, 1, 1], dtype=np.float32)
-        obs = np.zeros([n_stack, n_steps + n_stack, n_env, height, width, n_channels], dtype=np.uint8)
-        # [n_steps + n_stack, n_env, nh, nw, nc]
-        x_var = np.reshape(enc_obs, [n_env, n_steps + n_stack, height, width, n_channels]).swapaxes(1, 0)
-        y_var[3:] = np.reshape(1.0 - dones, [n_env, n_steps, 1, 1, 1]).swapaxes(1, 0)  # keep
+        if self.raw_pixels:
+            obs_dim = [self.height, self.width, self.n_channels]
+        else:
+            obs_dim = [self.obs_dim]
+
+        y_var = np.empty([n_steps + n_stack - 1, n_env] + ([1] * len(obs_dim)), dtype=np.float32)
+        obs = np.zeros([n_stack, n_steps + n_stack, n_env] + obs_dim, dtype=self.obs_dtype)
+        # [n_steps + nstack, n_env, nh, nw, nc]
+        x_var = np.reshape(enc_obs, [n_env, n_steps + n_stack] + obs_dim).swapaxes(1, 0)
+        y_var[3:] = np.reshape(1.0 - dones, [n_env, n_steps] + ([1] * len(obs_dim))).swapaxes(1, 0)  # keep
         y_var[:3] = 1.0
         # y = np.reshape(1 - dones, [n_envs, n_steps, 1, 1, 1])
         for i in range(n_stack):
@@ -75,8 +90,12 @@ class Buffer(object):
             # obs[:,i:,:,:,-(i+1),:] = x
             x_var = x_var[:-1] * y_var
             y_var = y_var[1:]
-        return np.reshape(obs[:, 3:].transpose((2, 1, 3, 4, 0, 5)),
-                          [n_env, (n_steps + 1), height, width, n_stack * n_channels])
+
+        if self.raw_pixels:
+            obs = obs[:, 3:].transpose((2, 1, 3, 4, 0, 5))
+        else:
+            obs = obs[:, 3:].transpose((2, 1, 3, 0))
+        return np.reshape(obs, [n_env, (n_steps + 1)] + obs_dim[:-1] + [obs_dim[-1] * n_stack])
 
     def put(self, enc_obs, actions, rewards, mus, dones, masks):
         """
@@ -94,7 +113,7 @@ class Buffer(object):
         # mus [n_env, n_steps, n_act]
 
         if self.enc_obs is None:
-            self.enc_obs = np.empty([self.size] + list(enc_obs.shape), dtype=np.uint8)
+            self.enc_obs = np.empty([self.size] + list(enc_obs.shape), dtype=self.obs_dtype)
             self.actions = np.empty([self.size] + list(actions.shape), dtype=np.int32)
             self.rewards = np.empty([self.size] + list(rewards.shape), dtype=np.float32)
             self.mus = np.empty([self.size] + list(mus.shape), dtype=np.float32)

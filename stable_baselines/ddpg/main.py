@@ -7,12 +7,21 @@ import tensorflow as tf
 import numpy as np
 from mpi4py import MPI
 
+<<<<<<< HEAD:stable_baselines/ddpg/main.py
 from stable_baselines import logger, bench
 from stable_baselines.common.misc_util import set_global_seeds, boolean_flag
 import stable_baselines.ddpg.training as training
 from stable_baselines.ddpg.models import Actor, Critic
 from stable_baselines.ddpg.memory import Memory
 from stable_baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
+=======
+from baselines import logger, bench
+from baselines.common.misc_util import set_global_seeds, boolean_flag
+from baselines.common.policies import MlpPolicy
+from baselines.ddpg import DDPG
+from baselines.ddpg.memory import Memory
+from baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
+>>>>>>> refactoring:baselines/ddpg/main.py
 
 
 def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
@@ -65,11 +74,6 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
         else:
             raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
 
-    # Configure components.
-    memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
-    critic = Critic(layer_norm=layer_norm)
-    actor = Actor(nb_actions, layer_norm=layer_norm)
-
     # Seed everything to make things reproducible.
     seed = seed + 1000000 * rank
     logger.info('rank {}: seed={}, logdir={}'.format(rank, seed, logger.get_dir()))
@@ -80,10 +84,12 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
         eval_env.seed(seed)
 
     # Disable logging for rank != 0 to avoid noise.
+    start_time = 0
     if rank == 0:
         start_time = time.time()
-    training.train(env=env, eval_env=eval_env, param_noise=param_noise, action_noise=action_noise, actor=actor,
-                   critic=critic, memory=memory, **kwargs)
+    model = DDPG(policy=MlpPolicy, env=env, memory_policy=Memory, eval_env=eval_env, param_noise=param_noise,
+                 action_noise=action_noise, memory_limit=int(1e6), layer_norm=layer_norm, verbose=2, **kwargs)
+    model.learn(total_timesteps=10000)
     env.close()
     if eval_env is not None:
         eval_env.close()
@@ -110,26 +116,18 @@ def parse_args():
     parser.add_argument('--batch-size', type=int, default=64)  # per MPI worker
     parser.add_argument('--actor-lr', type=float, default=1e-4)
     parser.add_argument('--critic-lr', type=float, default=1e-3)
-    boolean_flag(parser, 'popart', default=False)
+    boolean_flag(parser, 'enable-popart', default=False)
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--reward-scale', type=float, default=1.)
     parser.add_argument('--clip-norm', type=float, default=None)
-    parser.add_argument('--nb-epochs', type=int, default=500)  # with default settings, perform 1M steps total
-    parser.add_argument('--nb-epoch-cycles', type=int, default=20)
     parser.add_argument('--nb-train-steps', type=int, default=50)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-eval-steps', type=int, default=100)  # per epoch cycle and MPI worker
     parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
     # choices are adaptive-param_xx, ou_xx, normal_xx, none
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')
-    parser.add_argument('--num-timesteps', type=int, default=None)
     boolean_flag(parser, 'evaluation', default=False)
     args = parser.parse_args()
-    # we don't directly specify timesteps for this script, so make sure that if we do specify them
-    # they agree with the other parameters
-    if args.num_timesteps is not None:
-        assert args.num_timesteps == args.nb_epochs * args.nb_epoch_cycles * args.nb_rollout_steps
     dict_args = vars(args)
-    del dict_args['num_timesteps']
     return dict_args
 
 

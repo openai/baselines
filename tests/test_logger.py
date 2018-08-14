@@ -2,26 +2,26 @@ import subprocess
 
 import pytest
 
+<<<<<<< HEAD
 from stable_baselines.logger import make_output_format, read_tb, read_csv, read_json
+=======
+from baselines.logger import make_output_format, read_tb, read_csv, read_json, _demo
+>>>>>>> refactoring
 
 KEY_VALUES = {'test': 1, 'b': -3.14, '8': 9.9}
 LOG_DIR = '/tmp/openai_baselines/'
-
-
-def _assert_eq(left, right):
-    assert left == right, '{} != {}'.format(left, right)
-
-
-def _assert_neq(left, right):
-    assert left != right, '{} == {}'.format(left, right)
 
 
 def test_main():
     """
     Dry-run python -m stable_baselines.logger
     """
+<<<<<<< HEAD
     return_code = subprocess.call(['python', 'stable_baselines/logger.py'])
     _assert_eq(return_code, 0)
+=======
+    _demo()
+>>>>>>> refactoring
 
 
 @pytest.mark.parametrize('_format', ['tensorboard', 'stdout', 'log', 'json', 'csv'])

@@ -2,7 +2,11 @@ import argparse
 
 import gym
 
+<<<<<<< HEAD:stable_baselines/deepq/experiments/train_mountaincar.py
 from stable_baselines import deepq
+=======
+from baselines.deepq import DeepQ, models as deepq_models
+>>>>>>> refactoring:baselines/deepq/experiments/train_mountaincar.py
 
 
 def main(args):
@@ -13,20 +17,21 @@ def main(args):
     """
     env = gym.make("MountainCar-v0")
     # Enabling layer_norm here is import for parameter space noise!
-    model = deepq.models.mlp([64], layer_norm=True)
-    act = deepq.learn(
-        env,
-        q_func=model,
+    q_func = deepq_models.mlp([64], layer_norm=True)
+
+    model = DeepQ(
+        policy=q_func,
+        env=env,
         learning_rate=1e-3,
-        max_timesteps=args.max_timesteps,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.1,
-        print_freq=10,
         param_noise=True
     )
+    model.learn(total_timesteps=args.max_timesteps)
+
     print("Saving model to mountaincar_model.pkl")
-    act.save("mountaincar_model.pkl")
+    model.save("mountaincar_model.pkl")
 
 
 if __name__ == '__main__':

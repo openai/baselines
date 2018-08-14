@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 from functools import partial
 
+<<<<<<< HEAD:stable_baselines/acktr/run_atari.py
 from stable_baselines import logger
 from stable_baselines.acktr.acktr_disc import learn
 from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from stable_baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from stable_baselines.a2c.policies import CnnPolicy
+=======
+from baselines import logger
+from baselines.acktr import ACKTR
+from baselines.common.cmd_util import make_atari_env, atari_arg_parser
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
+from baselines.common.policies import CnnPolicy
+>>>>>>> refactoring:baselines/acktr/run_atari.py
 
 
 def train(env_id, num_timesteps, seed, num_cpu):
@@ -19,7 +27,8 @@ def train(env_id, num_timesteps, seed, num_cpu):
     """
     env = VecFrameStack(make_atari_env(env_id, num_cpu, seed), 4)
     policy_fn = partial(CnnPolicy, one_dim_bias=True)
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), nprocs=num_cpu)
+    model = ACKTR(policy_fn, env, nprocs=num_cpu)
+    model.learn(total_timesteps=int(num_timesteps * 1.1), seed=seed)
     env.close()
 
 

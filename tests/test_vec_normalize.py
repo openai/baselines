@@ -37,6 +37,7 @@ def test_vec_env():
     env = DummyVecEnv([make_env])
     env = VecNormalize(env, norm_obs=True, norm_reward=True, clip_obs=10., clip_reward=10.)
     _, done = env.reset(), [False]
+    obs = None
     while not done[0]:
         actions = [env.action_space.sample()]
         obs, _, done, _ = env.step(actions)

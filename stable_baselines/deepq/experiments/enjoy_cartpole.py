@@ -2,17 +2,21 @@ import argparse
 
 import gym
 
+<<<<<<< HEAD:stable_baselines/deepq/experiments/enjoy_cartpole.py
 from stable_baselines import deepq
+=======
+from baselines.deepq import DeepQ
+>>>>>>> refactoring:baselines/deepq/experiments/enjoy_cartpole.py
 
 
 def main(args):
     """
-    run a trained model for the cartpole problem
+    Run a trained model for the cartpole problem
 
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("CartPole-v0")
-    act = deepq.load("cartpole_model.pkl")
+    model = DeepQ.load("cartpole_model.pkl", env)
 
     while True:
         obs, done = env.reset(), False
@@ -20,7 +24,8 @@ def main(args):
         while not done:
             if not args.no_render:
                 env.render()
-            obs, rew, done, _ = env.step(act(obs[None])[0])
+            action, _ = model.predict(obs)
+            obs, rew, done, _ = env.step(action)
             episode_rew += rew
         print("Episode reward", episode_rew)
         # No render is only used for automatic testing

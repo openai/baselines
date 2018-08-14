@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
+<<<<<<< HEAD:stable_baselines/acer/run_atari.py
 from stable_baselines import logger
 from stable_baselines.acer.acer_simple import learn
 from stable_baselines.acer.policies import AcerCnnPolicy, AcerLstmPolicy
 from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
+=======
+from baselines import logger
+from baselines.acer import ACER
+from baselines.common.policies import CnnPolicy, CnnLstmPolicy
+from baselines.common.cmd_util import make_atari_env, atari_arg_parser
+>>>>>>> refactoring:baselines/acer/run_atari.py
 
 
 def train(env_id, num_timesteps, seed, policy, lr_schedule, num_cpu):
@@ -19,13 +26,15 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_cpu):
     """
     env = make_atari_env(env_id, num_cpu, seed)
     if policy == 'cnn':
-        policy_fn = AcerCnnPolicy
+        policy_fn = CnnPolicy
     elif policy == 'lstm':
-        policy_fn = AcerLstmPolicy
+        policy_fn = CnnLstmPolicy
     else:
         print("Policy {} not implemented".format(policy))
         return
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule, buffer_size=5000)
+
+    model = ACER(policy_fn, env, lr_schedule=lr_schedule, buffer_size=5000)
+    model.learn(total_timesteps=int(num_timesteps * 1.1), seed=seed)
     env.close()
 
 

@@ -1,5 +1,6 @@
 import pytest
 
+<<<<<<< HEAD
 import tensorflow as tf
 
 from stable_baselines import deepq, bench, logger
@@ -11,14 +12,27 @@ import stable_baselines.acktr.run_atari as acktr_atari
 import stable_baselines.ppo1.run_atari as ppo1_atari
 import stable_baselines.ppo2.run_atari as ppo2_atari
 import stable_baselines.trpo_mpi.run_atari as trpo_atari
+=======
+from baselines import bench, logger
+from baselines.deepq import DeepQ, wrap_atari_dqn, models as deepq_models
+from baselines.common import set_global_seeds
+from baselines.common.atari_wrappers import make_atari
+import baselines.a2c.run_atari as a2c_atari
+import baselines.acer.run_atari as acer_atari
+import baselines.acktr.run_atari as acktr_atari
+import baselines.ppo1.run_atari as ppo1_atari
+import baselines.ppo2.run_atari as ppo2_atari
+import baselines.trpo_mpi.run_atari as trpo_atari
+>>>>>>> refactoring
 
 
 ENV_ID = 'BreakoutNoFrameskip-v4'
 SEED = 3
-NUM_TIMESTEPS = 2500
+NUM_TIMESTEPS = 500
 NUM_CPU = 4
 
 
+<<<<<<< HEAD
 def clear_tf_session():
     """
     clears the Tensorflow session, this is needed for sequential testing of the stable_baselines
@@ -26,6 +40,8 @@ def clear_tf_session():
     tf.reset_default_graph()
 
 
+=======
+>>>>>>> refactoring
 @pytest.mark.slow
 @pytest.mark.parametrize("policy", ['cnn', 'lstm', 'lnlstm'])
 def test_a2c(policy):
@@ -34,7 +50,6 @@ def test_a2c(policy):
 
     :param policy: (str) the policy to test for A2C
     """
-    clear_tf_session()
     a2c_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
                     policy=policy, lr_schedule='constant', num_env=NUM_CPU)
 
@@ -47,7 +62,6 @@ def test_acer(policy):
 
     :param policy: (str) the policy to test for ACER
     """
-    clear_tf_session()
     acer_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED,
                      policy=policy, lr_schedule='constant', num_cpu=NUM_CPU)
 
@@ -57,7 +71,6 @@ def test_acktr():
     """
     test ACKTR on atari
     """
-    clear_tf_session()
     acktr_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED, num_cpu=NUM_CPU)
 
 
@@ -66,20 +79,20 @@ def test_deepq():
     """
     test DeepQ on atari
     """
-    clear_tf_session()
     logger.configure()
     set_global_seeds(SEED)
     env = make_atari(ENV_ID)
     env = bench.Monitor(env, logger.get_dir())
-    env = deepq.wrap_atari_dqn(env)
-    model = deepq.models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[256], dueling=True)
+    env = wrap_atari_dqn(env)
+    q_func = deepq_models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[256], dueling=True)
 
-    deepq.learn(env, q_func=model, learning_rate=1e-4, max_timesteps=NUM_TIMESTEPS, buffer_size=10000,
-                exploration_fraction=0.1, exploration_final_eps=0.01, train_freq=4, learning_starts=10000,
-                target_network_update_freq=1000, gamma=0.99, prioritized_replay=True, prioritized_replay_alpha=0.6,
-                checkpoint_freq=10000)
+    model = DeepQ(env=env, policy=q_func, learning_rate=1e-4, buffer_size=10000, exploration_fraction=0.1,
+                  exploration_final_eps=0.01, train_freq=4, learning_starts=10000, target_network_update_freq=1000,
+                  gamma=0.99, prioritized_replay=True, prioritized_replay_alpha=0.6, checkpoint_freq=10000)
+    model.learn(total_timesteps=NUM_TIMESTEPS)
 
     env.close()
+    del model, env
 
 
 @pytest.mark.slow
@@ -87,7 +100,6 @@ def test_ppo1():
     """
     test PPO1 on atari
     """
-    clear_tf_session()
     ppo1_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED)
 
 
@@ -99,7 +111,6 @@ def test_ppo2(policy):
 
     :param policy: (str) the policy to test for PPO2
     """
-    clear_tf_session()
     ppo2_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED, policy=policy)
 
 
@@ -108,5 +119,4 @@ def test_trpo():
     """
     test TRPO on atari
     """
-    clear_tf_session()
     trpo_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED)

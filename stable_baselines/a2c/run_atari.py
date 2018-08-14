@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 
+<<<<<<< HEAD:stable_baselines/a2c/run_atari.py
 from stable_baselines import logger
 from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from stable_baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from stable_baselines.a2c.a2c import learn
 from stable_baselines.a2c.policies import CnnPolicy, LstmPolicy, LnLstmPolicy
+=======
+from baselines import logger
+from baselines.common.cmd_util import make_atari_env, atari_arg_parser
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
+from baselines.a2c import A2C
+from baselines.common.policies import CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
+>>>>>>> refactoring:baselines/a2c/run_atari.py
 
 
 def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):
@@ -23,14 +31,16 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_env):
     if policy == 'cnn':
         policy_fn = CnnPolicy
     elif policy == 'lstm':
-        policy_fn = LstmPolicy
+        policy_fn = CnnLstmPolicy
     elif policy == 'lnlstm':
-        policy_fn = LnLstmPolicy
+        policy_fn = CnnLnLstmPolicy
     if policy_fn is None:
         raise ValueError("Error: policy {} not implemented".format(policy))
 
     env = VecFrameStack(make_atari_env(env_id, num_env, seed), 4)
-    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), lr_schedule=lr_schedule)
+
+    model = A2C(policy_fn, env, lr_schedule=lr_schedule)
+    model.learn(total_timesteps=int(num_timesteps * 1.1), seed=seed)
     env.close()
 
 

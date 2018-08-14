@@ -1,6 +1,11 @@
 import gym
 
+<<<<<<< HEAD:stable_baselines/deepq/experiments/enjoy_pong.py
 from stable_baselines import deepq
+=======
+from baselines import deepq
+from baselines.deepq import DeepQ
+>>>>>>> refactoring:baselines/deepq/experiments/enjoy_pong.py
 
 
 def main():
@@ -9,14 +14,15 @@ def main():
     """
     env = gym.make("PongNoFrameskip-v4")
     env = deepq.wrap_atari_dqn(env)
-    act = deepq.load("pong_model.pkl")
+    model = DeepQ.load("pong_model.pkl", env)
 
     while True:
         obs, done = env.reset(), False
         episode_rew = 0
         while not done:
             env.render()
-            obs, rew, done, _ = env.step(act(obs[None])[0])
+            action, _ = model.predict(obs)
+            obs, rew, done, _ = env.step(action)
             episode_rew += rew
         print("Episode reward", episode_rew)
 

@@ -3,7 +3,11 @@ import argparse
 import gym
 import numpy as np
 
+<<<<<<< HEAD:stable_baselines/deepq/experiments/train_cartpole.py
 from stable_baselines import deepq
+=======
+from baselines.deepq import DeepQ, models as deepq_models
+>>>>>>> refactoring:baselines/deepq/experiments/train_cartpole.py
 
 
 def callback(lcl, _glb):
@@ -30,20 +34,19 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("CartPole-v0")
-    model = deepq.models.mlp([64])
-    act = deepq.learn(
-        env,
-        q_func=model,
+    q_func = deepq_models.mlp([64])
+    model = DeepQ(
+        env=env,
+        policy=q_func,
         learning_rate=1e-3,
-        max_timesteps=args.max_timesteps,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
-        print_freq=10,
-        callback=callback
     )
+    model.learn(total_timesteps=args.max_timesteps, callback=callback)
+
     print("Saving model to cartpole_model.pkl")
-    act.save("cartpole_model.pkl")
+    model.save("cartpole_model.pkl")
 
 
 if __name__ == '__main__':

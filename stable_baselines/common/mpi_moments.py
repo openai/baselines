@@ -11,7 +11,7 @@ def mpi_mean(arr, axis=0, comm=None, keepdims=False):
     :param arr: (numpy Number)
     :param axis: (int or tuple or list) the axis to run the means over
     :param comm: (MPI Communicators) if None, MPI.COMM_WORLD
-    :param keepdims: (bool) keep the other dimentions intact
+    :param keepdims: (bool) keep the other dimensions intact
     :return: (numpy Number or Number) the result of the sum
     """
     arr = np.asarray(arr)
@@ -35,7 +35,7 @@ def mpi_moments(arr, axis=0, comm=None, keepdims=False):
     :param arr: (numpy Number)
     :param axis: (int or tuple or list) the axis to run the moments over
     :param comm: (MPI Communicators) if None, MPI.COMM_WORLD
-    :param keepdims: (bool) keep the other dimentions intact
+    :param keepdims: (bool) keep the other dimensions intact
     :return: (numpy Number or Number) the result of the moments
     """
     arr = np.asarray(arr)

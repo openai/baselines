@@ -1,4 +1,9 @@
+import tensorflow as tf
 import numpy as np
+import gym
+
+from baselines.common import BaseRLModel, SetVerbosity
+from baselines.common.policies import LstmPolicy
 
 
 def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
@@ -61,3 +66,46 @@ def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
         return transitions
 
     return _sample_her_transitions
+
+
+class HER(BaseRLModel):
+    def __init__(self, policy, env, verbose=0, _init_setup_model=True):
+        super().__init__(env, False, verbose)
+
+        self.policy = policy
+
+        self.sess = None
+        self.graph = None
+
+        if _init_setup_model:
+            self.setup_model()
+
+    def setup_model(self):
+        with SetVerbosity(self.verbose):
+
+            assert isinstance(self.action_space, gym.spaces.Box), \
+                "Error: HER cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
+            assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the HER model."
+
+            self.graph = tf.Graph()
+            with self.graph.as_default():
+                pass
+
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
+        with SetVerbosity(self.verbose):
+            self._setup_learn(seed)
+
+        return self
+
+    def predict(self, observation, state=None, mask=None):
+        pass
+
+    def action_probability(self, observation, state=None, mask=None):
+        pass
+
+    def save(self, save_path):
+        pass
+
+    @classmethod
+    def load(cls, load_path, env=None, **kwargs):
+        pass

@@ -119,7 +119,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         """
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
-        self._obs_buffer = np.zeros((2,)+env.observation_space.shape, dtype=np.uint8)
+        self._obs_buffer = np.zeros((2,)+env.observation_space.shape, dtype=env.observation_space.dtype)
         self._skip = skip
 
     def step(self, action):
@@ -179,7 +179,8 @@ class WarpFrame(gym.ObservationWrapper):
         gym.ObservationWrapper.__init__(self, env)
         self.width = 84
         self.height = 84
-        self.observation_space = spaces.Box(low=0, high=255, shape=(self.height, self.width, 1), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(self.height, self.width, 1),
+                                            dtype=env.observation_space.dtype)
 
     def observation(self, frame):
         """
@@ -210,7 +211,8 @@ class FrameStack(gym.Wrapper):
         self.n_frames = n_frames
         self.frames = deque([], maxlen=n_frames)
         shp = env.observation_space.shape
-        self.observation_space = spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * n_frames), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(shp[0], shp[1], shp[2] * n_frames),
+                                            dtype=env.observation_space.dtype)
 
     def reset(self):
         obs = self.env.reset()
@@ -231,6 +233,7 @@ class FrameStack(gym.Wrapper):
 class ScaledFloatFrame(gym.ObservationWrapper):
     def __init__(self, env):
         gym.ObservationWrapper.__init__(self, env)
+        self.observation_space = spaces.Box(low=0, high=1.0, shape=env.observation_space.shape, dtype=np.float32)
 
     def observation(self, observation):
         # careful! This undoes the memory optimization, use
