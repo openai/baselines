@@ -24,15 +24,14 @@ Here is a quick example of how to train and run PPO2 on a cartpole environment:
 ```python
 import gym
 
-from baselines.common.cmd_util import make_atari_env
-from baselines.common.policies import CnnPolicy
+from baselines.common.policies import MlpPolicy
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.ppo2 import PPO2
 
 env = gym.make('CartPole-v0')
-env = DummyVecEnv([lambda: env])
+env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
 
-model = PPO2(CnnPolicy, env, verbose=1)
+model = PPO2(MlpPolicy, env, verbose=1)
 model.learn(10000)
 
 obs = env.reset()
