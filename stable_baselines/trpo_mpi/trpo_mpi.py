@@ -90,7 +90,7 @@ class TRPO(BaseRLModel):
 
     def setup_model(self):
         # prevent import loops
-        from baselines.gail.adversary import TransitionClassifier
+        from stable_baselines.gail.adversary import TransitionClassifier
 
         with SetVerbosity(self.verbose):
 

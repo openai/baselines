@@ -4,17 +4,17 @@ import os
 import pytest
 import gym
 
-from baselines.a2c import A2C
+from stable_baselines.a2c import A2C
 # TODO: add support for continuous actions
-# from baselines.acer import ACER
-# from baselines.acktr import ACKTR
-from baselines.ddpg import DDPG
-from baselines.ppo1 import PPO1
-from baselines.ppo2 import PPO2
-from baselines.trpo_mpi import TRPO
-from baselines.common import set_global_seeds
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.policies import MlpPolicy
+# from stable_baselines.acer import ACER
+# from stable_baselines.acktr import ACKTR
+from stable_baselines.ddpg import DDPG
+from stable_baselines.ppo1 import PPO1
+from stable_baselines.ppo2 import PPO2
+from stable_baselines.trpo_mpi import TRPO
+from stable_baselines.common import set_global_seeds
+from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.common.policies import MlpPolicy
 from tests.test_common import _assert_eq
 
 ENV_ID = 'Pendulum-v0'

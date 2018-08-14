@@ -2,8 +2,8 @@ import tensorflow as tf
 import numpy as np
 import gym
 
-from baselines.common import BaseRLModel, SetVerbosity
-from baselines.common.policies import LstmPolicy
+from stable_baselines.common import BaseRLModel, SetVerbosity
+from stable_baselines.common.policies import LstmPolicy
 
 
 def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
