@@ -1,5 +1,3 @@
-import subprocess
-
 import pytest
 
 from stable_baselines.logger import make_output_format, read_tb, read_csv, read_json, _demo

@@ -39,7 +39,7 @@ def main(args):
         # Create the environment
         env = gym.make("CartPole-v0")
         # Create all the functions necessary to train the model
-        act, train, update_target, debug = deepq.build_train(
+        act, train, update_target, _ = deepq.build_train(
             make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
             q_func=model,
             num_actions=env.action_space.n,
@@ -57,9 +57,9 @@ def main(args):
 
         episode_rewards = [0.0]
         obs = env.reset()
-        for t in itertools.count():
+        for step in itertools.count():
             # Take action and update exploration to the newest value
-            action = act(obs[None], update_eps=exploration.value(t))[0]
+            action = act(obs[None], update_eps=exploration.value(step))[0]
             new_obs, rew, done, _ = env.step(action)
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))
@@ -75,9 +75,9 @@ def main(args):
             else:
                 mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
 
-            is_solved = t > 100 and mean_100ep_reward >= 200
+            is_solved = step > 100 and mean_100ep_reward >= 200
 
-            if args.no_render and t > args.max_timesteps:
+            if args.no_render and step > args.max_timesteps:
                 break
 
             if is_solved:
@@ -87,18 +87,18 @@ def main(args):
                 env.render()
             else:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
-                if t > 1000:
+                if step > 1000:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(32)
                     train(obses_t, actions, rewards, obses_tp1, dones, np.ones_like(rewards))
                 # Update target network periodically.
-                if t % 1000 == 0:
+                if step % 1000 == 0:
                     update_target()
 
             if done and len(episode_rewards) % 10 == 0:
-                logger.record_tabular("steps", t)
+                logger.record_tabular("steps", step)
                 logger.record_tabular("episodes", len(episode_rewards))
                 logger.record_tabular("mean episode reward", mean_100ep_reward)
-                logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
+                logger.record_tabular("% time spent exploring", int(100 * exploration.value(step)))
                 logger.dump_tabular()
 
 
