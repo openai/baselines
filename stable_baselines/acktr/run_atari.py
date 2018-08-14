@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from functools import partial
 
 from stable_baselines import logger
 from stable_baselines.acktr.acktr_disc import learn
@@ -17,7 +18,8 @@ def train(env_id, num_timesteps, seed, num_cpu):
     :param num_cpu: (int) The number of cpu to train on
     """
     env = VecFrameStack(make_atari_env(env_id, num_cpu, seed), 4)
-    learn(CnnPolicy, env, seed, total_timesteps=int(num_timesteps * 1.1), nprocs=num_cpu)
+    policy_fn = partial(CnnPolicy, one_dim_bias=True)
+    learn(policy_fn, env, seed, total_timesteps=int(num_timesteps * 1.1), nprocs=num_cpu)
     env.close()
 
 

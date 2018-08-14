@@ -177,14 +177,9 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
     # ----------------------------------------
     ob_space = env.observation_space
     ac_space = env.action_space
-    if using_gail:
-        policy = policy_func("pi", ob_space, ac_space, reuse=(pretrained_weight is not None))
-        old_policy = policy_func("oldpi", ob_space, ac_space,
-                                 placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
-    else:
-        policy = policy_func("pi", ob_space, ac_space, sess=sess)
-        old_policy = policy_func("oldpi", ob_space, ac_space, sess=sess,
-                                 placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
+    policy = policy_func("pi", ob_space, ac_space, sess=sess)
+    old_policy = policy_func("oldpi", ob_space, ac_space, sess=sess,
+                             placeholders={"obs": policy.obs_ph, "stochastic": policy.stochastic_ph})
 
     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
     ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
@@ -216,15 +211,13 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         vf_var_list = [v for v in all_var_list if v.name.startswith("pi/vff")]
         assert len(var_list) == len(vf_var_list) + 1
         d_adam = MpiAdam(reward_giver.get_trainable_variables())
-        vfadam = MpiAdam(vf_var_list)
-        get_flat = tf_util.GetFlat(var_list)
-        set_from_flat = tf_util.SetFromFlat(var_list)
     else:
         var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("pol")]
         vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
-        vfadam = MpiAdam(vf_var_list, sess=sess)
-        get_flat = tf_util.GetFlat(var_list, sess=sess)
-        set_from_flat = tf_util.SetFromFlat(var_list, sess=sess)
+
+    vfadam = MpiAdam(vf_var_list, sess=sess)
+    get_flat = tf_util.GetFlat(var_list, sess=sess)
+    set_from_flat = tf_util.SetFromFlat(var_list, sess=sess)
 
     klgrads = tf.gradients(dist, var_list)
     flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
@@ -264,10 +257,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
         out /= nworkers
         return out
 
-    if using_gail:
-        tf_util.initialize()
-    else:
-        tf_util.initialize(sess=sess)
+    tf_util.initialize(sess=sess)
 
     th_init = get_flat()
     MPI.COMM_WORLD.Bcast(th_init, root=0)
@@ -306,10 +296,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
 
         # if provide pretrained weight
         if pretrained_weight is not None:
-            raise NotImplementedError
-            # FIXME: Incorrect call argument...
-            # commented for now
-            # tf_util.load_state(pretrained_weight, var_list=policy.get_variables())
+            tf_util.load_state(pretrained_weight, var_list=policy.get_variables())
 
     while True:
         if callback:
@@ -326,18 +313,12 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
             fname = os.path.join(ckpt_dir, task_name)
             os.makedirs(os.path.dirname(fname), exist_ok=True)
             saver = tf.train.Saver()
-            saver.save(tf.get_default_session(), fname)
+            saver.save(sess, fname)
 
         logger.log("********** Iteration %i ************" % iters_so_far)
 
-        # TODO: Add session everywhere for GAIL
-        # so we can remove duplicated code
-        if using_gail:
-            def fisher_vector_product(vec):
-                return allmean(compute_fvp(vec, *fvpargs)) + cg_damping * vec
-        else:
-            def fisher_vector_product(vec):
-                return allmean(compute_fvp(vec, *fvpargs, sess=sess)) + cg_damping * vec
+        def fisher_vector_product(vec):
+            return allmean(compute_fvp(vec, *fvpargs, sess=sess)) + cg_damping * vec
         # ------------------ Update G ------------------
         logger.log("Optimizing Policy...")
         # g_step = 1 when not using GAIL
@@ -358,16 +339,10 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
             args = seg["ob"], seg["ac"], atarg
             fvpargs = [arr[::5] for arr in args]
 
-            if using_gail:
-                assign_old_eq_new()  # set old parameter values to new parameter values
-            else:
-                assign_old_eq_new(sess=sess)
+            assign_old_eq_new(sess=sess)
 
             with timed("computegrad"):
-                if using_gail:
-                    *lossbefore, grad = compute_lossandgrad(*args)
-                else:
-                    *lossbefore, grad = compute_lossandgrad(*args, sess=sess)
+                *lossbefore, grad = compute_lossandgrad(*args, sess=sess)
             lossbefore = allmean(np.array(lossbefore))
             grad = allmean(grad)
             if np.allclose(grad, 0):
@@ -388,10 +363,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                 for _ in range(10):
                     thnew = thbefore + fullstep * stepsize
                     set_from_flat(thnew)
-                    if using_gail:
-                        mean_losses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args)))
-                    else:
-                        mean_losses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
+                    mean_losses = surr, kl_loss, *_ = allmean(np.array(compute_losses(*args, sess=sess)))
                     improve = surr - surrbefore
                     logger.log("Expected: %.3f Actual: %.3f" % (expectedimprove, improve))
                     if not np.isfinite(mean_losses).all():
@@ -417,10 +389,7 @@ def learn(env, policy_func, *, timesteps_per_batch, max_kl, cg_iters, gamma, lam
                                                              include_final_partial_batch=False, batch_size=128):
                         if hasattr(policy, "ob_rms"):
                             policy.ob_rms.update(mbob)  # update running mean/std for policy
-                        if using_gail:
-                            grad = allmean(compute_vflossandgrad(mbob, mbret))
-                        else:
-                            grad = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
+                        grad = allmean(compute_vflossandgrad(mbob, mbret, sess=sess))
                         vfadam.update(grad, vf_stepsize)
 
         for (loss_name, loss_val) in zip(loss_names, mean_losses):

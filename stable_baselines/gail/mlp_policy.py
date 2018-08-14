@@ -15,19 +15,22 @@ from stable_baselines.ppo1.mlp_policy import BasePolicy
 class MlpPolicy(BasePolicy):
     recurrent = False
 
-    def __init__(self, name, reuse=False, *args, **kwargs):
+    def __init__(self, name, *args, sess=None, reuse=False, placeholders=None, **kwargs):
         """
         MLP policy for Gail
 
         :param name: (str) the variable scope name
-        :param reuse: (bool) allow resue of the graph
-        :param ob_space: (Gym Space) the observation space
-        :param ac_space: (Gym Space) the action space
-        :param hid_size: (int) the number of hidden neurons for every hidden layer
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param hid_size: (int) the size of the hidden layers
         :param num_hid_layers: (int) the number of hidden layers
+        :param sess: (TensorFlow session) The current TensorFlow session containing the variables.
+        :param reuse: (bool) allow resue of the graph
+        :param placeholders: (dict) To feed existing placeholders if needed
         :param gaussian_fixed_var: (bool) fix the gaussian variance
         """
-        super(MlpPolicy, self).__init__()
+        super(MlpPolicy, self).__init__(placeholders=placeholders)
+        self.sess = sess
         with tf.variable_scope(name):
             if reuse:
                 tf.get_variable_scope().reuse_variables()

@@ -88,8 +88,8 @@ def main(args):
         set_global_seeds(args.seed)
         env = gym.make(args.env_id)
 
-        def policy_fn(name, ob_space, ac_space, reuse=False, placeholders=None):
-            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, reuse=reuse,
+        def policy_fn(name, ob_space, ac_space, reuse=False, placeholders=None, sess=None):
+            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, reuse=reuse, sess=sess,
                                         hid_size=args.policy_hidden_size, num_hid_layers=2, placeholders=placeholders)
         env = bench.Monitor(env, logger.get_dir() and
                             os.path.join(logger.get_dir(), "monitor.json"))

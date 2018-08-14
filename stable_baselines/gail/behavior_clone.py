@@ -89,9 +89,7 @@ def learn(env, policy_func, dataset, optim_batch_size=128, max_iters=1e4, adam_e
         savedir_fname = tempfile.TemporaryDirectory().name
     else:
         savedir_fname = os.path.join(ckpt_dir, task_name)
-    # FIXME: Incorrect call argument...
-    # commented for now
-    # tf_util.save_state(savedir_fname, var_list=pi.get_variables())
+    tf_util.save_state(savedir_fname, var_list=policy.get_variables())
     return savedir_fname
 
 
@@ -119,8 +117,8 @@ def main(args):
         set_global_seeds(args.seed)
         env = gym.make(args.env_id)
 
-        def policy_fn(name, ob_space, ac_space, reuse=False):
-            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
+        def policy_fn(name, ob_space, ac_space, reuse=False, sess=None):
+            return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space, sess=sess,
                                         reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
         env = bench.Monitor(env, logger.get_dir() and
                             os.path.join(logger.get_dir(), "monitor.json"))
