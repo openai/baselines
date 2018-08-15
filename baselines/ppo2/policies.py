@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch, lstm, lnlstm
+# This function selects the probability distribution over actions
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_input
 
@@ -90,14 +91,36 @@ class LstmPolicy(object):
 class CnnPolicy(object):
 
     def __init__(self, sess, ob_space, ac_space, nbatch, nsteps, reuse=False, **conv_kwargs): #pylint: disable=W0613
+        
+        # Based on the action space, will select what probability distribution type
+        # we will use to distribute action in our stochastic policy 
         self.pdtype = make_pdtype(ac_space)
+
         X, processed_x = observation_input(ob_space, nbatch)
+
+        """
+        Build the model
+        3 CNN for spatial dependencies
+        Temporal dependencies is handle by stacking frames
+        (Something funny nobody use LSTM in OpenAI Retro contest)
+        1 common FC
+        1 FC for policy
+        1 FC for value
+        """
         with tf.variable_scope("model", reuse=reuse):
             h = nature_cnn(processed_x, **conv_kwargs)
+
+            # Calculate the v(s)
             vf = fc(h, 'v', 1)[:,0]
+
+            # This build a fc connected layer that returns a probability distribution
+            # over actions (self.pd) and our pi logits (self.pi).
             self.pd, self.pi = self.pdtype.pdfromlatent(h, init_scale=0.01)
 
+        # Take an action
         a0 = self.pd.sample()
+
+        # Calculate the neg log of our probability
         neglogp0 = self.pd.neglogp(a0)
         self.initial_state = None
 
