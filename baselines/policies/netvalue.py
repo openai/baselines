@@ -1,0 +1,79 @@
+import numpy as np
+import tensorflow as tf
+from utils import logger
+from policies.model import Model
+from optimizers.kfac import KfacOptimizer
+from utils.math_util import explained_variance
+
+
+class NetValueFunction(Model):
+    def __init__(self, ob_dim, ac_dim):
+        super(NetValueFunction, self).__init__(name='NetValueFunction')
+        X = tf.placeholder(tf.float32, shape=[None, ob_dim*2+ac_dim*2+2]) # batch of observations
+        vtarg_n = tf.placeholder(tf.float32, shape=[None], name='vtarg')
+        wd_dict = {}
+        h1 = tf.nn.elu(
+            self.dens(X, 64, "h1",
+                      weight_init=self.normc_initializer(1.0),
+                      bias_init=0, weight_loss_dict=wd_dict))
+        h2 = tf.nn.elu(
+            self.dens(h1, 64, "h2",
+                      weight_init=self.normc_initializer(1.0),
+                      bias_init=0, weight_loss_dict=wd_dict))
+        vpred_n = self.dens(h2, 1, "hfinal",
+                            weight_init=self.normc_initializer(1.0),
+                            bias_init=0, weight_loss_dict=wd_dict)[:, 0]
+        sample_vpred_n = vpred_n + tf.random_normal(tf.shape(vpred_n))
+        wd_loss = tf.get_collection("vf_losses", None)
+        loss = tf.reduce_mean(tf.square(vpred_n - vtarg_n)) + tf.add_n(wd_loss)
+        loss_sampled = tf.reduce_mean(
+            tf.square(vpred_n - tf.stop_gradient(sample_vpred_n))
+        )
+        self._predict = self.function([X], vpred_n)
+        optim = KfacOptimizer(
+            learning_rate=0.001,
+            cold_lr=0.001*(1-0.9),
+            momentum=0.9,
+            clip_kl=0.3,
+            epsilon=0.1,
+            stats_decay=0.95,
+            async=1,
+            kfac_update=2,
+            cold_iter=50,
+            weight_decay_dict=wd_dict,
+            max_grad_norm=None
+        )
+        vf_var_list = []
+        for var in tf.trainable_variables():
+            if "vf" in var.name:
+                vf_var_list.append(var)
+
+        update_op, self.q_runner = optim.minimize(
+            loss, loss_sampled, var_list=vf_var_list
+        )
+        self.do_update = self.function([X, vtarg_n], update_op)
+        self.init_vars()  # Initialize uninitialized TF variables
+
+    def _preproc(self, path):
+        pl = pathlength(path)
+        al = np.arange(pl).reshape(-1, 1)/10.0
+        act = path["action_dist"].astype('float32')
+        X = np.concatenate([path['observation'], act, al, np.ones((pl, 1))], axis=1)
+        return X
+
+    def predict(self, path):
+        return self._predict(self._preproc(path))
+
+    def fit(self, paths, targvals):
+        X = np.concatenate([self._preproc(p) for p in paths])
+        y = np.concatenate(targvals)
+        logger.record_tabular(
+            "EVBefore", explained_variance(self._predict(X), y)
+        )
+        for _ in range(25):
+            self.do_update(X, y)
+        logger.record_tabular("EVAfter", explained_variance(self._predict(X), y))
+
+
+def pathlength(path):
+    return path["reward"].shape[0]
