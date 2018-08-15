@@ -1,8 +1,9 @@
 # tests for tf_util
 import tensorflow as tf
-from baselines.common.tf_util import (
+from policies.tf_primitives import (
     function,
-    initialize,
+    # initialize,
+    init_vars,
     single_threaded_session
 )
 
@@ -15,7 +16,8 @@ def test_function():
         lin = function([x, y], z, givens={y: 0})
 
         with single_threaded_session():
-            initialize()
+            # initialize()
+            init_vars()
 
             assert lin(2) == 6
             assert lin(2, 2) == 10
@@ -30,7 +32,8 @@ def test_multikwargs():
 
         lin = function([x, x2], z, givens={x2: 0})
         with single_threaded_session():
-            initialize()
+            # initialize()
+            init_vars()
             assert lin(2) == 6
             assert lin(2, 2) == 10
 

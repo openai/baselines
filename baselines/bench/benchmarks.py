@@ -1,10 +1,11 @@
 import re
-import os.path as osp
 import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-_atari7 = ['BeamRider', 'Breakout', 'Enduro', 'Pong', 'Qbert', 'Seaquest', 'SpaceInvaders']
-_atariexpl7 = ['Freeway', 'Gravitar', 'MontezumaRevenge', 'Pitfall', 'PrivateEye', 'Solaris', 'Venture']
+_atari7 = ['BeamRider', 'Breakout', 'Enduro', 'Pong', 'Qbert', 'Seaquest',
+           'SpaceInvaders']
+_atariexpl7 = ['Freeway', 'Gravitar', 'MontezumaRevenge', 'Pitfall',
+               'PrivateEye', 'Solaris', 'Venture']
 
 _BENCHMARKS = []
 
@@ -14,7 +15,8 @@ remove_version_re = re.compile(r'-v\d+$')
 def register_benchmark(benchmark):
     for b in _BENCHMARKS:
         if b['name'] == benchmark['name']:
-            raise ValueError('Benchmark with name %s already registered!' % b['name'])
+            raise ValueError('Benchmark with name %s already registered!'
+                             % b['name'])
 
     # automatically add a description if it is not present
     if 'tasks' in benchmark:
@@ -32,7 +34,8 @@ def get_benchmark(benchmark_name):
     for b in _BENCHMARKS:
         if b['name'] == benchmark_name:
             return b
-    raise ValueError('%s not found! Known benchmarks: %s' % (benchmark_name, list_benchmarks()))
+    raise ValueError('%s not found! Known benchmarks: %s'
+                     % (benchmark_name, list_benchmarks()))
 
 
 def get_task(benchmark, env_id):
@@ -52,26 +55,42 @@ _ATARI_SUFFIX = 'NoFrameskip-v4'
 
 register_benchmark({
     'name': 'Atari50M',
-    'description': '7 Atari games from Mnih et al. (2013), with pixel observations, 50M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(50e6)} for _game in _atari7]
+    'description': '7 Atari games from Mnih et al. (2013), with pixel'
+    'observations, 50M timesteps',
+    'tasks': [
+        {'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2,
+         'num_timesteps': int(50e6)} for _game in _atari7
+    ]
 })
 
 register_benchmark({
     'name': 'Atari10M',
-    'description': '7 Atari games from Mnih et al. (2013), with pixel observations, 10M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atari7]
+    'description': '7 Atari games from Mnih et al. (2013), with pixel'
+    'observations, 10M timesteps',
+    'tasks': [
+        {'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2,
+         'num_timesteps': int(10e6)} for _game in _atari7
+    ]
 })
 
 register_benchmark({
     'name': 'Atari1Hr',
-    'description': '7 Atari games from Mnih et al. (2013), with pixel observations, 1 hour of walltime',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_seconds': 60 * 60} for _game in _atari7]
+    'description': '7 Atari games from Mnih et al. (2013), with pixel'
+    'observations, 1 hour of walltime',
+    'tasks': [
+        {'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2,
+         'num_seconds': 60 * 60} for _game in _atari7
+    ]
 })
 
 register_benchmark({
     'name': 'AtariExploration10M',
-    'description': '7 Atari games emphasizing exploration, with pixel observations, 10M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atariexpl7]
+    'description': '7 Atari games emphasizing exploration, with pixel'
+    'observations, 10M timesteps',
+    'tasks': [
+        {'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2,
+         'num_timesteps': int(10e6)} for _game in _atariexpl7
+    ]
 })
 
 
@@ -84,7 +103,10 @@ _mujocosmall = [
 register_benchmark({
     'name': 'Mujoco1M',
     'description': 'Some small 2D MuJoCo tasks, run for 1M timesteps',
-    'tasks': [{'env_id': _envid, 'trials': 3, 'num_timesteps': int(1e6)} for _envid in _mujocosmall]
+    'tasks': [
+        {'env_id': _envid, 'trials': 3, 'num_timesteps': int(1e6)}
+        for _envid in _mujocosmall
+    ]
 })
 register_benchmark({
     'name': 'MujocoWalkers',
@@ -137,7 +159,10 @@ _atari50 = [  # actually 47
 register_benchmark({
     'name': 'Atari50_10M',
     'description': '47 Atari games from Mnih et al. (2013), with pixel observations, 10M timesteps',
-    'tasks': [{'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2, 'num_timesteps': int(10e6)} for _game in _atari50]
+    'tasks': [
+        {'desc': _game, 'env_id': _game + _ATARI_SUFFIX, 'trials': 2,
+         'num_timesteps': int(10e6)} for _game in _atari50
+    ]
 })
 
 # HER DDPG
@@ -147,4 +172,3 @@ register_benchmark({
     'description': 'Smoke-test only benchmark of HER',
     'tasks': [{'trials': 1, 'env_id': 'FetchReach-v1'}]
 })
-
