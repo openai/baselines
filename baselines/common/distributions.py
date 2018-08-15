@@ -284,24 +284,24 @@ class CategoricalProbabilityDistribution(ProbabilityDistribution):
         # Note: we can't use sparse_softmax_cross_entropy_with_logits because
         #       the implementation does not allow second-order derivatives...
         one_hot_actions = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
-        return tf.nn.softmax_cross_entropy_with_logits(
+        return tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=self.logits,
-            labels=one_hot_actions)
+            labels=tf.stop_gradient(one_hot_actions))
 
     def kl(self, other):
-        a_0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
-        a_1 = other.logits - tf.reduce_max(other.logits, axis=-1, keep_dims=True)
+        a_0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
+        a_1 = other.logits - tf.reduce_max(other.logits, axis=-1, keepdims=True)
         exp_a_0 = tf.exp(a_0)
         exp_a_1 = tf.exp(a_1)
-        z_0 = tf.reduce_sum(exp_a_0, axis=-1, keep_dims=True)
-        z_1 = tf.reduce_sum(exp_a_1, axis=-1, keep_dims=True)
+        z_0 = tf.reduce_sum(exp_a_0, axis=-1, keepdims=True)
+        z_1 = tf.reduce_sum(exp_a_1, axis=-1, keepdims=True)
         p_0 = exp_a_0 / z_0
         return tf.reduce_sum(p_0 * (a_0 - tf.log(z_0) - a_1 + tf.log(z_1)), axis=-1)
 
     def entropy(self):
-        a_0 = self.logits - tf.reduce_max(self.logits, axis=-1, keep_dims=True)
+        a_0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
         exp_a_0 = tf.exp(a_0)
-        z_0 = tf.reduce_sum(exp_a_0, axis=-1, keep_dims=True)
+        z_0 = tf.reduce_sum(exp_a_0, axis=-1, keepdims=True)
         p_0 = exp_a_0 / z_0
         return tf.reduce_sum(p_0 * (tf.log(z_0) - a_0), axis=-1)
 

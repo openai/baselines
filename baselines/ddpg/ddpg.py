@@ -66,9 +66,9 @@ def reduce_var(tensor, axis=None, keepdims=False):
     :param keepdims: (bool) keep the other dimensions the same
     :return: (TensorFlow Tensor) the variance of the tensor
     """
-    tensor_mean = tf.reduce_mean(tensor, axis=axis, keep_dims=True)
+    tensor_mean = tf.reduce_mean(tensor, axis=axis, keepdims=True)
     devs_squared = tf.square(tensor - tensor_mean)
-    return tf.reduce_mean(devs_squared, axis=axis, keep_dims=keepdims)
+    return tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims)
 
 
 def get_target_updates(_vars, target_vars, tau):
