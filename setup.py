@@ -1,10 +1,25 @@
 from setuptools import setup, find_packages
+from functools import reduce
 import sys
 
 if sys.version_info.major != 3:
     print('This Python is only compatible with Python 3, but you are running '
           'Python {}. The installation will likely fail.'.format(sys.version_info.major))
 
+
+extras = {
+    'test': [
+        'filelock', 
+        'pytest'
+    ]
+}
+
+
+all_deps = []
+for group_name in extras:
+    all_deps += extras[group_name]
+
+extras['all'] = all_deps
 
 setup(name='baselines',
       packages=[package for package in find_packages()
@@ -22,12 +37,7 @@ setup(name='baselines',
           'click',
           'opencv-python'
       ],
-      extras_require={
-        'test': [
-            'filelock',
-            'pytest'
-        ]
-      },
+      extras_require=extras,
       description='OpenAI baselines: high quality implementations of reinforcement learning algorithms',
       author='OpenAI',
       url='https://github.com/openai/baselines',
