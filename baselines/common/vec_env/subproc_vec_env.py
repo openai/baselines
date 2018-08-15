@@ -1,6 +1,6 @@
 import numpy as np
 from multiprocessing import Process, Pipe
-from baselines.common.vec_env import VecEnv, CloudpickleWrapper
+from . import VecEnv, CloudpickleWrapper
 from baselines.common.tile_images import tile_images
 
 
@@ -32,6 +32,7 @@ def worker(remote, parent_remote, env_fn_wrapper):
     finally:
         env.close()
 
+
 class SubprocVecEnv(VecEnv):
     def __init__(self, env_fns, spaces=None):
         """
@@ -42,9 +43,9 @@ class SubprocVecEnv(VecEnv):
         nenvs = len(env_fns)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
         self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
-            for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
+                   for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for p in self.ps:
-            p.daemon = True # if the main process crashes, we should not cause things to hang
+            p.daemon = True  # if the main process crashes, we should not cause things to hang
             p.start()
         for remote in self.work_remotes:
             remote.close()
@@ -78,7 +79,7 @@ class SubprocVecEnv(VecEnv):
         if self.closed:
             return
         if self.waiting:
-            for remote in self.remotes:            
+            for remote in self.remotes:
                 remote.recv()
         for remote in self.remotes:
             remote.send(('close', None))
@@ -93,7 +94,7 @@ class SubprocVecEnv(VecEnv):
         bigimg = tile_images(imgs)
         if mode == 'human':
             import cv2
-            cv2.imshow('vecenv', bigimg[:,:,::-1])
+            cv2.imshow('vecenv', bigimg[:, :, ::-1])
             cv2.waitKey(1)
         elif mode == 'rgb_array':
             return bigimg
