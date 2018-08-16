@@ -70,6 +70,7 @@ class ActWrapper(object):
 
     def save(self, path):
         save_state(path)
+        self.save_act(path+".pickle")
 
 
 def load_act(path):
@@ -194,8 +195,9 @@ def learn(env,
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
 
+    observation_space = env.observation_space
     def make_obs_ph(name):
-        return ObservationInput(env.observation_space, name=name)
+        return ObservationInput(observation_space, name=name)
 
     act, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
