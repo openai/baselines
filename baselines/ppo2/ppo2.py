@@ -9,6 +9,7 @@ import tensorflow as tf
 from baselines import logger
 from baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.policies import LstmPolicy
 
 
 class PPO2(BaseRLModel):
@@ -99,8 +100,12 @@ class PPO2(BaseRLModel):
             with self.graph.as_default():
                 self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
 
+                n_batch_step = None
+                if isinstance(self.policy, LstmPolicy):
+                    n_batch_step = self.n_envs
+
                 act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                        None, reuse=False)
+                                        n_batch_step, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space,
                                           self.n_envs // self.nminibatches, self.n_steps, self.n_batch_train,
                                           reuse=True)
