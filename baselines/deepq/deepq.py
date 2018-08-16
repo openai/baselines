@@ -27,7 +27,7 @@ class ActWrapper(object):
         self.initial_state = None
 
     @staticmethod
-    def load_act(self, path):
+    def load_act(path):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         act = deepq.build_act(**act_params)
