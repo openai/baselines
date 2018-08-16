@@ -100,7 +100,7 @@ class PPO2(BaseRLModel):
                 self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
 
                 act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                        self.n_envs, reuse=False)
+                                        None, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space,
                                           self.n_envs // self.nminibatches, self.n_steps, self.n_batch_train,
                                           reuse=True)

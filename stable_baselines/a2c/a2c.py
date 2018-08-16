@@ -78,7 +78,7 @@ class A2C(BaseRLModel):
                 self.n_batch = self.n_envs * self.n_steps
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         self.n_envs, reuse=False)
+                                         None, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
                                           self.n_steps, self.n_envs * self.n_steps, reuse=True)
 

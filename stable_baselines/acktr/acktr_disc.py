@@ -97,7 +97,7 @@ class ACKTR(BaseRLModel):
                 self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
 
                 self.model = step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                                      1, self.n_envs, reuse=False)
+                                                      1, None, reuse=False)
                 self.model2 = train_model = self.policy(self.sess, self.observation_space, self.action_space,
                                                         self.n_envs, self.n_steps, self.n_envs * self.n_steps,
                                                         reuse=True)
@@ -123,7 +123,7 @@ class ACKTR(BaseRLModel):
 
                 self.params = params = find_trainable_variables("model")
 
-                self.grads_check = grads = tf.gradients(train_loss, params)
+                self.grads_check = tf.gradients(train_loss, params)
 
                 with tf.device('/gpu:0'):
                     self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=self.kfac_clip,
@@ -132,7 +132,6 @@ class ACKTR(BaseRLModel):
                                                             max_grad_norm=self.max_grad_norm, verbose=self.verbose)
 
                     optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
-                    self.train_op, self.q_runner = optim.apply_gradients(list(zip(grads, params)))
 
                 self.train_model = train_model
                 self.step_model = step_model
@@ -178,6 +177,26 @@ class ACKTR(BaseRLModel):
 
             self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
                                                     schedule=self.lr_schedule)
+
+            # FIFO queue of the q_runner thread is closed at the end of the learn function.
+            # As a result, it needs to be redefinied at every call
+            with self.graph.as_default():
+                # Some of the variables are not in a scope when they are create
+                # so we make a note of any previously uninitialized variables
+                tf_vars = tf.global_variables()
+                is_uninitialized = self.sess.run([tf.is_variable_initialized(var) for var in tf_vars])
+                old_uninitialized_vars = [v for (v, f) in zip(tf_vars, is_uninitialized) if not f]
+
+                self.train_op, self.q_runner = self.optim.apply_gradients(list(zip(self.grads_check, self.params)))
+
+                # then we check for new uninitialized variables and initialize them
+                tf_vars = tf.global_variables()
+                is_uninitialized = self.sess.run([tf.is_variable_initialized(var) for var in tf_vars])
+                new_uninitialized_vars = [v for (v, f) in zip(tf_vars, is_uninitialized)
+                                          if not f and v not in old_uninitialized_vars]
+
+                if len(new_uninitialized_vars) != 0:
+                    self.sess.run(tf.variables_initializer(new_uninitialized_vars))
 
             runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
 
