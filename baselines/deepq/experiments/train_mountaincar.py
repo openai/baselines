@@ -12,7 +12,7 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("MountainCar-v0")
-    # Enabling layer_norm here is import for parameter space noise!
+    # Enabling layer_norm here is important for parameter space noise!
     q_func = deepq_models.mlp([64], layer_norm=True)
 
     model = DeepQ(
