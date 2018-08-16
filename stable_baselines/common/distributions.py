@@ -209,23 +209,35 @@ class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
 
 
 class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
-    def __init__(self, size):
+    def __init__(self, size, bounds):
         """
         The probability distribution type for multivariate gaussian input
 
         :param size: (int) the number of dimensions of the multivariate gaussian
+        :param bounds: (float, float) the lower and upper bounds limit for the action space
         """
         self.size = size
+        self.bounds = bounds
 
     def probability_distribution_class(self):
         return DiagGaussianProbabilityDistribution
+
+    def proba_distribution_from_flat(self, flat, bounds=(-np.inf, np.inf)):
+        """
+        returns the probability distribution from flat probabilities
+
+        :param flat: ([float]) the flat probabilities
+        :param bounds: (float, float) the lower and upper bounds limit for the action space
+        :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
+        """
+        return self.probability_distribution_class()(flat, bounds)
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
         mean = linear(pi_latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         q_values = linear(vf_latent_vector, 'q', self.size, init_scale=init_scale, init_bias=init_bias)
-        return self.proba_distribution_from_flat(pdparam), mean, q_values
+        return self.proba_distribution_from_flat(pdparam, self.bounds), mean, q_values
 
     def param_shape(self):
         return [2 * self.size]
@@ -361,17 +373,19 @@ class MultiCategoricalProbabilityDistribution(ProbabilityDistribution):
 
 
 class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
-    def __init__(self, flat):
+    def __init__(self, flat, bounds):
         """
         Probability distributions from multivariate gaussian input
 
         :param flat: ([float]) the multivariate gaussian input data
+        :param bounds: (float, float) the lower and upper bounds limit for the action space
         """
         self.flat = flat
         mean, logstd = tf.split(axis=len(flat.shape) - 1, num_or_size_splits=2, value=flat)
         self.mean = mean
         self.logstd = logstd
         self.std = tf.exp(logstd)
+        self.bounds = bounds
 
     def flatparam(self):
         return self.flat
@@ -393,17 +407,19 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
         return tf.reduce_sum(self.logstd + .5 * np.log(2.0 * np.pi * np.e), axis=-1)
 
     def sample(self):
-        return self.mean + self.std * tf.random_normal(tf.shape(self.mean))
+        return tf.clip_by_value(self.mean + self.std * tf.random_normal(tf.shape(self.mean)),
+                                self.bounds[0], self.bounds[1])
 
     @classmethod
-    def fromflat(cls, flat):
+    def fromflat(cls, flat, bounds=(-np.inf, np.inf)):
         """
         Create an instance of this from new multivariate gaussian input
 
         :param flat: ([float]) the multivariate gaussian input data
+        :param bounds: (float, float) the lower and upper bounds limit for the action space
         :return: (ProbabilityDistribution) the instance from the given multivariate gaussian input data
         """
-        return cls(flat)
+        return cls(flat, bounds)
 
 
 class BernoulliProbabilityDistribution(ProbabilityDistribution):
@@ -460,7 +476,7 @@ def make_proba_dist_type(ac_space):
     """
     if isinstance(ac_space, spaces.Box):
         assert len(ac_space.shape) == 1, "Error: the action space must be a vector"
-        return DiagGaussianProbabilityDistributionType(ac_space.shape[0])
+        return DiagGaussianProbabilityDistributionType(ac_space.shape[0], (ac_space.low, ac_space.high))
     elif isinstance(ac_space, spaces.Discrete):
         return CategoricalProbabilityDistributionType(ac_space.n)
     elif isinstance(ac_space, spaces.MultiDiscrete):

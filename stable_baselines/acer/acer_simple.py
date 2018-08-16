@@ -473,9 +473,9 @@ class ACER(BaseRLModel):
         # if the input need stacking, make an empty stack (as we dont know the order of prediction
         if stack:
             stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
-            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape(obs_shape)[:]
+            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape((-1,) + obs_shape[1:])[:]
         else:
-            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
+            stacked_obs = np.array(observation).reshape((-1,) + (obs_shape[-1] * self.n_stack,))
 
         actions, _, states, _ = self.step(stacked_obs, state, mask)
         return actions, states
@@ -497,9 +497,9 @@ class ACER(BaseRLModel):
 
         # some trickery is required for stacking Discrete obs space
         if isinstance(self.observation_space, Discrete):
-            obs_shape = (1, 1)
+            obs_shape = (self.n_envs, 1)
         elif isinstance(self.observation_space, Box):
-            obs_shape = (1,) + self.observation_space.shape
+            obs_shape = (self.n_envs,) + self.observation_space.shape
         else:
             raise NotImplementedError("Error: ACER does not support input space of type {}".format(
                 type(self.observation_space).__name__))
@@ -507,9 +507,9 @@ class ACER(BaseRLModel):
         # if the input need stacking, make an empty stack (as we dont know the order of prediction
         if stack:
             stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
-            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape(obs_shape)[:]
+            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape((-1,) + obs_shape[1:])[:]
         else:
-            stacked_obs = np.array(observation).reshape(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
+            stacked_obs = np.array(observation).reshape((1,) + (obs_shape[-1] * self.n_stack,))
 
         return self.proba_step(stacked_obs, state, mask)
 

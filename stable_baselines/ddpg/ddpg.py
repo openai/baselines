@@ -563,13 +563,16 @@ class DDPG(BaseRLModel):
             # Get a sample and keep that fixed for all further computations.
             # This allows us to estimate the change in value for the same set of inputs.
             self.stats_sample = self.memory.sample(batch_size=self.batch_size)
-        values = self.sess.run(self.stats_ops, feed_dict={
-            self.obs_train: self.stats_sample['obs0'],
-            self.obs_noise: self.stats_sample['obs0'],
-            self.obs_target: self.stats_sample['obs0'],
-            self.obs_adapt_noise: self.stats_sample['obs0'],
-            self.actions: self.stats_sample['actions'],
-        })
+
+        feed_dict = {
+            self.actions: self.stats_sample['actions']
+        }
+
+        for placeholder in [self.obs_train, self.obs_target, self.obs_adapt_noise, self.obs_noise]:
+            if placeholder is not None:
+                feed_dict[placeholder] = self.stats_sample['obs0']
+
+        values = self.sess.run(self.stats_ops, feed_dict=feed_dict)
 
         names = self.stats_names[:]
         assert len(names) == len(values)
@@ -751,7 +754,8 @@ class DDPG(BaseRLModel):
                     combined_stats['rollout/Q_mean'] = np.mean(epoch_qs)
                     combined_stats['train/loss_actor'] = np.mean(epoch_actor_losses)
                     combined_stats['train/loss_critic'] = np.mean(epoch_critic_losses)
-                    combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
+                    if len(epoch_adaptive_distances) != 0:
+                        combined_stats['train/param_noise_distance'] = np.mean(epoch_adaptive_distances)
                     combined_stats['total/duration'] = duration
                     combined_stats['total/steps_per_second'] = float(step) / float(duration)
                     combined_stats['total/episodes'] = episodes
