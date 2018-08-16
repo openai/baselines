@@ -43,4 +43,3 @@ ENV PATH=$VENV/bin:$PATH
 WORKDIR $CODE_DIR/stable_baselines
 
 CMD /bin/bash
-q
