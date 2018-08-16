@@ -28,6 +28,8 @@ def main():
         env,
         "conv_only",
         convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+        hiddens=[256],
+        dueling=bool(args.dueling),
         lr=1e-4,
         total_timesteps=args.num_timesteps,
         buffer_size=10000,
