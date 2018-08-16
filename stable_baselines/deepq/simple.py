@@ -265,7 +265,8 @@ class DeepQ(BaseRLModel):
             "observation_space": self.observation_space,
             "action_space": self.action_space,
             "policy": self.policy,
-            "n_envs": self.n_envs
+            "n_envs": self.n_envs,
+            "_vectorize_action": self._vectorize_action
         }
 
         params = self.sess.run(self.params)

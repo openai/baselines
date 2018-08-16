@@ -849,7 +849,8 @@ class DDPG(BaseRLModel):
             "memory_limit": self.memory_limit,
             "policy": self.policy,
             "memory_policy": self.memory_policy,
-            "n_envs": self.n_envs
+            "n_envs": self.n_envs,
+            "_vectorize_action": self._vectorize_action
         }
 
         params = self.sess.run(self.params)
