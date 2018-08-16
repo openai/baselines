@@ -24,9 +24,9 @@ def calc_entropy(logits):
     :return: (TensorFlow Tensor) The Entropy of the output values of the network
     """
     # Compute softmax
-    a_0 = logits - tf.reduce_max(logits, 1, keep_dims=True)
+    a_0 = logits - tf.reduce_max(logits, 1, keepdims=True)
     exp_a_0 = tf.exp(a_0)
-    z_0 = tf.reduce_sum(exp_a_0, 1, keep_dims=True)
+    z_0 = tf.reduce_sum(exp_a_0, 1, keepdims=True)
     p_0 = exp_a_0 / z_0
     return tf.reduce_sum(p_0 * (tf.log(z_0) - a_0), 1)
 

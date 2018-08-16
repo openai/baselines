@@ -91,13 +91,13 @@ class VecNormalize(VecEnvWrapper):
         :param path: (str) path to log dir
         """
         for rms, name in zip([self.obs_rms, self.ret_rms], ['obs_rms', 'ret_rms']):
-            with open("{}/{}.pkl".format(path, name), 'wb') as f:
-                pickle.dump(rms, f)
+            with open("{}/{}.pkl".format(path, name), 'wb') as file_handler:
+                pickle.dump(rms, file_handler)
 
     def load_running_average(self, path):
         """
         :param path: (str) path to log dir
         """
         for name in ['obs_rms', 'ret_rms']:
-            with open("{}/{}.pkl".format(path, name), 'rb') as f:
-                setattr(self, name, pickle.load(f))
+            with open("{}/{}.pkl".format(path, name), 'rb') as file_handler:
+                setattr(self, name, pickle.load(file_handler))
