@@ -123,14 +123,18 @@ def build_env(args, render=False):
         env = bench.Monitor(env, logger.get_dir())
         env = retro_wrappers.wrap_deepmind_retro(env)
         
-    elif env_type == 'classic':
+    elif env_type == 'classic_control':
         def make_env():
             e = gym.make(env_id)
+            e = bench.Monitor(e, logger.get_dir(), allow_early_resets=True)
             e.seed(seed)
             return e
             
         env = DummyVecEnv([make_env])
- 
+
+    else:
+        raise ValueError('Unknown env_type {}'.format(env_type))
+
     return env
 
 
@@ -149,7 +153,7 @@ def get_env_type(env_id):
     return env_type, env_id
 
 def get_default_network(env_type):
-    if env_type == 'mujoco' or env_type=='classic':
+    if env_type == 'mujoco' or env_type == 'classic_control':
         return 'mlp'
     if env_type == 'atari':
         return 'cnn'
