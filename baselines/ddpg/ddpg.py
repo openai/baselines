@@ -816,9 +816,9 @@ class DDPG(BaseRLModel):
     def action_probability(self, observation, state=None, mask=None):
         # here there are no action probabilities, as DDPG is continuous
         if self._vectorize_action:
-            return [self.predict(observation, state=None, mask=None)]
+            return self.sess.run(self.policy_tf.policy_proba, feed_dict={self.obs_train: observation})
         else:
-            return self.predict(observation, state=None, mask=None)
+            return self.sess.run(self.policy_tf.policy_proba, feed_dict={self.obs_train: observation})[0]
 
     def save(self, save_path):
         data = {
