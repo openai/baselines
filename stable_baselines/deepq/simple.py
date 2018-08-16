@@ -232,15 +232,15 @@ class DeepQ(BaseRLModel):
             return action, None
 
     def action_probability(self, observation, state=None, mask=None):
-        observation = np.array(observation).reshape(self.observation_space.shape)
+        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
         # Get the tensor just before the softmax function in the TensorFlow graph,
         # then execute the graph from the input observation to this tensor.
-        tensor = tf.get_default_graph().get_tensor_by_name('deepq/q_func/fully_connected_2/BiasAdd:0')
+        tensor = self.graph.get_tensor_by_name('deepq/q_func/fully_connected_2/BiasAdd:0')
         if self._vectorize_action:
-            return [self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))]
-        else:
             return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))
+        else:
+            return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))[0]
 
     def save(self, save_path):
         # params

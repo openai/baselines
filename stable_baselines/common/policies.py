@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from gym.spaces import Discrete
 
 from stable_baselines.a2c.utils import conv, linear, conv_to_fc, batch_to_seq, seq_to_batch, lstm
 from stable_baselines.common.distributions import make_proba_dist_type
@@ -46,6 +47,7 @@ class ActorCriticPolicy(object):
         self.pdtype = make_proba_dist_type(ac_space)
         self.sess = sess
         self.reuse = reuse
+        self.is_discrete = isinstance(ac_space, Discrete)
 
     def step(self, obs, state=None, mask=None):
         """
@@ -105,7 +107,9 @@ class LstmPolicy(ActorCriticPolicy):
 
         self.action = self.proba_distribution.sample()
         self.neglogp = self.proba_distribution.neglogp(self.action)
-        self.policy_proba = tf.nn.softmax(self.policy)
+        self.policy_proba = self.policy
+        if self.is_discrete:
+            self.policy_proba = tf.nn.softmax(self.policy_proba)
         self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self.value_fn = value_fn
         self._value = value_fn[:, 0]
@@ -150,7 +154,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         self.action = self.proba_distribution.sample()
         self.neglogp = self.proba_distribution.neglogp(self.action)
-        self.policy_proba = tf.nn.softmax(self.policy)
+        self.policy_proba = self.policy
+        if self.is_discrete:
+            self.policy_proba = tf.nn.softmax(self.policy_proba)
         self.initial_state = None
         self.value_fn = value_fn
         self._value = value_fn[:, 0]
