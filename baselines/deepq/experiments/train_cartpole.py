@@ -11,12 +11,11 @@ def callback(lcl, _glb):
 
 def main():
     env = gym.make("CartPole-v0")
-    model = deepq.models.mlp([64])
     act = deepq.learn(
         env,
-        q_func=model,
+        network='mlp',
         lr=1e-3,
-        max_timesteps=100000,
+        total_timesteps=100000,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.02,
