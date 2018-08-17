@@ -4,15 +4,15 @@ import time
 from collections import deque
 import pickle
 
+import gym
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib as tc
 from mpi4py import MPI
-import gym
 
 from stable_baselines import logger
-from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
 from stable_baselines.a2c.utils import find_trainable_variables
