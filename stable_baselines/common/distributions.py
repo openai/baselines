@@ -209,7 +209,7 @@ class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
 
 
 class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
-    def __init__(self, size, bounds):
+    def __init__(self, size, bounds=(-np.inf, np.inf)):
         """
         The probability distribution type for multivariate gaussian input
 
@@ -410,13 +410,8 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
         low = self.bounds[0]
         high = self.bounds[1]
 
-        # if the bounds are arrays, then the arrays must be of the same rank as the output vector.
-        if not np.isscalar(low) and len(low.shape) != len(self.mean.shape):
-            low = np.array(low).reshape(((1,) * (len(self.mean.shape) - len(low.shape))) + low.shape)
-        if not np.isscalar(high) and high.shape != self.mean.shape:
-            high = np.array(high).reshape(((1,) * (len(self.mean.shape) - len(high.shape))) + high.shape)
-
-        return tf.clip_by_value(self.mean + self.std * tf.random_normal(tf.shape(self.mean)), low, high)
+        # clip the output (clip_by_value does not broadcast correctly)
+        return tf.minimum(tf.maximum(self.mean + self.std * tf.random_normal(tf.shape(self.mean)), low), high)
 
     @classmethod
     def fromflat(cls, flat, bounds=(-np.inf, np.inf)):

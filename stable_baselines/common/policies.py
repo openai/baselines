@@ -48,6 +48,22 @@ class ActorCriticPolicy(object):
         self.sess = sess
         self.reuse = reuse
         self.is_discrete = isinstance(ac_space, Discrete)
+        self.policy = None
+        self.proba_distribution = None
+        self.value_fn = None
+
+    def _setup_init(self):
+        """
+        sets up the distibutions, actions, and value
+        """
+        assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
+        self.action = self.proba_distribution.sample()
+        self.neglogp = self.proba_distribution.neglogp(self.action)
+        self.policy_proba = self.policy
+        if self.is_discrete:
+            self.policy_proba = tf.nn.softmax(self.policy_proba)
+        self.initial_state = None
+        self._value = self.value_fn[:, 0]
 
     def step(self, obs, state=None, mask=None):
         """
@@ -85,16 +101,39 @@ class ActorCriticPolicy(object):
 
 class LstmPolicy(ActorCriticPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
-                 layer_norm=False, _type="cnn", **kwargs):
+                 layers=None, cnn_extractor=nature_cnn, layer_norm=False, feature_extraction="cnn", **kwargs):
+        """
+        Policy object that implements actor critic, using LSTMs
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param layers: ([int]) The size of the Neural network before the LSTM layer  (if None, default to [64, 64])
+        :param cnn_extractor: (function (TensorFlow Tensor, **kwargs): (TensorFlow Tensor)) the CNN feature extraction
+        :param layer_norm: (bool) Whether or not to use layer normalizing LSTMs
+        :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
+        :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
         super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack, reuse)
+
+        if layers is None:
+            layers = [64, 64]
+
         with tf.variable_scope("model", reuse=reuse):
-            if _type == "cnn":
-                extracted_features = nature_cnn(self.processed_x, **kwargs)
+            if feature_extraction == "cnn":
+                extracted_features = cnn_extractor(self.processed_x, **kwargs)
             else:
                 activ = tf.tanh
                 extracted_features = tf.layers.flatten(self.processed_x)
-                extracted_features = activ(linear(extracted_features, 'pi_fc1', n_hidden=64, init_scale=np.sqrt(2)))
-                extracted_features = activ(linear(extracted_features, 'pi_fc2', n_hidden=64, init_scale=np.sqrt(2)))
+                for i, layer_size in enumerate(layers):
+                    extracted_features = activ(linear(extracted_features, 'pi_fc' + str(i), n_hidden=layer_size,
+                                                      init_scale=np.sqrt(2)))
             input_sequence = batch_to_seq(extracted_features, self.n_env, n_steps)
             masks = batch_to_seq(self.masks_ph, self.n_env, n_steps)
             rnn_output, self.snew = lstm(input_sequence, masks, self.states_ph, 'lstm1', n_hidden=n_lstm,
@@ -105,14 +144,8 @@ class LstmPolicy(ActorCriticPolicy):
             self.proba_distribution, self.policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(rnn_output, rnn_output)
 
-        self.action = self.proba_distribution.sample()
-        self.neglogp = self.proba_distribution.neglogp(self.action)
-        self.policy_proba = self.policy
-        if self.is_discrete:
-            self.policy_proba = tf.nn.softmax(self.policy_proba)
-        self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self.value_fn = value_fn
-        self._value = value_fn[:, 0]
+        self._setup_init()
 
     def step(self, obs, state=None, mask=None):
         return self.sess.run([self.action, self._value, self.snew, self.neglogp],
@@ -126,40 +159,52 @@ class LstmPolicy(ActorCriticPolicy):
 
 
 class FeedForwardPolicy(ActorCriticPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
-                 _type="cnn", **kwargs):
-        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack,
-                                                reuse)
-        if "layer_norm" in kwargs:
-            kwargs.pop("layer_norm")  # ignore lstm keyword
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_stack=None, reuse=False, layers=None,
+                 cnn_extractor=nature_cnn, feature_extraction="cnn", **kwargs):
+        """
+        Policy object that implements actor critic, using a feed forward neural network
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param layers: ([int]) The size of the Neural network for the policy (if None, default to [64, 64])
+        :param cnn_extractor: (function (TensorFlow Tensor, **kwargs): (TensorFlow Tensor)) the CNN feature extraction
+        :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
+        :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
+                                                n_stack=n_stack, reuse=reuse)
+        if layers is None:
+            layers = [64, 64]
+
         with tf.variable_scope("model", reuse=reuse):
-            if _type == "cnn":
-                extracted_features = nature_cnn(self.processed_x, **kwargs)
+            if feature_extraction == "cnn":
+                extracted_features = cnn_extractor(self.processed_x, **kwargs)
                 value_fn = linear(extracted_features, 'vf', 1)
                 pi_latent = extracted_features
                 vf_latent = extracted_features
             else:
                 activ = tf.tanh
                 processed_x = tf.layers.flatten(self.processed_x)
-                pi_h1 = activ(linear(processed_x, 'pi_fc1', n_hidden=64, init_scale=np.sqrt(2)))
-                pi_h2 = activ(linear(pi_h1, 'pi_fc2', n_hidden=64, init_scale=np.sqrt(2)))
-                vf_h1 = activ(linear(processed_x, 'vf_fc1', n_hidden=64, init_scale=np.sqrt(2)))
-                vf_h2 = activ(linear(vf_h1, 'vf_fc2', n_hidden=64, init_scale=np.sqrt(2)))
-                value_fn = linear(vf_h2, 'vf', 1)
-                pi_latent = pi_h2
-                vf_latent = vf_h2
+                pi_h = processed_x
+                vf_h = processed_x
+                for i, layer_size in enumerate(layers):
+                    pi_h = activ(linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2)))
+                    vf_h = activ(linear(vf_h, 'vf_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2)))
+                value_fn = linear(vf_h, 'vf', 1)
+                pi_latent = pi_h
+                vf_latent = vf_h
 
             self.proba_distribution, self.policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
 
-        self.action = self.proba_distribution.sample()
-        self.neglogp = self.proba_distribution.neglogp(self.action)
-        self.policy_proba = self.policy
-        if self.is_discrete:
-            self.policy_proba = tf.nn.softmax(self.policy_proba)
-        self.initial_state = None
         self.value_fn = value_fn
-        self._value = value_fn[:, 0]
+        self._setup_init()
 
     def step(self, obs, state=None, mask=None):
         action, value, neglogp = self.sess.run([self.action, self._value, self.neglogp], {self.obs_ph: obs})
@@ -173,42 +218,122 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
 
 class CnnPolicy(FeedForwardPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
-                 **_kwargs):
-        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack, reuse,
-                                        _type="cnn", **_kwargs)
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_stack=None, reuse=False, **_kwargs):
+        """
+        Policy object that implements actor critic, using a CNN (the nature CNN)
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_stack, reuse,
+                                        feature_extraction="cnn", **_kwargs)
 
 
 class CnnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
                  **_kwargs):
+        """
+        Policy object that implements actor critic, using LSTMs with a CNN feature extraction
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
         super(CnnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack, reuse,
-                                            layer_norm=False, _type="cnn", **_kwargs)
+                                            layer_norm=False, feature_extraction="cnn", **_kwargs)
 
 
 class CnnLnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
                  **_kwargs):
+        """
+        Policy object that implements actor critic, using a layer normalized LSTMs with a CNN feature extraction
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
         super(CnnLnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack, reuse,
-                                              layer_norm=True, _type="cnn", **_kwargs)
+                                              layer_norm=True, feature_extraction="cnn", **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
-                 **_kwargs):
-        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack, reuse,
-                                        _type="mlp", **_kwargs)
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_stack=None, reuse=False, **_kwargs):
+        """
+        Policy object that implements actor critic, using an MLP (2 layers of 64)
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_stack, reuse,
+                                        feature_extraction="mlp", **_kwargs)
 
 
 class MlpLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
                  **_kwargs):
+        """
+        Policy object that implements actor critic, using LSTMs with a MLP feature extraction
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
         super(MlpLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack, reuse,
-                                            layer_norm=False, _type="mlp", **_kwargs)
+                                            layer_norm=False, feature_extraction="mlp", **_kwargs)
 
 
 class MlpLnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, n_stack=None, reuse=False,
                  **_kwargs):
+        """
+        Policy object that implements actor critic, using a layer normalized LSTMs with a MLP feature extraction
+
+        :param sess: (TensorFlow session) The current TensorFlow session
+        :param ob_space: (Gym Space) The observation space of the environment
+        :param ac_space: (Gym Space) The action space of the environment
+        :param n_env: (int) The number of environments to run
+        :param n_steps: (int) The number of steps to run for each environment
+        :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+        :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+        :param n_stack: (int) The number of frames stacked (None for no stacking)
+        :param reuse: (bool) If the policy is reusable or not
+        :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+        """
         super(MlpLnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, n_stack, reuse,
-                                              layer_norm=True, _type="mlp", **_kwargs)
+                                              layer_norm=True, feature_extraction="mlp", **_kwargs)

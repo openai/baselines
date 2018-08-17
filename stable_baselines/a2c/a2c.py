@@ -5,6 +5,7 @@ import tensorflow as tf
 
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse
 
@@ -77,8 +78,12 @@ class A2C(BaseRLModel):
 
                 self.n_batch = self.n_envs * self.n_steps
 
+                n_batch_step = None
+                if issubclass(self.policy, LstmPolicy):
+                    n_batch_step = self.n_envs
+
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         None, reuse=False)
+                                         n_batch_step, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
                                           self.n_steps, self.n_envs * self.n_steps, reuse=True)
 
