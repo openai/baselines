@@ -5,6 +5,7 @@ import os.path as osp
 import gym
 from collections import defaultdict
 import tensorflow as tf
+import numpy as np
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_mujoco_env, make_atari_env
@@ -75,10 +76,10 @@ def train(args, extra_args):
     return model, env
 
 
-def build_env(args, render=False):
+def build_env(args):
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
-    nenv = args.num_env or ncpu if not render else 1
+    nenv = args.num_env or ncpu
     alg = args.alg
     rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = args.seed    
@@ -123,14 +124,18 @@ def build_env(args, render=False):
         env = bench.Monitor(env, logger.get_dir())
         env = retro_wrappers.wrap_deepmind_retro(env)
         
-    elif env_type == 'classic':
+    elif env_type == 'classic_control':
         def make_env():
             e = gym.make(env_id)
+            e = bench.Monitor(e, logger.get_dir(), allow_early_resets=True)
             e.seed(seed)
             return e
             
         env = DummyVecEnv([make_env])
- 
+
+    else:
+        raise ValueError('Unknown env_type {}'.format(env_type))
+
     return env
 
 
@@ -149,7 +154,7 @@ def get_env_type(env_id):
     return env_type, env_id
 
 def get_default_network(env_type):
-    if env_type == 'mujoco' or env_type=='classic':
+    if env_type == 'mujoco' or env_type == 'classic_control':
         return 'mlp'
     if env_type == 'atari':
         return 'cnn'
@@ -215,12 +220,14 @@ def main():
 
     if args.play:
         logger.log("Running trained model")
-        env = build_env(args, render=True)
+        env = build_env(args)
         obs = env.reset()
         while True:
             actions = model.step(obs)[0]
             obs, _, done, _  = env.step(actions)
             env.render()
+            done = done.any() if isinstance(done, np.ndarray) else done
+
             if done:
                 obs = env.reset()
             

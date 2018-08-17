@@ -40,7 +40,8 @@ def make_mujoco_env(env_id, seed, reward_scale=1.0):
     myseed = seed  + 1000 * rank if seed is not None else None
     set_global_seeds(myseed)
     env = gym.make(env_id)
-    env = Monitor(env, os.path.join(logger.get_dir(), str(rank)), allow_early_resets=True)
+    logger_path = None if logger.get_dir() is None else os.path.join(logger.get_dir(), str(rank))
+    env = Monitor(env, logger_path, allow_early_resets=True)
     env.seed(seed)
 
     if reward_scale != 1.0:

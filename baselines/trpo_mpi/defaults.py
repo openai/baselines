@@ -1,4 +1,4 @@
-from rl_common.models import mlp, cnn_small
+from baselines.common.models import mlp, cnn_small
 
 
 def atari():

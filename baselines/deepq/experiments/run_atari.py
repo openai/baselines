@@ -23,17 +23,15 @@ def main():
     env = make_atari(args.env)
     env = bench.Monitor(env, logger.get_dir())
     env = deepq.wrap_atari_dqn(env)
-    model = deepq.models.cnn_to_mlp(
-        convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-        hiddens=[256],
-        dueling=bool(args.dueling),
-    )
 
     deepq.learn(
         env,
-        q_func=model,
+        "conv_only",
+        convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+        hiddens=[256],
+        dueling=bool(args.dueling),
         lr=1e-4,
-        max_timesteps=args.num_timesteps,
+        total_timesteps=args.num_timesteps,
         buffer_size=10000,
         exploration_fraction=0.1,
         exploration_final_eps=0.01,

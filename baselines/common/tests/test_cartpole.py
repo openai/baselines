@@ -14,7 +14,7 @@ common_kwargs = dict(
 learn_kwargs = {
     'a2c' : dict(nsteps=32, value_network='copy', lr=0.05),
     'acktr': dict(nsteps=32, value_network='copy'),
-    'deepq': {},
+    'deepq': dict(total_timesteps=20000),
     'ppo2': dict(value_network='copy'),
     'trpo_mpi': {}
 }
@@ -38,3 +38,6 @@ def test_cartpole(alg):
         return env
 
     reward_per_episode_test(env_fn, learn_fn, 100)
+
+if __name__ == '__main__':
+    test_cartpole('deepq')
