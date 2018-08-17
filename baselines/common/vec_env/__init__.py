@@ -1,3 +1,4 @@
+# flake8: noqa F401
 from baselines.common.vec_env.base_vec_env import AlreadySteppingError, NotSteppingError, VecEnv, VecEnvWrapper, \
     CloudpickleWrapper
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv

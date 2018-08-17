@@ -79,7 +79,7 @@ class A2C(BaseRLModel):
                 self.n_batch = self.n_envs * self.n_steps
 
                 n_batch_step = None
-                if isinstance(self.policy, LstmPolicy):
+                if issubclass(self.policy, LstmPolicy):
                     n_batch_step = self.n_envs
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,

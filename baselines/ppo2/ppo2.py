@@ -101,7 +101,7 @@ class PPO2(BaseRLModel):
                 self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
 
                 n_batch_step = None
-                if isinstance(self.policy, LstmPolicy):
+                if issubclass(self.policy, LstmPolicy):
                     n_batch_step = self.n_envs
 
                 act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
