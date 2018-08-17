@@ -21,7 +21,7 @@ class PPO1(BaseRLModel):
         """
         Learning PPO with Stochastic Gradient Descent
 
-        :param env: (Gym Environment) environment to train on
+        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param policy: (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) creates the policy
         :param timesteps_per_actorbatch: (int) timesteps per actor per update
         :param clip_param: (float) clipping parameter epsilon
