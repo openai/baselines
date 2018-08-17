@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from baselines.bench.monitor import load_results
 
-matplotlib.use('TkAgg')  # Can change to 'Agg' for non-interactive mode
+# matplotlib.use('TkAgg')  # Can change to 'Agg' for non-interactive mode
 plt.rcParams['svg.fonttype'] = 'none'
 
 X_TIMESTEPS = 'timesteps'
@@ -97,7 +97,7 @@ def plot_results(dirs, num_timesteps, xaxis, task_name):
     """
     plot the results
 
-    :param dirs: (str) the save location of the results to plot
+    :param dirs: ([str]) the save location of the results to plot
     :param num_timesteps: (int) only plot the points below this value
     :param xaxis: (str) the axis for the x and y output
         (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
