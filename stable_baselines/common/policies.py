@@ -62,7 +62,6 @@ class ActorCriticPolicy(object):
         self.policy_proba = self.policy
         if self.is_discrete:
             self.policy_proba = tf.nn.softmax(self.policy_proba)
-        self.initial_state = None
         self._value = self.value_fn[:, 0]
 
     def step(self, obs, state=None, mask=None):
@@ -145,6 +144,7 @@ class LstmPolicy(ActorCriticPolicy):
                 self.pdtype.proba_distribution_from_latent(rnn_output, rnn_output)
 
         self.value_fn = value_fn
+        self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self._setup_init()
 
     def step(self, obs, state=None, mask=None):
@@ -204,6 +204,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
                 self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
 
         self.value_fn = value_fn
+        self.initial_state = None
         self._setup_init()
 
     def step(self, obs, state=None, mask=None):

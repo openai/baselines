@@ -20,7 +20,7 @@ class PPO2(BaseRLModel):
         Return a trained PPO2 model.
 
         :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param env: (Gym environment) The environment to learn from
+        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) Discount factor
         :param n_steps: (int) The number of steps to run for each environment
         :param ent_coef: (float) Entropy coefficient for the loss caculation

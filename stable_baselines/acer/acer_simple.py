@@ -67,7 +67,7 @@ class ACER(BaseRLModel):
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
         :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param env: (Gym environment) The environment to learn from
+        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) The discount value
         :param n_steps: (int) The number of steps to run for each environment
         :param n_stack: (int) The number of stacked frames

@@ -133,7 +133,7 @@ class DDPG(BaseRLModel):
         DDPG: https://arxiv.org/pdf/1509.02971.pdf
 
         :param policy: (ActorCriticPolicy) the policy
-        :param env: (Gym Environment) the environment
+        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) the discount rate
         :param memory_policy: (Memory) the replay buffer (if None, default to baselines.ddpg.memory.Memory)
         :param eval_env: (Gym Environment) the evaluation environment (can be None)

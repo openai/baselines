@@ -28,7 +28,7 @@ class DeepQ(BaseRLModel):
                 - scope: (str)
                 - reuse: (bool) should be passed to outer variable scope
             and returns a tensor of shape (batch_size, num_actions) with values of every action.
-        :param env: (Gym Environment) environment to train on
+        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) discount factor
         :param learning_rate: (float) learning rate for adam optimizer
         :param buffer_size: (int) size of the replay buffer

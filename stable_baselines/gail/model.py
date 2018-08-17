@@ -12,7 +12,7 @@ class GAIL(BaseRLModel):
         learns a GAIL policy using the given environment
 
         :param policy: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
-        :param env: (Gym Environment) the environment
+        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) the discount value
         :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
         :param max_kl: (float) the kullback leiber loss threashold

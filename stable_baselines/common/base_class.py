@@ -6,7 +6,7 @@ import numpy as np
 import gym
 
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv
+from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
 from stable_baselines import logger
 
 
@@ -14,8 +14,8 @@ class BaseRLModel(ABC):
     def __init__(self, env, requires_vec_env, verbose=0):
         """
         The base RL model
-
-        :param env: (Gym environment) The environment to learn from (can be None for loading trained models)
+        :param env: (Gym environment) The environment to learn from
+            (if registered in Gym, can be str. Can be None for loading trained models)
         :param requires_vec_env: (bool)
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         """
@@ -30,6 +30,11 @@ class BaseRLModel(ABC):
         self._vectorize_action = False
 
         if env is not None:
+            if isinstance(env, str):
+                if self.verbose >= 1:
+                    print("Creating environment from the given name, wrapped in a DummyVecEnv.")
+                self.env = env = DummyVecEnv([lambda: gym.make(env)])
+
             self.observation_space = env.observation_space
             self.action_space = env.action_space
             if requires_vec_env:
@@ -46,6 +51,14 @@ class BaseRLModel(ABC):
                     else:
                         raise ValueError("Error: the model requires a non vectorized environment or a single vectorized"
                                          " environment.")
+
+    def get_env(self):
+        """
+        returns the current environment (can be None if not defined)
+
+        :return: (Gym Environment) The current environment
+        """
+        return self.env
 
     def set_env(self, env):
         """
