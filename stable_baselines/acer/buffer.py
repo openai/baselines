@@ -82,8 +82,8 @@ class Buffer(object):
         obs = np.zeros([n_stack, n_steps + n_stack, n_env] + obs_dim, dtype=self.obs_dtype)
         # [n_steps + nstack, n_env, nh, nw, nc]
         x_var = np.reshape(enc_obs, [n_env, n_steps + n_stack] + obs_dim).swapaxes(1, 0)
-        y_var[3:] = np.reshape(1.0 - dones, [n_env, n_steps] + ([1] * len(obs_dim))).swapaxes(1, 0)  # keep
-        y_var[:3] = 1.0
+        y_var[n_stack - 1:] = np.reshape(1.0 - dones, [n_env, n_steps] + ([1] * len(obs_dim))).swapaxes(1, 0)  # keep
+        y_var[:n_stack - 1] = 1.0
         # y = np.reshape(1 - dones, [n_envs, n_steps, 1, 1, 1])
         for i in range(n_stack):
             obs[-(i + 1), i:] = x_var
@@ -92,9 +92,9 @@ class Buffer(object):
             y_var = y_var[1:]
 
         if self.raw_pixels:
-            obs = obs[:, 3:].transpose((2, 1, 3, 4, 0, 5))
+            obs = obs[:, n_stack - 1:].transpose((2, 1, 3, 4, 0, 5))
         else:
-            obs = obs[:, 3:].transpose((2, 1, 3, 0))
+            obs = obs[:, n_stack - 1:].transpose((2, 1, 3, 0))
         return np.reshape(obs, [n_env, (n_steps + 1)] + obs_dim[:-1] + [obs_dim[-1] * n_stack])
 
     def put(self, enc_obs, actions, rewards, mus, dones, masks):
