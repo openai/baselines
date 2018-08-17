@@ -198,7 +198,7 @@ def load_results(path):
     data_frame.sort_values('t', inplace=True)
     data_frame.reset_index(inplace=True)
     data_frame['t'] -= min(header['t_start'] for header in headers)
-    data_frame.headers = headers  # HACK to preserve backwards compatibility
+    # data_frame.headers = headers  # HACK to preserve backwards compatibility
     return data_frame
 
 
