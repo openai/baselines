@@ -25,10 +25,10 @@ Here is a quick example of how to train and run PPO2 on a cartpole environment:
 import gym
 
 from stable_baselines.common.policies import MlpPolicy
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.ppo2 import PPO2
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import PPO2
 
-env = gym.make('CartPole-v0')
+env = gym.make('CartPole-v1')
 env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
 
 model = PPO2(MlpPolicy, env, verbose=1)
@@ -40,6 +40,15 @@ for i in range(1000):
     obs, rewards, dones, info = env.step(action)
     env.render()
 ```
+
+Or just train a model with a one liner if [the environment is registed in Gym](https://github.com/openai/gym/wiki/Environments):
+```python
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines import PPO2
+
+model = PPO2(MlpPolicy, 'CartPole-v1').learn(10000)
+```
+
 
 ### Implemented Algorithms
 
@@ -72,16 +81,16 @@ Actions ```gym.spaces```:
 
 here are a few barebones examples of how to use this library:
 
-ACKTR with ```CartPole-v0```:
+ACKTR with ```CartPole-v1```:
 ```python
 import gym
 
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.acktr import ACKTR
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import ACKTR
 
-env = gym.make('CartPole-v0')
+env = gym.make('CartPole-v1')
 # Vectorize the environment, as some models requires it. But all the models can use vectorized environments
 env = DummyVecEnv([lambda: env])
 
@@ -101,8 +110,8 @@ A2C with ```Breakout-v0```:
 from stable_baselines.common.cmd_util import make_atari_env
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.a2c import A2C
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import A2C
 
 # There already exists an environment generator that will make and wrap atari environments correctly.
 env = make_atari_env('BreakoutNoFrameskip-v4', num_env=8, seed=0)
@@ -121,8 +130,8 @@ while True:
 DeepQ with ```MsPacman-v0```:
 ```python
 from stable_baselines.common.cmd_util import make_atari_env
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.deepq import DeepQ, models
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import DeepQ, models
 
 # There already exists an environment generator that will make and wrap atari environments correctly
 # Here we set the num_env to 1, as DeepQ does not support multi-environments
@@ -146,8 +155,8 @@ You can also move from one environment to an other for continuous learning (PPO2
 from stable_baselines.common.cmd_util import make_atari_env
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.ppo2 import PPO2
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import PPO2
 
 # There already exists an environment generator that will make and wrap atari environments correctly
 env = make_atari_env('DemonAttackNoFrameskip-v4', num_env=8, seed=0)
@@ -167,6 +176,32 @@ env = make_atari_env('SpaceInvadersNoFrameskip-v4', num_env=8, seed=0)
 # change env
 model.set_env(env)
 model.learn(total_timesteps=10000)
+
+obs = env.reset()
+while True:
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
+```
+
+You can also make custom policies to train with:
+```python
+import gym
+
+from stable_baselines.common.policies import FeedForwardPolicy
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import ppo2
+
+# Custom MLP policy of 3 layers of 256, 64 and 16
+class CustomPolicy(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomPolicy, self).__init__(*args, **kwargs, layers=[256, 64, 16], type="mlp")
+
+env = gym.make('LunarLander-v2')
+env = DummyVecEnv([lambda: env])
+
+model = PPO2(CustomPolicy, env, verbose=1)
+model.learn(total_timesteps=100000)
 
 obs = env.reset()
 while True:
