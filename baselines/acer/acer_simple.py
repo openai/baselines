@@ -59,10 +59,10 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
 
 
 class ACER(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, n_steps=20, n_stack=4, num_procs=1, q_coef=0.5, ent_coef=0.01,
-                 max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5,
-                 buffer_size=5000, replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True,
-                 alpha=0.99, delta=1, verbose=0, _init_setup_model=True):
+    def __init__(self, policy, env, gamma=0.99, n_steps=20, num_procs=1, q_coef=0.5, ent_coef=0.01, max_grad_norm=10,
+                 learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5, buffer_size=5000,
+                 replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True, alpha=0.99, delta=1,
+                 verbose=0, _init_setup_model=True):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
@@ -70,7 +70,6 @@ class ACER(BaseRLModel):
         :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) The discount value
         :param n_steps: (int) The number of steps to run for each environment
-        :param n_stack: (int) The number of stacked frames
         :param num_procs: (int) The number of threads for TensorFlow operations
         :param q_coef: (float) The weight for the loss on the Q value
         :param ent_coef: (float) The weight for the entropic loss
@@ -95,7 +94,6 @@ class ACER(BaseRLModel):
 
         self.n_steps = n_steps
         self.replay_ratio = replay_ratio
-        self.n_stack = n_stack
         self.buffer_size = buffer_size
         self.replay_start = replay_start
         self.policy = policy
@@ -162,10 +160,9 @@ class ACER(BaseRLModel):
                 eps = 1e-6
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         self.n_envs, n_stack=self.n_stack, reuse=False)
+                                         self.n_envs, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                          self.n_steps + 1, self.n_envs * (self.n_steps + 1), n_stack=self.n_stack,
-                                          reuse=True)
+                                          self.n_steps + 1, self.n_envs * (self.n_steps + 1), reuse=True)
 
                 self.action_ph = train_model.pdtype.sample_placeholder([self.n_batch])
 
@@ -182,8 +179,7 @@ class ACER(BaseRLModel):
                 with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
                     self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
                                                                    self.n_envs, self.n_steps + 1,
-                                                                   self.n_envs * (self.n_steps + 1),
-                                                                   n_stack=self.n_stack, reuse=True)
+                                                                   self.n_envs * (self.n_steps + 1), reuse=True)
 
                 # Notation: (var) = batch variable, (var)s = sequence variable,
                 # (var)_i = variable index by action at step i
@@ -385,9 +381,9 @@ class ACER(BaseRLModel):
 
             episode_stats = EpisodeStats(self.n_steps, self.n_envs)
 
-            runner = _Runner(env=self.env, model=self, n_steps=self.n_steps, n_stack=self.n_stack)
+            runner = _Runner(env=self.env, model=self, n_steps=self.n_steps)
             if self.replay_ratio > 0:
-                buffer = Buffer(env=self.env, n_steps=self.n_steps, n_stack=self.n_stack, size=self.buffer_size)
+                buffer = Buffer(env=self.env, n_steps=self.n_steps, size=self.buffer_size)
             else:
                 buffer = None
 
@@ -445,14 +441,13 @@ class ACER(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W0221
+    def predict(self, observation, state=None, mask=None):
         """
         Get the model's action from an observation
 
         :param observation: (numpy Number) the input observation
         :param state: (numpy Number) The last states (can be None, used in reccurent policies)
         :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :param stack: (bool) if the observation needs stacking, as opposed to already being stacked
         :return: (numpy Number, numpy Number) the model's action and the next state (used in reccurent policies)
         """
         if state is None:
@@ -469,24 +464,18 @@ class ACER(BaseRLModel):
             raise NotImplementedError("Error: ACER does not support input space of type {}".format(
                 type(self.observation_space).__name__))
 
-        # if the input need stacking, make an empty stack (as we dont know the order of prediction
-        if stack:
-            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
-            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape((-1,) + obs_shape[1:])[:]
-        else:
-            stacked_obs = np.array(observation).reshape((-1,) + (obs_shape[-1] * self.n_stack,))
+        observation = np.array(observation).reshape((-1,) + obs_shape[1:])
 
-        actions, _, states, _ = self.step(stacked_obs, state, mask)
+        actions, _, states, _ = self.step(observation, state, mask)
         return actions, states
 
-    def action_probability(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W0221
+    def action_probability(self, observation, state=None, mask=None):
         """
         Get the model's action probability distribution from an observation
 
         :param observation: (numpy Number) the input observation
         :param state: (numpy Number) The last states (can be None, used in reccurent policies)
         :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :param stack: (bool) if the observation needs stacking, as opposed to already being stacked
         :return: (numpy Number) the model's action probability distribution
         """
         if state is None:
@@ -503,20 +492,14 @@ class ACER(BaseRLModel):
             raise NotImplementedError("Error: ACER does not support input space of type {}".format(
                 type(self.observation_space).__name__))
 
-        # if the input need stacking, make an empty stack (as we dont know the order of prediction
-        if stack:
-            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
-            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape((-1,) + obs_shape[1:])[:]
-        else:
-            stacked_obs = np.array(observation).reshape((1,) + (obs_shape[-1] * self.n_stack,))
+        observation = np.array(observation).reshape((-1,) + obs_shape[1:])
 
-        return self.proba_step(stacked_obs, state, mask)
+        return self.proba_step(observation, state, mask)
 
     def save(self, save_path):
         data = {
             "gamma": self.gamma,
             "n_steps": self.n_steps,
-            "n_stack": self.n_stack,
             "q_coef": self.q_coef,
             "ent_coef": self.ent_coef,
             "max_grad_norm": self.max_grad_norm,
@@ -557,7 +540,7 @@ class ACER(BaseRLModel):
 
 
 class _Runner(AbstractEnvRunner):
-    def __init__(self, env, model, n_steps, n_stack):
+    def __init__(self, env, model, n_steps, n_stack=1):
         """
         A runner to learn the policy of an environment for a model
 
