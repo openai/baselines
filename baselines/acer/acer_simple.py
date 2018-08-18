@@ -455,16 +455,7 @@ class ACER(BaseRLModel):
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
 
-        # some trickery is required for stacking Discrete obs space
-        if isinstance(self.observation_space, Discrete):
-            obs_shape = (self.n_envs, 1)
-        elif isinstance(self.observation_space, Box):
-            obs_shape = (self.n_envs,) + self.observation_space.shape
-        else:
-            raise NotImplementedError("Error: ACER does not support input space of type {}".format(
-                type(self.observation_space).__name__))
-
-        observation = np.array(observation).reshape((-1,) + obs_shape[1:])
+        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
         actions, _, states, _ = self.step(observation, state, mask)
         return actions, states
@@ -483,16 +474,7 @@ class ACER(BaseRLModel):
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
 
-        # some trickery is required for stacking Discrete obs space
-        if isinstance(self.observation_space, Discrete):
-            obs_shape = (self.n_envs, 1)
-        elif isinstance(self.observation_space, Box):
-            obs_shape = (self.n_envs,) + self.observation_space.shape
-        else:
-            raise NotImplementedError("Error: ACER does not support input space of type {}".format(
-                type(self.observation_space).__name__))
-
-        observation = np.array(observation).reshape((-1,) + obs_shape[1:])
+        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
         return self.proba_step(observation, state, mask)
 
@@ -540,19 +522,17 @@ class ACER(BaseRLModel):
 
 
 class _Runner(AbstractEnvRunner):
-    def __init__(self, env, model, n_steps, n_stack=1):
+    def __init__(self, env, model, n_steps):
         """
         A runner to learn the policy of an environment for a model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param n_steps: (int) The number of steps to run for each environment
-        :param n_stack: (int) The number of stacked frames
         """
 
         super(_Runner, self).__init__(env=env, model=model, n_steps=n_steps)
         self.env = env
-        self.n_stack = n_stack
         self.model = model
         self.n_env = n_env = env.num_envs
         if isinstance(env.action_space, Discrete):
@@ -564,9 +544,9 @@ class _Runner(AbstractEnvRunner):
         if len(env.observation_space.shape) > 1:
             self.raw_pixels = True
             obs_height, obs_width, obs_num_channels = env.observation_space.shape
-            self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * n_stack)
+            self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels)
             self.obs_dtype = np.uint8
-            self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * n_stack), dtype=self.obs_dtype)
+            self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels), dtype=self.obs_dtype)
             self.num_channels = obs_num_channels
         else:
             if len(env.observation_space.shape) == 1:
@@ -574,33 +554,17 @@ class _Runner(AbstractEnvRunner):
             else:
                 self.obs_dim = 1
             self.raw_pixels = False
-            self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim * n_stack)
+            if isinstance(self.env.action_space, Discrete):
+                self.batch_ob_shape = (n_env * (n_steps + 1),)
+            else:
+                self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim)
             self.obs_dtype = np.float32
-            self.obs = np.zeros((n_env, self.obs_dim * n_stack), dtype=self.obs_dtype)
 
         obs = env.reset()
-        self.update_obs(obs)
+        self.obs = obs
         self.n_steps = n_steps
         self.states = model.initial_state
         self.dones = [False for _ in range(n_env)]
-
-    def update_obs(self, obs, dones=None):
-        """
-        Update the observation for rolling observation with stacking
-
-        :param obs: ([int] or [float]) The input observation
-        :param dones: ([bool])
-        """
-        if self.raw_pixels:
-            if dones is not None:
-                self.obs *= (1 - dones.astype(np.uint8))[:, None, None, None]
-            self.obs = np.roll(self.obs, shift=-self.num_channels, axis=3)
-            self.obs[:, :, :, -self.num_channels:] = obs[:, :, :, :]
-        else:
-            if dones is not None:
-                self.obs *= (1 - dones.astype(np.uint8))[:, None]
-            self.obs = np.roll(self.obs, shift=-self.obs_dim, axis=1)
-            self.obs[:, -self.obs_dim:] = obs[:]
 
     def run(self):
         """
@@ -609,10 +573,7 @@ class _Runner(AbstractEnvRunner):
         :return: ([float], [float], [float], [float], [float], [bool], [float])
                  encoded observation, observations, actions, rewards, mus, dones, masks
         """
-        if self.raw_pixels:
-            enc_obs = np.split(self.obs, self.n_stack, axis=3)  # so now list of obs steps
-        else:
-            enc_obs = np.split(self.obs, self.n_stack, axis=1)  # so now list of obs steps
+        enc_obs = [self.obs]
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.n_steps):
             actions, _, states, _ = self.model.step(self.obs, self.states, self.dones)
@@ -625,7 +586,7 @@ class _Runner(AbstractEnvRunner):
             # states information for statefull models like LSTM
             self.states = states
             self.dones = dones
-            self.update_obs(obs, dones)
+            self.obs = obs
             mb_rewards.append(rewards)
             enc_obs.append(obs)
         mb_obs.append(np.copy(self.obs))
