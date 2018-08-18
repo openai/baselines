@@ -2,7 +2,6 @@ import numpy as np
 from multiprocessing import Process, Pipe
 from . import VecEnv, CloudpickleWrapper
 from baselines.common.tile_images import tile_images
-from gym.envs.classic_control import rendering
 
 
 def worker(remote, parent_remote, env_fn_wrapper):
@@ -98,6 +97,7 @@ class SubprocVecEnv(VecEnv):
         bigimg = tile_images(imgs)
         if mode == 'human':
             if self.viewer is None:
+                from gym.envs.classic_control import rendering
                 self.viewer = rendering.SimpleImageViewer()
 
             self.viewer.imshow(bigimg[:, :, ::-1])

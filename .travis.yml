@@ -11,4 +11,4 @@ install:
 
 script:
     - flake8 --select=F,E999 baselines/common baselines/trpo_mpi baselines/ppo2 baselines/a2c baselines/deepq baselines/acer
-    - docker run baselines-test pytest --runslow
+    - docker run baselines-test pytest -v .

@@ -6,7 +6,6 @@ from multiprocessing import Pipe, Array, Process
 import numpy as np
 from . import VecEnv, CloudpickleWrapper
 import ctypes
-from gym.envs.classic_control import rendering
 from baselines import logger
 from baselines.common.tile_images import tile_images
 
@@ -97,6 +96,7 @@ class ShmemVecEnv(VecEnv):
         bigimg = tile_images(imgs)
         if mode == 'human':
             if self.viewer is None:
+                from gym.envs.classic_control import rendering
                 self.viewer = rendering.SimpleImageViewer()
 
             self.viewer.imshow(bigimg[:, :, ::-1])
