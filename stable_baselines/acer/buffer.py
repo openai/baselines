@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Buffer(object):
-    def __init__(self, env, n_steps, n_stack, size=50000):
+    def __init__(self, env, n_steps, n_stack=1, size=50000):
         """
         A buffer for observations, actions, rewards, mu's, states, masks and dones values
 

@@ -15,7 +15,7 @@ from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.deepq import models as deepq_models
 
-N_TRIALS = 1000
+N_TRIALS = 2000
 
 MODEL_POLICY_LIST = [
     (A2C, MlpPolicy),
