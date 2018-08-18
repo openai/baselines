@@ -523,7 +523,7 @@ def avg_norm(tensor):
     return tf.reduce_mean(tf.sqrt(tf.reduce_sum(tf.square(tensor), axis=-1)))
 
 
-def gradient_add(grad_1, grad_2, param, verbose=1):
+def gradient_add(grad_1, grad_2, param, verbose=0):
     """
     Sum two gradients
 
