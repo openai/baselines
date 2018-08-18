@@ -554,7 +554,7 @@ class _Runner(AbstractEnvRunner):
             else:
                 self.obs_dim = 1
             self.raw_pixels = False
-            if isinstance(self.env.action_space, Discrete):
+            if isinstance(self.env.observation_space, Discrete):
                 self.batch_ob_shape = (n_env * (n_steps + 1),)
             else:
                 self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim)
