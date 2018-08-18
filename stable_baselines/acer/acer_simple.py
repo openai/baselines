@@ -293,7 +293,6 @@ class ACER(BaseRLModel):
                     # [n_envs * n_steps, n_act]
                     grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs,
                                         phi_i)
-                    print(grad)
                     # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
                     kl_grad = - f_polyak_i / (f_i_ + eps)
                     k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
