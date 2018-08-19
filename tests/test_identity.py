@@ -14,9 +14,7 @@ from baselines.deepq import models as deepq_models
 
 learn_func_list = [
     lambda e: A2C(policy=MlpPolicy, env=e).learn(total_timesteps=50000, seed=0),
-    lambda e: ACER(policy=MlpPolicy, env=e, replay_start=100, lr_schedule='constant',
-                   gamma=0.5, delta=10, rprop_alpha=0.999,
-                   ent_coef=0.0, learning_rate=1e-3, replay_ratio=10).learn(total_timesteps=150000, seed=0),
+    lambda e: ACER(policy=MlpPolicy, env=e, learning_rate=1e-3).learn(total_timesteps=150000, seed=0),
     lambda e: ACKTR(policy=MlpPolicy, env=e, learning_rate=5e-4, n_steps=4).learn(total_timesteps=100000, seed=0),
     lambda e: DeepQ(policy=deepq_models.mlp([32]), env=e).learn(total_timesteps=50000, seed=0),
     lambda e: PPO1(policy=MlpPolicy, env=e, optim_stepsize=5e-3).learn(total_timesteps=75000, seed=0),
