@@ -10,7 +10,7 @@ class VecFrameStack(VecEnvWrapper):
         Frame stacking wrapper for vectorized environment
 
         :param venv: (VecEnv) the vectorized environment to wrap
-        :param n_stack:
+        :param n_stack: (int) Number of frames to stack
         """
         self.venv = venv
         self.n_stack = n_stack
