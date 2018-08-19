@@ -155,11 +155,13 @@ Training a RL agent on Atari games is straightforward thanks to `make_atari_env`
 from stable_baselines.common.cmd_util import make_atari_env
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, \
     CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common.vec_env import DummyVecEnv, VecFrameStack
 from stable_baselines import A2C
 
 # There already exists an environment generator that will make and wrap atari environments correctly.
-env = make_atari_env('BreakoutNoFrameskip-v4', num_env=8, seed=0, wrapper_kwargs={'frame_stack': True})
+env = make_atari_env('BreakoutNoFrameskip-v4', num_env=8, seed=0)
+# Stack 4 frames
+env = VecFrameStack(env, n_stack=4)
 
 model = A2C(CnnPolicy, env, verbose=1)
 model.learn(total_timesteps=25000)
@@ -180,7 +182,7 @@ from stable_baselines import DeepQ, models
 
 # There already exists an environment generator that will make and wrap atari environments correctly
 # Here we set the num_env to 1, as DeepQ does not support multi-environments
-env = make_atari_env('MsPacmanNoFrameskip-v4', num_env=1, seed=0, wrapper_kwargs={'frame_stack': True})
+env = make_atari_env('MsPacmanNoFrameskip-v4', num_env=1, seed=0)
 
 # Here deepq does not use the standard Actor-Critic policies
 model = DeepQ(models.cnn_to_mlp(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], hiddens=[64]), env, verbose=1)
