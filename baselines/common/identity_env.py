@@ -14,9 +14,11 @@ class IdentityEnv(Env):
         """
         self.action_space = Discrete(dim)
         self.ep_length = ep_length
+        self.current_step = 0
         self.reset()
 
     def reset(self):
+        self.current_step = 0
         self._choose_next_state()
         self.observation_space = self.action_space
         return self.state
@@ -24,7 +26,9 @@ class IdentityEnv(Env):
     def step(self, action):
         reward = self._get_reward(action)
         self._choose_next_state()
-        return self.state, reward, False, {}
+        self.current_step += 1
+        done = self.current_step >= self.ep_length
+        return self.state, reward, done, {}
 
     def _choose_next_state(self):
         self.state = self.action_space.sample()
