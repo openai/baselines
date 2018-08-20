@@ -155,6 +155,11 @@ class ACER(BaseRLModel):
             else:
                 raise ValueError("Error: ACER does not work with {} actions space.".format(self.action_space))
 
+<<<<<<< HEAD:stable_baselines/acer/acer_simple.py
+=======
+            self.n_batch = self.n_envs * self.n_steps
+
+>>>>>>> refactoring:baselines/acer/acer_simple.py
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.sess = tf_util.make_session(num_cpu=self.num_procs, graph=self.graph)

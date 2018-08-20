@@ -33,4 +33,9 @@ setup(name='stable_baselines',
       author='Ashley Hill',
       url='https://github.com/openai/stable_baselines',
       author_email='ashley.hill@u-psud.fr',
-      version='1.0.0')
+      version='1.0.1')
+
+# python setup.py sdist
+# python setup.py bdist_wheel
+# twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+# twine upload dist/*
