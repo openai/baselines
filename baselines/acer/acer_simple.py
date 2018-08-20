@@ -134,6 +134,13 @@ class ACER(BaseRLModel):
         if _init_setup_model:
             self.setup_model()
 
+    def set_env(self, env):
+        assert self.n_envs == env.num_envs, \
+            "Error: the environment passed must have the same number of environments as the model was trained on." \
+            "This is due to ACER not being capable of changing the number of environments."
+
+        super().set_env(env)
+
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
@@ -159,11 +166,8 @@ class ACER(BaseRLModel):
                 self.learning_rate_ph = tf.placeholder(tf.float32, [])
                 eps = 1e-6
 
-                n_batch_step = None
-                n_batch_train = None
-                if issubclass(self.policy, LstmPolicy):
-                    n_batch_step = self.n_envs
-                    n_batch_train = self.n_envs * (self.n_steps + 1)
+                n_batch_step = self.n_envs
+                n_batch_train = self.n_envs * (self.n_steps + 1)
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                          n_batch_step, reuse=False)
