@@ -75,7 +75,7 @@ class ACER(BaseRLModel):
         :param ent_coef: (float) The weight for the entropic loss
         :param max_grad_norm: (float) The clipping value for the maximum gradient
         :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
-         :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+        :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
         :param rprop_epsilon: (float) RMS prop optimizer epsilon
         :param rprop_alpha: (float) RMS prop optimizer decay
@@ -134,9 +134,10 @@ class ACER(BaseRLModel):
             self.setup_model()
 
     def set_env(self, env):
-        assert self.n_envs == env.num_envs, \
-            "Error: the environment passed must have the same number of environments as the model was trained on." \
-            "This is due to ACER not being capable of changing the number of environments."
+        if env is not None:
+            assert self.n_envs == env.num_envs, \
+                "Error: the environment passed must have the same number of environments as the model was trained on." \
+                "This is due to ACER not being capable of changing the number of environments."
 
         super().set_env(env)
 
