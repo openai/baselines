@@ -6,6 +6,67 @@ if sys.version_info.major != 3:
           'Python {}. The installation will likely fail.'.format(sys.version_info.major))
 
 
+long_description = """
+
+# Stable Baselines  
+
+Stable Baselines is a set of improved implementations of reinforcement learning algorithms based on OpenAI [Baselines](https://github.com/openai/baselines/).   
+
+These algorithms will make it easier for the research community and industry to replicate, refine, and identify new ideas, and will create good baselines to build projects on top of. We expect these tools will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. We also hope that the simplicity of these tools will allow beginers to experiment with a more advanced toolset, without being buried in implementation details.   
+
+## Main differences with OpenAI Baselines
+This toolset is a fork of OpenAI Baselines, with a major strutural refactoring, and code cleanups:
+
+-   Unified structure for all algorithms
+-   PEP8 compliant (unified code style)
+-   Documented functions and classes
+-   More tests & more code coverage
+
+## Links
+
+Repository:   
+https://github.com/hill-a/stable-baselines  
+  
+Medium article:   
+https://medium.com/@araffin/df87c4b2fc82
+
+## Quick example
+
+Most of the library tries to follow a sklearn-like syntax for the Reinforcement Learning algorithms using Gym.
+
+Here is a quick example of how to train and run PPO2 on a cartpole environment:
+
+```python
+import gym
+
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import PPO2
+
+env = gym.make('CartPole-v1')
+env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
+
+model = PPO2(MlpPolicy, env, verbose=1)
+model.learn(total_timesteps=10000)
+
+obs = env.reset()
+for i in range(1000):
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
+```
+
+Or just train a model with a one liner if [the environment is registed in Gym](https://github.com/openai/gym/wiki/Environments):
+
+```python
+from stable_baselines.common.policies import MlpPolicy
+from stable_baselines import PPO2
+
+model = PPO2(MlpPolicy, 'CartPole-v1').learn(10000)
+```
+
+"""
+
 setup(name='stable_baselines',
       packages=[package for package in find_packages()
                 if package.startswith('stable_baselines')],
@@ -33,7 +94,7 @@ setup(name='stable_baselines',
       author='Ashley Hill',
       url='https://github.com/hill-a/stable-baselines',
       author_email='ashley.hill@u-psud.fr',
-      version='1.0.2')
+      version='1.0.3')
 
 # python setup.py sdist
 # python setup.py bdist_wheel
