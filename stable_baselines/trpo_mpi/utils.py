@@ -1,5 +1,7 @@
 import numpy as np
 
+from stable_baselines.common.vec_env import VecEnv
+
 
 def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     """
@@ -102,7 +104,8 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
             cur_ep_ret = 0
             cur_ep_true_ret = 0
             cur_ep_len = 0
-            observation = env.reset()
+            if not isinstance(env, VecEnv):
+                observation = env.reset()
         step += 1
 
 

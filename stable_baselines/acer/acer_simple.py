@@ -570,8 +570,6 @@ class _Runner(AbstractEnvRunner):
                 self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim)
             self.obs_dtype = np.float32
 
-        obs = env.reset()
-        self.obs = obs
         self.n_steps = n_steps
         self.states = model.initial_state
         self.dones = [False for _ in range(n_env)]

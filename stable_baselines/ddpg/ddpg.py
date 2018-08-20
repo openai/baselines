@@ -12,6 +12,7 @@ from mpi4py import MPI
 
 from stable_baselines import logger
 from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
@@ -699,7 +700,8 @@ class DDPG(BaseRLModel):
                                 episodes += 1
 
                                 self._reset()
-                                obs = self.env.reset()
+                                if not isinstance(self.env, VecEnv):
+                                    obs = self.env.reset()
 
                         # Train.
                         epoch_actor_losses = []
@@ -735,7 +737,8 @@ class DDPG(BaseRLModel):
 
                                 eval_qs.append(eval_q)
                                 if eval_done:
-                                    eval_obs = self.eval_env.reset()
+                                    if not isinstance(self.env, VecEnv):
+                                        eval_obs = self.eval_env.reset()
                                     eval_episode_rewards.append(eval_episode_reward)
                                     eval_episode_rewards_history.append(eval_episode_reward)
                                     eval_episode_reward = 0.
