@@ -13,10 +13,10 @@ long_description = """
 
 Stable Baselines is a set of improved implementations of reinforcement learning algorithms based on OpenAI [Baselines](https://github.com/openai/baselines/).   
 
-These algorithms will make it easier for the research community and industry to replicate, refine, and identify new ideas, and will create good baselines to build projects on top of. We expect these tools will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. We also hope that the simplicity of these tools will allow beginers to experiment with a more advanced toolset, without being buried in implementation details.   
+These algorithms will make it easier for the research community and industry to replicate, refine, and identify new ideas, and will create good baselines to build projects on top of. We expect these tools will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. We also hope that the simplicity of these tools will allow beginners to experiment with a more advanced toolset, without being buried in implementation details.   
 
 ## Main differences with OpenAI Baselines
-This toolset is a fork of OpenAI Baselines, with a major strutural refactoring, and code cleanups:
+This toolset is a fork of OpenAI Baselines, with a major structural refactoring, and code cleanups:
 
 -   Unified structure for all algorithms
 -   PEP8 compliant (unified code style)
