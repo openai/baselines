@@ -7,6 +7,7 @@ if sys.version_info.major != 3:
 
 
 long_description = """
+[![Build Status](https://travis-ci.com/hill-a/stable-baselines.svg?branch=stable)](https://travis-ci.com/hill-a/stable-baselines) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hill-a/stable-baselines&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&utm_medium=referral&utm_content=hill-a/stable-baselines&utm_campaign=Badge_Coverage)
 
 # Stable Baselines  
 
@@ -98,7 +99,8 @@ setup(name='stable_baselines',
                "gym openai baselines toolbox python data-science",
       license="MIT",
       long_description=long_description,
-      version='1.0.4',
+      long_description_content_type='text/markdown',
+      version='1.0.5',
       )
 
 # python setup.py sdist
