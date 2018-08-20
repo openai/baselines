@@ -91,7 +91,7 @@ def build_env(args):
                                    inter_op_parallelism_threads=1))
 
         if args.num_env:
-            env = SubprocVecEnv([lambda: make_mujoco_env(env_id, seed + i if seed is not None else None, args.reward_scale) for i in range(args.num_env)])    
+            env = SubprocVecEnv([(lambda y: (lambda: make_mujoco_env(env_id, seed + y if seed is not None else None, args.reward_scale)))(i) for i in range(args.num_env)]) 
         else:
             env = DummyVecEnv([lambda: make_mujoco_env(env_id, seed, args.reward_scale)])
 
