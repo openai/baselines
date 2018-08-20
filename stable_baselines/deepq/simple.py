@@ -54,7 +54,7 @@ class DeepQ(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(DeepQ, self).__init__(env=env, requires_vec_env=False, verbose=verbose)
+        super(DeepQ, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
         self.checkpoint_path = checkpoint_path
         self.param_noise = param_noise
@@ -73,7 +73,6 @@ class DeepQ(BaseRLModel):
         self.buffer_size = buffer_size
         self.learning_rate = learning_rate
         self.gamma = gamma
-        self.policy = policy
 
         self.graph = None
         self.sess = None

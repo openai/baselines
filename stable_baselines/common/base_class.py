@@ -6,14 +6,16 @@ import numpy as np
 import gym
 
 from stable_baselines.common import set_global_seeds
+from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
 from stable_baselines import logger
 
 
 class BaseRLModel(ABC):
-    def __init__(self, env, requires_vec_env, verbose=0):
+    def __init__(self, policy, env, requires_vec_env, verbose=0):
         """
         The base RL model
+        :param policy: (Object) Policy object
         :param env: (Gym environment) The environment to learn from
             (if registered in Gym, can be str. Can be None for loading trained models)
         :param requires_vec_env: (bool)
@@ -21,6 +23,7 @@ class BaseRLModel(ABC):
         """
         super(BaseRLModel, self).__init__()
 
+        self.policy = policy
         self.env = env
         self.verbose = verbose
         self._requires_vec_env = requires_vec_env
@@ -83,11 +86,13 @@ class BaseRLModel(ABC):
             assert isinstance(env, VecEnv), \
                 "Error: the environment passed is not a vectorized environment, however {} requires it".format(
                     self.__class__.__name__)
-            assert self.n_envs == env.num_envs, \
-                "Error: the environment passed must have the same number of environments as the model was trained on."
+            assert not issubclass(self.policy, LstmPolicy) or self.n_envs == env.num_envs, \
+                "Error: the environment passed must have the same number of environments as the model was trained on." \
+                "This is due to the Lstm policy not being capable of changing the number of environments."
+            self.n_envs = env.num_envs
 
         # for models that dont want vectorized environment, check if they make sense and adapt them.
-        # Otherwise tell the user about this issue
+        # Otherwise tell the user about this issue-
         if not self._requires_vec_env and isinstance(env, VecEnv):
             if env.num_envs == 1:
                 env = _UnvecWrapper(env)

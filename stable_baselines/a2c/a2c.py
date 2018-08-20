@@ -32,9 +32,8 @@ class A2C(BaseRLModel):
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
             (used only for loading)
         """
-        super(A2C, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
+        super(A2C, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
-        self.policy = policy
         self.n_steps = n_steps
         self.gamma = gamma
         self.vf_coef = vf_coef
@@ -79,13 +78,15 @@ class A2C(BaseRLModel):
                 self.n_batch = self.n_envs * self.n_steps
 
                 n_batch_step = None
+                n_batch_train = None
                 if issubclass(self.policy, LstmPolicy):
                     n_batch_step = self.n_envs
+                    n_batch_train = self.n_envs * self.n_steps
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                          n_batch_step, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                          self.n_steps, self.n_envs * self.n_steps, reuse=True)
+                                          self.n_steps, n_batch_train, reuse=True)
 
                 self.actions_ph = train_model.pdtype.sample_placeholder([None])
                 self.advs_ph = tf.placeholder(tf.float32, [None])

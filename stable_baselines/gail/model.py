@@ -34,7 +34,7 @@ class GAIL(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super().__init__(env, requires_vec_env=False, verbose=verbose)
+        super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
         self.trpo = TRPO(policy, env, verbose=verbose, _init_setup_model=False, **kwargs)
         self.trpo.using_gail = True

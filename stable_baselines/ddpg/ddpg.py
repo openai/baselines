@@ -164,13 +164,12 @@ class DDPG(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(DDPG, self).__init__(env=env, requires_vec_env=False, verbose=verbose)
+        super(DDPG, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
         # Parameters.
         self.gamma = gamma
         self.tau = tau
         self.memory_policy = memory_policy or Memory
-        self.policy = policy
         self.normalize_observations = normalize_observations
         self.normalize_returns = normalize_returns
         self.action_noise = action_noise
