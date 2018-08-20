@@ -37,9 +37,8 @@ class PPO1(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super().__init__(env=env, requires_vec_env=False, verbose=verbose)
+        super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
-        self.policy = policy
         self.gamma = gamma
         self.timesteps_per_actorbatch = timesteps_per_actorbatch
         self.clip_param = clip_param

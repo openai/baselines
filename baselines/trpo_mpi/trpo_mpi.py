@@ -36,9 +36,8 @@ class TRPO(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(TRPO, self).__init__(env=env, requires_vec_env=False, verbose=verbose)
+        super(TRPO, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
-        self.policy = policy
         self.using_gail = False
         self.timesteps_per_batch = timesteps_per_batch
         self.cg_iters = cg_iters

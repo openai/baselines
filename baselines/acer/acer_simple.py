@@ -10,6 +10,7 @@ from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trai
 from baselines.acer.buffer import Buffer
 from baselines.common import BaseRLModel, tf_util, SetVerbosity
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.policies import LstmPolicy
 
 
 def strip(var, n_envs, n_steps, flat=False):
@@ -91,14 +92,13 @@ class ACER(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(ACER, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
+        super(ACER, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         self.n_steps = n_steps
         self.replay_ratio = replay_ratio
         self.n_stack = n_stack
         self.buffer_size = buffer_size
         self.replay_start = replay_start
-        self.policy = policy
         self.gamma = gamma
         self.alpha = alpha
         self.correction_term = correction_term
@@ -161,10 +161,16 @@ class ACER(BaseRLModel):
                 self.learning_rate_ph = tf.placeholder(tf.float32, [])
                 eps = 1e-6
 
+                n_batch_step = None
+                n_batch_train = None
+                if issubclass(self.policy, LstmPolicy):
+                    n_batch_step = self.n_envs
+                    n_batch_train = self.n_envs * (self.n_steps + 1)
+
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         self.n_envs, n_stack=self.n_stack, reuse=False)
+                                         n_batch_step, n_stack=self.n_stack, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                          self.n_steps + 1, self.n_envs * (self.n_steps + 1), n_stack=self.n_stack,
+                                          self.n_steps + 1, n_batch_train, n_stack=self.n_stack,
                                           reuse=True)
 
                 self.action_ph = train_model.pdtype.sample_placeholder([self.n_batch])

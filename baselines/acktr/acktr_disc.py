@@ -12,6 +12,7 @@ from baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbos
 from baselines.a2c.a2c import A2CRunner
 from baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
 from baselines.acktr import kfac
+from baselines.common.policies import LstmPolicy
 
 
 class ACKTR(BaseRLModel):
@@ -37,11 +38,10 @@ class ACKTR(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(ACKTR, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
+        super(ACKTR, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         self.n_steps = n_steps
         self.gamma = gamma
-        self.policy = policy
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef
         self.vf_fisher_coef = vf_fisher_coef
@@ -86,23 +86,27 @@ class ACKTR(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
-            self.n_batch = self.n_envs * self.n_steps
-
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.sess = tf_util.make_session(num_cpu=self.nprocs, graph=self.graph)
 
-                self.advs_ph = advs_ph = tf.placeholder(tf.float32, [self.n_batch])
-                self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [self.n_batch])
+                self.advs_ph = advs_ph = tf.placeholder(tf.float32, [None])
+                self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [None])
                 self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
 
+                n_batch_step = None
+                n_batch_train = None
+                if issubclass(self.policy, LstmPolicy):
+                    n_batch_step = self.n_envs
+                    n_batch_train = self.n_envs * self.n_steps
+
                 self.model = step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                                      1, None, reuse=False)
+                                                      1, n_batch_step, reuse=False)
                 self.model2 = train_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                                        self.n_envs, self.n_steps, self.n_envs * self.n_steps,
+                                                        self.n_envs, self.n_steps, n_batch_train,
                                                         reuse=True)
 
-                self.action_ph = action_ph = train_model.pdtype.sample_placeholder([self.n_batch])
+                self.action_ph = action_ph = train_model.pdtype.sample_placeholder([None])
 
                 logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.policy, labels=action_ph)
                 self.logits = train_model.policy
@@ -174,6 +178,7 @@ class ACKTR(BaseRLModel):
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         with SetVerbosity(self.verbose):
             self._setup_learn(seed)
+            self.n_batch = self.n_envs * self.n_steps
 
             self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
                                                     schedule=self.lr_schedule)
