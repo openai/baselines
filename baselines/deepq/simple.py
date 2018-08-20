@@ -4,7 +4,9 @@ import gym
 
 from baselines import logger, deepq
 from baselines.common import tf_util, BaseRLModel, SetVerbosity
+from baselines.common.vec_env import VecEnv
 from baselines.common.schedules import LinearSchedule
+from baselines.common.policies import ActorCriticPolicy
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
 from baselines.a2c.utils import find_trainable_variables
@@ -55,6 +57,10 @@ class DeepQ(BaseRLModel):
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(DeepQ, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+
+        assert not isinstance(policy, ActorCriticPolicy), \
+            "Error: DeepQ does not support the actor critic policies, please use the 'baselines.deepq.models.mlp' and" \
+            " 'baselines.deepq.models.cnn_to_mlp' functions to create your policies."
 
         self.checkpoint_path = checkpoint_path
         self.param_noise = param_noise
@@ -182,7 +188,8 @@ class DeepQ(BaseRLModel):
 
                 episode_rewards[-1] += rew
                 if done:
-                    obs = self.env.reset()
+                    if not isinstance(self.env, VecEnv):
+                        obs = self.env.reset()
                     episode_rewards.append(0.0)
                     reset = True
 
