@@ -155,9 +155,6 @@ class ACER(BaseRLModel):
             else:
                 raise ValueError("Error: ACER does not work with {} actions space.".format(self.action_space))
 
-            n_batch_step = None
-            if issubclass(self.policy, LstmPolicy):
-                n_batch_step = self.n_envs
             self.n_batch = self.n_envs * self.n_steps
 
             self.graph = tf.Graph()
@@ -170,7 +167,9 @@ class ACER(BaseRLModel):
                 self.learning_rate_ph = tf.placeholder(tf.float32, [])
                 eps = 1e-6
 
-                n_batch_step = self.n_envs
+                n_batch_step = None
+                if issubclass(self.policy, LstmPolicy):
+                    n_batch_step = self.n_envs
                 n_batch_train = self.n_envs * (self.n_steps + 1)
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,

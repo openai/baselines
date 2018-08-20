@@ -31,6 +31,11 @@ setup(name='stable_baselines',
       ],
       description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms ',
       author='OpenAI',
-      url='https://github.com/openai/baselines',
+      url='https://github.com/hill-a/baselines',
       author_email='gym@openai.com',
       version='0.2.0')
+
+# python setup.py sdist
+# python setup.py bdist_wheel
+# twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+# twine upload dist/*
