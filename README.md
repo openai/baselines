@@ -426,6 +426,13 @@ More thorough tutorial on virtualenvs and options can be found [here](https://vi
 
 ## Installation
 Install the Stable Baselines package
+
+Using pip from pypi:
+```
+pip install stable-baselines
+```
+
+From source:
 ```bash
 pip install git+https://github.com/hill-a/stable-baselines
 ```
@@ -451,6 +458,20 @@ pytest --cov-config .coveragerc --cov-report html --cov-report term --cov=.
 - [PPO1](stable_baselines/ppo1) (Multi-CPU using MPI)
 - [PPO2](stable_baselines/ppo2) (Optimized for GPU)
 - [TRPO](stable_baselines/trpo_mpi)
+
+
+To cite this repository in publications:
+
+```
+    @misc{stable-baselines,
+      author = {Hill, Ashley and Raffin, Antonin and Traore, Rene and Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
+      title = {Stable Baselines},
+      year = {2018},
+      publisher = {GitHub},
+      journal = {GitHub repository},
+      howpublished = {\url{https://github.com/hill-a/stable-baselines}},
+    }
+```
 
 
 ## Bonus

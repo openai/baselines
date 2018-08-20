@@ -29,8 +29,8 @@ setup(name='stable_baselines',
           'seaborn',
           'glob2'
       ],
-      description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms ',
-      author='OpenAI',
+      description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms.',
+      author='Ashley Hill',
       url='https://github.com/openai/stable_baselines',
-      author_email='gym@openai.com',
-      version='0.2.0')
+      author_email='ashley.hill@u-psud.fr',
+      version='1.0.0')
