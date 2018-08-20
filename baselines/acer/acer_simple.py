@@ -60,10 +60,10 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
 
 
 class ACER(BaseRLModel):
-    def __init__(self, policy, env, gamma=0.99, n_steps=20, n_stack=4, num_procs=1, q_coef=0.5, ent_coef=0.01,
-                 max_grad_norm=10, learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5,
-                 buffer_size=5000, replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True,
-                 alpha=0.99, delta=1, verbose=0, _init_setup_model=True):
+    def __init__(self, policy, env, gamma=0.99, n_steps=20, num_procs=1, q_coef=0.5, ent_coef=0.01, max_grad_norm=10,
+                 learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5, buffer_size=5000,
+                 replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True, alpha=0.99, delta=1,
+                 verbose=0, _init_setup_model=True):
         """
         The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
@@ -71,7 +71,6 @@ class ACER(BaseRLModel):
         :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) The discount value
         :param n_steps: (int) The number of steps to run for each environment
-        :param n_stack: (int) The number of stacked frames
         :param num_procs: (int) The number of threads for TensorFlow operations
         :param q_coef: (float) The weight for the loss on the Q value
         :param ent_coef: (float) The weight for the entropic loss
@@ -96,7 +95,6 @@ class ACER(BaseRLModel):
 
         self.n_steps = n_steps
         self.replay_ratio = replay_ratio
-        self.n_stack = n_stack
         self.buffer_size = buffer_size
         self.replay_start = replay_start
         self.gamma = gamma
@@ -168,10 +166,9 @@ class ACER(BaseRLModel):
                     n_batch_train = self.n_envs * (self.n_steps + 1)
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         n_batch_step, n_stack=self.n_stack, reuse=False)
+                                         n_batch_step, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                          self.n_steps + 1, n_batch_train, n_stack=self.n_stack,
-                                          reuse=True)
+                                          self.n_steps + 1, n_batch_train, reuse=True)
 
                 self.action_ph = train_model.pdtype.sample_placeholder([self.n_batch])
 
@@ -188,8 +185,7 @@ class ACER(BaseRLModel):
                 with tf.variable_scope("", custom_getter=custom_getter, reuse=True):
                     self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
                                                                    self.n_envs, self.n_steps + 1,
-                                                                   self.n_envs * (self.n_steps + 1),
-                                                                   n_stack=self.n_stack, reuse=True)
+                                                                   self.n_envs * (self.n_steps + 1), reuse=True)
 
                 # Notation: (var) = batch variable, (var)s = sequence variable,
                 # (var)_i = variable index by action at step i
@@ -299,7 +295,6 @@ class ACER(BaseRLModel):
                     # [n_envs * n_steps, n_act]
                     grad = tf.gradients(- (loss_policy - self.ent_coef * entropy) * self.n_steps * self.n_envs,
                                         phi_i)
-                    print(grad)
                     # [n_envs * n_steps, n_act] # Directly computed gradient of KL divergence wrt f
                     kl_grad = - f_polyak_i / (f_i_ + eps)
                     k_dot_g = tf.reduce_sum(kl_grad * grad, axis=-1)
@@ -392,9 +387,9 @@ class ACER(BaseRLModel):
 
             episode_stats = EpisodeStats(self.n_steps, self.n_envs)
 
-            runner = _Runner(env=self.env, model=self, n_steps=self.n_steps, n_stack=self.n_stack)
+            runner = _Runner(env=self.env, model=self, n_steps=self.n_steps)
             if self.replay_ratio > 0:
-                buffer = Buffer(env=self.env, n_steps=self.n_steps, n_stack=self.n_stack, size=self.buffer_size)
+                buffer = Buffer(env=self.env, n_steps=self.n_steps, size=self.buffer_size)
             else:
                 buffer = None
 
@@ -452,14 +447,13 @@ class ACER(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W0221
+    def predict(self, observation, state=None, mask=None):
         """
         Get the model's action from an observation
 
         :param observation: (numpy Number) the input observation
         :param state: (numpy Number) The last states (can be None, used in reccurent policies)
         :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :param stack: (bool) if the observation needs stacking, as opposed to already being stacked
         :return: (numpy Number, numpy Number) the model's action and the next state (used in reccurent policies)
         """
         if state is None:
@@ -467,33 +461,18 @@ class ACER(BaseRLModel):
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
 
-        # some trickery is required for stacking Discrete obs space
-        if isinstance(self.observation_space, Discrete):
-            obs_shape = (self.n_envs, 1)
-        elif isinstance(self.observation_space, Box):
-            obs_shape = (self.n_envs,) + self.observation_space.shape
-        else:
-            raise NotImplementedError("Error: ACER does not support input space of type {}".format(
-                type(self.observation_space).__name__))
+        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
-        # if the input need stacking, make an empty stack (as we dont know the order of prediction
-        if stack:
-            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
-            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape((-1,) + obs_shape[1:])[:]
-        else:
-            stacked_obs = np.array(observation).reshape((-1,) + (obs_shape[-1] * self.n_stack,))
-
-        actions, _, states, _ = self.step(stacked_obs, state, mask)
+        actions, _, states, _ = self.step(observation, state, mask)
         return actions, states
 
-    def action_probability(self, observation, state=None, mask=None, stack=True):  # pylint: disable=W0221
+    def action_probability(self, observation, state=None, mask=None):
         """
         Get the model's action probability distribution from an observation
 
         :param observation: (numpy Number) the input observation
         :param state: (numpy Number) The last states (can be None, used in reccurent policies)
         :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :param stack: (bool) if the observation needs stacking, as opposed to already being stacked
         :return: (numpy Number) the model's action probability distribution
         """
         if state is None:
@@ -501,29 +480,14 @@ class ACER(BaseRLModel):
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
 
-        # some trickery is required for stacking Discrete obs space
-        if isinstance(self.observation_space, Discrete):
-            obs_shape = (self.n_envs, 1)
-        elif isinstance(self.observation_space, Box):
-            obs_shape = (self.n_envs,) + self.observation_space.shape
-        else:
-            raise NotImplementedError("Error: ACER does not support input space of type {}".format(
-                type(self.observation_space).__name__))
+        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
-        # if the input need stacking, make an empty stack (as we dont know the order of prediction
-        if stack:
-            stacked_obs = np.zeros(obs_shape[:-1] + (obs_shape[-1] * self.n_stack,))
-            stacked_obs[..., -obs_shape[-1]:] = np.array(observation).reshape((-1,) + obs_shape[1:])[:]
-        else:
-            stacked_obs = np.array(observation).reshape((1,) + (obs_shape[-1] * self.n_stack,))
-
-        return self.proba_step(stacked_obs, state, mask)
+        return self.proba_step(observation, state, mask)
 
     def save(self, save_path):
         data = {
             "gamma": self.gamma,
             "n_steps": self.n_steps,
-            "n_stack": self.n_stack,
             "q_coef": self.q_coef,
             "ent_coef": self.ent_coef,
             "max_grad_norm": self.max_grad_norm,
@@ -564,19 +528,17 @@ class ACER(BaseRLModel):
 
 
 class _Runner(AbstractEnvRunner):
-    def __init__(self, env, model, n_steps, n_stack):
+    def __init__(self, env, model, n_steps):
         """
         A runner to learn the policy of an environment for a model
 
         :param env: (Gym environment) The environment to learn from
         :param model: (Model) The model to learn
         :param n_steps: (int) The number of steps to run for each environment
-        :param n_stack: (int) The number of stacked frames
         """
 
         super(_Runner, self).__init__(env=env, model=model, n_steps=n_steps)
         self.env = env
-        self.n_stack = n_stack
         self.model = model
         self.n_env = n_env = env.num_envs
         if isinstance(env.action_space, Discrete):
@@ -588,9 +550,9 @@ class _Runner(AbstractEnvRunner):
         if len(env.observation_space.shape) > 1:
             self.raw_pixels = True
             obs_height, obs_width, obs_num_channels = env.observation_space.shape
-            self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels * n_stack)
+            self.batch_ob_shape = (n_env * (n_steps + 1), obs_height, obs_width, obs_num_channels)
             self.obs_dtype = np.uint8
-            self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels * n_stack), dtype=self.obs_dtype)
+            self.obs = np.zeros((n_env, obs_height, obs_width, obs_num_channels), dtype=self.obs_dtype)
             self.num_channels = obs_num_channels
         else:
             if len(env.observation_space.shape) == 1:
@@ -598,33 +560,17 @@ class _Runner(AbstractEnvRunner):
             else:
                 self.obs_dim = 1
             self.raw_pixels = False
-            self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim * n_stack)
+            if isinstance(self.env.observation_space, Discrete):
+                self.batch_ob_shape = (n_env * (n_steps + 1),)
+            else:
+                self.batch_ob_shape = (n_env * (n_steps + 1), self.obs_dim)
             self.obs_dtype = np.float32
-            self.obs = np.zeros((n_env, self.obs_dim * n_stack), dtype=self.obs_dtype)
 
         obs = env.reset()
-        self.update_obs(obs)
+        self.obs = obs
         self.n_steps = n_steps
         self.states = model.initial_state
         self.dones = [False for _ in range(n_env)]
-
-    def update_obs(self, obs, dones=None):
-        """
-        Update the observation for rolling observation with stacking
-
-        :param obs: ([int] or [float]) The input observation
-        :param dones: ([bool])
-        """
-        if self.raw_pixels:
-            if dones is not None:
-                self.obs *= (1 - dones.astype(np.uint8))[:, None, None, None]
-            self.obs = np.roll(self.obs, shift=-self.num_channels, axis=3)
-            self.obs[:, :, :, -self.num_channels:] = obs[:, :, :, :]
-        else:
-            if dones is not None:
-                self.obs *= (1 - dones.astype(np.uint8))[:, None]
-            self.obs = np.roll(self.obs, shift=-self.obs_dim, axis=1)
-            self.obs[:, -self.obs_dim:] = obs[:]
 
     def run(self):
         """
@@ -633,10 +579,7 @@ class _Runner(AbstractEnvRunner):
         :return: ([float], [float], [float], [float], [float], [bool], [float])
                  encoded observation, observations, actions, rewards, mus, dones, masks
         """
-        if self.raw_pixels:
-            enc_obs = np.split(self.obs, self.n_stack, axis=3)  # so now list of obs steps
-        else:
-            enc_obs = np.split(self.obs, self.n_stack, axis=1)  # so now list of obs steps
+        enc_obs = [self.obs]
         mb_obs, mb_actions, mb_mus, mb_dones, mb_rewards = [], [], [], [], []
         for _ in range(self.n_steps):
             actions, _, states, _ = self.model.step(self.obs, self.states, self.dones)
@@ -649,7 +592,7 @@ class _Runner(AbstractEnvRunner):
             # states information for statefull models like LSTM
             self.states = states
             self.dones = dones
-            self.update_obs(obs, dones)
+            self.obs = obs
             mb_rewards.append(rewards)
             enc_obs.append(obs)
         mb_obs.append(np.copy(self.obs))
