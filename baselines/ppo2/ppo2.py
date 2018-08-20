@@ -34,7 +34,7 @@ class PPO2(BaseRLModel):
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(PPO2, self).__init__(env=env, requires_vec_env=True, verbose=verbose)
+        super(PPO2, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         if isinstance(learning_rate, float):
             learning_rate = constfn(learning_rate)
@@ -55,7 +55,6 @@ class PPO2(BaseRLModel):
         self.lam = lam
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
-        self.policy = policy
 
         self.graph = None
         self.sess = None
@@ -81,7 +80,6 @@ class PPO2(BaseRLModel):
         self.value = None
         self.initial_state = None
         self.n_batch = None
-        self.n_batch_train = None
 
         if _init_setup_model:
             self.setup_model()
@@ -90,7 +88,6 @@ class PPO2(BaseRLModel):
         with SetVerbosity(self.verbose):
 
             self.n_batch = self.n_envs * self.n_steps
-            self.n_batch_train = self.n_batch // self.nminibatches
 
             n_cpu = multiprocessing.cpu_count()
             if sys.platform == 'darwin':
@@ -101,13 +98,15 @@ class PPO2(BaseRLModel):
                 self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
 
                 n_batch_step = None
+                n_batch_train = None
                 if issubclass(self.policy, LstmPolicy):
                     n_batch_step = self.n_envs
+                    n_batch_train = self.n_batch // self.nminibatches
 
                 act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                         n_batch_step, reuse=False)
                 train_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                          self.n_envs // self.nminibatches, self.n_steps, self.n_batch_train,
+                                          self.n_envs // self.nminibatches, self.n_steps, n_batch_train,
                                           reuse=True)
 
                 self.action_ph = train_model.pdtype.sample_placeholder([None])
