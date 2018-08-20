@@ -10,6 +10,7 @@ from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, fi
 from stable_baselines.acer.buffer import Buffer
 from stable_baselines.common import BaseRLModel, tf_util, SetVerbosity
 from stable_baselines.common.runners import AbstractEnvRunner
+from stable_baselines.common.policies import LstmPolicy
 
 
 def strip(var, n_envs, n_steps, flat=False):
@@ -166,7 +167,9 @@ class ACER(BaseRLModel):
                 self.learning_rate_ph = tf.placeholder(tf.float32, [])
                 eps = 1e-6
 
-                n_batch_step = self.n_envs
+                n_batch_step = None
+                if issubclass(self.policy, LstmPolicy):
+                    n_batch_step = self.n_envs
                 n_batch_train = self.n_envs * (self.n_steps + 1)
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
