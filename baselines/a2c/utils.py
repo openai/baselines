@@ -533,7 +533,7 @@ def gradient_add(grad_1, grad_2, param, verbose=0):
     :param verbose: (int) verbosity level
     :return: (TensorFlow Tensor) the sum of the gradients
     """
-    if verbose >= 1:
+    if verbose > 1:
         print([grad_1, grad_2, param.name])
     if grad_1 is None and grad_2 is None:
         return None
