@@ -18,8 +18,7 @@ def train(env_id, num_timesteps, seed, num_cpu):
     :param num_cpu: (int) The number of cpu to train on
     """
     env = VecFrameStack(make_atari_env(env_id, num_cpu, seed), 4)
-    policy_fn = partial(CnnPolicy, one_dim_bias=True)
-    model = ACKTR(policy_fn, env, nprocs=num_cpu)
+    model = ACKTR(CnnPolicy, env, nprocs=num_cpu)
     model.learn(total_timesteps=int(num_timesteps * 1.1), seed=seed)
     env.close()
 

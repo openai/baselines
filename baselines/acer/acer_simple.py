@@ -10,7 +10,6 @@ from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trai
 from baselines.acer.buffer import Buffer
 from baselines.common import BaseRLModel, tf_util, SetVerbosity
 from baselines.common.runners import AbstractEnvRunner
-from baselines.common.policies import LstmPolicy
 
 
 def strip(var, n_envs, n_steps, flat=False):
@@ -135,9 +134,10 @@ class ACER(BaseRLModel):
             self.setup_model()
 
     def set_env(self, env):
-        assert self.n_envs == env.num_envs, \
-            "Error: the environment passed must have the same number of environments as the model was trained on." \
-            "This is due to ACER not being capable of changing the number of environments."
+        if env is not None:
+            assert self.n_envs == env.num_envs, \
+                "Error: the environment passed must have the same number of environments as the model was trained on." \
+                "This is due to ACER not being capable of changing the number of environments."
 
         super().set_env(env)
 
