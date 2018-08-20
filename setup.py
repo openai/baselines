@@ -33,4 +33,4 @@ setup(name='stable_baselines',
       author='OpenAI',
       url='https://github.com/openai/stable_baselines',
       author_email='gym@openai.com',
-      version='0.1.7')
+      version='0.2.0')
