@@ -10,6 +10,7 @@ from baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trai
 from baselines.acer.buffer import Buffer
 from baselines.common import BaseRLModel, tf_util, SetVerbosity
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.policies import LstmPolicy
 
 
 def strip(var, n_envs, n_steps, flat=False):
@@ -154,6 +155,9 @@ class ACER(BaseRLModel):
             else:
                 raise ValueError("Error: ACER does not work with {} actions space.".format(self.action_space))
 
+            n_batch_step = None
+            if issubclass(self.policy, LstmPolicy):
+                n_batch_step = self.n_envs
             self.n_batch = self.n_envs * self.n_steps
 
             self.graph = tf.Graph()
