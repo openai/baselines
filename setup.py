@@ -31,9 +31,9 @@ setup(name='stable_baselines',
       ],
       description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms.',
       author='Ashley Hill',
-      url='https://github.com/openai/stable_baselines',
+      url='https://github.com/hill-a/stable-baselines',
       author_email='ashley.hill@u-psud.fr',
-      version='1.0.1')
+      version='1.0.2')
 
 # python setup.py sdist
 # python setup.py bdist_wheel
