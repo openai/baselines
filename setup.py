@@ -94,7 +94,12 @@ setup(name='stable_baselines',
       author='Ashley Hill',
       url='https://github.com/hill-a/stable-baselines',
       author_email='ashley.hill@u-psud.fr',
-      version='1.0.3')
+      keywords="reinforcement-learning-algorithms reinforcement-learning machine-learning "
+               "gym openai baselines toolbox python data-science",
+      license="MIT",
+      long_description=long_description,
+      version='1.0.4',
+      )
 
 # python setup.py sdist
 # python setup.py bdist_wheel
