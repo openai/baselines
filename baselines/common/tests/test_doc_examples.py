@@ -1,3 +1,16 @@
+import pytest
+try:
+    import mujoco_py
+    _mujoco_present = True
+except BaseException:
+    mujoco_py = None
+    _mujoco_present = False
+
+
+@pytest.mark.skipif(
+    not _mujoco_present, 
+    reason='error loading mujoco - either mujoco / mujoco key not present, or LD_LIBRARY_PATH is not pointing to mujoco library'
+)
 def test_lstm_example():
     import tensorflow as tf
     from baselines.common import policies, models, cmd_util
