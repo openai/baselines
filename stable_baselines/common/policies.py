@@ -24,7 +24,7 @@ def nature_cnn(scaled_images, **kwargs):
 
 
 class ActorCriticPolicy(object):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
         """
         Policy object that implements actor critic
 
@@ -36,10 +36,11 @@ class ActorCriticPolicy(object):
         :param n_batch: (int) The number of batch to run (n_envs * n_steps)
         :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
         :param reuse: (bool) If the policy is reusable or not
+        :param scale: (bool) whether or not to scale the input
         """
         self.n_env = n_env
         self.n_steps = n_steps
-        self.obs_ph, self.processed_x = observation_input(ob_space, n_batch)
+        self.obs_ph, self.processed_x = observation_input(ob_space, n_batch, scale=scale)
         self.masks_ph = tf.placeholder(tf.float32, [n_batch])  # mask (done t-1)
         self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2])  # states
         self.pdtype = make_proba_dist_type(ac_space)
@@ -117,7 +118,8 @@ class LstmPolicy(ActorCriticPolicy):
         :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
         :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
         """
-        super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, reuse)
+        super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, reuse,
+                                         scale=(feature_extraction == "cnn"))
 
         if layers is None:
             layers = [64, 64]
@@ -175,7 +177,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
         """
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-                                                reuse=reuse)
+                                                reuse=reuse, scale=(feature_extraction == "cnn"))
         if layers is None:
             layers = [64, 64]
 

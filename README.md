@@ -333,7 +333,7 @@ while True:
 
 #### Normalize Input Features
 
-By default, images are scaled (dividing by 255) but not other type of input.
+By default, images are scaled (dividing by the maximum value definied by the environment) but not other type of input.
 For that, a wrapper exists and will compute a running average and standard deviation of input features (it can do the same for rewards).
 
 ```python

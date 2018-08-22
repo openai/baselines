@@ -82,7 +82,8 @@ class ObservationInput(PlaceholderTfInput):
             types
         :param name: (str) tensorflow name of the underlying placeholder
         """
-        inpt, self.processed_inpt = observation_input(observation_space, name=name)
+        is_image = len(observation_space.shape) == 3
+        inpt, self.processed_inpt = observation_input(observation_space, name=name, scale=is_image)
         super().__init__(inpt)
 
     def get(self):

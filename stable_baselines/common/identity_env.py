@@ -17,6 +17,7 @@ class IdentityEnv(Env):
         self.ep_length = ep_length
         self.current_step = 0
         self.dim = dim
+        self.reset()
 
     def reset(self):
         self.current_step = 0
@@ -51,6 +52,7 @@ class IdentityEnvMultiDiscrete(IdentityEnv):
         super(IdentityEnvMultiDiscrete, self).__init__(dim, ep_length)
         self.action_space = MultiDiscrete([dim, dim])
         self.observation_space = self.action_space
+        self.reset()
 
 
 class IdentityEnvMultiBinary(IdentityEnv):
@@ -64,3 +66,4 @@ class IdentityEnvMultiBinary(IdentityEnv):
         super(IdentityEnvMultiBinary, self).__init__(dim, ep_length)
         self.action_space = MultiBinary(dim)
         self.observation_space = self.action_space
+        self.reset()
