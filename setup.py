@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-from functools import reduce
 import sys
 
 if sys.version_info.major != 3:

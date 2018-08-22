@@ -1,6 +1,5 @@
 import sys
 import multiprocessing 
-import os
 import os.path as osp
 import gym
 from collections import defaultdict
@@ -9,7 +8,7 @@ import numpy as np
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_mujoco_env, make_atari_env
-from baselines.common.tf_util import save_state, load_state, get_session
+from baselines.common.tf_util import get_session
 from baselines import bench, logger
 from importlib import import_module
 
