@@ -1,7 +1,7 @@
 import numpy as np
 
 from gym import Env
-from gym.spaces import Discrete, MultiDiscrete, MultiBinary, Box
+from gym.spaces import Discrete, MultiDiscrete, MultiBinary
 
 
 class IdentityEnv(Env):
