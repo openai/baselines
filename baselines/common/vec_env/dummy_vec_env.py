@@ -53,9 +53,6 @@ class DummyVecEnv(VecEnv):
     def close(self):
         return
 
-    def render(self, mode='human'):
-        return [e.render(mode=mode) for e in self.envs]
-
     def _save_obs(self, e, obs):
         for k in self.keys:
             if k is None:
@@ -65,4 +62,7 @@ class DummyVecEnv(VecEnv):
 
     def _obs_from_buf(self):
         return dict_to_obs(copy_obs_dict(self.buf_obs))
+
+    def get_images(self):
+        return [env.render(mode='rgb') for env in self.envs]
         
