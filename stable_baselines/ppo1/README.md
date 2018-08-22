@@ -1,8 +1,9 @@
 # PPO1
 
 ```
-class stable_baselines.PPO1(policy, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01,
-optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5, schedule='linear', verbose=0)
+class stable_baselines.PPO1(policy, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, 
+entcoeff=0.01, optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5, 
+schedule='linear', verbose=0)
 ```
 
 ### Notes 
@@ -62,7 +63,7 @@ while True:
     env.render()
 ```
 
-###Methods 
+### Methods 
 |                                                              |                                                                                                        |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | **get_env** ()                                               | returns the current environment (can be None if not defined)                                           |

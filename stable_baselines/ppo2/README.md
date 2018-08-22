@@ -1,8 +1,8 @@
 # PPO2
 
 ```
-class stable_baselines.PPO2(policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, vf_coef=0.5,
-max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0)
+class stable_baselines.PPO2(policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, 
+vf_coef=0.5, max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0)
 ```
 
 ### Notes 
@@ -60,7 +60,7 @@ while True:
     env.render()
 ```
 
-###Methods 
+### Methods 
 |                                                              |                                                                                                        |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | **get_env** ()                                               | returns the current environment (can be None if not defined)                                           |

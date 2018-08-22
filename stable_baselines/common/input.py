@@ -24,7 +24,9 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
         input_x = tf.placeholder(shape=(batch_size,) + ob_space.shape, dtype=ob_space.dtype, name=name)
         processed_x = tf.to_float(input_x)
         # rescale to [1, 0] if the bounds are defined
-        if not any(np.isinf(ob_space.low)) and not any(np.isinf(ob_space.high)) and ob_space.high - ob_space.low != 0:
+        if (not np.any(np.isinf(ob_space.low)) and not np.any(np.isinf(ob_space.high)) and
+           np.any(ob_space.high - ob_space.low) != 0):
+
             # equivalent to processed_x / 255.0 when bounds are set to [255, 0]
             processed_x = ((processed_x - ob_space.low) / (ob_space.high - ob_space.low))
         return input_x, processed_x
