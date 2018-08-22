@@ -42,6 +42,7 @@ Table of Contents
   * [MuJoCo](#mujoco)
 * [Testing the installation](#testing-the-installation)
 * [Subpackages](#subpackages)
+* [How To Contribute](#how-to-contribute)
 * [Bonus](#bonus)
 
 
@@ -93,7 +94,7 @@ All the following examples can be executed online using Google colab notebooks:
 
 ### Implemented Algorithms
 
-| **Name**            | **refactored**<sup>(1)</sup> | **Reccurent**      | ```Box```          | ```Discrete```     | ```MultiDiscrete``` | ```MultiBinary```  | **Multi Processing**              |
+| **Name**            | **Refactored**<sup>(1)</sup> | **Recurrent**      | ```Box```          | ```Discrete```     | ```MultiDiscrete``` | ```MultiBinary```  | **Multi Processing**              |
 | ------------------- | ---------------------------- | ------------------ | ------------------ | ------------------ | ------------------- | ------------------ | --------------------------------- |
 | A2C                 | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark: | :heavy_check_mark:                |
 | ACER                | :heavy_check_mark:           | :heavy_check_mark: | :x: <sup>(5)</sup> | :heavy_check_mark: | :x:                 | :x:                | :heavy_check_mark:                |
@@ -473,6 +474,15 @@ To cite this repository in publications:
     }
 ```
 
+## How To Contribute
+
+To any interested in making the baselines better, there is still some documentation that needs to be done.
+If you want to contribute, please open an issue first and then propose your pull request.
+
+Nice to have (for the future):
+- [ ] Continuous actions support for ACER
+- [ ] Continuous actions support for ACKTR
+- [ ] Html documentation (see issue #11)
 
 ## Bonus
 
