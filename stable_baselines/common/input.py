@@ -1,10 +1,13 @@
+import numpy as np
 import tensorflow as tf
-from gym.spaces import Discrete, Box
+from gym.spaces import Discrete, Box, MultiBinary, MultiDiscrete
 
 
 def observation_input(ob_space, batch_size=None, name='Ob'):
     """
     Build observation input with encoding depending on the observation space type
+
+    When using Box ob_space, the input will be normalized between [1, 0] on the bounds ob_space.low and ob_space.high.
 
     :param ob_space: (Gym Space) The observation space
     :param batch_size: (int) batch size for input
@@ -18,9 +21,24 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
         return input_x, processed_x
 
     elif isinstance(ob_space, Box):
-        input_shape = (batch_size,) + ob_space.shape
-        input_x = tf.placeholder(shape=input_shape, dtype=ob_space.dtype, name=name)
+        input_x = tf.placeholder(shape=(batch_size,) + ob_space.shape, dtype=ob_space.dtype, name=name)
         processed_x = tf.to_float(input_x)
+        # rescale to [1, 0] if the bounds are defined
+        if not any(np.isinf(ob_space.low)) and not any(np.isinf(ob_space.high)) and ob_space.high - ob_space.low != 0:
+            # equivalent to processed_x / 255.0 when bounds are set to [255, 0]
+            processed_x = ((processed_x - ob_space.low) / (ob_space.high - ob_space.low))
+        return input_x, processed_x
+
+    elif isinstance(ob_space, MultiBinary):
+        input_x = tf.placeholder(shape=(batch_size, ob_space.n), dtype=tf.int32, name=name)
+        processed_x = tf.to_float(input_x)
+        return input_x, processed_x
+
+    elif isinstance(ob_space, MultiDiscrete):
+        input_x = tf.placeholder(shape=(batch_size, len(ob_space.nvec)), dtype=tf.int32, name=name)
+        processed_x = tf.concat([tf.to_float(tf.one_hot(input_split, ob_space.nvec[i]))
+                                 for i, input_split in enumerate(tf.split(input_x, len(ob_space.nvec), axis=-1))],
+                                axis=-1)
         return input_x, processed_x
 
     else:

@@ -18,7 +18,7 @@ learn_func_list = [
     lambda e: ACER(policy=MlpPolicy, env=e,
                    n_steps=1, replay_ratio=1).learn(total_timesteps=10000, seed=0),
     lambda e: ACKTR(policy=MlpPolicy, env=e, learning_rate=5e-4, n_steps=1).learn(total_timesteps=20000, seed=0),
-    lambda e: DeepQ(policy=deepq_models.mlp([16]), batch_size=16, gamma=0.1,
+    lambda e: DeepQ(policy=deepq_models.mlp([32]), batch_size=16, gamma=0.1,
                     exploration_fraction=0.001, env=e).learn(total_timesteps=30000, seed=0),
     lambda e: PPO1(policy=MlpPolicy, env=e, lam=0.7,
                    optim_batchsize=16, optim_stepsize=1e-3).learn(total_timesteps=10000, seed=0),

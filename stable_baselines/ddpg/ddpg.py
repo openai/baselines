@@ -123,7 +123,7 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 class DDPG(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None,
                  nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
-                 action_range=(-1., 1.), normalize_observations=True, tau=0.001, batch_size=128,
+                 action_range=(-1., 1.), normalize_observations=False, tau=0.001, batch_size=128,
                  param_noise_adaption_interval=50, normalize_returns=False, enable_popart=False,
                  observation_range=(-5., 5.), critic_l2_reg=0., return_range=(-np.inf, np.inf), actor_lr=1e-4,
                  critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False, layer_norm=True,

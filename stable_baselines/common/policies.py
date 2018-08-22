@@ -7,15 +7,14 @@ from stable_baselines.common.distributions import make_proba_dist_type
 from stable_baselines.common.input import observation_input
 
 
-def nature_cnn(unscaled_images, **kwargs):
+def nature_cnn(scaled_images, **kwargs):
     """
     CNN from Nature paper.
 
-    :param unscaled_images: (TensorFlow Tensor) Image input placeholder
+    :param scaled_images: (TensorFlow Tensor) Image input placeholder
     :param kwargs: (dict) Extra keywords parameters for the convolutional layers of the CNN
     :return: (TensorFlow Tensor) The CNN output layer
     """
-    scaled_images = tf.cast(unscaled_images, tf.float32) / 255.
     activ = tf.nn.relu
     layer_1 = activ(conv(scaled_images, 'c1', n_filters=32, filter_size=8, stride=4, init_scale=np.sqrt(2), **kwargs))
     layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=4, stride=2, init_scale=np.sqrt(2), **kwargs))
@@ -50,6 +49,7 @@ class ActorCriticPolicy(object):
         self.policy = None
         self.proba_distribution = None
         self.value_fn = None
+        self.ob_space = ob_space
 
     def _setup_init(self):
         """
