@@ -12,7 +12,8 @@ from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trai
 
 class A2C(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
-                 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0, _init_setup_model=True):
+                 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0, tensorboard_log=None,
+                 _init_setup_model=True):
         """
         The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
@@ -29,6 +30,7 @@ class A2C(BaseRLModel):
         :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
             (used only for loading)
         """
@@ -43,6 +45,7 @@ class A2C(BaseRLModel):
         self.epsilon = epsilon
         self.lr_schedule = lr_schedule
         self.learning_rate = learning_rate
+        self.tensorboard_log = tensorboard_log
 
         self.graph = None
         self.sess = None
@@ -63,6 +66,7 @@ class A2C(BaseRLModel):
         self.value = None
         self.initial_state = None
         self.learning_rate_schedule = None
+        self.writer = None
 
         # if we are loading, it is possible the environment is not known, however the obs and action space are known
         if _init_setup_model:
@@ -85,25 +89,30 @@ class A2C(BaseRLModel):
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                          n_batch_step, reuse=False)
-                train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                          self.n_steps, n_batch_train, reuse=True)
 
-                self.actions_ph = train_model.pdtype.sample_placeholder([None])
-                self.advs_ph = tf.placeholder(tf.float32, [None])
-                self.rewards_ph = tf.placeholder(tf.float32, [None])
-                self.learning_rate_ph = tf.placeholder(tf.float32, [])
+                with tf.variable_scope("train_model", reuse=True,
+                                       custom_getter=tf_util.outer_scope_getter("train_model")):
+                    train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
+                                              self.n_steps, n_batch_train, reuse=True)
 
-                neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
-                self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
-                self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
-                self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
-                loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+                with tf.variable_scope("loss", reuse=False):
+                    self.actions_ph = train_model.pdtype.sample_placeholder([None], name="action_ph")
+                    self.advs_ph = tf.placeholder(tf.float32, [None], name="advs_ph")
+                    self.rewards_ph = tf.placeholder(tf.float32, [None], name="rewards_ph")
+                    self.learning_rate_ph = tf.placeholder(tf.float32, [], name="learning_rate_ph")
 
-                self.params = find_trainable_variables("model")
-                grads = tf.gradients(loss, self.params)
-                if self.max_grad_norm is not None:
-                    grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
-                grads = list(zip(grads, self.params))
+                    neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
+                    self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
+                    self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
+                    self.vf_loss = mse(tf.squeeze(train_model.value_fn), self.rewards_ph)
+                    loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+
+                    self.params = find_trainable_variables("model")
+                    grads = tf.gradients(loss, self.params)
+                    if self.max_grad_norm is not None:
+                        grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
+                    grads = list(zip(grads, self.params))
+
                 trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.alpha,
                                                     epsilon=self.epsilon)
                 self.apply_backprop = trainer.apply_gradients(grads)
@@ -115,6 +124,9 @@ class A2C(BaseRLModel):
                 self.value = step_model.value
                 self.initial_state = step_model.initial_state
                 tf.global_variables_initializer().run(session=self.sess)
+
+            if self.tensorboard_log is not None:
+                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
     def _train_step(self, obs, states, rewards, masks, actions, values):
         """
@@ -173,6 +185,9 @@ class A2C(BaseRLModel):
                     logger.record_tabular("explained_variance", float(explained_var))
                     logger.dump_tabular()
 
+        if self.writer is not None:
+            self.writer.add_graph(self.graph)
+            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

@@ -2,7 +2,8 @@
 
 ```
 class stable_baselines.PPO2(policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, 
-vf_coef=0.5, max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0)
+vf_coef=0.5, max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0, 
+tensorboard_log=None)
 ```
 
 ### Notes 
@@ -28,9 +29,9 @@ vf_coef=0.5, max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprang
 
 | **Parameters:** |     |
 | --------------- | --- |
-|                 | **policy:** (ActorCriticPolicy) <br>&nbsp;&nbsp;&nbsp; The policy model to use (MLP, CNN, LSTM, ...) <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; Discount factor <br><br> **n_steps:** (int) (default=128) <br>&nbsp;&nbsp;&nbsp; The number of steps to run for each environment <br><br> **ent_coef:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; Entropy coefficient for the loss caculation <br><br> **learning_rate:** (float or callable) (default=2.5e-4) <br>&nbsp;&nbsp;&nbsp; The learning rate, it can be a function <br><br> **vf_coef:** (float) (default=0.5) <br>&nbsp;&nbsp;&nbsp; Value function coefficient for the loss calculation <br><br> **max_grad_norm:** (float) (default=0.5) <br>&nbsp;&nbsp;&nbsp; The maximum value for the gradient clipping <br><br> **lam:** (float) (default=0.95) <br>&nbsp;&nbsp;&nbsp; Factor for trade-off of bias vs variance for Generalized Advantage Estimator <br><br> **nminibatches:** (int) (default=4) <br>&nbsp;&nbsp;&nbsp; Number of minibatches for the policies <br><br> **noptepochs:** (int) (default=4) <br>&nbsp;&nbsp;&nbsp; Number of epoch when optimizing the surrogate <br><br> **cliprange:** (float or callable) (default=0.2) <br>&nbsp;&nbsp;&nbsp; Clipping parameter, it can be a function <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug|
+|                 | **policy:** (ActorCriticPolicy) <br>&nbsp;&nbsp;&nbsp; The policy model to use (MLP, CNN, LSTM, ...) <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; Discount factor <br><br> **n_steps:** (int) (default=128) <br>&nbsp;&nbsp;&nbsp; The number of steps to run for each environment <br><br> **ent_coef:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; Entropy coefficient for the loss caculation <br><br> **learning_rate:** (float or callable) (default=2.5e-4) <br>&nbsp;&nbsp;&nbsp; The learning rate, it can be a function <br><br> **vf_coef:** (float) (default=0.5) <br>&nbsp;&nbsp;&nbsp; Value function coefficient for the loss calculation <br><br> **max_grad_norm:** (float) (default=0.5) <br>&nbsp;&nbsp;&nbsp; The maximum value for the gradient clipping <br><br> **lam:** (float) (default=0.95) <br>&nbsp;&nbsp;&nbsp; Factor for trade-off of bias vs variance for Generalized Advantage Estimator <br><br> **nminibatches:** (int) (default=4) <br>&nbsp;&nbsp;&nbsp; Number of minibatches for the policies <br><br> **noptepochs:** (int) (default=4) <br>&nbsp;&nbsp;&nbsp; Number of epoch when optimizing the surrogate <br><br> **cliprange:** (float or callable) (default=0.2) <br>&nbsp;&nbsp;&nbsp; Clipping parameter, it can be a function <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug <br><br> **tensorboard_log:** (str) (default=None) <br>&nbsp;&nbsp;&nbsp; the log location for tensorboard (if None, no logging) |
 | **Attributes:** |     |
-|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from |
+|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from <br><br> **graph:** (TensorFlow Graph) <br>&nbsp;&nbsp;&nbsp; The tensorflow graph of the model <br><br> **sess:** (TensorFlow Session) <br>&nbsp;&nbsp;&nbsp; The tensorflow session of the model <br><br> **params:** ([TensorFlow Variable]) <br>&nbsp;&nbsp;&nbsp; The tensorflow parameters of the model|
 
 ### Example
 ```python

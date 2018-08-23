@@ -17,7 +17,8 @@ class DeepQ(BaseRLModel):
                  exploration_final_eps=0.02, train_freq=1, batch_size=32, checkpoint_freq=10000, checkpoint_path=None,
                  learning_starts=1000, target_network_update_freq=500, prioritized_replay=False,
                  prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4, prioritized_replay_beta_iters=None,
-                 prioritized_replay_eps=1e-6, param_noise=False, verbose=0, _init_setup_model=True):
+                 prioritized_replay_eps=1e-6, param_noise=False, verbose=0, tensorboard_log=None,
+                 _init_setup_model=True):
         """
         the DeepQ model class.
 
@@ -54,6 +55,7 @@ class DeepQ(BaseRLModel):
         :param prioritized_replay_eps: (float) epsilon to add to the TD errors when updating priorities.
         :param param_noise: (bool) Whether or not to apply noise to the parameters of the policy.
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(DeepQ, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
@@ -80,6 +82,7 @@ class DeepQ(BaseRLModel):
         self.buffer_size = buffer_size
         self.learning_rate = learning_rate
         self.gamma = gamma
+        self.tensorboard_log = tensorboard_log
 
         self.graph = None
         self.sess = None
@@ -90,6 +93,7 @@ class DeepQ(BaseRLModel):
         self.beta_schedule = None
         self.exploration = None
         self.params = None
+        self.writer = None
 
         if _init_setup_model:
             self.setup_model()
@@ -118,11 +122,13 @@ class DeepQ(BaseRLModel):
                     """
                     return ObservationInput(observation_space, name=name)
 
+                optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+
                 self.act, self._train_step, self.update_target, _ = deepq.build_train(
                     make_obs_ph=make_obs_ph,
                     q_func=self.policy,
                     num_actions=self.action_space.n,
-                    optimizer=tf.train.AdamOptimizer(learning_rate=self.learning_rate),
+                    optimizer=optimizer,
                     gamma=self.gamma,
                     grad_norm_clipping=10,
                     param_noise=self.param_noise
@@ -133,6 +139,9 @@ class DeepQ(BaseRLModel):
                 # Initialize the parameters and copy them to the target network.
                 tf_util.initialize(self.sess)
                 self.update_target(sess=self.sess)
+
+            if self.tensorboard_log is not None:
+                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         with SetVerbosity(self.verbose):
@@ -225,6 +234,9 @@ class DeepQ(BaseRLModel):
                     logger.record_tabular("% time spent exploring", int(100 * self.exploration.value(step)))
                     logger.dump_tabular()
 
+        if self.writer is not None:
+            self.writer.add_graph(self.graph)
+            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

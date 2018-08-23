@@ -2,7 +2,7 @@
 
 ```
 class stable_baselines.A2C(policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
-learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0)
+learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0, tensorboard_log=None)
 ```
 
 ### Notes 
@@ -27,9 +27,9 @@ learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0)
 
 | **Parameters:** |     |
 | --------------- | --- |
-|                 | **policy:** (ActorCriticPolicy) <br>&nbsp;&nbsp;&nbsp; The policy model to use (MLP, CNN, LSTM, ...) <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; Discount factor <br><br> **n_steps:** (int) (default=5) <br>&nbsp;&nbsp;&nbsp; The number of steps to run for each environment <br><br> **vf_coef:** (float) (default=0.25) <br>&nbsp;&nbsp;&nbsp; Value function coefficient for the loss calculation <br><br> **ent_coef:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; Entropy coefficient for the loss caculation <br><br> **max_grad_norm:** (float) (default=0.5) <br>&nbsp;&nbsp;&nbsp; The maximum value for the gradient clipping <br><br> **learning_rate:** (float) (default=7e-4) <br>&nbsp;&nbsp;&nbsp; The learning rate <br><br> **alpha:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; RMS prop optimizer decay <br><br> **epsilon:** (float) (default=1e-5) <br>&nbsp;&nbsp;&nbsp; RMS prop optimizer epsilon <br><br> **lr_schedule:** (str) (default='linear') <br>&nbsp;&nbsp;&nbsp; The type of scheduler for the learning rate update ('linear', 'constant', 'double_linear_con', 'middle_drop' or 'double_middle_drop') <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug |
+|                 | **policy:** (ActorCriticPolicy) <br>&nbsp;&nbsp;&nbsp; The policy model to use (MLP, CNN, LSTM, ...) <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; Discount factor <br><br> **n_steps:** (int) (default=5) <br>&nbsp;&nbsp;&nbsp; The number of steps to run for each environment <br><br> **vf_coef:** (float) (default=0.25) <br>&nbsp;&nbsp;&nbsp; Value function coefficient for the loss calculation <br><br> **ent_coef:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; Entropy coefficient for the loss caculation <br><br> **max_grad_norm:** (float) (default=0.5) <br>&nbsp;&nbsp;&nbsp; The maximum value for the gradient clipping <br><br> **learning_rate:** (float) (default=7e-4) <br>&nbsp;&nbsp;&nbsp; The learning rate <br><br> **alpha:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; RMS prop optimizer decay <br><br> **epsilon:** (float) (default=1e-5) <br>&nbsp;&nbsp;&nbsp; RMS prop optimizer epsilon <br><br> **lr_schedule:** (str) (default='linear') <br>&nbsp;&nbsp;&nbsp; The type of scheduler for the learning rate update ('linear', 'constant', 'double_linear_con', 'middle_drop' or 'double_middle_drop') <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug <br><br> **tensorboard_log:** (str) (default=None) <br>&nbsp;&nbsp;&nbsp; the log location for tensorboard (if None, no logging) |
 | **Attributes:** |     |
-|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from |
+|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from <br><br> **graph:** (TensorFlow Graph) <br>&nbsp;&nbsp;&nbsp; The tensorflow graph of the model <br><br> **sess:** (TensorFlow Session) <br>&nbsp;&nbsp;&nbsp; The tensorflow session of the model <br><br> **params:** ([TensorFlow Variable]) <br>&nbsp;&nbsp;&nbsp; The tensorflow parameters of the model|
 
 ### Example
 ```python

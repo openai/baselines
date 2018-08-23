@@ -17,7 +17,7 @@ from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_an
 class PPO1(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01,
                  optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5,
-                 schedule='linear', verbose=0, _init_setup_model=True):
+                 schedule='linear', verbose=0, tensorboard_log=None, _init_setup_model=True):
         """
         Learning PPO with Stochastic Gradient Descent
 
@@ -35,6 +35,7 @@ class PPO1(BaseRLModel):
         :param schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                                      'double_linear_con', 'middle_drop' or 'double_middle_drop')
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
@@ -49,6 +50,7 @@ class PPO1(BaseRLModel):
         self.lam = lam
         self.adam_epsilon = adam_epsilon
         self.schedule = schedule
+        self.tensorboard_log = tensorboard_log
 
         self.graph = None
         self.sess = None
@@ -62,6 +64,7 @@ class PPO1(BaseRLModel):
         self.step = None
         self.proba_step = None
         self.initial_state = None
+        self.writer = None
 
         if _init_setup_model:
             self.setup_model()
@@ -74,66 +77,72 @@ class PPO1(BaseRLModel):
                 self.sess = tf_util.single_threaded_session(graph=self.graph)
 
                 # Construct network for new policy
-                with tf.variable_scope("pi", reuse=False):
-                    self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                                 None, reuse=False)
+                self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                             None, reuse=False)
 
                 # Network for old policy
                 with tf.variable_scope("oldpi", reuse=False):
                     old_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                          None, reuse=False)
 
-                # Target advantage function (if applicable)
-                atarg = tf.placeholder(dtype=tf.float32, shape=[None])
+                with tf.variable_scope("loss", reuse=False):
+                    # Target advantage function (if applicable)
+                    atarg = tf.placeholder(dtype=tf.float32, shape=[None])
 
-                # Empirical return
-                ret = tf.placeholder(dtype=tf.float32, shape=[None])
+                    # Empirical return
+                    ret = tf.placeholder(dtype=tf.float32, shape=[None])
 
-                # learning rate multiplier, updated with schedule
-                lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[])
+                    # learning rate multiplier, updated with schedule
+                    lrmult = tf.placeholder(name='lrmult', dtype=tf.float32, shape=[])
 
-                # Annealed cliping parameter epislon
-                clip_param = self.clip_param * lrmult
+                    # Annealed cliping parameter epislon
+                    clip_param = self.clip_param * lrmult
 
-                obs_ph = self.policy_pi.obs_ph
-                action_ph = self.policy_pi.pdtype.sample_placeholder([None])
+                    obs_ph = self.policy_pi.obs_ph
+                    action_ph = self.policy_pi.pdtype.sample_placeholder([None])
 
-                kloldnew = old_pi.proba_distribution.kl(self.policy_pi.proba_distribution)
-                ent = self.policy_pi.proba_distribution.entropy()
-                meankl = tf.reduce_mean(kloldnew)
-                meanent = tf.reduce_mean(ent)
-                pol_entpen = (-self.entcoeff) * meanent
+                    kloldnew = old_pi.proba_distribution.kl(self.policy_pi.proba_distribution)
+                    ent = self.policy_pi.proba_distribution.entropy()
+                    meankl = tf.reduce_mean(kloldnew)
+                    meanent = tf.reduce_mean(ent)
+                    pol_entpen = (-self.entcoeff) * meanent
 
-                # pnew / pold
-                ratio = tf.exp(self.policy_pi.proba_distribution.logp(action_ph) -
-                               old_pi.proba_distribution.logp(action_ph))
+                    # pnew / pold
+                    ratio = tf.exp(self.policy_pi.proba_distribution.logp(action_ph) -
+                                   old_pi.proba_distribution.logp(action_ph))
 
-                # surrogate from conservative policy iteration
-                surr1 = ratio * atarg
-                surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg
+                    # surrogate from conservative policy iteration
+                    surr1 = ratio * atarg
+                    surr2 = tf.clip_by_value(ratio, 1.0 - clip_param, 1.0 + clip_param) * atarg
 
-                # PPO's pessimistic surrogate (L^CLIP)
-                pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
-                vf_loss = tf.reduce_mean(tf.square(self.policy_pi.value_fn[:, 0] - ret))
-                total_loss = pol_surr + pol_entpen + vf_loss
-                losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
-                self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
+                    # PPO's pessimistic surrogate (L^CLIP)
+                    pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
+                    vf_loss = tf.reduce_mean(tf.square(self.policy_pi.value_fn[:, 0] - ret))
+                    total_loss = pol_surr + pol_entpen + vf_loss
+                    losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
+                    self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
-                self.params = tf_util.get_trainable_vars("pi")
-                self.lossandgrad = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
-                                                    losses + [tf_util.flatgrad(total_loss, self.params)])
-                self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
+                    self.params = tf_util.get_trainable_vars("model")
+                    self.lossandgrad = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
+                                                        losses + [tf_util.flatgrad(total_loss, self.params)])
 
-                self.assign_old_eq_new = tf_util.function(
-                    [], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                     zipsame(tf_util.get_globals_vars("oldpi"), tf_util.get_globals_vars("pi"))])
-                self.compute_losses = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult], losses)
+                    self.assign_old_eq_new = tf_util.function(
+                        [], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
+                                         zipsame(tf_util.get_globals_vars("oldpi"), tf_util.get_globals_vars("model"))])
+                    self.compute_losses = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
+                                                           losses)
+
+                with tf.variable_scope("Adam_mpi", reuse=False):
+                    self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
 
                 self.step = self.policy_pi.step
                 self.proba_step = self.policy_pi.proba_step
                 self.initial_state = self.policy_pi.initial_state
 
                 tf_util.initialize(sess=self.sess)
+
+            if self.tensorboard_log is not None:
+                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         with SetVerbosity(self.verbose):
@@ -233,6 +242,9 @@ class PPO1(BaseRLModel):
                     if self.verbose >= 1 and MPI.COMM_WORLD.Get_rank() == 0:
                         logger.dump_tabular()
 
+        if self.writer is not None:
+            self.writer.add_graph(self.graph)
+            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

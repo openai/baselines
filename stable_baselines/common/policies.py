@@ -40,9 +40,10 @@ class ActorCriticPolicy(object):
         """
         self.n_env = n_env
         self.n_steps = n_steps
-        self.obs_ph, self.processed_x = observation_input(ob_space, n_batch, scale=scale)
-        self.masks_ph = tf.placeholder(tf.float32, [n_batch])  # mask (done t-1)
-        self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2])  # states
+        with tf.variable_scope("input", reuse=False):
+            self.obs_ph, self.processed_x = observation_input(ob_space, n_batch, scale=scale)
+            self.masks_ph = tf.placeholder(tf.float32, [n_batch], name="masks_ph")  # mask (done t-1)
+            self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2], name="states_ph")  # states
         self.pdtype = make_proba_dist_type(ac_space)
         self.sess = sess
         self.reuse = reuse
@@ -56,13 +57,14 @@ class ActorCriticPolicy(object):
         """
         sets up the distibutions, actions, and value
         """
-        assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
-        self.action = self.proba_distribution.sample()
-        self.neglogp = self.proba_distribution.neglogp(self.action)
-        self.policy_proba = self.policy
-        if self.is_discrete:
-            self.policy_proba = tf.nn.softmax(self.policy_proba)
-        self._value = self.value_fn[:, 0]
+        with tf.variable_scope("output", reuse=True):
+            assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
+            self.action = self.proba_distribution.sample()
+            self.neglogp = self.proba_distribution.neglogp(self.action)
+            self.policy_proba = self.policy
+            if self.is_discrete:
+                self.policy_proba = tf.nn.softmax(self.policy_proba)
+            self._value = self.value_fn[:, 0]
 
     def step(self, obs, state=None, mask=None):
         """

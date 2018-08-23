@@ -2,7 +2,7 @@
 
 ```
 class stable_baselines.TRPO(policy, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, 
-lam=0.98, entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0)
+lam=0.98, entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0, tensorboard_log=None)
 ```
 
 ### Notes 
@@ -28,9 +28,9 @@ lam=0.98, entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0
 
 | **Parameters:** |     |
 | --------------- | --- |
-|                 | **policy:** (function (str, Gym Space, Gym Space, bool): MLPPolicy) <br>&nbsp;&nbsp;&nbsp; policy generator <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; the discount value <br><br> **timesteps_per_batch:** (int) (default=1024) <br>&nbsp;&nbsp;&nbsp; the number of timesteps to run per batch (horizon) <br><br> **max_kl:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; the kullback leiber loss threshold <br><br> **cg_iters:** (int) (default=10) <br>&nbsp;&nbsp;&nbsp; the number of iterations for the conjugate gradient calculation <br><br> **lam:** (float) (default=0.98) <br>&nbsp;&nbsp;&nbsp; GAE factor <br><br> **entcoeff:** (float) (default=0.0) <br>&nbsp;&nbsp;&nbsp; the weight for the entropy loss <br><br> **cg_damping:** (float) (default=1e-2) <br>&nbsp;&nbsp;&nbsp; the compute gradient dampening factor <br><br> **vf_stepsize:** (float) (default=3e-4) <br>&nbsp;&nbsp;&nbsp; the value function stepsize <br><br> **vf_iters:** (int) (default=3) <br>&nbsp;&nbsp;&nbsp; the value function's number iterations for learning <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug |
+|                 | **policy:** (function (str, Gym Space, Gym Space, bool): MLPPolicy) <br>&nbsp;&nbsp;&nbsp; policy generator <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; the discount value <br><br> **timesteps_per_batch:** (int) (default=1024) <br>&nbsp;&nbsp;&nbsp; the number of timesteps to run per batch (horizon) <br><br> **max_kl:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; the kullback leiber loss threshold <br><br> **cg_iters:** (int) (default=10) <br>&nbsp;&nbsp;&nbsp; the number of iterations for the conjugate gradient calculation <br><br> **lam:** (float) (default=0.98) <br>&nbsp;&nbsp;&nbsp; GAE factor <br><br> **entcoeff:** (float) (default=0.0) <br>&nbsp;&nbsp;&nbsp; the weight for the entropy loss <br><br> **cg_damping:** (float) (default=1e-2) <br>&nbsp;&nbsp;&nbsp; the compute gradient dampening factor <br><br> **vf_stepsize:** (float) (default=3e-4) <br>&nbsp;&nbsp;&nbsp; the value function stepsize <br><br> **vf_iters:** (int) (default=3) <br>&nbsp;&nbsp;&nbsp; the value function's number iterations for learning <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug <br><br> **tensorboard_log:** (str) (default=None) <br>&nbsp;&nbsp;&nbsp; the log location for tensorboard (if None, no logging) |
 | **Attributes:** |     |
-|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from |
+|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from <br><br> **graph:** (TensorFlow Graph) <br>&nbsp;&nbsp;&nbsp; The tensorflow graph of the model <br><br> **sess:** (TensorFlow Session) <br>&nbsp;&nbsp;&nbsp; The tensorflow session of the model <br><br> **params:** ([TensorFlow Variable]) <br>&nbsp;&nbsp;&nbsp; The tensorflow parameters of the model|
 
 ### Example
 ```python

@@ -504,3 +504,17 @@ def get_globals_vars(name):
     :return: ([TensorFlow Variable])
     """
     return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+
+
+def outer_scope_getter(scope):
+    """
+    remove a scope layer for the getter
+
+    :param scope: (str) the layer to remove
+    :return: (function (function, str, *args, **kwargs): Tensorflow Tensor)
+    """
+    def _getter(getter, name, *args, **kwargs):
+        name = name.replace(scope + "/", "", 1)
+        val = getter(name, *args, **kwargs)
+        return val
+    return _getter

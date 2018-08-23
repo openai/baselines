@@ -3,7 +3,7 @@
 ```
 class stable_baselines.PPO1(policy, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, 
 entcoeff=0.01, optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5, 
-schedule='linear', verbose=0)
+schedule='linear', verbose=0, tensorboard_log=None)
 ```
 
 ### Notes 
@@ -32,9 +32,9 @@ schedule='linear', verbose=0)
 
 | **Parameters:** |     |
 | --------------- | --- |
-|                 | **policy:** (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) <br>&nbsp;&nbsp;&nbsp; creates the policy <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **timesteps_per_actorbatch:** (int) (default=256) <br>&nbsp;&nbsp;&nbsp; timesteps per actor per update <br><br> **clip_param:** (float) (default=0.2) <br>&nbsp;&nbsp;&nbsp; clipping parameter epsilon <br><br> **entcoeff:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; the entropy loss weight <br><br> **optim_epochs:** (float) (default=4) <br>&nbsp;&nbsp;&nbsp; the optimizer's number of epochs <br><br> **optim_stepsize:** (float) (default=1e-3) <br>&nbsp;&nbsp;&nbsp; the optimizer's stepsize <br><br> **optim_batchsize:** (int) (default=64) <br>&nbsp;&nbsp;&nbsp; the optimizer's the batch size <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; discount factor <br><br> **lam:** (float) (default=0.95) <br>&nbsp;&nbsp;&nbsp; advantage estimation <br><br> **adam_epsilon:** (float) (default=1e-5) <br>&nbsp;&nbsp;&nbsp; the epsilon value for the adam optimizer <br><br> **schedule:** (str) (default='linear') <br>&nbsp;&nbsp;&nbsp; The type of scheduler for the learning rate update ('linear', 'constant', 'double_linear_con', 'middle_drop' or 'double_middle_drop') <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug |
+|                 | **policy:** (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) <br>&nbsp;&nbsp;&nbsp; creates the policy <br><br> **env:** (Gym environment or str) <br>&nbsp;&nbsp;&nbsp; The environment to learn from (if registered in Gym, can be str) <br><br> **timesteps_per_actorbatch:** (int) (default=256) <br>&nbsp;&nbsp;&nbsp; timesteps per actor per update <br><br> **clip_param:** (float) (default=0.2) <br>&nbsp;&nbsp;&nbsp; clipping parameter epsilon <br><br> **entcoeff:** (float) (default=0.01) <br>&nbsp;&nbsp;&nbsp; the entropy loss weight <br><br> **optim_epochs:** (float) (default=4) <br>&nbsp;&nbsp;&nbsp; the optimizer's number of epochs <br><br> **optim_stepsize:** (float) (default=1e-3) <br>&nbsp;&nbsp;&nbsp; the optimizer's stepsize <br><br> **optim_batchsize:** (int) (default=64) <br>&nbsp;&nbsp;&nbsp; the optimizer's the batch size <br><br> **gamma:** (float) (default=0.99) <br>&nbsp;&nbsp;&nbsp; discount factor <br><br> **lam:** (float) (default=0.95) <br>&nbsp;&nbsp;&nbsp; advantage estimation <br><br> **adam_epsilon:** (float) (default=1e-5) <br>&nbsp;&nbsp;&nbsp; the epsilon value for the adam optimizer <br><br> **schedule:** (str) (default='linear') <br>&nbsp;&nbsp;&nbsp; The type of scheduler for the learning rate update ('linear', 'constant', 'double_linear_con', 'middle_drop' or 'double_middle_drop') <br><br> **verbose:** (int) (default=0) <br>&nbsp;&nbsp;&nbsp; the verbosity level: 0 none, 1 training information, 2 tensorflow debug <br><br> **tensorboard_log:** (str) (default=None) <br>&nbsp;&nbsp;&nbsp; the log location for tensorboard (if None, no logging) |
 | **Attributes:** |     |
-|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from |
+|                 | **env:** (Gym environment) <br>&nbsp;&nbsp;&nbsp; The environment to learn from <br><br> **graph:** (TensorFlow Graph) <br>&nbsp;&nbsp;&nbsp; The tensorflow graph of the model <br><br> **sess:** (TensorFlow Session) <br>&nbsp;&nbsp;&nbsp; The tensorflow session of the model <br><br> **params:** ([TensorFlow Variable]) <br>&nbsp;&nbsp;&nbsp; The tensorflow parameters of the model|
 
 ### Example
 ```python

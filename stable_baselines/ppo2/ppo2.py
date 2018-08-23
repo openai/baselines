@@ -15,7 +15,7 @@ from stable_baselines.common.policies import LstmPolicy
 class PPO2(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, vf_coef=0.5,
                  max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0,
-                 _init_setup_model=True):
+                 tensorboard_log=None, _init_setup_model=True):
         """
         Return a trained PPO2 model.
 
@@ -32,6 +32,7 @@ class PPO2(BaseRLModel):
         :param noptepochs: (int) Number of epoch when optimizing the surrogate
         :param cliprange: (float or callable) Clipping parameter, it can be a function
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
         super(PPO2, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
@@ -55,6 +56,7 @@ class PPO2(BaseRLModel):
         self.lam = lam
         self.nminibatches = nminibatches
         self.noptepochs = noptepochs
+        self.tensorboard_log = tensorboard_log
 
         self.graph = None
         self.sess = None
@@ -80,6 +82,7 @@ class PPO2(BaseRLModel):
         self.value = None
         self.initial_state = None
         self.n_batch = None
+        self.writer = None
 
         if _init_setup_model:
             self.setup_model()
@@ -105,40 +108,43 @@ class PPO2(BaseRLModel):
 
                 act_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                         n_batch_step, reuse=False)
-                train_model = self.policy(self.sess, self.observation_space, self.action_space,
-                                          self.n_envs // self.nminibatches, self.n_steps, n_batch_train,
-                                          reuse=True)
+                with tf.variable_scope("train_model", reuse=True,
+                                       custom_getter=tf_util.outer_scope_getter("train_model")):
+                    train_model = self.policy(self.sess, self.observation_space, self.action_space,
+                                              self.n_envs // self.nminibatches, self.n_steps, n_batch_train,
+                                              reuse=True)
 
-                self.action_ph = train_model.pdtype.sample_placeholder([None])
-                self.advs_ph = tf.placeholder(tf.float32, [None])
-                self.rewards_ph = tf.placeholder(tf.float32, [None])
-                self.old_neglog_pac_ph = tf.placeholder(tf.float32, [None])
-                self.old_vpred_ph = tf.placeholder(tf.float32, [None])
-                self.learning_rate_ph = tf.placeholder(tf.float32, [])
-                self.clip_range_ph = tf.placeholder(tf.float32, [])
+                with tf.variable_scope("loss", reuse=False):
+                    self.action_ph = train_model.pdtype.sample_placeholder([None], name="action_ph")
+                    self.advs_ph = tf.placeholder(tf.float32, [None], name="advs_ph")
+                    self.rewards_ph = tf.placeholder(tf.float32, [None], name="rewards_ph")
+                    self.old_neglog_pac_ph = tf.placeholder(tf.float32, [None], name="old_neglog_pac_ph")
+                    self.old_vpred_ph = tf.placeholder(tf.float32, [None], name="old_vpred_ph")
+                    self.learning_rate_ph = tf.placeholder(tf.float32, [], name="learning_rate_ph")
+                    self.clip_range_ph = tf.placeholder(tf.float32, [], name="clip_range_ph")
 
-                neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
-                self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
+                    neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
+                    self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
-                vpred = train_model.value_fn
-                vpredclipped = self.old_vpred_ph + tf.clip_by_value(
-                    train_model.value_fn - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
-                vf_losses1 = tf.square(vpred - self.rewards_ph)
-                vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
-                self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
-                ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
-                pg_losses = -self.advs_ph * ratio
-                pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
-                self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
-                self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
-                self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
-                loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
-                with tf.variable_scope('model'):
-                    self.params = tf.trainable_variables()
-                grads = tf.gradients(loss, self.params)
-                if self.max_grad_norm is not None:
-                    grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
-                grads = list(zip(grads, self.params))
+                    vpred = train_model.value_fn
+                    vpredclipped = self.old_vpred_ph + tf.clip_by_value(
+                        train_model.value_fn - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
+                    vf_losses1 = tf.square(vpred - self.rewards_ph)
+                    vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
+                    self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
+                    ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
+                    pg_losses = -self.advs_ph * ratio
+                    pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
+                    self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
+                    self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
+                    self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
+                    loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+                    with tf.variable_scope('model'):
+                        self.params = tf.trainable_variables()
+                    grads = tf.gradients(loss, self.params)
+                    if self.max_grad_norm is not None:
+                        grads, _grad_norm = tf.clip_by_global_norm(grads, self.max_grad_norm)
+                    grads = list(zip(grads, self.params))
                 trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph, epsilon=1e-5)
                 self._train = trainer.apply_gradients(grads)
 
@@ -151,6 +157,9 @@ class PPO2(BaseRLModel):
                 self.value = act_model.value
                 self.initial_state = act_model.initial_state
                 tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
+
+            if self.tensorboard_log is not None:
+                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
     def _train_step(self, learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
         """
@@ -244,6 +253,9 @@ class PPO2(BaseRLModel):
                         logger.logkv(loss_name, loss_val)
                     logger.dumpkvs()
 
+            if self.writer is not None:
+                self.writer.add_graph(self.graph)
+                self.writer.flush()
             return self
 
     def predict(self, observation, state=None, mask=None):
