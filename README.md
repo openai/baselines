@@ -316,7 +316,7 @@ from stable_baselines import ppo2
 # Custom MLP policy of 3 layers of 256, 64 and 16
 class CustomPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
-        super(CustomPolicy, self).__init__(*args, **kwargs, layers=[256, 64, 16], type="mlp")
+        super(CustomPolicy, self).__init__(*args, **kwargs, layers=[256, 64, 16], feature_extraction="mlp")
 
 env = gym.make('LunarLander-v2')
 env = DummyVecEnv([lambda: env])
