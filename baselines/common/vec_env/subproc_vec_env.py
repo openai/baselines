@@ -20,6 +20,8 @@ def worker(remote, parent_remote, env_fn_wrapper):
                 remote.send(ob)
             elif cmd == 'render':
                 remote.send(env.render(mode='rgb_array'))
+            elif cmd == 'grab_frame':
+                remote.send((env.unwrapped.sim.render(256, 256)))
             elif cmd == 'close':
                 remote.close()
                 break
