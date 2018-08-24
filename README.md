@@ -62,18 +62,18 @@ pip install pytest
 pytest
 ```
 
-## Subpackages
+## Algorithms
 
-- [A2C](baselines/a2c)
-- [ACER](baselines/acer)
-- [ACKTR](baselines/acktr)
-- [DDPG](baselines/ddpg)
-- [DQN](baselines/deepq)
-- [GAIL](baselines/gail)
-- [HER](baselines/her)
-- [PPO1](baselines/ppo1) (Multi-CPU using MPI)
-- [PPO2](baselines/ppo2) (Optimized for GPU)
-- [TRPO](baselines/trpo_mpi)
+- [A2C](baselines/algos/a2c.py)
+- [ACER](baselines/algos/acer)
+- [ACKTR](baselines/algos/acktr)
+- [DDPG](baselines/algos/ddpg)
+- [DQN](baselines/algos/deepq)
+- [GAIL](baselines/algos/gail)
+- [HER](baselines/algos/her)
+- [PPO1](baselines/algos/ppo1) (Multi-CPU using MPI)
+- [PPO2](baselines/algos/ppo2) (Optimized for GPU)
+- [TRPO](baselines/algos/trpo) (Optimized for mutlithreaded exec. using MPI)
 
 To cite this repository in publications:
 
