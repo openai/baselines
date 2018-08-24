@@ -72,7 +72,7 @@ class PolicyWithValue(object):
 
     def step(self, observation, **extra_feed):
         """
-        Compute next action(s) given the observaion(s)
+        Compute next action(s) given the observation(s)
 
         Parameters:
         ----------
@@ -93,7 +93,7 @@ class PolicyWithValue(object):
 
     def value(self, ob, *args, **kwargs):
         """
-        Compute value estimate(s) given the observaion(s)
+        Compute value estimate(s) given the observation(s)
 
         Parameters:
         ----------
