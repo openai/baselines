@@ -8,7 +8,7 @@ import tensorflow as tf
 import numpy as np
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_mujoco_env, make_atari_env
+from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env
 from baselines.common.tf_util import save_state, load_state, get_session
 from baselines import bench, logger
 from importlib import import_module
@@ -91,15 +91,15 @@ def build_env(args):
                                    inter_op_parallelism_threads=1))
 
         if args.num_env:
-            env = SubprocVecEnv([lambda: make_mujoco_env(env_id, seed + i if seed is not None else None, args.reward_scale) for i in range(args.num_env)])    
+            env = make_vec_env(env_id, env_type, nenv, seed, reward_scale=args.reward_scale)
         else:
-            env = DummyVecEnv([lambda: make_mujoco_env(env_id, seed, args.reward_scale)])
+            env = make_vec_env(env_id, env_type,    1, seed, reward_scale=args.reward_scale)
 
         env = VecNormalize(env)
 
     elif env_type == 'atari':
         if alg == 'acer':
-            env = make_atari_env(env_id, nenv, seed)
+            env = make_vec_env(env_id, env_type, nenv, seed)
         elif alg == 'deepq':
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
@@ -114,7 +114,7 @@ def build_env(args):
             env.seed(seed)
         else:
             frame_stack_size = 4
-            env = VecFrameStack(make_atari_env(env_id, nenv, seed), frame_stack_size)
+            env = VecFrameStack(make_vec_env(env_id, env_type, nenv, seed), frame_stack_size)
 
     elif env_type == 'retro':
         import retro
