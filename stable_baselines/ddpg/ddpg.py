@@ -103,6 +103,10 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
     :param param_noise_stddev: (float) the std of the parameter noise
     :return: (TensorFlow Operation) the update function
     """
+    print("\n-------------------------\nactor")
+    [print(el) for el in tf_util.get_globals_vars(actor)]
+    print("\n-------------------------\nperturbed_actor")
+    [print(el) for el in tf_util.get_globals_vars(perturbed_actor)]
     assert len(tf_util.get_globals_vars(actor)) == len(tf_util.get_globals_vars(perturbed_actor))
     assert len([var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]) == \
         len([var for var in tf_util.get_trainable_vars(perturbed_actor) if 'LayerNorm' not in var.name])
@@ -238,6 +242,8 @@ class DDPG(BaseRLModel):
         self.actions = None
         self.critic_target = None
         self.param_noise_stddev = None
+        self.param_noise_actor = None
+        self.adaptive_param_noise_actor = None
         self.params = None
         self.writer = None
 
@@ -262,9 +268,21 @@ class DDPG(BaseRLModel):
 
                 # Create target networks.
                 with tf.variable_scope("target", reuse=False):
-                    self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
-                                                     None)
+                    self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
                     self.obs_target = self.target_policy.obs_ph
+
+                if self.param_noise is not None:
+                    # Configure perturbed actor.
+                    with tf.variable_scope("noise", reuse=False):
+                        self.param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
+                                                        None)
+                        self.obs_noise = self.param_noise_actor.obs_ph
+
+                    # Configure separate copy for stddev adoption.
+                    with tf.variable_scope("noise_adapt", reuse=False):
+                        self.adaptive_param_noise_actor = self.policy(self.sess, self.observation_space,
+                                                                      self.action_space, 1, 1, None)
+                        self.obs_adapt_noise = self.adaptive_param_noise_actor.obs_ph
 
                 with tf.variable_scope("loss", reuse=False):
                     # Inputs.
@@ -337,20 +355,12 @@ class DDPG(BaseRLModel):
         """
         assert self.param_noise is not None
 
-        # Configure perturbed actor.
-        with tf.variable_scope("noise", reuse=False):
-            param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
-            self.obs_noise = param_noise_actor.obs_ph
-        self.perturbed_actor_tf = param_noise_actor.policy
+        self.perturbed_actor_tf = self.param_noise_actor.policy
         logger.info('setting up param noise')
-        self.perturb_policy_ops = get_perturbed_actor_updates('model', 'noise', self.param_noise_stddev)
+        self.perturb_policy_ops = get_perturbed_actor_updates('model/', 'noise/', self.param_noise_stddev)
 
-        # Configure separate copy for stddev adoption.
-        with tf.variable_scope("noise_adapt", reuse=False):
-            adaptive_param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
-            self.obs_adapt_noise = adaptive_param_noise_actor.obs_ph
-        adaptive_actor_tf = adaptive_param_noise_actor.policy
-        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model', 'noise_adapt', self.param_noise_stddev)
+        adaptive_actor_tf = self.adaptive_param_noise_actor.policy
+        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/', 'noise_adapt/', self.param_noise_stddev)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
     def _setup_actor_optimizer(self):
