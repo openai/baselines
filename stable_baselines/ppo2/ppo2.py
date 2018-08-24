@@ -83,6 +83,7 @@ class PPO2(BaseRLModel):
         self.initial_state = None
         self.n_batch = None
         self.writer = None
+        self.summary = None
 
         if _init_setup_model:
             self.setup_model()
@@ -139,6 +140,14 @@ class PPO2(BaseRLModel):
                     self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
                     self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
                     loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
+
+                    tf.summary.scalar('entropy_loss', self.entropy)
+                    tf.summary.scalar('policy_gradient_loss', self.pg_loss)
+                    tf.summary.scalar('value_function_loss', self.vf_loss)
+                    tf.summary.scalar('approximate_kullback-leiber', self.approxkl)
+                    tf.summary.scalar('clip_factor', self.clipfrac)
+                    tf.summary.scalar('loss', loss)
+
                     with tf.variable_scope('model'):
                         self.params = tf.trainable_variables()
                     grads = tf.gradients(loss, self.params)
@@ -150,6 +159,24 @@ class PPO2(BaseRLModel):
 
                 self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
+                with tf.variable_scope("info", reuse=False):
+                    tf.summary.scalar('rewards', tf.reduce_mean(self.rewards_ph))
+                    tf.summary.histogram('rewards', self.rewards_ph)
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph))
+                    tf.summary.histogram('learning_rate', self.learning_rate_ph)
+                    tf.summary.scalar('advs', tf.reduce_mean(self.advs_ph))
+                    tf.summary.histogram('advs', self.advs_ph)
+                    tf.summary.scalar('clip_range', tf.reduce_mean(self.clip_range_ph))
+                    tf.summary.histogram('clip_range', self.clip_range_ph)
+                    tf.summary.scalar('old_neglog_pac', tf.reduce_mean(self.old_neglog_pac_ph))
+                    tf.summary.histogram('old_neglog_pac', self.old_neglog_pac_ph)
+                    tf.summary.scalar('old_vpred', tf.reduce_mean(self.old_vpred_ph))
+                    tf.summary.histogram('old_vpred', self.old_vpred_ph)
+                    if len(self.env.observation_space.shape) == 3:
+                        tf.summary.image('observation', train_model.obs_ph)
+                    else:
+                        tf.summary.histogram('observation', train_model.obs_ph)
+
                 self.train_model = train_model
                 self.act_model = act_model
                 self.step = act_model.step
@@ -158,10 +185,13 @@ class PPO2(BaseRLModel):
                 self.initial_state = act_model.initial_state
                 tf.global_variables_initializer().run(session=self.sess)  # pylint: disable=E1101
 
+                self.summary = tf.summary.merge_all()
+
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
-    def _train_step(self, learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
+    def _train_step(self, learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, update,
+                    states=None):
         """
         Training of PPO2 Algorithm
 
@@ -173,6 +203,7 @@ class PPO2(BaseRLModel):
         :param actions: (numpy array) the actions
         :param values: (numpy array) the values
         :param neglogpacs: (numpy array) Negative Log-likelihood probability of Actions
+        :param update: (int) the current step iteration
         :param states: (numpy array) For recurrent policies, the internal state of the recurrent model
         :return: policy gradient loss, value function loss, policy entropy,
                 approximation of kl divergence, updated clipping range, training update operation
@@ -185,8 +216,29 @@ class PPO2(BaseRLModel):
         if states is not None:
             td_map[self.train_model.states_ph] = states
             td_map[self.train_model.masks_ph] = masks
-        return self.sess.run([self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
-                             td_map)[:-1]
+
+        if states is None:
+            update_fac = self.n_batch // self.nminibatches // self.noptepochs
+        else:
+            update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps
+
+        if update % 10 == 9:
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
+                td_map, options=run_options, run_metadata=run_metadata)
+            if self.writer is not None:
+                self.writer.add_run_metadata(run_metadata, 'step%d' % (update * update_fac))
+        else:
+            summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
+                td_map)
+
+        if self.writer is not None:
+            self.writer.add_summary(summary, (update * update_fac))
+
+        return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         with SetVerbosity(self.verbose):
@@ -198,11 +250,11 @@ class PPO2(BaseRLModel):
             t_first_start = time.time()
 
             nupdates = total_timesteps // self.n_batch
-            for update in range(1, nupdates + 1):
+            for update in range(nupdates + 1):
                 assert self.n_batch % self.nminibatches == 0
                 n_batch_train = self.n_batch // self.nminibatches
                 t_start = time.time()
-                frac = 1.0 - (update - 1.0) / nupdates
+                frac = 1.0 - update / nupdates
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
                 obs, returns, masks, actions, values, neglogpacs, states, ep_infos = runner.run()  # pylint: disable=E0632
@@ -210,27 +262,32 @@ class PPO2(BaseRLModel):
                 mb_loss_vals = []
                 if states is None:  # nonrecurrent version
                     inds = np.arange(self.n_batch)
-                    for _ in range(self.noptepochs):
+                    for epoch_num in range(self.noptepochs):
                         np.random.shuffle(inds)
                         for start in range(0, self.n_batch, n_batch_train):
+                            timestep = ((update * self.noptepochs * self.n_batch + epoch_num * self.n_batch + start) //
+                                        n_batch_train)
                             end = start + n_batch_train
                             mbinds = inds[start:end]
                             slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices))
+                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, update=timestep))
                 else:  # recurrent version
                     assert self.n_envs % self.nminibatches == 0
                     envinds = np.arange(self.n_envs)
                     flatinds = np.arange(self.n_envs * self.n_steps).reshape(self.n_envs, self.n_steps)
                     envsperbatch = n_batch_train // self.n_steps
-                    for _ in range(self.noptepochs):
+                    for epoch_num in range(self.noptepochs):
                         np.random.shuffle(envinds)
                         for start in range(0, self.n_envs, envsperbatch):
+                            timestep = ((update * self.noptepochs * self.n_envs + epoch_num * self.n_envs + start) //
+                                        envsperbatch)
                             end = start + envsperbatch
                             mb_env_inds = envinds[start:end]
                             mb_flat_inds = flatinds[mb_env_inds].ravel()
                             slices = (arr[mb_flat_inds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                             mb_states = states[mb_env_inds]
-                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, mb_states))
+                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, update=timestep,
+                                                                 states=mb_states))
 
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()
@@ -239,11 +296,11 @@ class PPO2(BaseRLModel):
                 if callback is not None:
                     callback(locals(), globals())
 
-                if self.verbose >= 1 and (update % log_interval//100 == 0 or update == 1):
+                if self.verbose >= 1 and ((update + 1) % log_interval//100 == 0 or update == 0):
                     explained_var = explained_variance(values, returns)
-                    logger.logkv("serial_timesteps", update * self.n_steps)
-                    logger.logkv("nupdates", update)
-                    logger.logkv("total_timesteps", update * self.n_batch)
+                    logger.logkv("serial_timesteps", (update + 1) * self.n_steps)
+                    logger.logkv("nupdates", (update + 1))
+                    logger.logkv("total_timesteps", (update + 1) * self.n_batch)
                     logger.logkv("fps", fps)
                     logger.logkv("explained_variance", float(explained_var))
                     logger.logkv('ep_rewmean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))

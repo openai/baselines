@@ -103,10 +103,6 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
     :param param_noise_stddev: (float) the std of the parameter noise
     :return: (TensorFlow Operation) the update function
     """
-    print("\n-------------------------\nactor")
-    [print(el) for el in tf_util.get_globals_vars(actor)]
-    print("\n-------------------------\nperturbed_actor")
-    [print(el) for el in tf_util.get_globals_vars(perturbed_actor)]
     assert len(tf_util.get_globals_vars(actor)) == len(tf_util.get_globals_vars(perturbed_actor))
     assert len([var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]) == \
         len([var for var in tf_util.get_trainable_vars(perturbed_actor) if 'LayerNorm' not in var.name])
@@ -275,7 +271,7 @@ class DDPG(BaseRLModel):
                     # Configure perturbed actor.
                     with tf.variable_scope("noise", reuse=False):
                         self.param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
-                                                        None)
+                                                             None)
                         self.obs_noise = self.param_noise_actor.obs_ph
 
                     # Configure separate copy for stddev adoption.
@@ -315,7 +311,8 @@ class DDPG(BaseRLModel):
                         self.ret_rms)
                     self.normalized_critic_with_actor_tf = self.policy_tf.value_fn
                     self.critic_with_actor_tf = denormalize(
-                        tf.clip_by_value(self.normalized_critic_with_actor_tf, self.return_range[0], self.return_range[1]),
+                        tf.clip_by_value(self.normalized_critic_with_actor_tf,
+                                         self.return_range[0], self.return_range[1]),
                         self.ret_rms)
                     q_obs1 = denormalize(self.target_policy.value_fn, self.ret_rms)
                     self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
@@ -360,7 +357,8 @@ class DDPG(BaseRLModel):
         self.perturb_policy_ops = get_perturbed_actor_updates('model/', 'noise/', self.param_noise_stddev)
 
         adaptive_actor_tf = self.adaptive_param_noise_actor.policy
-        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/', 'noise_adapt/', self.param_noise_stddev)
+        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/', 'noise_adapt/',
+                                                                       self.param_noise_stddev)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
     def _setup_actor_optimizer(self):
