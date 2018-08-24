@@ -38,6 +38,22 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
     if num_env > 1: return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)])
     else: return DummyVecEnv([make_env(start_index)])
 
+def make_mujoco_env(env_id, seed, reward_scale=1.0):
+    """
+    Create a wrapped, monitored gym.Env for MuJoCo.
+    """
+    rank = MPI.COMM_WORLD.Get_rank()
+    myseed = seed  + 1000 * rank if seed is not None else None
+    set_global_seeds(myseed)
+    env = gym.make(env_id)
+    logger_path = None if logger.get_dir() is None else os.path.join(logger.get_dir(), str(rank))
+    env = Monitor(env, logger_path, allow_early_resets=True)
+    env.seed(seed)
+    if reward_scale != 1.0:
+        from baselines.common.retro_wrappers import RewardScaler
+        env = RewardScaler(env, reward_scale)
+    return env
+
 def make_robotics_env(env_id, seed, rank=0):
     """
     Create a wrapped, monitored gym.Env for MuJoCo.
