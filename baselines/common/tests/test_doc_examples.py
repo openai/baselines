@@ -21,7 +21,7 @@ def test_lstm_example():
 
     with tf.Session() as sess:
         # build policy based on lstm network with 128 units
-        policy = policies.build_policy(venv, models.lstm(128))(nbatch=1, nsteps=1)
+        policy = policies.build_policy(venv.observation_space, venv.action_space, models.lstm(128))(nbatch=1, nsteps=1)
 
         # initialize tensorflow variables
         sess.run(tf.global_variables_initializer())

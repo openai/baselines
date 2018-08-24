@@ -158,7 +158,7 @@ def learn(*,
     ))
     
 
-    policy = build_policy(env, network, value_network='copy', **network_kwargs)
+    policy = build_policy(env.observation_space, env.action_space, network, value_network='copy', **network_kwargs)
     set_global_seeds(seed)
 
     np.set_printoptions(precision=3)

@@ -342,7 +342,7 @@ def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6
     print("Running Acer Simple")
     print(locals())
     set_global_seeds(seed)
-    policy = build_policy(env, network, estimate_q=True, **network_kwargs)
+    policy = build_policy(env.observation_space, env.action_space, network, estimate_q=True, **network_kwargs)
 
     nenvs = env.num_envs
     ob_space = env.observation_space

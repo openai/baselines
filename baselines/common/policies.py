@@ -15,7 +15,7 @@ class PolicyWithValue(object):
     Encapsulates fields and methods for RL policy and value function estimation with shared parameters
     """
 
-    def __init__(self, env, observations, latent, estimate_q=False, vf_latent=None, sess=None, **tensors):
+    def __init__(self, action_space, observations, latent, estimate_q=False, vf_latent=None, sess=None, **tensors):
         """
         Parameters:
         ----------
@@ -43,7 +43,7 @@ class PolicyWithValue(object):
         vf_latent = tf.layers.flatten(vf_latent)
         latent = tf.layers.flatten(latent)
 
-        self.pdtype = make_pdtype(env.action_space)
+        self.pdtype = make_pdtype(action_space)
 
         self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
 
@@ -52,8 +52,8 @@ class PolicyWithValue(object):
         self.sess = sess
 
         if estimate_q:
-            assert isinstance(env.action_space, gym.spaces.Discrete)
-            self.q = fc(vf_latent, 'q', env.action_space.n)
+            assert isinstance(action_space, gym.spaces.Discrete)
+            self.q = fc(vf_latent, 'q', action_space.n)
             self.vf = self.q
         else:
             self.vf = fc(vf_latent, 'vf', 1)
@@ -114,13 +114,14 @@ class PolicyWithValue(object):
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
   
-def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
+def build_policy(observation_space, action_space, policy_network, value_network=None,  normalize_observations=False,
+                 estimate_q=False, **policy_kwargs):
     if isinstance(policy_network, str):
         network_type = policy_network
         policy_network = get_network_builder(network_type)(**policy_kwargs)
 
     def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
-        ob_space = env.observation_space
+        ob_space = observation_space
 
         X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space, batch_size=nbatch)
         
@@ -159,7 +160,7 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
                 vf_latent, _ = _v_net(encoded_x)
         
         policy = PolicyWithValue(
-            env=env,
+            action_space=action_space,
             observations=X,
             latent=policy_latent,
             vf_latent=vf_latent,

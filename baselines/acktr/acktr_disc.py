@@ -101,7 +101,7 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
     if network == 'cnn':
         network_kwargs['one_dim_bias'] = True
 
-    policy = build_policy(env, network, **network_kwargs)
+    policy = build_policy(env.observation_space, env.action_space, network, **network_kwargs)
 
     nenvs = env.num_envs
     ob_space = env.observation_space

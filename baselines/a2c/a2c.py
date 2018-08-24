@@ -149,7 +149,7 @@ def learn(
     set_global_seeds(seed)
 
     nenvs = env.num_envs
-    policy = build_policy(env, network, **network_kwargs)
+    policy = build_policy(env.observation_space, env.action_space, network, **network_kwargs)
    
     model = Model(policy=policy, env=env, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
