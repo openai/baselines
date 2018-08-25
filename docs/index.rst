@@ -19,10 +19,11 @@ Train a RL agent in one line of code!
 
   model = PPO2(MlpPolicy, 'CartPole-v1').learn(10000)
 
+Table of Contents
+=================
 .. toctree::
    :maxdepth: 2
    :numbered:
-   :caption: Contents:
 
    install
    quickstart
@@ -33,5 +34,5 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
+.. * :ref:`modindex`
 * :ref:`search`
