@@ -32,7 +32,7 @@ author = 'Stable Baselines Contributors'
 # The short X.Y version
 version = '1.0.6'
 # The full version, including alpha/beta/rc tags
-release = "1.0.6.post0"
+release = "1.0.6.a0"
 
 
 # -- General configuration ---------------------------------------------------
