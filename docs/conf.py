@@ -18,7 +18,8 @@ import sys
 # source code directory, relative to this file, for sphinx-autobuild
 sys.path.insert(0, os.path.abspath('..'))
 
-import stable_baselines
+# TODO: setup virtualenv in read the docs
+# import stable_baselines
 
 
 # -- Project information -----------------------------------------------------
@@ -27,10 +28,11 @@ project = 'Stable Baselines'
 copyright = '2018, Stable Baselines'
 author = 'Stable Baselines Contributors'
 
+# TODO: replace with stable_baselines.__version__
 # The short X.Y version
-version = 'master (' + stable_baselines.__version__ + ' )'
+version = '1.0.6'
 # The full version, including alpha/beta/rc tags
-release = stable_baselines.__version__
+release = "1.0.6.post0"
 
 
 # -- General configuration ---------------------------------------------------
