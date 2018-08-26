@@ -5,7 +5,7 @@ class stable_baselines.A2C(policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent
 learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0)
 ```
 
-### Notes 
+### Notes
 
 - Original paper: https://arxiv.org/abs/1602.01783
 - Baselines blog post: https://blog.openai.com/baselines-acktr-a2c/
@@ -59,7 +59,7 @@ while True:
     env.render()
 ```
 
-### Methods 
+### Methods
 |                                                              |                                                                                                        |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
 | **get_env** ()                                               | returns the current environment (can be None if not defined)                                           |

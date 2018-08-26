@@ -9,30 +9,39 @@ Welcome to Stable Baselines docs!
 `Stable Baselines <https://github.com/hill-a/stable-baselines>`_ is a set of improved implementations
 of reinforcement learning algorithms based on OpenAI `Baselines <https://github.com/openai/baselines>`_.
 
+Github repository: https://github.com/hill-a/stable-baselines
 
-Train a RL agent in one line of code!
+Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-openai-baselines-reinforcement-learning-made-easy-df87c4b2fc82>`_
 
-.. code-block:: python
+.. Example of internal link: :ref:`ppo2`
 
-  from stable_baselines.common.policies import MlpPolicy
-  from stable_baselines import PPO2
-
-  model = PPO2(MlpPolicy, 'CartPole-v1').learn(10000)
-
-Table of Contents
-=================
+User Guide
+------------
 .. toctree::
    :maxdepth: 2
    :numbered:
 
-   install
-   quickstart
+   guide/install
+   guide/quickstart
+   guide/algos
 
+Reinforcement Learning Algorithms
+-----------------------------------
+.. toctree::
+  :maxdepth: 1
+
+  modules/a2c
+  modules/ppo2
+
+
+Citing Stable Baselines
+-----------------------
 
 
 Indices and tables
-==================
+-------------------
 
 * :ref:`genindex`
-.. * :ref:`modindex`
 * :ref:`search`
+
+.. * :ref:`modindex`
