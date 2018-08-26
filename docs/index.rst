@@ -15,20 +15,19 @@ Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-op
 
 .. Example of internal link: :ref:`ppo2`
 
-User Guide
-------------
 .. toctree::
    :maxdepth: 2
+   :caption: User Guide
    :numbered:
 
    guide/install
    guide/quickstart
    guide/algos
 
-Reinforcement Learning Algorithms
------------------------------------
+
 .. toctree::
   :maxdepth: 1
+  :caption: RL Algorithms
 
   modules/a2c
   modules/ppo2
