@@ -9,6 +9,11 @@ RL Algorithms
 .. A2C   ✔️
 .. ===== ======================== ========= ======= ============ ================= =============== ================
 
+.. There is an issue with Read The Docs for building the table when the "HER" row is present:
+.. Apparently a problem of spacing
+.. HER [#f3]_   ❌ [#f5]_                ❌        ✔️           ❌           ❌
+
+
 ============ ======================== ========= =========== ============ ================
 Name         Refactored [#f1]_        Recurrent ``Box``     ``Discrete`` Multi Processing
 ============ ======================== ========= =========== ============ ================
@@ -18,7 +23,6 @@ ACKTR        ✔️                        ✔️         ❌ [#f5]_   ✔️   
 DDPG         ✔️                        ✔️         ✔️           ❌           ❌
 DQN          ✔️                        ❌        ❌           ✔️            ❌
 GAIL [#f2]_  ✔️                        ✔️         ✔️           ✔️            ✔️ [#f4]_
-HER [#f3]_   ❌ [#f5]_                ❌         ✔️            ❌            ❌
 PPO1         ✔️                        ✔️         ✔️           ✔️            ✔️ [#f4]_
 PPO2         ✔️                        ✔️         ✔️           ✔️            ✔️
 TRPO         ✔️                        ✔️         ✔️           ✔️            ✔️ [#f4]_
