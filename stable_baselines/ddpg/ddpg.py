@@ -122,7 +122,7 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 
 class DDPG(BaseRLModel):
     """
-    Deep Deterministic Policy Gradien (DDPG) model
+    Deep Deterministic Policy Gradient (DDPG) model
 
     DDPG: https://arxiv.org/pdf/1509.02971.pdf
 
@@ -140,7 +140,7 @@ class DDPG(BaseRLModel):
     :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
     :param normalize_returns: (bool) should the critic output be normalized
     :param enable_popart: (bool) enable pop-art normalization of the critic output
-    (https://arxiv.org/pdf/1602.07714.pdf)
+        (https://arxiv.org/pdf/1602.07714.pdf)
     :param normalize_observations: (bool) should the observation be normalized
     :param batch_size: (int) the size of the batch for learning the policy
     :param observation_range: (tuple) the bounding values for the observation
@@ -158,7 +158,7 @@ class DDPG(BaseRLModel):
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     """
-    
+
     def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None,
                  nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
                  action_range=(-1., 1.), normalize_observations=False, tau=0.001, batch_size=128,

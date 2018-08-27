@@ -3,8 +3,8 @@
 .. automodule:: stable_baselines.common.base_class
 
 
-Base Class
-==========
+Base RL Class
+=============
 
 Common interface for all the RL algorithms.
 

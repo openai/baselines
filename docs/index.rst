@@ -33,6 +33,8 @@ Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-op
   modules/a2c
   modules/acer
   modules/acktr
+  modules/ddpg
+  modules/dqn
   modules/ppo2
 
 
