@@ -7,7 +7,6 @@ import numpy as np
 from . import VecEnv, CloudpickleWrapper
 import ctypes
 from baselines import logger
-from baselines.common.tile_images import tile_images
 
 from .util import dict_to_obs, obs_space_info, obs_to_dict
 
@@ -76,7 +75,7 @@ class ShmemVecEnv(VecEnv):
         obs, rews, dones, infos = zip(*outs)
         return self._decode_obses(obs), np.array(rews), np.array(dones), infos
 
-    def close(self):
+    def close_extras(self):
         if self.waiting_step:
             self.step_wait()
         for pipe in self.parent_pipes:
@@ -86,24 +85,11 @@ class ShmemVecEnv(VecEnv):
             pipe.close()
         for proc in self.procs:
             proc.join()
-        if self.viewer is not None:
-            self.viewer.close()
 
-    def render(self, mode='human'):
+    def get_images(self, mode='human'):
         for pipe in self.parent_pipes:
             pipe.send(('render', None))
-        imgs = [pipe.recv() for pipe in self.parent_pipes]
-        bigimg = tile_images(imgs)
-        if mode == 'human':
-            if self.viewer is None:
-                from gym.envs.classic_control import rendering
-                self.viewer = rendering.SimpleImageViewer()
-
-            self.viewer.imshow(bigimg[:, :, ::-1])
-        elif mode == 'rgb_array':
-            return bigimg
-        else:
-            raise NotImplementedError
+        return [pipe.recv() for pipe in self.parent_pipes]
 
     def _decode_obses(self, obs):
         result = {}

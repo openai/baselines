@@ -58,7 +58,7 @@ class Model(object):
         with tf.device('/gpu:0'):
             self.optim = optim = kfac.KfacOptimizer(learning_rate=PG_LR, clip_kl=kfac_clip,\
                 momentum=0.9, kfac_update=1, epsilon=0.01,\
-                stats_decay=0.99, async=1, cold_iter=10, max_grad_norm=max_grad_norm)
+                stats_decay=0.99, async_=1, cold_iter=10, max_grad_norm=max_grad_norm)
 
             update_stats_op = optim.compute_and_apply_stats(joint_fisher_loss, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads,params)))
@@ -97,7 +97,7 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
                  kfac_clip=0.001, save_interval=None, lrschedule='linear', load_path=None, **network_kwargs):
     set_global_seeds(seed)
 
-    
+
     if network == 'cnn':
         network_kwargs['one_dim_bias'] = True
 
@@ -115,7 +115,7 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
-            
+
     if load_path is not None:
         model.load(load_path)
 

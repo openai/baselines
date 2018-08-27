@@ -163,7 +163,7 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
                                       specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns 
                                       tuple (output_tensor, extra_feed) where output tensor is the last network layer output, extra_feed is None for feed-forward
                                       neural nets, and extra_feed is a dictionary describing how to feed state into the network for recurrent neural nets.
-                                      See baselines.common/policies.py/lstm for more details on using recurrent nets in policies
+                                      See common/models.py/lstm for more details on using recurrent nets in policies
 
     env: baselines.common.vec_env.VecEnv     environment. Needs to be vectorized for parallel environment simulation. 
                                       The environments produced by gym.make can be wrapped using baselines.common.vec_env.DummyVecEnv class.
@@ -189,7 +189,8 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
 
     log_interval: int                 number of timesteps between logging events
 
-    nminibatches: int                 number of training minibatches per update
+    nminibatches: int                 number of training minibatches per update. For recurrent policies, 
+                                      should be smaller or equal than number of environments run in parallel. 
 
     noptepochs: int                   number of training epochs per update
 

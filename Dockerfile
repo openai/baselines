@@ -18,6 +18,7 @@ WORKDIR $CODE_DIR/baselines
 # Clean up pycache and pyc files
 RUN rm -rf __pycache__ && \
     find . -name "*.pyc" -delete && \
+    pip install tensorflow && \
     pip install -e .[test]
 
 

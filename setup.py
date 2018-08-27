@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-from functools import reduce
 import sys
 
 if sys.version_info.major != 3:
@@ -33,7 +32,6 @@ setup(name='baselines',
           'progressbar2',
           'mpi4py',
           'cloudpickle',
-          'tensorflow>=1.4.0',
           'click',
           'opencv-python'
       ],
@@ -43,3 +41,12 @@ setup(name='baselines',
       url='https://github.com/openai/baselines',
       author_email='gym@openai.com',
       version='0.1.5')
+
+
+# ensure there is some tensorflow build with version above 1.4
+try:
+    from distutils.version import StrictVersion
+    import tensorflow
+    assert StrictVersion(tensorflow.__version__) >= StrictVersion('1.4.0')
+except ImportError:
+    assert False, "TensorFlow needed, of version above 1.4"
