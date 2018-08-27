@@ -26,6 +26,7 @@ class Mock(MagicMock):
         return MagicMock()
 
 # Mock modules that requires C modules
+# Note: because of that we cannot test examples using CI
 MOCK_MODULES = ['joblib', 'scipy', 'scipy.signal',
                 'numpy', 'pandas', 'mpi4py', 'mujoco-py', 'cv2', 'tensorflow',
                 'tensorflow.contrib', 'tensorflow.contrib.layers',
@@ -34,7 +35,6 @@ MOCK_MODULES = ['joblib', 'scipy', 'scipy.signal',
                 'seaborn', 'gym', 'gym.spaces', 'zmq']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
-# TODO: setup virtualenv in read the docs
 import stable_baselines
 
 
@@ -44,7 +44,6 @@ project = 'Stable Baselines'
 copyright = '2018, Stable Baselines'
 author = 'Stable Baselines Contributors'
 
-# TODO: replace with stable_baselines.__version__
 # The short X.Y version
 version = 'dev (' + stable_baselines.__version__ + ' )'
 # The full version, including alpha/beta/rc tags

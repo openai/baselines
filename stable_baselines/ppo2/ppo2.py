@@ -13,27 +13,29 @@ from stable_baselines.common.policies import LstmPolicy
 
 
 class PPO2(BaseRLModel):
+    """
+    Proximal Policy Optimization algorithm (GPU version).
+    Paper: https://arxiv.org/abs/1707.06347
+
+    :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) Discount factor
+    :param n_steps: (int) The number of steps to run for each environment
+    :param ent_coef: (float) Entropy coefficient for the loss caculation
+    :param learning_rate: (float or callable) The learning rate, it can be a function
+    :param vf_coef: (float) Value function coefficient for the loss calculation
+    :param max_grad_norm: (float) The maximum value for the gradient clipping
+    :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
+    :param nminibatches: (int) Number of minibatches for the policies
+    :param noptepochs: (int) Number of epoch when optimizing the surrogate
+    :param cliprange: (float or callable) Clipping parameter, it can be a function
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    """
+
     def __init__(self, policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, vf_coef=0.5,
                  max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0,
                  _init_setup_model=True):
-        """
-        Return a trained PPO2 model.
-
-        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) Discount factor
-        :param n_steps: (int) The number of steps to run for each environment
-        :param ent_coef: (float) Entropy coefficient for the loss caculation
-        :param learning_rate: (float or callable) The learning rate, it can be a function
-        :param vf_coef: (float) Value function coefficient for the loss calculation
-        :param max_grad_norm: (float) The maximum value for the gradient clipping
-        :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
-        :param nminibatches: (int) Number of minibatches for the policies
-        :param noptepochs: (int) Number of epoch when optimizing the surrogate
-        :param cliprange: (float or callable) Clipping parameter, it can be a function
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        """
         super(PPO2, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         if isinstance(learning_rate, float):

@@ -121,6 +121,44 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
 
 
 class DDPG(BaseRLModel):
+    """
+    Deep Deterministic Policy Gradien (DDPG) model
+
+    DDPG: https://arxiv.org/pdf/1509.02971.pdf
+
+    :param policy: (ActorCriticPolicy) the policy
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) the discount rate
+    :param memory_policy: (Memory) the replay buffer (if None, default to baselines.ddpg.memory.Memory)
+    :param eval_env: (Gym Environment) the evaluation environment (can be None)
+    :param nb_train_steps: (int) the number of training steps
+    :param nb_rollout_steps: (int) the number of rollout steps
+    :param nb_eval_steps: (int) the number of evalutation steps
+    :param param_noise: (AdaptiveParamNoiseSpec) the parameter noise type (can be None)
+    :param action_noise: (ActionNoise) the action noise type (can be None)
+    :param param_noise_adaption_interval: (int) apply param noise every N steps
+    :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
+    :param normalize_returns: (bool) should the critic output be normalized
+    :param enable_popart: (bool) enable pop-art normalization of the critic output
+    (https://arxiv.org/pdf/1602.07714.pdf)
+    :param normalize_observations: (bool) should the observation be normalized
+    :param batch_size: (int) the size of the batch for learning the policy
+    :param observation_range: (tuple) the bounding values for the observation
+    :param action_range: (tuple) the bounding values for the actions
+    :param return_range: (tuple) the bounding values for the critic output
+    :param critic_l2_reg: (float) l2 regularizer coefficient
+    :param actor_lr: (float) the actor learning rate
+    :param critic_lr: (float) the critic learning rate
+    :param clip_norm: (float) clip the gradients (disabled if None)
+    :param reward_scale: (float) the value the reward should be scaled by
+    :param render: (bool) enable rendering of the environment
+    :param render_eval: (bool) enable rendering of the evalution environment
+    :param layer_norm: (bool) enable layer normalization for the policies
+    :param memory_limit: (int) the max number of transitions to store
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    """
+    
     def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None,
                  nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
                  action_range=(-1., 1.), normalize_observations=False, tau=0.001, batch_size=128,
@@ -128,43 +166,6 @@ class DDPG(BaseRLModel):
                  observation_range=(-5., 5.), critic_l2_reg=0., return_range=(-np.inf, np.inf), actor_lr=1e-4,
                  critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False, layer_norm=True,
                  memory_limit=100, verbose=0, _init_setup_model=True):
-        """
-        Deep Deterministic Policy Gradien (DDPG) model
-
-        DDPG: https://arxiv.org/pdf/1509.02971.pdf
-
-        :param policy: (ActorCriticPolicy) the policy
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) the discount rate
-        :param memory_policy: (Memory) the replay buffer (if None, default to baselines.ddpg.memory.Memory)
-        :param eval_env: (Gym Environment) the evaluation environment (can be None)
-        :param nb_train_steps: (int) the number of training steps
-        :param nb_rollout_steps: (int) the number of rollout steps
-        :param nb_eval_steps: (int) the number of evalutation steps
-        :param param_noise: (AdaptiveParamNoiseSpec) the parameter noise type (can be None)
-        :param action_noise: (ActionNoise) the action noise type (can be None)
-        :param param_noise_adaption_interval: (int) apply param noise every N steps
-        :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
-        :param normalize_returns: (bool) should the critic output be normalized
-        :param enable_popart: (bool) enable pop-art normalization of the critic output
-            (https://arxiv.org/pdf/1602.07714.pdf)
-        :param normalize_observations: (bool) should the observation be normalized
-        :param batch_size: (int) the size of the batch for learning the policy
-        :param observation_range: (tuple) the bounding values for the observation
-        :param action_range: (tuple) the bounding values for the actions
-        :param return_range: (tuple) the bounding values for the critic output
-        :param critic_l2_reg: (float) l2 regularizer coefficient
-        :param actor_lr: (float) the actor learning rate
-        :param critic_lr: (float) the critic learning rate
-        :param clip_norm: (float) clip the gradients (disabled if None)
-        :param reward_scale: (float) the value the reward should be scaled by
-        :param render: (bool) enable rendering of the environment
-        :param render_eval: (bool) enable rendering of the evalution environment
-        :param layer_norm: (bool) enable layer normalization for the policies
-        :param memory_limit: (int) the max number of transitions to store
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        """
         super(DDPG, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
         # Parameters.

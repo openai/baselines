@@ -29,7 +29,10 @@ Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-op
   :maxdepth: 1
   :caption: RL Algorithms
 
+  modules/base
   modules/a2c
+  modules/acer
+  modules/acktr
   modules/ppo2
 
 

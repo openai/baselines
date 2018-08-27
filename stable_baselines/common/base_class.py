@@ -12,15 +12,17 @@ from stable_baselines import logger
 
 
 class BaseRLModel(ABC):
+    """
+    The base RL model
+
+    :param policy: (Object) Policy object
+    :param env: (Gym environment) The environment to learn from
+                (if registered in Gym, can be str. Can be None for loading trained models)
+    :param requires_vec_env: (bool)
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    """
+
     def __init__(self, policy, env, requires_vec_env, verbose=0):
-        """
-        The base RL model
-        :param policy: (Object) Policy object
-        :param env: (Gym environment) The environment to learn from
-            (if registered in Gym, can be str. Can be None for loading trained models)
-        :param requires_vec_env: (bool)
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        """
         super(BaseRLModel, self).__init__()
 
         self.policy = policy
