@@ -1,17 +1,14 @@
 .. _a2c:
 
+.. automodule:: stable_baselines.a2c
+
+
 A2C
 ====
 
 A synchronous, deterministic variant of `Asynchronous Advantage Actor Critic (A3C) <https://arxiv.org/abs/1602.01783>`_.
 It uses multiple workers to avoid the use of a replay buffer.
 
-.. code-block:: python
-
-  class stable_baselines.A2C(policy, env, gamma=0.99, n_steps=5, vf_coef=0.25,
-                             ent_coef=0.01, max_grad_norm=0.5,
-                             learning_rate=7e-4, alpha=0.99, epsilon=1e-5,
-                             lr_schedule='linear', verbose=0)
 
 Notes
 -----
@@ -72,3 +69,9 @@ Train a A2C agent on `CartPole-v1` using 4 processes.
       action, _states = model.predict(obs)
       obs, rewards, dones, info = env.step(action)
       env.render()
+
+Parameters
+----------
+
+.. autoclass:: A2C
+  :members:

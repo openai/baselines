@@ -1,5 +1,7 @@
 .. _ppo2:
 
+.. automodule:: stable_baselines.ppo2
+
 PPO2
 ====
 
@@ -19,12 +21,6 @@ For that, ppo uses clipping to avoid too large update.
   PPO2 contains several modifications from the original algorithm not documented
   by OpenAI: value function is also clipped and advantages are normalized.
 
-.. code-block:: python
-
-   class stable_baselines.PPO2(policy, env, gamma=0.99, n_steps=128,
-                               ent_coef=0.01, learning_rate=2.5e-4,
-                               vf_coef=0.5, max_grad_norm=0.5, lam=0.95,
-                               nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0)
 
 Notes
 -----
@@ -53,7 +49,6 @@ Box           ✔️      ✔️
 MultiDiscrete ✔️      ✔️
 MultiBinary   ✔️      ✔️
 ============= ====== ===========
-
 
 Example
 -------
@@ -86,3 +81,9 @@ Train a PPO agent on `CartPole-v1` using 4 processes.
        action, _states = model.predict(obs)
        obs, rewards, dones, info = env.step(action)
        env.render()
+
+Parameters
+----------
+
+.. autoclass:: PPO2
+  :members:

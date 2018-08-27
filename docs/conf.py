@@ -14,12 +14,28 @@
 #
 import os
 import sys
+from unittest.mock import MagicMock
 
 # source code directory, relative to this file, for sphinx-autobuild
 sys.path.insert(0, os.path.abspath('..'))
 
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+# Mock modules that requires C modules
+MOCK_MODULES = ['joblib', 'scipy', 'scipy.signal',
+                'numpy', 'pandas', 'mpi4py', 'mujoco-py', 'cv2', 'tensorflow',
+                'tensorflow.contrib', 'tensorflow.contrib.layers',
+                'tensorflow.python', 'tensorflow.python.client', 'tensorflow.python.ops',
+                'tqdm', 'cloudpickle', 'matplotlib',
+                'seaborn', 'gym', 'gym.spaces', 'zmq']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 # TODO: setup virtualenv in read the docs
-# import stable_baselines
+import stable_baselines
 
 
 # -- Project information -----------------------------------------------------
@@ -30,9 +46,9 @@ author = 'Stable Baselines Contributors'
 
 # TODO: replace with stable_baselines.__version__
 # The short X.Y version
-version = '1.0.6'
+version = 'dev (' + stable_baselines.__version__ + ' )'
 # The full version, including alpha/beta/rc tags
-release = "1.0.6.a0"
+release = stable_baselines.__version__
 
 
 # -- General configuration ---------------------------------------------------
