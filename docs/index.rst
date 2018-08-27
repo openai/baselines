@@ -11,9 +11,19 @@ of reinforcement learning algorithms based on OpenAI `Baselines <https://github.
 
 Github repository: https://github.com/hill-a/stable-baselines
 
+You can read a detailed presentation of Stable Baselines in the
 Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-openai-baselines-reinforcement-learning-made-easy-df87c4b2fc82>`_
 
 .. Example of internal link: :ref:`ppo2`
+
+Main differences with OpenAI Baselines
+--------------------------------------
+
+This toolset is a fork of OpenAI Baselines, with a major structural refactoring, and code cleanups:
+- Unified structure for all algorithms
+- PEP8 compliant (unified code style)
+- Documented functions and classes
+- More tests & more code coverage
 
 .. toctree::
    :maxdepth: 2
@@ -40,6 +50,18 @@ Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-op
 
 Citing Stable Baselines
 -----------------------
+To cite this project in publications:
+
+.. code-block:: bibtex
+
+    @misc{stable-baselines,
+      author = {Hill, Ashley and Raffin, Antonin and Traore, Rene and Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
+      title = {Stable Baselines},
+      year = {2018},
+      publisher = {GitHub},
+      journal = {GitHub repository},
+      howpublished = {\url{https://github.com/hill-a/stable-baselines}},
+    }
 
 
 Indices and tables
