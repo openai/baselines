@@ -20,6 +20,7 @@ Main differences with OpenAI Baselines
 --------------------------------------
 
 This toolset is a fork of OpenAI Baselines, with a major structural refactoring, and code cleanups:
+
 - Unified structure for all algorithms
 - PEP8 compliant (unified code style)
 - Documented functions and classes
@@ -33,6 +34,8 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
    guide/install
    guide/quickstart
    guide/algos
+   guide/examples
+   guide/vec_envs
 
 
 .. toctree::
@@ -40,6 +43,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
   :caption: RL Algorithms
 
   modules/base
+  modules/policies
   modules/a2c
   modules/acer
   modules/acktr

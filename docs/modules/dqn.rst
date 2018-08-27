@@ -37,6 +37,7 @@ Example
 -------
 
 .. code-block:: python
+
   import gym
 
   from stable_baselines.common.vec_env import DummyVecEnv
