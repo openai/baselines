@@ -64,5 +64,5 @@ class DummyVecEnv(VecEnv):
         return dict_to_obs(copy_obs_dict(self.buf_obs))
 
     def get_images(self):
-        return [env.render(mode='rgb') for env in self.envs]
+        return [env.render(mode='rgb_array') for env in self.envs]
         
