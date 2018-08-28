@@ -4,8 +4,19 @@
   --link-color: #14B278;
 }
 
+/* Header fonts y */
+h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend, p.caption {
+    font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+}
+
+
 /* Docs background */
 .wy-side-nav-search{
+  background-color: var(--main-bg-color);
+}
+
+/* Mobile version */
+.wy-nav-top{
   background-color: var(--main-bg-color);
 }
 

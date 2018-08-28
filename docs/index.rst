@@ -14,6 +14,7 @@ Github repository: https://github.com/hill-a/stable-baselines
 You can read a detailed presentation of Stable Baselines in the
 Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-openai-baselines-reinforcement-learning-made-easy-df87c4b2fc82>`_
 
+
 .. Example of internal link: :ref:`ppo2`
 
 Main differences with OpenAI Baselines
@@ -29,7 +30,6 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 .. toctree::
    :maxdepth: 2
    :caption: User Guide
-   :numbered:
 
    guide/install
    guide/quickstart
