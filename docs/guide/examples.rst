@@ -4,7 +4,7 @@ Examples
 Try it online with Colab Notebooks!
 -----------------------------------
 
-All the following examples can be executed online using Google colab
+All the following examples can be executed online using Google colab |colab|
 notebooks:
 
 -  `Getting Started`_
@@ -21,11 +21,17 @@ notebooks:
 .. _Atari Games: https://colab.research.google.com/drive/1iYK11yDzOOqnrXi1Sfjm1iekZr4cxLaN
 .. _Breakout: https://colab.research.google.com/drive/14NwwEHwN4hdNgGzzySjxQhEVDff-zr7O
 
+.. |colab| image:: ../_static/img/colab.svg
 
 Basic Usage: Training, Saving, Loading
 --------------------------------------
 
 In the following example, we will train, save and load an A2C model on the Lunar Lander environment.
+
+.. image:: ../_static/img/try_it.png
+   :scale: 30 %
+   :target: https://colab.research.google.com/drive/1KoAQ1C_BNtGV3sVvZCnNZaER9rstmy0s
+
 
 .. figure:: https://cdn-images-1.medium.com/max/960/1*W7X69nxINgZEcJEAyoHCVw.gif
 
@@ -69,6 +75,9 @@ In the following example, we will train, save and load an A2C model on the Lunar
 Multiprocessing: Unleashing the Power of Vectorized Environments
 ----------------------------------------------------------------
 
+.. image:: ../_static/img/try_it.png
+   :scale: 30 %
+   :target: https://colab.research.google.com/drive/1ZzNFMUUi923foaVsYb4YjPy4mjKtnOxb
 
 .. figure:: https://cdn-images-1.medium.com/max/960/1*h4WTQNVIsvMXJTCpXm_TAw.gif
 
@@ -123,6 +132,10 @@ Using Callback: Monitoring Training
 You can define a custom callback function that will be called inside the agent.
 This could be useful when you want to monitor training, for instance display live
 learning curves in Tensorboard (or in Visdom) or save the best agent.
+
+.. image:: ../_static/img/try_it.png
+   :scale: 30 %
+   :target: https://colab.research.google.com/drive/1L_IMo6v0a0ALK8nefZm6PqPSy0vZIWBT
 
 .. figure:: ../_static/img/learning_curve.png
 
@@ -202,6 +215,11 @@ Atari Games
 Training a RL agent on Atari games is straightforward thanks to ``make_atari_env`` helper function.
 It will do `all the preprocessing <https://danieltakeshi.github.io/2016/11/25/frame-skipping-and-preprocessing-for-deep-q-networks-on-atari-2600-games/>`_
 and multiprocessing for you.
+
+.. image:: ../_static/img/try_it.png
+   :scale: 30 %
+   :target: https://colab.research.google.com/drive/1iYK11yDzOOqnrXi1Sfjm1iekZr4cxLaN
+
 
 .. code-block:: python
 
@@ -330,3 +348,32 @@ You can also move from learning on one environment to another for `continual lea
       action, _states = model.predict(obs)
       obs, rewards, dones, info = env.step(action)
       env.render()
+
+
+Bonus: Make a GIF of a Trained Agent
+------------------------------------
+
+.. note::
+  For Atari games, you need to use a screen recorder such as `Kazam <https://launchpad.net/kazam>`_.
+  And then convert the video using `ffmpeg <https://superuser.com/questions/556029/how-do-i-convert-a-video-to-gif-using-ffmpeg-with-reasonable-quality>`_
+
+.. code-block:: python
+
+  import imageio
+  import numpy as np
+
+  from stable_baselines.common.policies import MlpPolicy
+  from stable_baselines import A2C
+
+  model = A2C(MlpPolicy, "LunarLander-v2").learn(100000)
+
+  images = []
+  obs = model.env.reset()
+  img = model.env.render(mode='rgb_array')
+  for i in range(350):
+      images.append(img)
+      action, _ = model.predict(obs)
+      obs, _, _ ,_ = model.env.step(action)
+      img = model.env.render(mode='rgb_array')
+
+  imageio.mimsave('lander_a2c.gif', [np.array(img[0]) for i, img in enumerate(images) if i%2 == 0], fps=29)
