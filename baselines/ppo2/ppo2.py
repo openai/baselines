@@ -24,7 +24,6 @@ class Model(object):
         with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
             act_model = policy(nbatch_act, 1, sess)
             train_model = policy(nbatch_train, nsteps, sess)
-            eval_model = policy(1, 1, sess)
 
         A = train_model.pdtype.sample_placeholder([None])
         ADV = tf.placeholder(tf.float32, [None])
@@ -78,9 +77,7 @@ class Model(object):
         self.train = train
         self.train_model = train_model
         self.act_model = act_model
-        self.eval_model = eval_model
         self.step = act_model.step
-        self.eval_step = eval_model.step
         self.value = act_model.value
         self.initial_state = act_model.initial_state
 
