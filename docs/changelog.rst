@@ -6,8 +6,16 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Latest version 1.0.6.a0 (WIP)
+Master version 1.0.8.a0 (WIP)
 =============================
+
+Nothing new for now...
+
+Tensorboard support in progress (see ``tensorboard`` branch)
+
+
+Release 1.0.7 (2018-08-29)
+===========================
 
 **Bug fixes and documentation**
 

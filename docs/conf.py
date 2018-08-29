@@ -45,7 +45,7 @@ copyright = '2018, Stable Baselines'
 author = 'Stable Baselines Contributors'
 
 # The short X.Y version
-version = 'dev (' + stable_baselines.__version__ + ' )'
+version = 'master (' + stable_baselines.__version__ + ' )'
 # The full version, including alpha/beta/rc tags
 release = stable_baselines.__version__
 
