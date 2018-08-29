@@ -32,6 +32,9 @@ https://github.com/hill-a/stable-baselines
 Medium article:
 https://medium.com/@araffin/df87c4b2fc82
 
+Documentation:
+https://stable-baselines.readthedocs.io/en/master/
+
 ## Quick example
 
 Most of the library tries to follow a sklearn-like syntax for the Reinforcement Learning algorithms using Gym.
