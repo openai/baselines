@@ -7,6 +7,7 @@ TRPO
 ====
 
 `Trust Region Policy Optimization (TRPO) <https://arxiv.org/abs/1502.05477>`_
+is an iterative approach for optimizing policies with guaranteed monotonic improvement.
 
 Notes
 -----

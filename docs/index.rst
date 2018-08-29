@@ -27,6 +27,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 - Documented functions and classes
 - More tests & more code coverage
 
+
 .. toctree::
    :maxdepth: 2
    :caption: User Guide
@@ -55,6 +56,11 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
   modules/ppo2
   modules/trpo
 
+.. toctree::
+  :maxdepth: 1
+  :caption: Misc
+
+  changelog
 
 Citing Stable Baselines
 -----------------------
@@ -71,11 +77,16 @@ To cite this project in publications:
       howpublished = {\url{https://github.com/hill-a/stable-baselines}},
     }
 
+Contributing
+------------
+
+To any interested in making the baselines better, there is still some documentation/improvements that needs to be done.
+If you want to contribute, please open an issue first and then propose your pull request on Github at
+https://github.com/hill-a/stable-baselines.
 
 Indices and tables
 -------------------
 
 * :ref:`genindex`
 * :ref:`search`
-
-.. * :ref:`modindex`
+* :ref:`modindex`
