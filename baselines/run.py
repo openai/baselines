@@ -8,13 +8,12 @@ import numpy as np
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env
-from baselines.common.tf_util import save_state, load_state, get_session
+from baselines.common.tf_util import get_session
 from baselines import bench, logger
 from importlib import import_module
 
 from baselines.common.vec_env.vec_normalize import VecNormalize
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common import atari_wrappers, retro_wrappers
 
 try:
