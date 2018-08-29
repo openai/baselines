@@ -100,6 +100,7 @@ setup(name='stable_baselines',
                "gym openai baselines toolbox python data-science",
       license="MIT",
       long_description=long_description,
+      long_description_content_type='text/markdown',
       version=version,
       )
 
