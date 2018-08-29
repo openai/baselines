@@ -1,0 +1,52 @@
+/* Main colors from https://color.adobe.com/fr/Copy-of-NOUEBO-Original-color-theme-11116609 */
+:root{
+  --main-bg-color: #324D5C;
+  --link-color: #14B278;
+}
+
+/* Header fonts y */
+h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend, p.caption {
+    font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+}
+
+
+/* Docs background */
+.wy-side-nav-search{
+  background-color: var(--main-bg-color);
+}
+
+/* Mobile version */
+.wy-nav-top{
+  background-color: var(--main-bg-color);
+}
+
+/* Change link colors (except for the menu) */
+a {
+    color: var(--link-color);
+}
+
+a:hover {
+    color: #4F778F;
+}
+
+.wy-menu a {
+    color: #b3b3b3;
+}
+
+.wy-menu a:hover {
+    color: #b3b3b3;
+}
+
+a.icon.icon-home {
+    color: #b3b3b3;
+}
+
+.version{
+    color: var(--link-color) !important;
+}
+
+
+/* Make code blocks have a background */
+.codeblock,pre.literal-block,.rst-content .literal-block,.rst-content pre.literal-block,div[class^='highlight'] {
+        background: #f8f8f8;;
+}

@@ -34,12 +34,13 @@ def _worker(remote, parent_remote, env_fn_wrapper):
 
 
 class SubprocVecEnv(VecEnv):
-    def __init__(self, env_fns):
-        """
-        Creates a multiprocess vectorized wrapper for multiple environments
+    """
+    Creates a multiprocess vectorized wrapper for multiple environments
 
-        :param env_fns: ([Gym Environment]) Environments to run in subprocesses
-        """
+    :param env_fns: ([Gym Environment]) Environments to run in subprocesses
+    """
+    
+    def __init__(self, env_fns):
         self.waiting = False
         self.closed = False
         n_envs = len(env_fns)

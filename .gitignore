@@ -9,6 +9,7 @@
 .coverage
 .coverage.*
 __pycache__/
+_build/
 
 # Setuptools distribution and build folders.
 /dist/

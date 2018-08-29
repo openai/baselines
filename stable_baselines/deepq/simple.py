@@ -13,49 +13,48 @@ from stable_baselines.a2c.utils import find_trainable_variables
 
 
 class DeepQ(BaseRLModel):
+    """
+    The DQN model class. DQN paper: https://arxiv.org/pdf/1312.5602.pdf
+
+    :param policy: (function (TensorFlow Tensor, int, str, bool): TensorFlow Tensor)
+                    the policy that takes the following inputs:
+                    - observation_in: (object) the output of observation placeholder
+                    - num_actions: (int) number of actions
+                    - scope: (str)
+                    - reuse: (bool) should be passed to outer variable scope
+                    and returns a tensor of shape (batch_size, num_actions) with values of every action.
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) discount factor
+    :param learning_rate: (float) learning rate for adam optimizer
+    :param buffer_size: (int) size of the replay buffer
+    :param exploration_fraction: (float) fraction of entire training period over which the exploration rate is
+            annealed
+    :param exploration_final_eps: (float) final value of random action probability
+    :param train_freq: (int) update the model every `train_freq` steps. set to None to disable printing
+    :param batch_size: (int) size of a batched sampled from replay buffer for training
+    :param checkpoint_freq: (int) how often to save the model. This is so that the best version is restored at the
+            end of the training. If you do not wish to restore the best version
+            at the end of the training set this variable to None.
+    :param checkpoint_path: (str) replacement path used if you need to log to somewhere else than a temporary
+            directory.
+    :param learning_starts: (int) how many steps of the model to collect transitions for before learning starts
+    :param target_network_update_freq: (int) update the target network every `target_network_update_freq` steps.
+    :param prioritized_replay: (bool) if True prioritized replay buffer will be used.
+    :param prioritized_replay_alpha: (float) alpha parameter for prioritized replay buffer
+    :param prioritized_replay_beta0: (float) initial value of beta for prioritized replay buffer
+    :param prioritized_replay_beta_iters: (int) number of iterations over which beta will be annealed from initial
+            value to 1.0. If set to None equals to max_timesteps.
+    :param prioritized_replay_eps: (float) epsilon to add to the TD errors when updating priorities.
+    :param param_noise: (bool) Whether or not to apply noise to the parameters of the policy.
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    """
+
     def __init__(self, policy, env, gamma=0.99, learning_rate=5e-4, buffer_size=50000, exploration_fraction=0.1,
                  exploration_final_eps=0.02, train_freq=1, batch_size=32, checkpoint_freq=10000, checkpoint_path=None,
                  learning_starts=1000, target_network_update_freq=500, prioritized_replay=False,
                  prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4, prioritized_replay_beta_iters=None,
                  prioritized_replay_eps=1e-6, param_noise=False, verbose=0, _init_setup_model=True):
-        """
-        the DeepQ model class.
-
-        DeepQ: https://arxiv.org/pdf/1312.5602.pdf
-
-        :param policy: (function (TensorFlow Tensor, int, str, bool): TensorFlow Tensor)
-            the policy that takes the following inputs:
-                - observation_in: (object) the output of observation placeholder
-                - num_actions: (int) number of actions
-                - scope: (str)
-                - reuse: (bool) should be passed to outer variable scope
-            and returns a tensor of shape (batch_size, num_actions) with values of every action.
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) discount factor
-        :param learning_rate: (float) learning rate for adam optimizer
-        :param buffer_size: (int) size of the replay buffer
-        :param exploration_fraction: (float) fraction of entire training period over which the exploration rate is
-            annealed
-        :param exploration_final_eps: (float) final value of random action probability
-        :param train_freq: (int) update the model every `train_freq` steps. set to None to disable printing
-        :param batch_size: (int) size of a batched sampled from replay buffer for training
-        :param checkpoint_freq: (int) how often to save the model. This is so that the best version is restored at the
-            end of the training. If you do not wish to restore the best version at the end of the training set this
-            variable to None.
-        :param checkpoint_path: (str) replacement path used if you need to log to somewhere else than a temporary
-            directory.
-        :param learning_starts: (int) how many steps of the model to collect transitions for before learning starts
-        :param target_network_update_freq: (int) update the target network every `target_network_update_freq` steps.
-        :param prioritized_replay: (bool) if True prioritized replay buffer will be used.
-        :param prioritized_replay_alpha: (float) alpha parameter for prioritized replay buffer
-        :param prioritized_replay_beta0: (float) initial value of beta for prioritized replay buffer
-        :param prioritized_replay_beta_iters: (int) number of iterations over which beta will be annealed from initial
-            value to 1.0. If set to None equals to max_timesteps.
-        :param prioritized_replay_eps: (float) epsilon to add to the TD errors when updating priorities.
-        :param param_noise: (bool) Whether or not to apply noise to the parameters of the policy.
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        """
         super(DeepQ, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
         assert not isinstance(policy, ActorCriticPolicy), \

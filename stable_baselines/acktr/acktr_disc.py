@@ -16,28 +16,29 @@ from stable_baselines.common.policies import LstmPolicy
 
 
 class ACKTR(BaseRLModel):
+    """
+    The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
+
+    :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) Discount factor
+    :param nprocs: (int) The number of threads for TensorFlow operations
+    :param n_steps: (int) The number of steps to run for each environment
+    :param ent_coef: (float) The weight for the entropic loss
+    :param vf_coef: (float) The weight for the loss on the value function
+    :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
+    :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
+    :param max_grad_norm: (float) The clipping value for the maximum gradient
+    :param kfac_clip: (float) gradient clipping for Kullback leiber
+    :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                        'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    """
+
     def __init__(self, policy, env, gamma=0.99, nprocs=1, n_steps=20, ent_coef=0.01, vf_coef=0.25, vf_fisher_coef=1.0,
                  learning_rate=0.25, max_grad_norm=0.5, kfac_clip=0.001, lr_schedule='linear', verbose=0,
                  _init_setup_model=True):
-        """
-        The ACKTR (Actor Critic using Kronecker-Factored Trust Region) model class, https://arxiv.org/abs/1708.05144
-
-        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) Discount factor
-        :param nprocs: (int) The number of threads for TensorFlow operations
-        :param n_steps: (int) The number of steps to run for each environment
-        :param ent_coef: (float) The weight for the entropic loss
-        :param vf_coef: (float) The weight for the loss on the value function
-        :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
-        :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
-        :param max_grad_norm: (float) The clipping value for the maximum gradient
-        :param kfac_clip: (float) gradient clipping for Kullback leiber
-        :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
-                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        """
         super(ACKTR, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         self.n_steps = n_steps
