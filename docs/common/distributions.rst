@@ -10,8 +10,8 @@ Probability distributions used for the different action spaces:
 - ``MultiCategoricalProbabilityDistribution`` -> MultiDiscrete
 - ``BernoulliProbabilityDistribution`` -> MultiBinary
 
-The policy networks output parameters for the distributions (named `flat` in the methods)
-Action are then sampled from those distributions.
+The policy networks output parameters for the distributions (named `flat` in the methods).
+Actions are then sampled from those distributions.
 
 For instance, in the case of discrete actions. The policy network outputs probability
 of taking each action. The ``CategoricalProbabilityDistribution`` allows to sample from it,
