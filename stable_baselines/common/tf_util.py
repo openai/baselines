@@ -445,7 +445,7 @@ def load_state(fname, sess=None, var_list=None):
 
     :param fname: (str) the graph name
     :param sess: (TensorFlow Session) the session, if None: get_default_session()
-    :param var_list: ([TensorFlow Tensor] or {str: TensorFlow Tensor}) A list of Variable/SaveableObject,
+    :param var_list: ([TensorFlow Tensor] or dict(str: TensorFlow Tensor)) A list of Variable/SaveableObject,
         or a dictionary mapping names to SaveableObject`s. If `None, defaults to the list of all saveable objects.
     """
     if sess is None:
@@ -464,8 +464,8 @@ def save_state(fname, sess=None, var_list=None):
     Save a TensorFlow model
 
     :param fname: (str) the graph name
-    :param sess: (TensorFlow Session) the session, if None: get_default_session()
-    :param var_list: ([TensorFlow Tensor] or {str: TensorFlow Tensor}) A list of Variable/SaveableObject,
+    :param sess: (TensorFlow Session) The tf session, if None, get_default_session()
+    :param var_list: ([TensorFlow Tensor] or dict(str: TensorFlow Tensor)) A list of Variable/SaveableObject,
         or a dictionary mapping names to SaveableObject`s. If `None, defaults to the list of all saveable objects.
     """
     if sess is None:

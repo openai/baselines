@@ -65,3 +65,4 @@ Parameters
 
 .. autoclass:: HER
   :members:
+	:inherited-members:

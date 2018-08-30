@@ -75,3 +75,4 @@ Parameters
 
 .. autoclass:: A2C
   :members:
+  :inherited-members:

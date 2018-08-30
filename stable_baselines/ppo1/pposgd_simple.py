@@ -31,7 +31,7 @@ class PPO1(BaseRLModel):
     :param lam: (float) advantage estimation
     :param adam_epsilon: (float) the epsilon value for the adam optimizer
     :param schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
-    'double_linear_con', 'middle_drop' or 'double_middle_drop')
+        'double_linear_con', 'middle_drop' or 'double_middle_drop')
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     """

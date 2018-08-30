@@ -87,3 +87,4 @@ Parameters
 
 .. autoclass:: PPO2
   :members:
+  :inherited-members:

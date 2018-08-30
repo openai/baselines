@@ -9,7 +9,7 @@ For download links, please look at `Github release page <https://github.com/hill
 Master version 1.0.8.a0 (WIP)
 =============================
 
-Nothing new for now...
+- added more documentation (some modules from common).
 
 Tensorboard support in progress (see ``tensorboard`` branch)
 

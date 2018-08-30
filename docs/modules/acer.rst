@@ -72,3 +72,4 @@ Parameters
 
 .. autoclass:: ACER
   :members:
+  :inherited-members:

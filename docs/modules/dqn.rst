@@ -97,3 +97,4 @@ Parameters
 
 .. autoclass:: DeepQ
   :members:
+  :inherited-members:
