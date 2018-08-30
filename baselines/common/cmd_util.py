@@ -29,7 +29,10 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
         def _thunk():
             env = make_atari(env_id) if env_type == 'atari' else gym.make(env_id)
             env.seed(seed + 10000*mpi_rank + rank if seed is not None else None)
-            env = Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(mpi_rank) + '.' + str(rank)))
+            env = Monitor(env, 
+                          logger.get_dir() and os.path.join(logger.get_dir(), str(mpi_rank) + '.' + str(rank))
+                          allow_early_resets=True)
+
             if env_type == 'atari': return wrap_deepmind(env, **wrapper_kwargs)
             elif reward_scale != 1: return RewardScaler(env, reward_scale)
             else: return env
