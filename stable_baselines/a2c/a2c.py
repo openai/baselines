@@ -17,8 +17,8 @@ class A2C(BaseRLModel):
     :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) Discount factor
-    :param n_steps: (int) The number of steps to run for each environment per update (i.e. batch size is n_steps * n_env where
-        n_env is number of environment copies running in parallel)
+    :param n_steps: (int) The number of steps to run for each environment per update
+        (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)
     :param vf_coef: (float) Value function coefficient for the loss calculation
     :param ent_coef: (float) Entropy coefficient for the loss caculation
     :param max_grad_norm: (float) The maximum value for the gradient clipping

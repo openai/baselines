@@ -66,8 +66,8 @@ class ACER(BaseRLModel):
     :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) The discount value
-    :param n_steps: (int) The number of steps to run for each environment per update (i.e. batch size is n_steps * n_env where
-        n_env is number of environment copies running in parallel)
+    :param n_steps: (int) The number of steps to run for each environment per update
+        (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)
     :param num_procs: (int) The number of threads for TensorFlow operations
     :param q_coef: (float) The weight for the loss on the Q value
     :param ent_coef: (float) The weight for the entropic loss
