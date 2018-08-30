@@ -80,3 +80,4 @@ Parameters
 
 .. autoclass:: PPO1
   :members:
+  :inherited-members:

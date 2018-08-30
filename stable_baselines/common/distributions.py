@@ -87,7 +87,8 @@ class ProbabilityDistributionType(object):
 
     def proba_distribution_from_flat(self, flat):
         """
-        returns the probability distribution from flat probabilities
+        Returns the probability distribution from flat probabilities
+        flat: flattened vector of parameters of probability distribution
 
         :param flat: ([float]) the flat probabilities
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated

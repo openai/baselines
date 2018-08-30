@@ -6,7 +6,7 @@
 Base RL Class
 =============
 
-Common interface for all the RL algorithms.
+Common interface for all the RL algorithms
 
 .. autoclass:: BaseRLModel
   :members:

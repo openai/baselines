@@ -72,3 +72,4 @@ Parameters
 
 .. autoclass:: ACKTR
   :members:
+  :inherited-members:

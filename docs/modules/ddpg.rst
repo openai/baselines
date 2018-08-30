@@ -72,3 +72,4 @@ Parameters
 
 .. autoclass:: DDPG
   :members:
+  :inherited-members:

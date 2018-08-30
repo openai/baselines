@@ -71,3 +71,4 @@ Parameters
 
 .. autoclass:: TRPO
   :members:
+  :inherited-members:

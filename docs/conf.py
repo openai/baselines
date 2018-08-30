@@ -28,11 +28,12 @@ class Mock(MagicMock):
 # Mock modules that requires C modules
 # Note: because of that we cannot test examples using CI
 MOCK_MODULES = ['joblib', 'scipy', 'scipy.signal',
-                'numpy', 'pandas', 'mpi4py', 'mujoco-py', 'cv2', 'tensorflow',
+                'pandas', 'mpi4py', 'mujoco-py', 'cv2', 'tensorflow',
                 'tensorflow.contrib', 'tensorflow.contrib.layers',
                 'tensorflow.python', 'tensorflow.python.client', 'tensorflow.python.ops',
                 'tqdm', 'cloudpickle', 'matplotlib',
-                'seaborn', 'gym', 'gym.spaces', 'zmq']
+                'seaborn', 'gym', 'gym.spaces', 'gym.core',
+                'gym.wrappers', 'zmq']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 import stable_baselines

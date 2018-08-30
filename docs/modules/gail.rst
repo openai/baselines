@@ -93,3 +93,4 @@ Parameters
 
 .. autoclass:: GAIL
   :members:
+  :inherited-members:

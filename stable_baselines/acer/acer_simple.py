@@ -66,7 +66,8 @@ class ACER(BaseRLModel):
     :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) The discount value
-    :param n_steps: (int) The number of steps to run for each environment
+    :param n_steps: (int) The number of steps to run for each environment per update
+        (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)
     :param num_procs: (int) The number of threads for TensorFlow operations
     :param q_coef: (float) The weight for the loss on the Q value
     :param ent_coef: (float) The weight for the entropic loss
@@ -74,16 +75,18 @@ class ACER(BaseRLModel):
     :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
     :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                               'double_linear_con', 'middle_drop' or 'double_middle_drop')
-    :param rprop_epsilon: (float) RMS prop optimizer epsilon
-    :param rprop_alpha: (float) RMS prop optimizer decay
+    :param rprop_epsilon: (float) RMSProp epsilon (stabilizes square root computation in denominator of RMSProp update)
+        (default: 1e-5)
+    :param rprop_alpha: (float) RMSProp decay parameter (default: 0.99)
     :param buffer_size: (int) The buffer size in number of steps
     :param replay_ratio: (float) The number of replay learning per on policy learning on average,
                          using a poisson distribution
     :param replay_start: (int) The minimum number of steps in the buffer, before learning replay
-    :param correction_term: (float) The correction term for the weights
-    :param trust_region: (bool) Enable Trust region policy optimization loss
+    :param correction_term: (float) Importance weight clipping factor (default: 10)
+    :param trust_region: (bool) Whether or not algorithms estimates the gradient KL divergence
+        between the old and updated policy and uses it to determine step size  (default: True)
     :param alpha: (float) The decay rate for the Exponential moving average of the parameters
-    :param delta: (float) trust region delta value
+    :param delta: (float) max KL divergence between the old policy and updated policy (default: 1)
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     """
