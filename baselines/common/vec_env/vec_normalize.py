@@ -21,6 +21,7 @@ class VecNormalize(VecEnvWrapper):
 
     def step_wait(self):
         obs, rews, news, infos = self.venv.step_wait()
+        self.ret = np.array([0. if new else ret for ret, new in zip(self.ret, news)])
         self.ret = self.ret * self.gamma + rews
         obs = self._obfilt(obs)
         if self.ret_rms:
@@ -37,5 +38,6 @@ class VecNormalize(VecEnvWrapper):
             return obs
 
     def reset(self):
+        self.ret = np.zeros(self.num_envs)
         obs = self.venv.reset()
         return self._obfilt(obs)
