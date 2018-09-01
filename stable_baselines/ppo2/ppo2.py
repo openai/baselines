@@ -162,13 +162,13 @@ class PPO2(BaseRLModel):
 
         :param learning_rate: (float) learning rate
         :param cliprange: (float) Clipping factor
-        :param obs: (numpy array) The current observation of the environment
-        :param returns: (numpy array) the rewards
-        :param masks: (numpy array) The last masks for done episodes (used in recurent policies)
-        :param actions: (numpy array) the actions
-        :param values: (numpy array) the values
-        :param neglogpacs: (numpy array) Negative Log-likelihood probability of Actions
-        :param states: (numpy array) For recurrent policies, the internal state of the recurrent model
+        :param obs: (np.ndarray) The current observation of the environment
+        :param returns: (np.ndarray) the rewards
+        :param masks: (np.ndarray) The last masks for done episodes (used in recurent policies)
+        :param actions: (np.ndarray) the actions
+        :param values: (np.ndarray) the values
+        :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of Actions
+        :param states: (np.ndarray) For recurrent policies, the internal state of the recurrent model
         :return: policy gradient loss, value function loss, policy entropy,
                 approximation of kl divergence, updated clipping range, training update operation
         """
@@ -331,13 +331,13 @@ class Runner(AbstractEnvRunner):
         Run a learning step of the model
 
         :return:
-            - observations: (numpy Number) the observations
-            - rewards: (numpy Number) the rewards
+            - observations: (np.ndarray) the observations
+            - rewards: (np.ndarray) the rewards
             - masks: (numpy bool) whether an episode is over or not
-            - actions: (numpy Number) the actions
-            - values: (numpy Number) the value function output
-            - negative log probabilities: (numpy Number)
-            - states: (numpy Number) the internal states of the recurrent policies
+            - actions: (np.ndarray) the actions
+            - values: (np.ndarray) the value function output
+            - negative log probabilities: (np.ndarray)
+            - states: (np.ndarray) the internal states of the recurrent policies
             - infos: (dict) the extra information of the model
         """
         # mb stands for minibatch
@@ -387,8 +387,8 @@ def swap_and_flatten(arr):
     """
     swap and then flatten axes 0 and 1
 
-    :param arr: (numpy array)
-    :return: (numpy array)
+    :param arr: (np.ndarray)
+    :return: (np.ndarray)
     """
     shape = arr.shape
     return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])
@@ -414,7 +414,7 @@ def safe_mean(arr):
     Compute the mean of an array if there is at least one element.
     For empty array, return zero. It is used for logging only.
 
-    :param arr: (numpy array)
+    :param arr: (np.ndarray)
     :return: (float)
     """
     return np.nan if len(arr) == 0 else np.mean(arr)

@@ -46,8 +46,8 @@ class BasePolicy(object):
         Get the action from the policy, using the observation
 
         :param stochastic: (bool) whether or not to use a stochastic or deterministic policy
-        :param obs: (TensorFlow Tensor or numpy Number) the observation
-        :return: (numpy Number, numpy Number) the action and value function
+        :param obs: (TensorFlow Tensor or np.ndarray) the observation
+        :return: (np.ndarray, np.ndarray) the action and value function
         """
         ac1, vpred1 = self._act(stochastic, obs[None], sess=self.sess)
         return ac1[0], vpred1[0]
@@ -73,6 +73,6 @@ class BasePolicy(object):
         """
         Get the initial state
 
-        :return: ([numpy Number]) the initial state
+        :return: ([np.ndarray]) the initial state
         """
         return []

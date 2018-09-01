@@ -14,12 +14,12 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     :param gail: (bool) Whether we are using this generator for standard trpo or with gail
     :return: (dict) generator that returns a dict with the following keys:
 
-        - ob: (numpy Number) observations
+        - ob: (np.ndarray) observations
         - rew: (numpy float) rewards (if gail is used it is the predicted reward)
         - vpred: (numpy float) action logits
         - new: (numpy bool) dones (is end of episode)
-        - ac: (numpy Number) actions
-        - prevac: (numpy Number) previous actions
+        - ac: (np.ndarray) actions
+        - prevac: (np.ndarray) previous actions
         - nextvpred: (numpy float) next action logits
         - ep_rets: (float) cumulated current episode reward
         - ep_lens: (int) the length of the current episode

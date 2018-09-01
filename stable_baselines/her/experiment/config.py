@@ -145,9 +145,9 @@ def simple_goal_subtract(vec_a, vec_b):
     """
     checks if a and b have the same shape, and does a - b
 
-    :param vec_a: (numpy array)
-    :param vec_b: (numpy array)
-    :return: (numpy array) a - b
+    :param vec_a: (np.ndarray)
+    :param vec_b: (np.ndarray)
+    :return: (np.ndarray) a - b
     """
     assert vec_a.shape == vec_b.shape
     return vec_a - vec_b

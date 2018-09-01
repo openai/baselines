@@ -123,7 +123,7 @@ class Buffer(object):
         """
         Reads a frame from a list and index for the asked environment ids
         
-        :param arr: (numpy array) the array that is read
+        :param arr: (np.ndarray) the array that is read
         :param idx: ([int]) the idx that are read
         :param envx: ([int]) the idx for the environments
         :return: ([float]) the askes frames from the list

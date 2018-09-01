@@ -28,7 +28,7 @@ class RingBuffer(object):
         get the value at the indexes
 
         :param idxs: (int or numpy int) the indexes
-        :return: (numpy Any) the stored information in the buffer at the asked positions
+        :return: (np.ndarray) the stored information in the buffer at the asked positions
         """
         return self.data[(self.start + idxs) % self.maxlen]
 
@@ -36,7 +36,7 @@ class RingBuffer(object):
         """
         Append an object to the buffer
 
-        :param var: (numpy Any) the object you wish to add
+        :param var: (np.ndarray) the object you wish to add
         """
         if self.length < self.maxlen:
             # We have space, simply increase the length.
@@ -52,10 +52,10 @@ class RingBuffer(object):
 
 def array_min2d(arr):
     """
-    cast to numpy array, and make sure it is of 2 dim
+    cast to np.ndarray, and make sure it is of 2 dim
 
     :param arr: ([Any]) the array to clean
-    :return: (numpy Any) the cleaned array
+    :return: (np.ndarray) the cleaned array
     """
     arr = np.array(arr)
     if arr.ndim >= 2:
