@@ -16,7 +16,7 @@ That is to say, your environment must implement the following methods (and inher
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, arg):
+    def __init__(self, arg1, arg2, ...):
       super(CustomEnv, self).__init__()
       # Define action and observation space
       # They must be gym.spaces objects
@@ -34,7 +34,18 @@ That is to say, your environment must implement the following methods (and inher
       ...
 
 
-You can find a `complete guide online <https://github.com/openai/gym/tree/master/gym/envs#how-to-create-new-environments-for-gym>`_.
+Then you can define and train a RL agent with:
+
+.. code-block:: python
+
+  # Instantiate and wrap the env
+  env = DummyVecEnv([lambda: CustomEnv(arg1, ...)])
+  # Define and Train the agent
+  model = A2C(CnnPolicy, env).learn(total_timesteps=1000)
+
+
+You can find a `complete guide online <https://github.com/openai/gym/tree/master/gym/envs#how-to-create-new-environments-for-gym>`_
+on creating a custom Gym environment.
 
 
 Optionnaly, you can also register the environment with gym,
@@ -42,6 +53,5 @@ that will allow you to create the RL agent in one line (and use ``gym.make()`` t
 
 
 In the project, for testing purposes, we use a custom environment named ``IdentityEnv``
-defined `in this file <https://github.com/hill-a/stable-baselines/blob/master/stable_baselines/common/identity_env.py>`_
-
+defined `in this file <https://github.com/hill-a/stable-baselines/blob/master/stable_baselines/common/identity_env.py>`_.
 An example of how to use it can be found `here <https://github.com/hill-a/stable-baselines/blob/master/tests/test_identity.py>`_.
