@@ -7,7 +7,7 @@ Welcome to Stable Baselines docs!
 ============================================
 
 `Stable Baselines <https://github.com/hill-a/stable-baselines>`_ is a set of improved implementations
-of reinforcement learning algorithms based on OpenAI `Baselines <https://github.com/openai/baselines>`_.
+of Reinforcement Learning (RL) algorithms based on OpenAI `Baselines <https://github.com/openai/baselines>`_.
 
 Github repository: https://github.com/hill-a/stable-baselines
 
@@ -92,7 +92,10 @@ To cite this project in publications:
 Contributing
 ------------
 
-To any interested in making the baselines better, there is still some documentation/improvements that needs to be done.
+To any interested in making the rl baselines better, there is still some improvements
+that needs to be done: good-to-have features like tensorboard integration or support for continuous actions (ACER)
+and more documentation on the rl algorithms.
+
 If you want to contribute, please open an issue first and then propose your pull request on Github at
 https://github.com/hill-a/stable-baselines.
 

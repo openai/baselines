@@ -9,6 +9,7 @@ Master version 1.0.8.a0 (WIP)
 -----------------------------
 
 - added more documentation (some modules from common).
+- added doc about using custom env
 
 Tensorboard support in progress (see ``tensorboard`` branch)
 
