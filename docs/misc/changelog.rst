@@ -1,13 +1,12 @@
 .. _changelog:
 
-==========
 Changelog
 ==========
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
 Master version 1.0.8.a0 (WIP)
-=============================
+-----------------------------
 
 - added more documentation (some modules from common).
 
@@ -15,7 +14,7 @@ Tensorboard support in progress (see ``tensorboard`` branch)
 
 
 Release 1.0.7 (2018-08-29)
-===========================
+--------------------------
 
 **Bug fixes and documentation**
 
@@ -26,7 +25,7 @@ Release 1.0.7 (2018-08-29)
 
 
 Release 1.0.1 (2018-08-20)
-==========================
+--------------------------
 
 **Refactored Stable Baselines**
 
@@ -60,7 +59,7 @@ Future Work :
 
 
 Release 0.1.6 (2018-07-27)
-==========================
+--------------------------
 
 **Deobfuscation of the code base + pep8 and fixes**
 

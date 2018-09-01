@@ -37,6 +37,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
    guide/algos
    guide/examples
    guide/vec_envs
+   guide/custom_env
 
 
 .. toctree::
@@ -69,7 +70,8 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
   :maxdepth: 1
   :caption: Misc
 
-  changelog
+  misc/changelog
+  misc/results_plotter
 
 
 Citing Stable Baselines

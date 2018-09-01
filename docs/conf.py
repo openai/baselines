@@ -31,7 +31,7 @@ MOCK_MODULES = ['joblib', 'scipy', 'scipy.signal',
                 'pandas', 'mpi4py', 'mujoco-py', 'cv2', 'tensorflow',
                 'tensorflow.contrib', 'tensorflow.contrib.layers',
                 'tensorflow.python', 'tensorflow.python.client', 'tensorflow.python.ops',
-                'tqdm', 'cloudpickle', 'matplotlib',
+                'tqdm', 'cloudpickle', 'matplotlib', 'matplotlib.pyplot',
                 'seaborn', 'gym', 'gym.spaces', 'gym.core',
                 'gym.wrappers', 'zmq']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
