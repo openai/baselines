@@ -17,7 +17,7 @@ class RunningStat(object):
         """
         update the running mean and std
 
-        :param value: (numpy Number) the data
+        :param value: (np.ndarray) the data
         """
         value = np.asarray(value)
         assert value.shape == self._mean.shape

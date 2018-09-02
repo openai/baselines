@@ -40,7 +40,7 @@ class DDPG(object):
         :param scope: (str) the scope used for the TensorFlow graph
         :param time_horizon: (int) the time horizon for rollouts
         :param rollout_batch_size: (int) number of parallel rollouts per DDPG agent
-        :param subtract_goals: (function (numpy Number, numpy Number): numpy Number) function that subtracts goals
+        :param subtract_goals: (function (np.ndarray, np.ndarray): np.ndarray) function that subtracts goals
             from each other
         :param relative_goals: (boolean) whether or not relative goals should be fed into the network
         :param clip_pos_returns: (boolean) whether or not positive returns should be clipped
@@ -134,9 +134,9 @@ class DDPG(object):
         """
         return the action from an observation and goal
 
-        :param obs: (numpy Number) the observation
-        :param achieved_goal: (numpy Number) the achieved goal
-        :param goal: (numpy Number) the goal
+        :param obs: (np.ndarray) the observation
+        :param achieved_goal: (np.ndarray) the achieved goal
+        :param goal: (np.ndarray) the goal
         :param noise_eps: (float) the noise epsilon
         :param random_eps: (float) the random epsilon
         :param use_target_net: (bool) whether or not to use the target network
@@ -179,7 +179,7 @@ class DDPG(object):
         """
         Story the episode transitions
 
-        :param episode_batch: (numpy Number) array of batch_size x (T or T+1) x dim_key 'o' is of size T+1,
+        :param episode_batch: (np.ndarray) array of batch_size x (T or T+1) x dim_key 'o' is of size T+1,
             others are of size T
         :param update_stats: (bool) whether to update stats or not
         """

@@ -19,7 +19,7 @@ def mpi_average(value):
     """
     calculate the average from the array, using MPI
 
-    :param value: (numpy Number) the array
+    :param value: (np.ndarray) the array
     :return: (float) the average
     """
     if len(value) == 0:

@@ -16,8 +16,8 @@ class Dset(object):
         """
         Dataset object
 
-        :param inputs: (numpy Number) the input values
-        :param labels: (numpy Number) the target values
+        :param inputs: (np.ndarray) the input values
+        :param labels: (np.ndarray) the target values
         :param randomize: (bool) if the dataset should be shuffled
         """
         self.inputs = inputs
@@ -43,7 +43,7 @@ class Dset(object):
         get the batch from the dataset
 
         :param batch_size: (int) the size of the batch from the dataset
-        :return: (numpy Number, numpy Number) inputs and labels
+        :return: (np.ndarray, np.ndarray) inputs and labels
         """
         # if batch_size is negative -> return all
         if batch_size < 0:
@@ -113,7 +113,7 @@ class MujocoDset(object):
 
         :param batch_size: (int) the size of the batch from the dataset
         :param split: (str) the type of data split (can be None, 'train', 'val')
-        :return: (numpy Number, numpy Number) inputs and labels
+        :return: (np.ndarray, np.ndarray) inputs and labels
         """
         if split is None:
             return self.dset.get_next_batch(batch_size)

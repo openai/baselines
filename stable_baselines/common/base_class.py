@@ -146,10 +146,10 @@ class BaseRLModel(ABC):
         """
         Get the model's action from an observation
 
-        :param observation: (numpy Number) the input observation
-        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
-        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :return: (numpy Number, numpy Number) the model's action and the next state (used in reccurent policies)
+        :param observation: (np.ndarray) the input observation
+        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :return: (np.ndarray, np.ndarray) the model's action and the next state (used in reccurent policies)
         """
         pass
 
@@ -158,10 +158,10 @@ class BaseRLModel(ABC):
         """
         Get the model's action probability distribution from an observation
 
-        :param observation: (numpy Number) the input observation
-        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
-        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :return: (numpy Number) the model's action probability distribution
+        :param observation: (np.ndarray) the input observation
+        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :return: (np.ndarray) the model's action probability distribution
         """
         pass
 

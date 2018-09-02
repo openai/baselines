@@ -65,7 +65,7 @@ class Normalizer:
         """
         update the parameters from the input
 
-        :param arr: (numpy Number) the input
+        :param arr: (np.ndarray) the input
         """
         arr = arr.reshape(-1, self.size)
 
@@ -78,9 +78,9 @@ class Normalizer:
         """
         normalize the input
 
-        :param arr: (numpy Number) the input
+        :param arr: (np.ndarray) the input
         :param clip_range: (float) the range to clip to [-clip_range, clip_range]
-        :return: (numpy Number) normalized input
+        :return: (np.ndarray) normalized input
         """
         if clip_range is None:
             clip_range = self.default_clip_range
@@ -92,8 +92,8 @@ class Normalizer:
         """
         denormalize the input
 
-        :param arr: (numpy Number) the normalized input
-        :return: (numpy Number) original input
+        :param arr: (np.ndarray) the normalized input
+        :return: (np.ndarray) original input
         """
         mean = reshape_for_broadcasting(self.mean, arr)
         std = reshape_for_broadcasting(self.std, arr)
@@ -110,10 +110,10 @@ class Normalizer:
         """
         syncronize over mpi threads
 
-        :param local_sum: (numpy Number) the sum
-        :param local_sumsq: (numpy Number) the square root sum
-        :param local_count: (numpy Number) the number of values updated
-        :return: (numpy Number, numpy Number, numpy Number) the updated local_sum, local_sumsq, and local_count
+        :param local_sum: (np.ndarray) the sum
+        :param local_sumsq: (np.ndarray) the square root sum
+        :param local_count: (np.ndarray) the number of values updated
+        :return: (np.ndarray, np.ndarray, np.ndarray) the updated local_sum, local_sumsq, and local_count
         """
         local_sum[...] = self._mpi_average(local_sum)
         local_sumsq[...] = self._mpi_average(local_sumsq)
@@ -164,7 +164,7 @@ class IdentityNormalizer:
         """
         update the parameters from the input
 
-        :param arr: (numpy Number) the input
+        :param arr: (np.ndarray) the input
         """
         pass
 
@@ -172,8 +172,8 @@ class IdentityNormalizer:
         """
         normalize the input
 
-        :param arr: (numpy Number) the input
-        :return: (numpy Number) normalized input
+        :param arr: (np.ndarray) the input
+        :return: (np.ndarray) normalized input
         """
         return arr / self.std
 
@@ -181,8 +181,8 @@ class IdentityNormalizer:
         """
         denormalize the input
 
-        :param arr: (numpy Number) the normalized input
-        :return: (numpy Number) original input
+        :param arr: (np.ndarray) the normalized input
+        :return: (np.ndarray) original input
         """
         return self.std * arr
 

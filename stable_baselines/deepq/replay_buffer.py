@@ -56,10 +56,10 @@ class ReplayBuffer(object):
 
         :param batch_size: (int) How many transitions to sample.
         :return:
-            - obs_batch: (numpy Any) batch of observations
+            - obs_batch: (np.ndarray) batch of observations
             - act_batch: (numpy float) batch of actions executed given obs_batch
             - rew_batch: (numpy float) rewards received as results of executing act_batch
-            - next_obs_batch: (numpy Any) next set of observations seen after executing act_batch
+            - next_obs_batch: (np.ndarray) next set of observations seen after executing act_batch
             - done_mask: (numpy bool) done_mask[i] = 1 if executing act_batch[i] resulted in the end of an episode
                 and 0 otherwise.
         """
@@ -125,10 +125,10 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         :param batch_size: (int) How many transitions to sample.
         :param beta: (float) To what degree to use importance weights (0 - no corrections, 1 - full correction)
         :return:
-            - obs_batch: (numpy Any) batch of observations
+            - obs_batch: (np.ndarray) batch of observations
             - act_batch: (numpy float) batch of actions executed given obs_batch
             - rew_batch: (numpy float) rewards received as results of executing act_batch
-            - next_obs_batch: (numpy Any) next set of observations seen after executing act_batch
+            - next_obs_batch: (np.ndarray) next set of observations seen after executing act_batch
             - done_mask: (numpy bool) done_mask[i] = 1 if executing act_batch[i] resulted in the end of an episode
                 and 0 otherwise.
             - weights: (numpy float) Array of shape (batch_size,) and dtype np.float32 denoting importance weight of
