@@ -418,6 +418,10 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         errors = tf_utils.huber_loss(td_error)
         weighted_error = tf.reduce_mean(importance_weights_ph * errors)
 
+        tf.summary.scalar("td_error", tf.reduce_mean(td_error))
+        tf.summary.histogram("td_error", td_error)
+        tf.summary.scalar("loss", weighted_error)
+
         # update_target_fn will be called periodically to copy Q network to target Q network
         update_target_expr = []
         for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
@@ -432,7 +436,19 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
                 if grad is not None:
                     gradients[i] = (tf.clip_by_norm(grad, grad_norm_clipping), var)
 
+    with tf.variable_scope("info", reuse=False):
+        tf.summary.scalar('rewards', tf.reduce_mean(rew_t_ph))
+        tf.summary.histogram('rewards', rew_t_ph)
+        tf.summary.scalar('importance_weights', tf.reduce_mean(importance_weights_ph))
+        tf.summary.histogram('importance_weights', importance_weights_ph)
+        if len(obs_t_input.processed_inpt.shape) == 3:
+            tf.summary.image('observation', obs_t_input.processed_inpt)
+        else:
+            tf.summary.histogram('observation', obs_t_input.processed_inpt)
+
     optimize_expr = optimizer.apply_gradients(gradients)
+
+    summary = tf.summary.merge_all()
 
     # Create callable functions
     train = tf_utils.function(
@@ -444,7 +460,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
             done_mask_ph,
             importance_weights_ph
         ],
-        outputs=td_error,
+        outputs=[summary, td_error],
         updates=[optimize_expr]
     )
     update_target = tf_utils.function([], [], updates=[update_target_expr])

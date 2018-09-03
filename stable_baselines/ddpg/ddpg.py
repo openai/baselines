@@ -571,7 +571,7 @@ class DDPG(BaseRLModel):
             self.param_noise_stddev: 0 if self.param_noise is None else self.param_noise.current_stddev
         }
 
-        if step % 10 == 0 and step >= 1:
+        if step % 100 == 0 and step >= 1:
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
             summary, actor_grads, actor_loss, critic_grads, critic_loss = \

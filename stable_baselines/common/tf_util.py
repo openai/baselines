@@ -272,7 +272,7 @@ class _Function(object):
         else:
             feed_dict[inpt] = value
 
-    def __call__(self, *args, sess=None):
+    def __call__(self, *args, sess=None, **kwargs):
         assert len(args) <= len(self.inputs), "Too many arguments provided"
         if sess is None:
             sess = tf.get_default_session()
@@ -283,7 +283,7 @@ class _Function(object):
         # Update feed dict with givens.
         for inpt in self.givens:
             feed_dict[inpt] = feed_dict.get(inpt, self.givens[inpt])
-        results = sess.run(self.outputs_update, feed_dict=feed_dict)[:-1]
+        results = sess.run(self.outputs_update, feed_dict=feed_dict, **kwargs)[:-1]
         return results
 
 

@@ -94,6 +94,7 @@ class DeepQ(BaseRLModel):
         self.exploration = None
         self.params = None
         self.writer = None
+        self.summary = None
 
         if _init_setup_model:
             self.setup_model()
@@ -139,6 +140,8 @@ class DeepQ(BaseRLModel):
                 # Initialize the parameters and copy them to the target network.
                 tf_util.initialize(self.sess)
                 self.update_target(sess=self.sess)
+
+                self.summary = tf.summary.merge_all()
 
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
@@ -211,8 +214,22 @@ class DeepQ(BaseRLModel):
                     else:
                         obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
                         weights, batch_idxes = np.ones_like(rewards), None
-                    td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
-                                                 sess=self.sess)
+
+                    if step % 100 == 99:
+                        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                        run_metadata = tf.RunMetadata()
+                        summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
+                                                              sess=self.sess, options=run_options,
+                                                              run_metadata=run_metadata)
+                        if self.writer is not None:
+                            self.writer.add_run_metadata(run_metadata, 'step%d' % step)
+                    else:
+                        summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
+                                                              sess=self.sess)
+
+                    if self.writer is not None:
+                        self.writer.add_summary(summary, step)
+
                     if self.prioritized_replay:
                         new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
                         self.replay_buffer.update_priorities(batch_idxes, new_priorities)
