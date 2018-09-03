@@ -346,7 +346,7 @@ class Logger(object):
 
 Logger.DEFAULT = Logger.CURRENT = Logger(dir=None, output_formats=[HumanOutputFormat(sys.stdout)])
 
-def configure(dir=None, format_strs=None):
+def configure(dir=None, format_strs=None, custom_output_formats=None):
     if dir is None:
         dir = os.getenv('OPENAI_LOGDIR')
     if dir is None:
@@ -368,6 +368,12 @@ def configure(dir=None, format_strs=None):
             format_strs = os.getenv('OPENAI_LOG_FORMAT_MPI', 'log').split(',')
     format_strs = filter(None, format_strs)
     output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
+
+    if custom_output_formats is not None:
+        assert isinstance(custom_output_formats, list)
+        for custom_output_format in custom_output_formats:
+            assert isinstance(custom_output_format, KVWriter)
+        output_formats.extend(custom_output_formats)
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
     log('Logging to %s'%dir)
