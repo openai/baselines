@@ -135,7 +135,8 @@ class PPO2(BaseRLModel):
                     self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
                     ratio = tf.exp(self.old_neglog_pac_ph - neglogpac)
                     pg_losses = -self.advs_ph * ratio
-                    pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 + self.clip_range_ph)
+                    pg_losses2 = -self.advs_ph * tf.clip_by_value(ratio, 1.0 - self.clip_range_ph, 1.0 +
+                                                                  self.clip_range_ph)
                     self.pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
                     self.approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - self.old_neglog_pac_ph))
                     self.clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), self.clip_range_ph)))
@@ -172,7 +173,7 @@ class PPO2(BaseRLModel):
                     tf.summary.histogram('old_neglog_pac', self.old_neglog_pac_ph)
                     tf.summary.scalar('old_vpred', tf.reduce_mean(self.old_vpred_ph))
                     tf.summary.histogram('old_vpred', self.old_vpred_ph)
-                    if len(self.env.observation_space.shape) == 3:
+                    if len(self.observation_space.shape) == 3:
                         tf.summary.image('observation', train_model.obs_ph)
                     else:
                         tf.summary.histogram('observation', train_model.obs_ph)
@@ -254,7 +255,7 @@ class PPO2(BaseRLModel):
                 assert self.n_batch % self.nminibatches == 0
                 n_batch_train = self.n_batch // self.nminibatches
                 t_start = time.time()
-                frac = 1.0 - update / nupdates
+                frac = 1.0 - (update / (nupdates + 1))
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
                 obs, returns, masks, actions, values, neglogpacs, states, ep_infos = runner.run()  # pylint: disable=E0632
