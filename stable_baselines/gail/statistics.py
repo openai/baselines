@@ -47,7 +47,7 @@ class Stats:
                    ```scalar_keys``` given in ```__init__```
 
         :param writer: (TensorFlow FileWriter) the writer
-        :param values: (TensorFlow Tensor or numpy Number) the input for the summary run
+        :param values: (TensorFlow Tensor or np.ndarray) the input for the summary run
         :param _iter: (Number) the global step value
         """
         if np.sum(np.isnan(values) + 0) != 0:

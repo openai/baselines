@@ -15,29 +15,32 @@ from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_an
 
 
 class PPO1(BaseRLModel):
+    """
+    Proximal Policy Optimization algorithm (MPI version).
+    Paper: https://arxiv.org/abs/1707.06347
+
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param policy: (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) creates the policy
+    :param timesteps_per_actorbatch: (int) timesteps per actor per update
+    :param clip_param: (float) clipping parameter epsilon
+    :param entcoeff: (float) the entropy loss weight
+    :param optim_epochs: (float) the optimizer's number of epochs
+    :param optim_stepsize: (float) the optimizer's stepsize
+    :param optim_batchsize: (int) the optimizer's the batch size
+    :param gamma: (float) discount factor
+    :param lam: (float) advantage estimation
+    :param adam_epsilon: (float) the epsilon value for the adam optimizer
+    :param schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+        'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    """
+
     def __init__(self, policy, env, gamma=0.99, timesteps_per_actorbatch=256, clip_param=0.2, entcoeff=0.01,
                  optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5,
                  schedule='linear', verbose=0, tensorboard_log=None, _init_setup_model=True):
-        """
-        Learning PPO with Stochastic Gradient Descent
 
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param policy: (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) creates the policy
-        :param timesteps_per_actorbatch: (int) timesteps per actor per update
-        :param clip_param: (float) clipping parameter epsilon
-        :param entcoeff: (float) the entropy loss weight
-        :param optim_epochs: (float) the optimizer's number of epochs
-        :param optim_stepsize: (float) the optimizer's stepsize
-        :param optim_batchsize: (int) the optimizer's the batch size
-        :param gamma: (float) discount factor
-        :param lam: (float) advantage estimation
-        :param adam_epsilon: (float) the epsilon value for the adam optimizer
-        :param schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
-                                     'double_linear_con', 'middle_drop' or 'double_middle_drop')
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        """
         super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
         self.gamma = gamma

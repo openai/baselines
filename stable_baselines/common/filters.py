@@ -7,7 +7,7 @@ from .running_stat import RunningStat
 
 class Filter(object):
     """
-    takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+    takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
     Can pass kwarg: 'update' (bool) if the filter can update from the value
     """
@@ -34,7 +34,7 @@ class IdentityFilter(Filter):
     """
     A filter that implements an identity function
 
-    takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+    takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
     Can pass kwarg: 'update' (bool) if the filter can update from the value
     """
@@ -50,7 +50,7 @@ class CompositionFilter(Filter):
         """
         A filter that implements a composition with other functions
 
-        takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+        takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
 
@@ -77,7 +77,7 @@ class ZFilter(Filter):
         y = (x-mean)/std
         using running estimates of mean,std
 
-        takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+        takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
 
@@ -112,7 +112,7 @@ class AddClock(Filter):
         """
         A filter that appends a counter to the input
 
-        takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+        takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
         """
@@ -132,7 +132,7 @@ class FlattenFilter(Filter):
     """
     A filter that flattens the input
 
-    takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+    takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
     Can pass kwarg: 'update' (bool) if the filter can update from the value
     """
@@ -148,7 +148,7 @@ class Ind2OneHotFilter(Filter):
         """
         A filter that turns indices to onehot encoding
 
-        takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+        takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
 
@@ -170,7 +170,7 @@ class DivFilter(Filter):
         """
         A filter that divides the input from a value
 
-        takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+        takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
 
@@ -190,7 +190,7 @@ class StackFilter(Filter):
         """
         A filter that runs a stacking of a 'length' inputs
 
-        takes a value 'x' (numpy Number), applies the filter, and returns the new value.
+        takes a value 'x' (np.ndarray), applies the filter, and returns the new value.
 
         Can pass kwarg: 'update' (bool) if the filter can update from the value
 

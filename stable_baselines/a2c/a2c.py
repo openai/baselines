@@ -11,29 +11,33 @@ from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trai
 
 
 class A2C(BaseRLModel):
+    """
+    The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
+
+    :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) Discount factor
+    :param n_steps: (int) The number of steps to run for each environment per update
+        (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)
+    :param vf_coef: (float) Value function coefficient for the loss calculation
+    :param ent_coef: (float) Entropy coefficient for the loss caculation
+    :param max_grad_norm: (float) The maximum value for the gradient clipping
+    :param learning_rate: (float) The learning rate
+    :param alpha: (float)  RMSProp decay parameter (default: 0.99)
+    :param epsilon: (float) RMSProp epsilon (stabilizes square root computation in denominator of RMSProp update)
+        (default: 1e-5)
+    :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                              'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+                              (used only for loading)
+    """
+
     def __init__(self, policy, env, gamma=0.99, n_steps=5, vf_coef=0.25, ent_coef=0.01, max_grad_norm=0.5,
                  learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
-        """
-        The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
-        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) Discount factor
-        :param n_steps: (int) The number of steps to run for each environment
-        :param vf_coef: (float) Value function coefficient for the loss calculation
-        :param ent_coef: (float) Entropy coefficient for the loss caculation
-        :param max_grad_norm: (float) The maximum value for the gradient clipping
-        :param learning_rate: (float) The learning rate
-        :param alpha: (float) RMS prop optimizer decay
-        :param epsilon: (float) RMS prop optimizer epsilon
-        :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
-                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-            (used only for loading)
-        """
         super(A2C, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         self.n_steps = n_steps

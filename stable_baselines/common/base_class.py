@@ -12,15 +12,17 @@ from stable_baselines import logger
 
 
 class BaseRLModel(ABC):
+    """
+    The base RL model
+
+    :param policy: (Object) Policy object
+    :param env: (Gym environment) The environment to learn from
+                (if registered in Gym, can be str. Can be None for loading trained models)
+    :param requires_vec_env: (bool)
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    """
+
     def __init__(self, policy, env, requires_vec_env, verbose=0):
-        """
-        The base RL model
-        :param policy: (Object) Policy object
-        :param env: (Gym environment) The environment to learn from
-            (if registered in Gym, can be str. Can be None for loading trained models)
-        :param requires_vec_env: (bool)
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        """
         super(BaseRLModel, self).__init__()
 
         self.policy = policy
@@ -144,10 +146,10 @@ class BaseRLModel(ABC):
         """
         Get the model's action from an observation
 
-        :param observation: (numpy Number) the input observation
-        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
-        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :return: (numpy Number, numpy Number) the model's action and the next state (used in reccurent policies)
+        :param observation: (np.ndarray) the input observation
+        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :return: (np.ndarray, np.ndarray) the model's action and the next state (used in reccurent policies)
         """
         pass
 
@@ -156,10 +158,10 @@ class BaseRLModel(ABC):
         """
         Get the model's action probability distribution from an observation
 
-        :param observation: (numpy Number) the input observation
-        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
-        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :return: (numpy Number) the model's action probability distribution
+        :param observation: (np.ndarray) the input observation
+        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :return: (np.ndarray) the model's action probability distribution
         """
         pass
 

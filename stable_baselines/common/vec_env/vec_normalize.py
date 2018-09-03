@@ -8,7 +8,7 @@ from stable_baselines.common.running_mean_std import RunningMeanStd
 
 class VecNormalize(VecEnvWrapper):
     """
-    A rolling average, normalizing wrapper for vectorized environment.
+    A moving average, normalizing wrapper for vectorized environment.
     has support for saving/loading moving average,
 
     :param venv: (VecEnv) the vectorized environment to wrap

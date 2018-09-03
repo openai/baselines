@@ -248,7 +248,7 @@ class LazyFrames(object):
         It exists purely to optimize memory usage which can be huge for DQN's 1M frames replay
         buffers.
 
-        This object should only be converted to numpy array before being passed to the model.
+        This object should only be converted to np.ndarray before being passed to the model.
 
         :param frames: ([int] or [float]) environment frames
         """

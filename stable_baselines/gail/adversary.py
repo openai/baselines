@@ -124,9 +124,9 @@ class TransitionClassifier(object):
         """
         get the reward using the observation and action
 
-        :param obs: (TensorFlow Tensor or numpy Number) the observation
-        :param actions: (TensorFlow Tensor or numpy Number) the action
-        :return: (numpy Number) the reward
+        :param obs: (TensorFlow Tensor or np.ndarray) the observation
+        :param actions: (TensorFlow Tensor or np.ndarray) the action
+        :return: (np.ndarray) the reward
         """
         sess = tf.get_default_session()
         if len(obs.shape) == 1:

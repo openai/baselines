@@ -5,13 +5,14 @@ from stable_baselines.common.vec_env import VecEnvWrapper
 
 
 class VecFrameStack(VecEnvWrapper):
-    def __init__(self, venv, n_stack):
-        """
-        Frame stacking wrapper for vectorized environment
+    """
+    Frame stacking wrapper for vectorized environment
 
-        :param venv: (VecEnv) the vectorized environment to wrap
-        :param n_stack: (int) Number of frames to stack
-        """
+    :param venv: (VecEnv) the vectorized environment to wrap
+    :param n_stack: (int) Number of frames to stack
+    """
+    
+    def __init__(self, venv, n_stack):
         self.venv = venv
         self.n_stack = n_stack
         wrapped_obs_space = venv.observation_space

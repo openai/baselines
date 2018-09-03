@@ -46,7 +46,7 @@ class RunningMeanStd(object):
         """
         update the running mean and std
 
-        :param data: (numpy Number) the data
+        :param data: (np.ndarray) the data
         """
         data = data.astype('float64')
         data_size = int(np.prod(self.shape))

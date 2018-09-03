@@ -28,14 +28,15 @@ class NotSteppingError(Exception):
 
 
 class VecEnv(ABC):
-    def __init__(self, num_envs, observation_space, action_space):
-        """
-        An abstract asynchronous, vectorized environment.
+    """
+    An abstract asynchronous, vectorized environment.
 
-        :param num_envs: (int) the number of environments
-        :param observation_space: (Gym Space) the observation space
-        :param action_space: (Gym Space) the action space
-        """
+    :param num_envs: (int) the number of environments
+    :param observation_space: (Gym Space) the observation space
+    :param action_space: (Gym Space) the action space
+    """
+
+    def __init__(self, num_envs, observation_space, action_space):
         self.num_envs = num_envs
         self.observation_space = observation_space
         self.action_space = action_space
@@ -109,14 +110,15 @@ class VecEnv(ABC):
 
 
 class VecEnvWrapper(VecEnv):
-    def __init__(self, venv, observation_space=None, action_space=None):
-        """
-        Vectorized environment base class
+    """
+    Vectorized environment base class
 
-        :param venv: (VecEnv) the vectorized environment to wrap
-        :param observation_space: (Gym Space) the observation space (can be None to load from venv)
-        :param action_space: (Gym Space) the action space (can be None to load from venv)
-        """
+    :param venv: (VecEnv) the vectorized environment to wrap
+    :param observation_space: (Gym Space) the observation space (can be None to load from venv)
+    :param action_space: (Gym Space) the action space (can be None to load from venv)
+    """
+
+    def __init__(self, venv, observation_space=None, action_space=None):
         self.venv = venv
         VecEnv.__init__(self, num_envs=venv.num_envs, observation_space=observation_space or venv.observation_space,
                         action_space=action_space or venv.action_space)

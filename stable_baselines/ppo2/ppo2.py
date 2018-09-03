@@ -13,28 +13,33 @@ from stable_baselines.common.policies import LstmPolicy
 
 
 class PPO2(BaseRLModel):
+    """
+    Proximal Policy Optimization algorithm (GPU version).
+    Paper: https://arxiv.org/abs/1707.06347
+
+    :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) Discount factor
+    :param n_steps: (int) The number of steps to run for each environment per update
+        (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)
+    :param ent_coef: (float) Entropy coefficient for the loss caculation
+    :param learning_rate: (float or callable) The learning rate, it can be a function
+    :param vf_coef: (float) Value function coefficient for the loss calculation
+    :param max_grad_norm: (float) The maximum value for the gradient clipping
+    :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
+    :param nminibatches: (int) Number of training minibatches per update. For recurrent policies,
+        should be smaller or equal than number of environments run in parallel.
+    :param noptepochs: (int) Number of epoch when optimizing the surrogate
+    :param cliprange: (float or callable) Clipping parameter, it can be a function
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    """
+
     def __init__(self, policy, env, gamma=0.99, n_steps=128, ent_coef=0.01, learning_rate=2.5e-4, vf_coef=0.5,
                  max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0,
                  tensorboard_log=None, _init_setup_model=True):
-        """
-        Return a trained PPO2 model.
 
-        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) Discount factor
-        :param n_steps: (int) The number of steps to run for each environment
-        :param ent_coef: (float) Entropy coefficient for the loss caculation
-        :param learning_rate: (float or callable) The learning rate, it can be a function
-        :param vf_coef: (float) Value function coefficient for the loss calculation
-        :param max_grad_norm: (float) The maximum value for the gradient clipping
-        :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
-        :param nminibatches: (int) Number of minibatches for the policies
-        :param noptepochs: (int) Number of epoch when optimizing the surrogate
-        :param cliprange: (float or callable) Clipping parameter, it can be a function
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        """
         super(PPO2, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         if isinstance(learning_rate, float):
@@ -198,14 +203,14 @@ class PPO2(BaseRLModel):
 
         :param learning_rate: (float) learning rate
         :param cliprange: (float) Clipping factor
-        :param obs: (numpy array) The current observation of the environment
-        :param returns: (numpy array) the rewards
-        :param masks: (numpy array) The last masks for done episodes (used in recurent policies)
-        :param actions: (numpy array) the actions
-        :param values: (numpy array) the values
-        :param neglogpacs: (numpy array) Negative Log-likelihood probability of Actions
+        :param obs: (np.ndarray) The current observation of the environment
+        :param returns: (np.ndarray) the rewards
+        :param masks: (np.ndarray) The last masks for done episodes (used in recurent policies)
+        :param actions: (np.ndarray) the actions
+        :param values: (np.ndarray) the values
+        :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of Actions
         :param update: (int) the current step iteration
-        :param states: (numpy array) For recurrent policies, the internal state of the recurrent model
+        :param states: (np.ndarray) For recurrent policies, the internal state of the recurrent model
         :return: policy gradient loss, value function loss, policy entropy,
                 approximation of kl divergence, updated clipping range, training update operation
         """
@@ -397,13 +402,13 @@ class Runner(AbstractEnvRunner):
         Run a learning step of the model
 
         :return:
-            - observations: (numpy Number) the observations
-            - rewards: (numpy Number) the rewards
+            - observations: (np.ndarray) the observations
+            - rewards: (np.ndarray) the rewards
             - masks: (numpy bool) whether an episode is over or not
-            - actions: (numpy Number) the actions
-            - values: (numpy Number) the value function output
-            - negative log probabilities: (numpy Number)
-            - states: (numpy Number) the internal states of the recurrent policies
+            - actions: (np.ndarray) the actions
+            - values: (np.ndarray) the value function output
+            - negative log probabilities: (np.ndarray)
+            - states: (np.ndarray) the internal states of the recurrent policies
             - infos: (dict) the extra information of the model
         """
         # mb stands for minibatch
@@ -453,8 +458,8 @@ def swap_and_flatten(arr):
     """
     swap and then flatten axes 0 and 1
 
-    :param arr: (numpy array)
-    :return: (numpy array)
+    :param arr: (np.ndarray)
+    :return: (np.ndarray)
     """
     shape = arr.shape
     return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])
@@ -480,7 +485,7 @@ def safe_mean(arr):
     Compute the mean of an array if there is at least one element.
     For empty array, return zero. It is used for logging only.
 
-    :param arr: (numpy array)
+    :param arr: (np.ndarray)
     :return: (float)
     """
     return np.nan if len(arr) == 0 else np.mean(arr)

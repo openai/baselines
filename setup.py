@@ -1,19 +1,21 @@
 from setuptools import setup, find_packages
 import sys
 
+from stable_baselines import __version__
+
 if sys.version_info.major != 3:
     print('This Python is only compatible with Python 3, but you are running '
           'Python {}. The installation will likely fail.'.format(sys.version_info.major))
 
 
 long_description = """
-[![Build Status](https://travis-ci.com/hill-a/stable-baselines.svg?branch=stable)](https://travis-ci.com/hill-a/stable-baselines) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hill-a/stable-baselines&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&utm_medium=referral&utm_content=hill-a/stable-baselines&utm_campaign=Badge_Coverage)
+[![Build Status](https://travis-ci.com/hill-a/stable-baselines.svg?branch=master)](https://travis-ci.com/hill-a/stable-baselines) [![Documentation Status](https://readthedocs.org/projects/stable-baselines/badge/?version=master)](https://stable-baselines.readthedocs.io/en/master/?badge=master) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hill-a/stable-baselines&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&utm_medium=referral&utm_content=hill-a/stable-baselines&utm_campaign=Badge_Coverage)
 
-# Stable Baselines  
+# Stable Baselines
 
-Stable Baselines is a set of improved implementations of reinforcement learning algorithms based on OpenAI [Baselines](https://github.com/openai/baselines/).   
+Stable Baselines is a set of improved implementations of reinforcement learning algorithms based on OpenAI [Baselines](https://github.com/openai/baselines/).
 
-These algorithms will make it easier for the research community and industry to replicate, refine, and identify new ideas, and will create good baselines to build projects on top of. We expect these tools will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. We also hope that the simplicity of these tools will allow beginners to experiment with a more advanced toolset, without being buried in implementation details.   
+These algorithms will make it easier for the research community and industry to replicate, refine, and identify new ideas, and will create good baselines to build projects on top of. We expect these tools will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. We also hope that the simplicity of these tools will allow beginners to experiment with a more advanced toolset, without being buried in implementation details.
 
 ## Main differences with OpenAI Baselines
 This toolset is a fork of OpenAI Baselines, with a major structural refactoring, and code cleanups:
@@ -25,11 +27,14 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 
 ## Links
 
-Repository:   
-https://github.com/hill-a/stable-baselines  
-  
-Medium article:   
+Repository:
+https://github.com/hill-a/stable-baselines
+
+Medium article:
 https://medium.com/@araffin/df87c4b2fc82
+
+Documentation:
+https://stable-baselines.readthedocs.io/en/master/
 
 ## Quick example
 
@@ -100,7 +105,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version='1.0.6',
+      version=__version__,
       )
 
 # python setup.py sdist

@@ -60,38 +60,43 @@ def q_retrace(rewards, dones, q_i, values, rho_i, n_envs, n_steps, gamma):
 
 
 class ACER(BaseRLModel):
+    """
+    The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
+
+    :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) The discount value
+    :param n_steps: (int) The number of steps to run for each environment per update
+        (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)
+    :param num_procs: (int) The number of threads for TensorFlow operations
+    :param q_coef: (float) The weight for the loss on the Q value
+    :param ent_coef: (float) The weight for the entropic loss
+    :param max_grad_norm: (float) The clipping value for the maximum gradient
+    :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
+    :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
+                              'double_linear_con', 'middle_drop' or 'double_middle_drop')
+    :param rprop_epsilon: (float) RMSProp epsilon (stabilizes square root computation in denominator of RMSProp update)
+        (default: 1e-5)
+    :param rprop_alpha: (float) RMSProp decay parameter (default: 0.99)
+    :param buffer_size: (int) The buffer size in number of steps
+    :param replay_ratio: (float) The number of replay learning per on policy learning on average,
+                         using a poisson distribution
+    :param replay_start: (int) The minimum number of steps in the buffer, before learning replay
+    :param correction_term: (float) Importance weight clipping factor (default: 10)
+    :param trust_region: (bool) Whether or not algorithms estimates the gradient KL divergence
+        between the old and updated policy and uses it to determine step size  (default: True)
+    :param alpha: (float) The decay rate for the Exponential moving average of the parameters
+    :param delta: (float) max KL divergence between the old policy and updated policy (default: 1)
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    """
+
     def __init__(self, policy, env, gamma=0.99, n_steps=20, num_procs=1, q_coef=0.5, ent_coef=0.01, max_grad_norm=10,
                  learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5, buffer_size=5000,
                  replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True, alpha=0.99, delta=1,
                  verbose=0, tensorboard_log=None, _init_setup_model=True):
-        """
-        The ACER (Actor-Critic with Experience Replay) model class, https://arxiv.org/abs/1611.01224
 
-        :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) The discount value
-        :param n_steps: (int) The number of steps to run for each environment
-        :param num_procs: (int) The number of threads for TensorFlow operations
-        :param q_coef: (float) The weight for the loss on the Q value
-        :param ent_coef: (float) The weight for the entropic loss
-        :param max_grad_norm: (float) The clipping value for the maximum gradient
-        :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
-        :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
-                                 'double_linear_con', 'middle_drop' or 'double_middle_drop')
-        :param rprop_epsilon: (float) RMS prop optimizer epsilon
-        :param rprop_alpha: (float) RMS prop optimizer decay
-        :param buffer_size: (int) The buffer size in number of steps
-        :param replay_ratio: (float) The number of replay learning per on policy learning on average,
-                                     using a poisson distribution
-        :param replay_start: (int) The minimum number of steps in the buffer, before learning replay
-        :param correction_term: (float) The correction term for the weights
-        :param trust_region: (bool) Enable Trust region policy optimization loss
-        :param alpha: (float) The decay rate for the Exponential moving average of the parameters
-        :param delta: (float) trust region delta value
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        """
         super(ACER, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
 
         self.n_steps = n_steps
@@ -231,8 +236,8 @@ class ACER(BaseRLModel):
                         rho_i = tf.reshape(f_i, [-1, 1]) / (self.mu_ph + eps)
                         rho_i_ = tf.reshape(f_i_, [-1, 1]) / (self.mu_ph + eps)
 
-                        qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, tf.pow(rho_i, 1/self.n_act), self.n_envs,
-                                         self.n_steps, self.gamma)
+                        qret = q_retrace(self.reward_ph, self.done_ph, q_i, value, tf.pow(rho_i, 1/self.n_act),
+                                         self.n_envs, self.n_steps, self.gamma)
                     else:
                         # strip off last step
                         # f is a distribution, chosen to be Gaussian distributions
@@ -270,7 +275,8 @@ class ACER(BaseRLModel):
                     # Truncated importance sampling
                     adv = qret - value
                     log_f = tf.log(f_i + eps)
-                    gain_f = log_f * tf.stop_gradient(adv * tf.minimum(self.correction_term, rho_i))  # [n_envs * n_steps]
+                    # [n_envs * n_steps]
+                    gain_f = log_f * tf.stop_gradient(adv * tf.minimum(self.correction_term, rho_i))
                     loss_f = -tf.reduce_mean(gain_f)
 
                     # Bias correction for the truncation
@@ -472,10 +478,10 @@ class ACER(BaseRLModel):
         """
         Get the model's action from an observation
 
-        :param observation: (numpy Number) the input observation
-        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
-        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :return: (numpy Number, numpy Number) the model's action and the next state (used in reccurent policies)
+        :param observation: (np.ndarray) the input observation
+        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :return: (np.ndarray, np.ndarray) the model's action and the next state (used in reccurent policies)
         """
         if state is None:
             state = self.initial_state
@@ -491,10 +497,10 @@ class ACER(BaseRLModel):
         """
         Get the model's action probability distribution from an observation
 
-        :param observation: (numpy Number) the input observation
-        :param state: (numpy Number) The last states (can be None, used in reccurent policies)
-        :param mask: (numpy Number) The last masks (can be None, used in reccurent policies)
-        :return: (numpy Number) the model's action probability distribution
+        :param observation: (np.ndarray) the input observation
+        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :return: (np.ndarray) the model's action probability distribution
         """
         if state is None:
             state = self.initial_state

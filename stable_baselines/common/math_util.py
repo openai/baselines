@@ -8,9 +8,9 @@ def discount(vector, gamma):
         y[t] = x[t] + gamma*x[t+1] + gamma^2*x[t+2] + ... + gamma^k x[t+k],
                 where k = len(x) - t - 1
 
-    :param vector: (numpy array) the input vector
+    :param vector: (np.ndarray) the input vector
     :param gamma: (float) the discount value
-    :return: (numpy Number) the output vector
+    :return: (np.ndarray) the output vector
     """
     assert vector.ndim >= 1
     return scipy.signal.lfilter([1], [1, -gamma], vector[::-1], axis=0)[::-1]
@@ -26,8 +26,8 @@ def explained_variance(y_pred, y_true):
         ev=1  =>  perfect prediction
         ev<0  =>  worse than just predicting zero
 
-    :param y_pred: (numpy Number) the prediction
-    :param y_true: (numpy Number) the expected value
+    :param y_pred: (np.ndarray) the prediction
+    :param y_true: (np.ndarray) the expected value
     :return: (float) explained variance of ypred and y
     """
     assert y_true.ndim == 1 and y_pred.ndim == 1
@@ -45,8 +45,8 @@ def explained_variance_2d(y_pred, y_true):
         ev=1  =>  perfect prediction
         ev<0  =>  worse than just predicting zero
 
-    :param y_pred: (numpy Number) the prediction
-    :param y_true: (numpy Number) the expected value
+    :param y_pred: (np.ndarray) the prediction
+    :param y_true: (np.ndarray) the expected value
     :return: (float) explained variance of ypred and y
     """
     assert y_true.ndim == 2 and y_pred.ndim == 2
@@ -60,8 +60,8 @@ def flatten_arrays(arrs):
     """
     flattens a list of arrays down to 1D
 
-    :param arrs: ([numpy Number]) arrays
-    :return: (numpy Number) 1D flattend array
+    :param arrs: ([np.ndarray]) arrays
+    :return: (np.ndarray) 1D flattend array
     """
     return np.concatenate([arr.flat for arr in arrs])
 
@@ -70,9 +70,9 @@ def unflatten_vector(vec, shapes):
     """
     reshape a flattened array
 
-    :param vec: (numpy Number) 1D arrays
+    :param vec: (np.ndarray) 1D arrays
     :param shapes: (tuple)
-    :return: ([numpy Number]) reshaped array
+    :return: ([np.ndarray]) reshaped array
     """
     i = 0
     arrs = []
@@ -90,10 +90,10 @@ def discount_with_boundaries(rewards, episode_starts, gamma):
         y[t] = x[t] + gamma*x[t+1] + gamma^2*x[t+2] + ... + gamma^k x[t+k],
                 where k = len(x) - t - 1
 
-    :param rewards: (numpy Number) the input vector (rewards)
-    :param episode_starts: (numpy Number) 2d array of bools, indicating when a new episode has started
+    :param rewards: (np.ndarray) the input vector (rewards)
+    :param episode_starts: (np.ndarray) 2d array of bools, indicating when a new episode has started
     :param gamma: (float) the discount factor
-    :return: (numpy Number) the output vector (discounted rewards)
+    :return: (np.ndarray) the output vector (discounted rewards)
     """
     discounted_rewards = np.zeros_like(rewards)
     n_samples = rewards.shape[0]

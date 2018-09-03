@@ -61,7 +61,7 @@ class ReplayBuffer:
         """
         Store an episode in the replay buffer
 
-        :param episode_batch: (numpy Number) batch_size x (T or T+1) x dim_key
+        :param episode_batch: (np.ndarray) batch_size x (T or T+1) x dim_key
         """
         batch_sizes = [len(episode_batch[key]) for key in episode_batch.keys()]
         assert np.all(np.array(batch_sizes) == batch_sizes[0])
