@@ -38,6 +38,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
    guide/examples
    guide/vec_envs
    guide/custom_env
+   guide/tensorboard
 
 
 .. toctree::
@@ -93,7 +94,7 @@ Contributing
 ------------
 
 To any interested in making the rl baselines better, there is still some improvements
-that needs to be done: good-to-have features like tensorboard integration or support for continuous actions (ACER)
+that needs to be done: good-to-have features like support for continuous actions (ACER)
 and more documentation on the rl algorithms.
 
 If you want to contribute, please open an issue first and then propose your pull request on Github at

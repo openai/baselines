@@ -160,4 +160,3 @@ If you want to contribute, please open an issue first and then propose your pull
 Nice to have (for the future):
 - [ ] Continuous actions support for ACER
 - [ ] Continuous actions support for ACKTR
-- [ ] Tensorboard integration (see branch `Tensorboard`)
