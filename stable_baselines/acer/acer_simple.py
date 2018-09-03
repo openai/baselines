@@ -358,6 +358,8 @@ class ACER(BaseRLModel):
                     tf.summary.histogram('rewards', self.reward_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
                     tf.summary.histogram('learning_rate', self.learning_rate)
+                    tf.summary.scalar('advantage', tf.reduce_mean(adv))
+                    tf.summary.histogram('advantage', adv)
                     tf.summary.scalar('action_probabilty', tf.reduce_mean(self.mu_ph))
                     tf.summary.histogram('action_probabilty', self.mu_ph)
                     if len(self.observation_space.shape) == 3:
@@ -397,7 +399,7 @@ class ACER(BaseRLModel):
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
-    def _train_step(self, obs, actions, rewards, dones, mus, states, masks, steps):
+    def _train_step(self, obs, actions, rewards, dones, mus, states, masks, steps, replay=False):
         """
         applies a training step to the model
 
@@ -408,7 +410,8 @@ class ACER(BaseRLModel):
         :param mus: ([float]) The logits values
         :param states: ([float]) The states (used for reccurent policies)
         :param masks: ([bool]) Whether or not the episode is over (used for reccurent policies)
-        :param steps: (int) the number of steps done so far
+        :param steps: (int) the number of steps done so far (can be None)
+        :param replay: (bool) if using replay buffer
         :return: ([str], [float]) the list of update operation name, and the list of the results of the operations
         """
         cur_lr = self.learning_rate_schedule.value_steps(steps)
@@ -421,7 +424,7 @@ class ACER(BaseRLModel):
             td_map[self.polyak_model.states_ph] = states
             td_map[self.polyak_model.masks_ph] = masks
 
-        if steps % 10 == 9:
+        if not replay and (steps / self.n_batch) % 10 == 9:
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
             step_return = self.sess.run([self.summary] + self.run_ops, td_map, options=run_options,
@@ -432,7 +435,7 @@ class ACER(BaseRLModel):
         else:
             step_return = self.sess.run([self.summary] + self.run_ops, td_map)
 
-        if self.writer is not None:
+        if not replay and self.writer is not None:
             self.writer.add_summary(step_return[0], steps)
 
         return self.names_ops, self.sess.run(self.run_ops, td_map)[2:]  # strip off _train
@@ -502,7 +505,8 @@ class ACER(BaseRLModel):
                         dones = dones.reshape([runner.n_batch])
                         masks = masks.reshape([runner.batch_ob_shape[0]])
 
-                        self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks, steps)
+                        self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks, steps,
+                                         replay=True)
 
         if self.writer is not None:
             self.writer.add_graph(self.graph)

@@ -244,6 +244,7 @@ class DDPG(BaseRLModel):
         self.adaptive_param_noise_actor = None
         self.params = None
         self.writer = None
+        self.summary = None
 
         if _init_setup_model:
             self.setup_model()
@@ -319,6 +320,9 @@ class DDPG(BaseRLModel):
                     q_obs1 = denormalize(self.target_policy.value_fn, self.ret_rms)
                     self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
 
+                    tf.summary.scalar('critic_target', tf.reduce_mean(self.critic_target))
+                    tf.summary.histogram('critic_target', self.critic_target)
+
                     # Set up parts.
                     if self.param_noise is not None:
                         self._setup_param_noise()
@@ -327,14 +331,28 @@ class DDPG(BaseRLModel):
                     self._setup_stats()
                     self._setup_target_network_updates()
 
+                with tf.variable_scope("info", reuse=False):
+                    tf.summary.scalar('rewards', tf.reduce_mean(self.rewards))
+                    tf.summary.histogram('rewards', self.rewards)
+                    tf.summary.scalar('param_noise_stddev', tf.reduce_mean(self.param_noise_stddev))
+                    tf.summary.histogram('param_noise_stddev', self.param_noise_stddev)
+                    if len(self.observation_space.shape) == 3 and self.observation_space.shape[0] in [1, 3, 4]:
+                        tf.summary.image('observation', self.obs_train)
+                    else:
+                        tf.summary.histogram('observation', self.obs_train)
+
                 with tf.variable_scope("Adam_mpi", reuse=False):
                     self._setup_actor_optimizer()
                     self._setup_critic_optimizer()
+                    tf.summary.scalar('actor_loss', self.actor_loss)
+                    tf.summary.scalar('critic_loss', self.critic_loss)
 
                 self.params = find_trainable_variables("model")
 
                 with self.sess.as_default():
                     self._initialize(self.sess)
+
+                self.summary = tf.summary.merge_all()
 
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
@@ -513,13 +531,14 @@ class DDPG(BaseRLModel):
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
-    def _train_step(self):
+    def _train_step(self, step):
         """
         run a step of training from batch
 
+        :param step: (int) the current step iteration
         :return: (float, float) critic loss, actor loss
         """
-        # Get a batch.
+        # Get a batch
         batch = self.memory.sample(batch_size=self.batch_size)
 
         if self.normalize_returns and self.enable_popart:
@@ -543,12 +562,30 @@ class DDPG(BaseRLModel):
             })
 
         # Get all gradients and perform a synced update.
-        ops = [self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss]
-        actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, feed_dict={
+        ops = [self.summary, self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss]
+        td_map = {
             self.obs_train: batch['obs0'],
             self.actions: batch['actions'],
+            self.rewards: batch['rewards'],
             self.critic_target: target_q,
-        })
+            self.param_noise_stddev: 0 if self.param_noise is None else self.param_noise.current_stddev
+        }
+
+        if step % 10 == 0 and step >= 1:
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            summary, actor_grads, actor_loss, critic_grads, critic_loss = \
+                self.sess.run(ops, td_map, options=run_options, run_metadata=run_metadata)
+
+            if self.writer is not None:
+                self.writer.add_run_metadata(run_metadata, 'step%d' % step)
+        else:
+            summary, actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, td_map)
+
+        if self.writer is not None:
+            self.writer.add_summary(summary, step)
+
+        summary, actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, td_map)
         self.actor_optimizer.update(actor_grads, learning_rate=self.actor_lr)
         self.critic_optimizer.update(critic_grads, learning_rate=self.critic_lr)
 
@@ -733,7 +770,12 @@ class DDPG(BaseRLModel):
                                 distance = self._adapt_param_noise()
                                 epoch_adaptive_distances.append(distance)
 
-                            critic_loss, actor_loss = self._train_step()
+                            # weird equation to deal with the fact the nb_train_steps will be different
+                            # to nb_rollout_steps
+                            step = (int(t_train * (self.nb_rollout_steps / self.nb_train_steps)) +
+                                    total_steps - self.nb_rollout_steps)
+
+                            critic_loss, actor_loss = self._train_step(step)
                             epoch_critic_losses.append(critic_loss)
                             epoch_actor_losses.append(actor_loss)
                             self._update_target_net()

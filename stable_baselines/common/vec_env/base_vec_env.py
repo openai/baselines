@@ -93,7 +93,7 @@ class VecEnv(ABC):
         self.step_async(actions)
         return self.step_wait()
 
-    def render(self, mode='human'):
+    def render(self, **kwargs):
         """
         Gym environment rendering
 
@@ -137,8 +137,11 @@ class VecEnvWrapper(VecEnv):
     def close(self):
         return self.venv.close()
 
-    def render(self, mode='human'):
-        self.venv.render()
+    def render(self, **kwargs):
+        return self.venv.render(**kwargs)
+
+    def get_images(self):
+        return self.venv.get_images()
 
 
 class CloudpickleWrapper(object):

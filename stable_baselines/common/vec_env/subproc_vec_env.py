@@ -85,9 +85,9 @@ class SubprocVecEnv(VecEnv):
             process.join()
         self.closed = True
 
-    def render(self, mode='human'):
+    def render(self, mode='human', **kwargs):
         for pipe in self.remotes:
-            pipe.send(('render', None))
+            pipe.send(('render', kwargs))
         imgs = [pipe.recv() for pipe in self.remotes]
         bigimg = tile_images(imgs)
         if mode == 'human':

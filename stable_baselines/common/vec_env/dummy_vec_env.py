@@ -60,8 +60,8 @@ class DummyVecEnv(VecEnv):
     def close(self):
         return
 
-    def render(self, mode='human'):
-        return [e.render(mode=mode) for e in self.envs]
+    def render(self, **kwargs):
+        return [e.render(**kwargs) for e in self.envs]
 
     def _save_obs(self, env_idx, obs):
         for key in self.keys:
