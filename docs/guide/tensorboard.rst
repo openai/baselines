@@ -39,5 +39,5 @@ Or after loading an existing model (by default the log path is not saved):
 Then you can monitor the RL agent during or after the training, with the following bash command:
 
 .. code-block:: bash
-    tensorboard --logdir ./a2c_cartpole/
 
+  tensorboard --logdir ./a2c_cartpole/

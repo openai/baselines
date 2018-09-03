@@ -138,6 +138,7 @@ class ACER(BaseRLModel):
         self.n_act = None
         self.n_batch = None
         self.writer = None
+        self.summary = None
 
         if _init_setup_model:
             self.setup_model()
@@ -310,6 +311,11 @@ class ACER(BaseRLModel):
                     check_shape([loss_policy, loss_q, entropy], [[]] * 3)
                     loss = loss_policy + self.q_coef * loss_q - self.ent_coef * entropy
 
+                    tf.summary.scalar('entropy_loss', entropy)
+                    tf.summary.scalar('policy_gradient_loss', loss_policy)
+                    tf.summary.scalar('value_function_loss', loss_q)
+                    tf.summary.scalar('loss', loss)
+
                     norm_grads_q, norm_grads_policy, avg_norm_grads_f = None, None, None
                     avg_norm_k, avg_norm_g, avg_norm_k_dot_g, avg_norm_adj = None, None, None, None
                     if self.trust_region:
@@ -346,6 +352,19 @@ class ACER(BaseRLModel):
                     if self.max_grad_norm is not None:
                         grads, norm_grads = tf.clip_by_global_norm(grads, self.max_grad_norm)
                     grads = list(zip(grads, self.params))
+
+                with tf.variable_scope("info", reuse=False):
+                    tf.summary.scalar('rewards', tf.reduce_mean(self.reward_ph))
+                    tf.summary.histogram('rewards', self.reward_ph)
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
+                    tf.summary.histogram('learning_rate', self.learning_rate)
+                    tf.summary.scalar('action_probabilty', tf.reduce_mean(self.mu_ph))
+                    tf.summary.histogram('action_probabilty', self.mu_ph)
+                    if len(self.observation_space.shape) == 3:
+                        tf.summary.image('observation', train_model.obs_ph)
+                    else:
+                        tf.summary.histogram('observation', train_model.obs_ph)
+
                 trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.rprop_alpha,
                                                     epsilon=self.rprop_epsilon)
                 _opt_op = trainer.apply_gradients(grads)
@@ -372,6 +391,8 @@ class ACER(BaseRLModel):
                 self.initial_state = step_model.initial_state
 
                 tf.global_variables_initializer().run(session=self.sess)
+
+                self.summary = tf.summary.merge_all()
 
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
@@ -400,7 +421,21 @@ class ACER(BaseRLModel):
             td_map[self.polyak_model.states_ph] = states
             td_map[self.polyak_model.masks_ph] = masks
 
-        return self.names_ops, self.sess.run(self.run_ops, td_map)[1:]  # strip off _train
+        if steps % 10 == 9:
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            step_return = self.sess.run([self.summary] + self.run_ops, td_map, options=run_options,
+                                        run_metadata=run_metadata)
+
+            if self.writer is not None:
+                self.writer.add_run_metadata(run_metadata, 'step%d' % steps)
+        else:
+            step_return = self.sess.run([self.summary] + self.run_ops, td_map)
+
+        if self.writer is not None:
+            self.writer.add_summary(step_return[0], steps)
+
+        return self.names_ops, self.sess.run(self.run_ops, td_map)[2:]  # strip off _train
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
         with SetVerbosity(self.verbose):

@@ -128,8 +128,8 @@ class A2C(BaseRLModel):
                     tf.summary.histogram('rewards', self.rewards_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
                     tf.summary.histogram('learning_rate', self.learning_rate)
-                    tf.summary.scalar('advs', tf.reduce_mean(self.advs_ph))
-                    tf.summary.histogram('advs', self.advs_ph)
+                    tf.summary.scalar('advantage', tf.reduce_mean(self.advs_ph))
+                    tf.summary.histogram('advantage', self.advs_ph)
                     if len(self.observation_space.shape) == 3:
                         tf.summary.image('observation', train_model.obs_ph)
                     else:
