@@ -84,6 +84,7 @@ class ACKTR(BaseRLModel):
         self.initial_state = None
         self.n_batch = None
         self.writer = None
+        self.summary = None
 
         if _init_setup_model:
             self.setup_model()
@@ -135,7 +136,26 @@ class ACKTR(BaseRLModel):
                         tf.pow(train_model.value_fn - tf.stop_gradient(sample_net), 2))
                     self.joint_fisher = pg_fisher_loss + vf_fisher_loss
 
+                    tf.summary.scalar('entropy_loss', self.entropy)
+                    tf.summary.scalar('policy_gradient_loss', pg_loss)
+                    tf.summary.scalar('policy_gradient_fisher_loss', pg_fisher_loss)
+                    tf.summary.scalar('value_function_loss', self.vf_loss)
+                    tf.summary.scalar('value_function_fisher_loss', vf_fisher_loss)
+                    tf.summary.scalar('loss', train_loss)
+
                     self.grads_check = tf.gradients(train_loss, params)
+
+                with tf.variable_scope("info", reuse=False):
+                    tf.summary.scalar('rewards', tf.reduce_mean(self.rewards_ph))
+                    tf.summary.histogram('rewards', self.rewards_ph)
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.pg_lr_ph))
+                    tf.summary.histogram('learning_rate', self.pg_lr_ph)
+                    tf.summary.scalar('advantage', tf.reduce_mean(self.advs_ph))
+                    tf.summary.histogram('advantage', self.advs_ph)
+                    if len(self.observation_space.shape) == 3:
+                        tf.summary.image('observation', train_model.obs_ph)
+                    else:
+                        tf.summary.histogram('observation', train_model.obs_ph)
 
                 with tf.variable_scope("kfac", reuse=False):
                     with tf.device('/gpu:0'):
@@ -154,10 +174,12 @@ class ACKTR(BaseRLModel):
                 self.initial_state = step_model.initial_state
                 tf.global_variables_initializer().run(session=self.sess)
 
+                self.summary = tf.summary.merge_all()
+
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
-    def _train_step(self, obs, states, rewards, masks, actions, values):
+    def _train_step(self, obs, states, rewards, masks, actions, values, update):
         """
         applies a training step to the model
 
@@ -167,6 +189,7 @@ class ACKTR(BaseRLModel):
         :param masks: ([bool]) Whether or not the episode is over (used for reccurent policies)
         :param actions: ([float]) The actions taken
         :param values: ([float]) The logits values
+        :param update: (int) the current step iteration
         :return: (float, float, float) policy loss, value loss, policy entropy
         """
         advs = rewards - values
@@ -181,10 +204,22 @@ class ACKTR(BaseRLModel):
             td_map[self.train_model.states_ph] = states
             td_map[self.train_model.masks_ph] = masks
 
-        policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-            [self.pg_loss, self.vf_loss, self.entropy, self.train_op],
-            td_map
-        )
+        if update % 10 == 9:
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.train_op],
+                td_map, options=run_options, run_metadata=run_metadata)
+
+            if self.writer is not None:
+                self.writer.add_run_metadata(run_metadata, 'step%d' % (update * (self.n_batch + 1)))
+        else:
+            summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.train_op], td_map)
+
+        if self.writer is not None:
+            self.writer.add_summary(summary, update * (self.n_batch + 1))
+
         return policy_loss, value_loss, policy_entropy
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
@@ -224,7 +259,8 @@ class ACKTR(BaseRLModel):
             enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
             for update in range(1, total_timesteps // self.n_batch + 1):
                 obs, states, rewards, masks, actions, values = runner.run()
-                policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values)
+                policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values,
+                                                                           update)
                 n_seconds = time.time() - t_start
                 fps = int((update * self.n_batch) / n_seconds)
 
