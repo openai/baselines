@@ -1,7 +1,6 @@
 import os.path as osp
 import time
 import functools
-import numpy as np
 import tensorflow as tf
 from baselines import logger
 
@@ -10,7 +9,6 @@ from baselines.common.policies import build_policy
 from baselines.common.tf_util import get_session, save_variables, load_variables
 
 from baselines.a2c.runner import Runner
-from baselines.a2c.utils import discount_with_dones
 from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.acktr import kfac
 
@@ -34,7 +32,7 @@ class Model(object):
             self.model2 = train_model = policy(nenvs*nsteps, nsteps, sess=sess)
 
         neglogpac = train_model.pd.neglogp(A)
-        self.logits = logits = train_model.pi
+        self.logits = train_model.pi
 
         ##training loss
         pg_loss = tf.reduce_mean(ADV*neglogpac)
@@ -59,7 +57,8 @@ class Model(object):
                 momentum=0.9, kfac_update=1, epsilon=0.01,\
                 stats_decay=0.99, is_async=is_async, cold_iter=10, max_grad_norm=max_grad_norm)
 
-            update_stats_op = optim.compute_and_apply_stats(joint_fisher_loss, var_list=params)
+            # update_stats_op = optim.compute_and_apply_stats(joint_fisher_loss, var_list=params)
+            optim.compute_and_apply_stats(joint_fisher_loss, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads,params)))
         self.q_runner = q_runner
         self.lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
@@ -69,7 +68,7 @@ class Model(object):
             for step in range(len(obs)):
                 cur_lr = self.lr.value()
 
-            td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, PG_LR:cur_lr}
+            td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, PG_LR:cur_lr, VF_LR:cur_lr}
             if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
