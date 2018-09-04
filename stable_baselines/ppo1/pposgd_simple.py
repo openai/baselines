@@ -68,6 +68,7 @@ class PPO1(BaseRLModel):
         self.proba_step = None
         self.initial_state = None
         self.writer = None
+        self.summary = None
 
         if _init_setup_model:
             self.setup_model()
@@ -125,24 +126,48 @@ class PPO1(BaseRLModel):
                     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
                     self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
 
+                    tf.summary.scalar('entropy_loss', pol_entpen)
+                    tf.summary.scalar('policy_gradient_loss', pol_surr)
+                    tf.summary.scalar('value_function_loss', vf_loss)
+                    tf.summary.scalar('approximate_kullback-leiber', meankl)
+                    tf.summary.scalar('clip_factor', clip_param)
+                    tf.summary.scalar('loss', total_loss)
+
                     self.params = tf_util.get_trainable_vars("model")
-                    self.lossandgrad = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
-                                                        losses + [tf_util.flatgrad(total_loss, self.params)])
 
                     self.assign_old_eq_new = tf_util.function(
                         [], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
                                          zipsame(tf_util.get_globals_vars("oldpi"), tf_util.get_globals_vars("model"))])
-                    self.compute_losses = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
-                                                           losses)
 
                 with tf.variable_scope("Adam_mpi", reuse=False):
                     self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
+
+                with tf.variable_scope("info", reuse=False):
+                    tf.summary.scalar('rewards', tf.reduce_mean(ret))
+                    tf.summary.histogram('rewards', ret)
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.optim_stepsize))
+                    tf.summary.histogram('learning_rate', self.optim_stepsize)
+                    tf.summary.scalar('advantage', tf.reduce_mean(atarg))
+                    tf.summary.histogram('advantage', atarg)
+                    tf.summary.scalar('clip_range', tf.reduce_mean(self.clip_param))
+                    tf.summary.histogram('clip_range', self.clip_param)
+                    if len(self.observation_space.shape) == 3:
+                        tf.summary.image('observation', obs_ph)
+                    else:
+                        tf.summary.histogram('observation', obs_ph)
 
                 self.step = self.policy_pi.step
                 self.proba_step = self.policy_pi.proba_step
                 self.initial_state = self.policy_pi.initial_state
 
                 tf_util.initialize(sess=self.sess)
+
+                self.summary = tf.summary.merge_all()
+
+                self.lossandgrad = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
+                                                    [self.summary, tf_util.flatgrad(total_loss, self.params)] + losses)
+                self.compute_losses = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
+                                                       losses)
 
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
@@ -203,12 +228,29 @@ class PPO1(BaseRLModel):
                     logger.log(fmt_row(13, self.loss_names))
 
                     # Here we do a bunch of optimization epochs over the data
-                    for _ in range(self.optim_epochs):
+                    for k in range(self.optim_epochs):
                         # list of tuples, each of which gives the loss for a minibatch
                         losses = []
-                        for batch in dataset.iterate_once(optim_batchsize):
-                            *newlosses, grad = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"], batch["atarg"],
-                                                                batch["vtarg"], cur_lrmult, sess=self.sess)
+                        for i, batch in enumerate(dataset.iterate_once(optim_batchsize)):
+                            steps = (timesteps_so_far +
+                                     k * optim_batchsize +
+                                     int(i * (optim_batchsize / len(dataset.data_map))))
+                            if k % 10 == 99:
+                                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                                run_metadata = tf.RunMetadata()
+                                summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
+                                                                             batch["atarg"], batch["vtarg"], cur_lrmult,
+                                                                             sess=self.sess, options=run_options,
+                                                                             run_metadata=run_metadata)
+                                if self.writer is not None:
+                                    self.writer.add_run_metadata(run_metadata, 'step%d' % steps)
+                            else:
+                                summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
+                                                                             batch["atarg"], batch["vtarg"], cur_lrmult,
+                                                                             sess=self.sess)
+                            if self.writer is not None:
+                                self.writer.add_summary(summary, steps)
+
                             self.adam.update(grad, self.optim_stepsize * cur_lrmult)
                             losses.append(newlosses)
                         logger.log(fmt_row(13, np.mean(losses, axis=0)))
