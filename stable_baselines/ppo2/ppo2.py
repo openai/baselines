@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 from stable_baselines import logger
-from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
+from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
@@ -88,7 +88,6 @@ class PPO2(BaseRLModel):
         self.value = None
         self.initial_state = None
         self.n_batch = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
 
@@ -195,11 +194,8 @@ class PPO2(BaseRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
-
     def _train_step(self, learning_rate, cliprange, obs, returns, masks, actions, values, neglogpacs, update,
-                    states=None):
+                    writer, states=None):
         """
         Training of PPO2 Algorithm
 
@@ -212,6 +208,7 @@ class PPO2(BaseRLModel):
         :param values: (np.ndarray) the values
         :param neglogpacs: (np.ndarray) Negative Log-likelihood probability of Actions
         :param update: (int) the current step iteration
+        :param writer: (TensorFlow Summary.writer) the writer for tensorboard
         :param states: (np.ndarray) For recurrent policies, the internal state of the recurrent model
         :return: policy gradient loss, value function loss, policy entropy,
                 approximation of kl divergence, updated clipping range, training update operation
@@ -230,26 +227,27 @@ class PPO2(BaseRLModel):
         else:
             update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps
 
-        if update % 10 == 9:
-            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            run_metadata = tf.RunMetadata()
-            summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
-                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
-                td_map, options=run_options, run_metadata=run_metadata)
-            if self.writer is not None:
-                self.writer.add_run_metadata(run_metadata, 'step%d' % (update * update_fac))
+        if writer is not None:
+            if update % 10 == 9:
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
+                    td_map, options=run_options, run_metadata=run_metadata)
+                writer.add_run_metadata(run_metadata, 'step%d' % (update * update_fac))
+            else:
+                summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
+                    td_map)
+            writer.add_summary(summary, (update * update_fac))
         else:
-            summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
-                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
-                td_map)
-
-        if self.writer is not None:
-            self.writer.add_summary(summary, (update * update_fac))
+            policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
+                [self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train], td_map)
 
         return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="PPO2"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
@@ -279,7 +277,8 @@ class PPO2(BaseRLModel):
                             end = start + n_batch_train
                             mbinds = inds[start:end]
                             slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, update=timestep))
+                            mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, writer=writer,
+                                                                 update=timestep))
                 else:  # recurrent version
                     assert self.n_envs % self.nminibatches == 0
                     envinds = np.arange(self.n_envs)
@@ -296,17 +295,17 @@ class PPO2(BaseRLModel):
                             slices = (arr[mb_flat_inds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                             mb_states = states[mb_env_inds]
                             mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, update=timestep,
-                                                                 states=mb_states))
+                                                                 writer=writer, states=mb_states))
 
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()
                 fps = int(self.n_batch / (t_now - t_start))
 
-                if self.writer is not None:
+                if writer is not None:
                     self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                       true_reward.reshape((self.n_envs, self.n_steps)),
                                                                       masks.reshape((self.n_envs, self.n_steps)),
-                                                                      self.writer, update * (self.n_batch + 1))
+                                                                      writer, update * (self.n_batch + 1))
 
                 if callback is not None:
                     callback(locals(), globals())
@@ -325,9 +324,6 @@ class PPO2(BaseRLModel):
                         logger.logkv(loss_name, loss_val)
                     logger.dumpkvs()
 
-            if self.writer is not None:
-                self.writer.add_graph(self.graph)
-                self.writer.flush()
             return self
 
     def predict(self, observation, state=None, mask=None):

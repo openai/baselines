@@ -5,7 +5,8 @@ import tensorflow as tf
 import numpy as np
 from mpi4py import MPI
 
-from stable_baselines.common import Dataset, explained_variance, fmt_row, zipsame, BaseRLModel, SetVerbosity
+from stable_baselines.common import Dataset, explained_variance, fmt_row, zipsame, BaseRLModel, SetVerbosity, \
+    TensorboardWriter
 from stable_baselines import logger
 import stable_baselines.common.tf_util as tf_util
 from stable_baselines.common.policies import LstmPolicy
@@ -68,7 +69,6 @@ class PPO1(BaseRLModel):
         self.step = None
         self.proba_step = None
         self.initial_state = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
 
@@ -171,11 +171,8 @@ class PPO1(BaseRLModel):
                 self.compute_losses = tf_util.function([obs_ph, old_pi.obs_ph, action_ph, atarg, ret, lrmult],
                                                        losses)
 
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
-
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="PPO1"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             with self.sess.as_default():
@@ -217,11 +214,11 @@ class PPO1(BaseRLModel):
                     # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
                     obs_ph, action_ph, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
 
-                    if self.writer is not None:
+                    if writer is not None:
                         self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                           seg["true_rew"].reshape((self.n_envs, -1)),
                                                                           seg["dones"].reshape((self.n_envs, -1)),
-                                                                          self.writer, timesteps_so_far)
+                                                                          writer, timesteps_so_far)
 
                     # predicted value function before udpate
                     vpredbefore = seg["vpred"]
@@ -245,21 +242,25 @@ class PPO1(BaseRLModel):
                             steps = (timesteps_so_far +
                                      k * optim_batchsize +
                                      int(i * (optim_batchsize / len(dataset.data_map))))
-                            if k % 10 == 99:
-                                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-                                run_metadata = tf.RunMetadata()
-                                summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
-                                                                             batch["atarg"], batch["vtarg"], cur_lrmult,
-                                                                             sess=self.sess, options=run_options,
-                                                                             run_metadata=run_metadata)
-                                if self.writer is not None:
-                                    self.writer.add_run_metadata(run_metadata, 'step%d' % steps)
+                            if writer is not None:
+                                if k % 10 == 99:
+                                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                                    run_metadata = tf.RunMetadata()
+                                    summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
+                                                                                 batch["atarg"], batch["vtarg"],
+                                                                                 cur_lrmult, sess=self.sess,
+                                                                                 options=run_options,
+                                                                                 run_metadata=run_metadata)
+                                    writer.add_run_metadata(run_metadata, 'step%d' % steps)
+                                else:
+                                    summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
+                                                                                 batch["atarg"], batch["vtarg"],
+                                                                                 cur_lrmult, sess=self.sess)
+                                writer.add_summary(summary, steps)
                             else:
-                                summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
-                                                                             batch["atarg"], batch["vtarg"], cur_lrmult,
-                                                                             sess=self.sess)
-                            if self.writer is not None:
-                                self.writer.add_summary(summary, steps)
+                                _, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
+                                                                       batch["atarg"], batch["vtarg"], cur_lrmult,
+                                                                       sess=self.sess)
 
                             self.adam.update(grad, self.optim_stepsize * cur_lrmult)
                             losses.append(newlosses)
@@ -297,9 +298,6 @@ class PPO1(BaseRLModel):
                     if self.verbose >= 1 and MPI.COMM_WORLD.Get_rank() == 0:
                         logger.dump_tabular()
 
-        if self.writer is not None:
-            self.writer.add_graph(self.graph)
-            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

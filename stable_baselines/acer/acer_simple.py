@@ -8,7 +8,7 @@ from stable_baselines import logger
 from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, EpisodeStats, \
     get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance, total_episode_reward_logger
 from stable_baselines.acer.buffer import Buffer
-from stable_baselines.common import BaseRLModel, tf_util, SetVerbosity
+from stable_baselines.common import BaseRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.common.policies import LstmPolicy
 
@@ -137,7 +137,6 @@ class ACER(BaseRLModel):
         self.initial_state = None
         self.n_act = None
         self.n_batch = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
 
@@ -397,10 +396,7 @@ class ACER(BaseRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
-
-    def _train_step(self, obs, actions, rewards, dones, mus, states, masks, steps, replay=False):
+    def _train_step(self, obs, actions, rewards, dones, mus, states, masks, steps, writer=None):
         """
         applies a training step to the model
 
@@ -412,7 +408,7 @@ class ACER(BaseRLModel):
         :param states: ([float]) The states (used for reccurent policies)
         :param masks: ([bool]) Whether or not the episode is over (used for reccurent policies)
         :param steps: (int) the number of steps done so far (can be None)
-        :param replay: (bool) if using replay buffer
+        :param writer: (TensorFlow Summary.writer) the writer for tensorboard
         :return: ([str], [float]) the list of update operation name, and the list of the results of the operations
         """
         cur_lr = self.learning_rate_schedule.value_steps(steps)
@@ -425,24 +421,24 @@ class ACER(BaseRLModel):
             td_map[self.polyak_model.states_ph] = states
             td_map[self.polyak_model.masks_ph] = masks
 
-        if not replay and (steps / self.n_batch) % 10 == 9:
-            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            run_metadata = tf.RunMetadata()
-            step_return = self.sess.run([self.summary] + self.run_ops, td_map, options=run_options,
-                                        run_metadata=run_metadata)
-
-            if self.writer is not None:
-                self.writer.add_run_metadata(run_metadata, 'step%d' % steps)
+        if writer is not None:
+            if (steps / self.n_batch) % 10 == 9:
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                step_return = self.sess.run([self.summary] + self.run_ops, td_map, options=run_options,
+                                            run_metadata=run_metadata)
+                writer.add_run_metadata(run_metadata, 'step%d' % steps)
+            else:
+                step_return = self.sess.run([self.summary] + self.run_ops, td_map)
+            writer.add_summary(step_return[0], steps)
+            step_return = step_return[1:]
         else:
-            step_return = self.sess.run([self.summary] + self.run_ops, td_map)
+            step_return = self.sess.run(self.run_ops, td_map)
 
-        if not replay and self.writer is not None:
-            self.writer.add_summary(step_return[0], steps)
+        return self.names_ops, step_return[1:]  # strip off _train
 
-        return self.names_ops, self.sess.run(self.run_ops, td_map)[2:]  # strip off _train
-
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="ACER"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
@@ -467,11 +463,11 @@ class ACER(BaseRLModel):
                 if buffer is not None:
                     buffer.put(enc_obs, actions, rewards, mus, dones, masks)
 
-                if self.writer is not None:
+                if writer is not None:
                     self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                       rewards.reshape((self.n_envs, self.n_steps)),
                                                                       dones.reshape((self.n_envs, self.n_steps)),
-                                                                      self.writer, steps)
+                                                                      writer, steps)
 
                 # reshape stuff correctly
                 obs = obs.reshape(runner.batch_ob_shape)
@@ -482,7 +478,7 @@ class ACER(BaseRLModel):
                 masks = masks.reshape([runner.batch_ob_shape[0]])
 
                 names_ops, values_ops = self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks,
-                                                         steps)
+                                                         steps, writer)
 
                 if callback is not None:
                     callback(locals(), globals())
@@ -513,12 +509,8 @@ class ACER(BaseRLModel):
                         dones = dones.reshape([runner.n_batch])
                         masks = masks.reshape([runner.batch_ob_shape[0]])
 
-                        self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks, steps,
-                                         replay=True)
+                        self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks, steps)
 
-        if self.writer is not None:
-            self.writer.add_graph(self.graph)
-            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

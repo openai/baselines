@@ -8,7 +8,7 @@ import tensorflow as tf
 import numpy as np
 
 from stable_baselines import logger
-from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
+from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.a2c.a2c import A2CRunner
 from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse, \
     total_episode_reward_logger
@@ -84,9 +84,9 @@ class ACKTR(BaseRLModel):
         self.value = None
         self.initial_state = None
         self.n_batch = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
+        self.trained = False
 
         if _init_setup_model:
             self.setup_model()
@@ -115,7 +115,7 @@ class ACKTR(BaseRLModel):
                                                             self.n_envs, self.n_steps, n_batch_train,
                                                             reuse=True)
 
-                with tf.variable_scope("loss", reuse=False):
+                with tf.variable_scope("loss", reuse=False, custom_getter=tf_util.outer_scope_getter("loss")):
                     self.advs_ph = advs_ph = tf.placeholder(tf.float32, [None])
                     self.rewards_ph = rewards_ph = tf.placeholder(tf.float32, [None])
                     self.pg_lr_ph = pg_lr_ph = tf.placeholder(tf.float32, [])
@@ -159,7 +159,7 @@ class ACKTR(BaseRLModel):
                     else:
                         tf.summary.histogram('observation', train_model.obs_ph)
 
-                with tf.variable_scope("kfac", reuse=False):
+                with tf.variable_scope("kfac", reuse=False, custom_getter=tf_util.outer_scope_getter("kfac")):
                     with tf.device('/gpu:0'):
                         self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=self.kfac_clip,
                                                                 momentum=0.9, kfac_update=1, epsilon=0.01,
@@ -178,10 +178,7 @@ class ACKTR(BaseRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
-
-    def _train_step(self, obs, states, rewards, masks, actions, values, update):
+    def _train_step(self, obs, states, rewards, masks, actions, values, update, writer):
         """
         applies a training step to the model
 
@@ -192,6 +189,7 @@ class ACKTR(BaseRLModel):
         :param actions: ([float]) The actions taken
         :param values: ([float]) The logits values
         :param update: (int) the current step iteration
+        :param writer: (TensorFlow Summary.writer) the writer for tensorboard
         :return: (float, float, float) policy loss, value loss, policy entropy
         """
         advs = rewards - values
@@ -206,26 +204,26 @@ class ACKTR(BaseRLModel):
             td_map[self.train_model.states_ph] = states
             td_map[self.train_model.masks_ph] = masks
 
-        if update % 10 == 9:
-            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            run_metadata = tf.RunMetadata()
-            summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.train_op],
-                td_map, options=run_options, run_metadata=run_metadata)
-
-            if self.writer is not None:
-                self.writer.add_run_metadata(run_metadata, 'step%d' % (update * (self.n_batch + 1)))
+        if writer is not None:
+            if update % 10 == 9:
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.train_op],
+                    td_map, options=run_options, run_metadata=run_metadata)
+                writer.add_run_metadata(run_metadata, 'step%d' % (update * (self.n_batch + 1)))
+            else:
+                summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.train_op], td_map)
+            writer.add_summary(summary, update * (self.n_batch + 1))
         else:
-            summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.train_op], td_map)
-
-        if self.writer is not None:
-            self.writer.add_summary(summary, update * (self.n_batch + 1))
+            policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                [self.pg_loss, self.vf_loss, self.entropy, self.train_op], td_map)
 
         return policy_loss, value_loss, policy_entropy
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="ACKTR"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
             self.n_batch = self.n_envs * self.n_steps
 
@@ -235,7 +233,7 @@ class ACKTR(BaseRLModel):
             # FIFO queue of the q_runner thread is closed at the end of the learn function.
             # As a result, it needs to be redefinied at every call
             with self.graph.as_default():
-                with tf.variable_scope("kfac_apply", reuse=False,
+                with tf.variable_scope("kfac_apply", reuse=self.trained,
                                        custom_getter=tf_util.outer_scope_getter("kfac_apply")):
                     # Some of the variables are not in a scope when they are create
                     # so we make a note of any previously uninitialized variables
@@ -254,6 +252,8 @@ class ACKTR(BaseRLModel):
                     if len(new_uninitialized_vars) != 0:
                         self.sess.run(tf.variables_initializer(new_uninitialized_vars))
 
+            self.trained = True
+
             runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
             self.episode_reward = np.zeros((self.n_envs,))
 
@@ -263,16 +263,15 @@ class ACKTR(BaseRLModel):
             for update in range(1, total_timesteps // self.n_batch + 1):
                 obs, states, rewards, masks, actions, values, true_reward = runner.run()
                 policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values,
-                                                                           update)
+                                                                           update, writer)
                 n_seconds = time.time() - t_start
                 fps = int((update * self.n_batch) / n_seconds)
 
-                if self.writer is not None:
+                if writer is not None:
                     self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                       true_reward.reshape((self.n_envs, self.n_steps)),
                                                                       masks.reshape((self.n_envs, self.n_steps)),
-                                                                      self.writer, update * (self.n_batch + 1))
-
+                                                                      writer, update * (self.n_batch + 1))
 
                 if callback is not None:
                     callback(locals(), globals())
@@ -291,9 +290,6 @@ class ACKTR(BaseRLModel):
             coord.request_stop()
             coord.join(enqueue_threads)
 
-        if self.writer is not None:
-            self.writer.add_graph(self.graph)
-            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

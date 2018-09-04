@@ -46,8 +46,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     true_rews = np.zeros(horizon, 'float32')
     rews = np.zeros(horizon, 'float32')
     vpreds = np.zeros(horizon, 'float32')
-    news = np.zeros(horizon, 'int32')
-    dones = np.zeros(horizon, 'bool')
+    dones = np.zeros(horizon, 'int32')
     actions = np.array([action for _ in range(horizon)])
     prev_actions = actions.copy()
     states = policy.initial_state
@@ -70,9 +69,8 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
                 total_timesteps = sum(ep_lens) + cur_ep_len
 
             yield {"ob": observations, "rew": rews, "dones": dones, "true_rew": true_rews, "vpred": vpreds,
-                   "new": news, "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
-                   "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets,
-                   "total_timestep": total_timesteps}
+                   "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets,
+                   "ep_lens": ep_lens, "ep_true_rets": ep_true_rets, "total_timestep": total_timesteps}
             _, vpred, _, _ = policy.step(observation.reshape(-1, *observation.shape))
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
@@ -82,7 +80,6 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
         i = step % horizon
         observations[i] = observation
         vpreds[i] = vpred[0]
-        news[i] = new
         actions[i] = action[0]
         prev_actions[i] = prevac
 
@@ -120,7 +117,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
     :param lam: (float) GAE factor
     """
     # last element is only used for last vtarg, but we already zeroed it if last new = 1
-    new = np.append(seg["new"], 0)
+    new = np.append(seg["dones"], 0)
     vpred = np.append(seg["vpred"], seg["nextvpred"])
     rew_len = len(seg["rew"])
     seg["adv"] = gaelam = np.empty(rew_len, 'float32')

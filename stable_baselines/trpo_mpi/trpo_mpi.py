@@ -7,7 +7,8 @@ import tensorflow as tf
 import numpy as np
 
 import stable_baselines.common.tf_util as tf_util
-from stable_baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel, SetVerbosity
+from stable_baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel, \
+    SetVerbosity, TensorboardWriter
 from stable_baselines import logger
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.cg import conjugate_gradient
@@ -86,7 +87,6 @@ class TRPO(BaseRLModel):
         self.proba_step = None
         self.initial_state = None
         self.params = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
 
@@ -243,11 +243,8 @@ class TRPO(BaseRLModel):
                     tf_util.function([observation, old_policy.obs_ph, action, atarg, ret],
                                      [self.summary, tf_util.flatgrad(optimgain, var_list)] + losses)
 
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
-
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="TRPO"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             with self.sess.as_default():
@@ -303,12 +300,12 @@ class TRPO(BaseRLModel):
                         vpredbefore = seg["vpred"]  # predicted value function before udpate
                         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
-                        if self.writer is not None:
+                        if writer is not None:
                             self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                               seg["true_rew"].reshape(
                                                                                   (self.n_envs, -1)),
                                                                               seg["dones"].reshape((self.n_envs, -1)),
-                                                                              self.writer, timesteps_so_far)
+                                                                              writer, timesteps_so_far)
 
                         args = seg["ob"], seg["ob"], seg["ac"], atarg
                         fvpargs = [arr[::5] for arr in args]
@@ -319,12 +316,16 @@ class TRPO(BaseRLModel):
                             steps = timesteps_so_far + (k + 1) * (seg["total_timestep"] / self.g_step)
                             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                             run_metadata = tf.RunMetadata()
-                            summary, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
-                                                                                  options=run_options,
-                                                                                  run_metadata=run_metadata)
-                            if self.writer is not None:
-                                self.writer.add_run_metadata(run_metadata, 'step%d' % steps)
-                                self.writer.add_summary(summary, steps)
+                            if writer is not None:
+                                summary, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
+                                                                                      options=run_options,
+                                                                                      run_metadata=run_metadata)
+                                writer.add_run_metadata(run_metadata, 'step%d' % steps)
+                                writer.add_summary(summary, steps)
+                            else:
+                                _, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
+                                                                                options=run_options,
+                                                                                run_metadata=run_metadata)
 
                         lossbefore = self.allmean(np.array(lossbefore))
                         grad = self.allmean(grad)
@@ -429,9 +430,6 @@ class TRPO(BaseRLModel):
                     if self.verbose >= 1 and self.rank == 0:
                         logger.dump_tabular()
 
-        if self.writer is not None:
-            self.writer.add_graph(self.graph)
-            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

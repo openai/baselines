@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from stable_baselines import logger
-from stable_baselines.common import explained_variance, tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common import explained_variance, tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse, \
@@ -71,7 +71,6 @@ class A2C(BaseRLModel):
         self.value = None
         self.initial_state = None
         self.learning_rate_schedule = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
 
@@ -151,10 +150,7 @@ class A2C(BaseRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
-
-    def _train_step(self, obs, states, rewards, masks, actions, values, update):
+    def _train_step(self, obs, states, rewards, masks, actions, values, update, writer=None):
         """
         applies a training step to the model
 
@@ -165,6 +161,7 @@ class A2C(BaseRLModel):
         :param actions: ([float]) The actions taken
         :param values: ([float]) The logits values
         :param update: (int) the current step iteration
+        :param writer: (TensorFlow Summary.writer) the writer for tensorboard
         :return: (float, float, float) policy loss, value loss, policy entropy
         """
         advs = rewards - values
@@ -179,26 +176,27 @@ class A2C(BaseRLModel):
             td_map[self.train_model.states_ph] = states
             td_map[self.train_model.masks_ph] = masks
 
-        if update % 10 == 9:
-            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            run_metadata = tf.RunMetadata()
-            summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop],
-                td_map, options=run_options, run_metadata=run_metadata)
+        if writer is not None:
+            if update % 10 == 9:
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop],
+                    td_map, options=run_options, run_metadata=run_metadata)
+                writer.add_run_metadata(run_metadata, 'step%d' % (update * (self.n_batch + 1)))
+            else:
+                summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                    [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop], td_map)
+            writer.add_summary(summary, update * (self.n_batch + 1))
 
-            if self.writer is not None:
-                self.writer.add_run_metadata(run_metadata, 'step%d' % (update * (self.n_batch + 1)))
         else:
-            summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
-                [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop], td_map)
-
-        if self.writer is not None:
-            self.writer.add_summary(summary, update * (self.n_batch + 1))
+            policy_loss, value_loss, policy_entropy, _ = self.sess.run(
+                [self.pg_loss, self.vf_loss, self.entropy, self.apply_backprop], td_map)
 
         return policy_loss, value_loss, policy_entropy
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="A2C"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
@@ -210,15 +208,16 @@ class A2C(BaseRLModel):
             t_start = time.time()
             for update in range(1, total_timesteps // self.n_batch + 1):
                 obs, states, rewards, masks, actions, values, true_reward = runner.run()
-                _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values, update)
+                _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values, update,
+                                                                 writer)
                 n_seconds = time.time() - t_start
                 fps = int((update * self.n_batch) / n_seconds)
 
-                if self.writer is not None:
+                if writer is not None:
                     self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                       true_reward.reshape((self.n_envs, self.n_steps)),
                                                                       masks.reshape((self.n_envs, self.n_steps)),
-                                                                      self.writer, update * (self.n_batch + 1))
+                                                                      writer, update * (self.n_batch + 1))
 
                 if callback is not None:
                     callback(locals(), globals())
@@ -233,9 +232,6 @@ class A2C(BaseRLModel):
                     logger.record_tabular("explained_variance", float(explained_var))
                     logger.dump_tabular()
 
-        if self.writer is not None:
-            self.writer.add_graph(self.graph)
-            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

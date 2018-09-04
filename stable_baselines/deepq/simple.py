@@ -3,7 +3,7 @@ import numpy as np
 import gym
 
 from stable_baselines import logger, deepq
-from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.common.policies import ActorCriticPolicy
@@ -93,7 +93,6 @@ class DeepQ(BaseRLModel):
         self.beta_schedule = None
         self.exploration = None
         self.params = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
 
@@ -144,11 +143,8 @@ class DeepQ(BaseRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
-
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DeepQ"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             # Create the replay buffer
@@ -201,12 +197,9 @@ class DeepQ(BaseRLModel):
                 self.replay_buffer.add(obs, action, rew, new_obs, float(done))
                 obs = new_obs
 
-                if self.writer is not None:
-                    self.episode_reward = total_episode_reward_logger(self.episode_reward,
-                                                                      rew.reshape((1, 1)),
-                                                                      done.reshape((1, 1)),
-                                                                      self.writer,
-                                                                      step)
+                if writer is not None:
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward, rew.reshape((1, 1)),
+                                                                      done.reshape((1, 1)), writer, step)
 
                 episode_rewards[-1] += rew
                 if done:
@@ -224,20 +217,21 @@ class DeepQ(BaseRLModel):
                         obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
                         weights, batch_idxes = np.ones_like(rewards), None
 
-                    if step % 100 == 99:
-                        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-                        run_metadata = tf.RunMetadata()
-                        summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
-                                                              sess=self.sess, options=run_options,
-                                                              run_metadata=run_metadata)
-                        if self.writer is not None:
-                            self.writer.add_run_metadata(run_metadata, 'step%d' % step)
+                    if writer is not None:
+                        if step % 100 == 99:
+                            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                            run_metadata = tf.RunMetadata()
+                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
+                                                                  sess=self.sess, options=run_options,
+                                                                  run_metadata=run_metadata)
+                            writer.add_run_metadata(run_metadata, 'step%d' % step)
+                        else:
+                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
+                                                                  sess=self.sess)
+                        writer.add_summary(summary, step)
                     else:
-                        summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
-                                                              sess=self.sess)
-
-                    if self.writer is not None:
-                        self.writer.add_summary(summary, step)
+                        _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
+                                                        sess=self.sess)
 
                     if self.prioritized_replay:
                         new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
@@ -260,9 +254,6 @@ class DeepQ(BaseRLModel):
                     logger.record_tabular("% time spent exploring", int(100 * self.exploration.value(step)))
                     logger.dump_tabular()
 
-        if self.writer is not None:
-            self.writer.add_graph(self.graph)
-            self.writer.flush()
         return self
 
     def predict(self, observation, state=None, mask=None):

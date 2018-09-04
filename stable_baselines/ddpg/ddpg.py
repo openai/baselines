@@ -11,7 +11,7 @@ import tensorflow.contrib as tc
 from mpi4py import MPI
 
 from stable_baselines import logger
-from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.policies import LstmPolicy
@@ -243,7 +243,6 @@ class DDPG(BaseRLModel):
         self.param_noise_actor = None
         self.adaptive_param_noise_actor = None
         self.params = None
-        self.writer = None
         self.summary = None
         self.episode_reward = None
 
@@ -354,9 +353,6 @@ class DDPG(BaseRLModel):
                     self._initialize(self.sess)
 
                 self.summary = tf.summary.merge_all()
-
-            if self.tensorboard_log is not None:
-                self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
 
     def _setup_target_network_updates(self):
         """
@@ -532,11 +528,12 @@ class DDPG(BaseRLModel):
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
-    def _train_step(self, step):
+    def _train_step(self, step, writer):
         """
         run a step of training from batch
 
         :param step: (int) the current step iteration
+        :param writer: (TensorFlow Summary.writer) the writer for tensorboard
         :return: (float, float) critic loss, actor loss
         """
         # Get a batch
@@ -563,7 +560,7 @@ class DDPG(BaseRLModel):
             })
 
         # Get all gradients and perform a synced update.
-        ops = [self.summary, self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss]
+        ops = [self.actor_grads, self.actor_loss, self.critic_grads, self.critic_loss]
         td_map = {
             self.obs_train: batch['obs0'],
             self.actions: batch['actions'],
@@ -571,22 +568,21 @@ class DDPG(BaseRLModel):
             self.critic_target: target_q,
             self.param_noise_stddev: 0 if self.param_noise is None else self.param_noise.current_stddev
         }
+        if writer is not None:
+            if step % 100 == 0 and step >= 1:
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                summary, actor_grads, actor_loss, critic_grads, critic_loss = \
+                    self.sess.run([self.summary] + ops, td_map, options=run_options, run_metadata=run_metadata)
 
-        if step % 100 == 0 and step >= 1:
-            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            run_metadata = tf.RunMetadata()
-            summary, actor_grads, actor_loss, critic_grads, critic_loss = \
-                self.sess.run(ops, td_map, options=run_options, run_metadata=run_metadata)
-
-            if self.writer is not None:
-                self.writer.add_run_metadata(run_metadata, 'step%d' % step)
+                writer.add_run_metadata(run_metadata, 'step%d' % step)
+            else:
+                summary, actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run([self.summary] + ops,
+                                                                                            td_map)
+            writer.add_summary(summary, step)
         else:
-            summary, actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, td_map)
+            actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, td_map)
 
-        if self.writer is not None:
-            self.writer.add_summary(summary, step)
-
-        summary, actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run(ops, td_map)
         self.actor_optimizer.update(actor_grads, learning_rate=self.actor_lr)
         self.critic_optimizer.update(critic_grads, learning_rate=self.critic_lr)
 
@@ -674,8 +670,8 @@ class DDPG(BaseRLModel):
                 self.param_noise_stddev: self.param_noise.current_stddev,
             })
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DDPG"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             rank = MPI.COMM_WORLD.Get_rank()
@@ -733,11 +729,10 @@ class DDPG(BaseRLModel):
                             # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                             new_obs, reward, done, _ = self.env.step(max_action * action)
 
-                            if self.writer is not None:
+                            if writer is not None:
                                 self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                                   reward.reshape((1, 1)),
-                                                                                  done.reshape((1, 1)),
-                                                                                  self.writer,
+                                                                                  done.reshape((1, 1)), writer,
                                                                                   total_steps)
                             step += 1
                             total_steps += 1
@@ -784,7 +779,7 @@ class DDPG(BaseRLModel):
                             step = (int(t_train * (self.nb_rollout_steps / self.nb_train_steps)) +
                                     total_steps - self.nb_rollout_steps)
 
-                            critic_loss, actor_loss = self._train_step(step)
+                            critic_loss, actor_loss = self._train_step(step, writer)
                             epoch_critic_losses.append(critic_loss)
                             epoch_actor_losses.append(actor_loss)
                             self._update_target_net()
@@ -796,9 +791,6 @@ class DDPG(BaseRLModel):
                             eval_episode_reward = 0.
                             for _ in range(self.nb_eval_steps):
                                 if total_steps >= total_timesteps:
-                                    if self.writer is not None:
-                                        self.writer.add_graph(self.graph)
-                                        self.writer.flush()
                                     return self
 
                                 eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
