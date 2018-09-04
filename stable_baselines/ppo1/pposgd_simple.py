@@ -246,7 +246,7 @@ class PPO1(BaseRLModel):
                             if writer is not None:
                                 # run loss backprop with summary, but once every 10 runs save the metadata
                                 # (memory, compute time, ...)
-                                if (1 + k )% 10 == 0:
+                                if (1 + k) % 10 == 0:
                                     run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                                     run_metadata = tf.RunMetadata()
                                     summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],
