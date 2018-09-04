@@ -145,8 +145,8 @@ class PPO1(BaseRLModel):
                     self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
 
                 with tf.variable_scope("input_info", reuse=False):
-                    tf.summary.scalar('rewards', tf.reduce_mean(ret))
-                    tf.summary.histogram('rewards', ret)
+                    tf.summary.scalar('discounted_rewards', tf.reduce_mean(ret))
+                    tf.summary.histogram('discounted_rewards', ret)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.optim_stepsize))
                     tf.summary.histogram('learning_rate', self.optim_stepsize)
                     tf.summary.scalar('advantage', tf.reduce_mean(atarg))

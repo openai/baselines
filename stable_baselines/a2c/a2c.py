@@ -126,8 +126,8 @@ class A2C(BaseRLModel):
                     grads = list(zip(grads, self.params))
 
                 with tf.variable_scope("input_info", reuse=False):
-                    tf.summary.scalar('rewards', tf.reduce_mean(self.rewards_ph))
-                    tf.summary.histogram('rewards', self.rewards_ph)
+                    tf.summary.scalar('discounted_rewards', tf.reduce_mean(self.rewards_ph))
+                    tf.summary.histogram('discounted_rewards', self.rewards_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
                     tf.summary.histogram('learning_rate', self.learning_rate)
                     tf.summary.scalar('advantage', tf.reduce_mean(self.advs_ph))

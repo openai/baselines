@@ -41,3 +41,17 @@ Then you can monitor the RL agent during or after the training, with the followi
 .. code-block:: bash
 
   tensorboard --logdir ./a2c_cartpole/
+
+It will display information such as the model graph, the episode reward, the model losses, the observation and other parameter unique to some models.
+
+image:: ../static/img/Tensorboard_example_1.png
+  :width: 400
+  :alt: plotting
+
+image:: ../static/img/Tensorboard_example_1.png
+  :width: 400
+  :alt: histogram
+
+image:: ../static/img/Tensorboard_example_1.png
+  :width: 400
+  :alt: graph
