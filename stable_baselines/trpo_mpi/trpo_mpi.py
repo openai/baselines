@@ -11,7 +11,7 @@ from stable_baselines.common import explained_variance, zipsame, dataset, fmt_ro
 from stable_baselines import logger
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.cg import conjugate_gradient
-from stable_baselines.a2c.utils import find_trainable_variables
+from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
 # from stable_baselines.gail.statistics import Stats
 
@@ -88,6 +88,7 @@ class TRPO(BaseRLModel):
         self.params = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -161,8 +162,8 @@ class TRPO(BaseRLModel):
                         var_size = tf_util.intprod(shape)
                         tangents.append(tf.reshape(flat_tangent[start: start + var_size], shape))
                         start += var_size
-                    gvp = tf.add_n(
-                        [tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
+                    gvp = tf.add_n([tf.reduce_sum(grad * tangent)
+                                    for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
                     fvp = tf_util.flatgrad(gvp, var_list)
 
                     tf.summary.scalar('entropy_loss', meanent)
@@ -171,11 +172,13 @@ class TRPO(BaseRLModel):
                     tf.summary.scalar('approximate_kullback-leiber', meankl)
                     tf.summary.scalar('loss', optimgain + meankl + entbonus + surrgain + meanent)
 
-                    self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                                                               zipsame(tf_util.get_globals_vars("oldpi"),
-                                                                                       tf_util.get_globals_vars("model"))])
+                    self.assign_old_eq_new = \
+                        tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
+                                                          zipsame(tf_util.get_globals_vars("oldpi"),
+                                                          tf_util.get_globals_vars("model"))])
                     self.compute_losses = tf_util.function([observation, old_policy.obs_ph, action, atarg], losses)
-                    self.compute_fvp = tf_util.function([flat_tangent, observation, old_policy.obs_ph, action, atarg], fvp)
+                    self.compute_fvp = tf_util.function([flat_tangent, observation, old_policy.obs_ph, action, atarg],
+                                                        fvp)
                     self.compute_vflossandgrad = tf_util.function([observation, old_policy.obs_ph, ret],
                                                                   tf_util.flatgrad(vferr, vf_var_list))
 
@@ -209,7 +212,7 @@ class TRPO(BaseRLModel):
                         self.d_adam.sync()
                     self.vfadam.sync()
 
-                with tf.variable_scope("info", reuse=False):
+                with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(ret))
                     tf.summary.histogram('rewards', ret)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.vf_stepsize))
@@ -257,6 +260,7 @@ class TRPO(BaseRLModel):
                 t_start = time.time()
                 lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
                 rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
+                self.episode_reward = np.zeros((self.n_envs,))
 
                 true_rewbuffer = None
                 if self.using_gail:
@@ -299,21 +303,28 @@ class TRPO(BaseRLModel):
                         vpredbefore = seg["vpred"]  # predicted value function before udpate
                         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
+                        if self.writer is not None:
+                            self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                              seg["true_rew"].reshape(
+                                                                                  (self.n_envs, -1)),
+                                                                              seg["dones"].reshape((self.n_envs, -1)),
+                                                                              self.writer, timesteps_so_far)
+
                         args = seg["ob"], seg["ob"], seg["ac"], atarg
                         fvpargs = [arr[::5] for arr in args]
 
                         self.assign_old_eq_new(sess=self.sess)
 
                         with self.timed("computegrad"):
+                            steps = timesteps_so_far + (k + 1) * (seg["total_timestep"] / self.g_step)
                             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                             run_metadata = tf.RunMetadata()
                             summary, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
                                                                                   options=run_options,
                                                                                   run_metadata=run_metadata)
                             if self.writer is not None:
-                                self.writer.add_run_metadata(run_metadata, 'step%d' %
-                                                             (timesteps_so_far + seg["total_timestep"]))
-                                self.writer.add_summary(summary, timesteps_so_far + seg["total_timestep"])
+                                self.writer.add_run_metadata(run_metadata, 'step%d' % steps)
+                                self.writer.add_summary(summary, steps)
 
                         lossbefore = self.allmean(np.array(lossbefore))
                         grad = self.allmean(grad)

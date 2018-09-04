@@ -6,7 +6,7 @@ from gym.spaces import Discrete, Box
 
 from stable_baselines import logger
 from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, EpisodeStats, \
-    get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
+    get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance, total_episode_reward_logger
 from stable_baselines.acer.buffer import Buffer
 from stable_baselines.common import BaseRLModel, tf_util, SetVerbosity
 from stable_baselines.common.runners import AbstractEnvRunner
@@ -139,6 +139,7 @@ class ACER(BaseRLModel):
         self.n_batch = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -353,7 +354,7 @@ class ACER(BaseRLModel):
                         grads, norm_grads = tf.clip_by_global_norm(grads, self.max_grad_norm)
                     grads = list(zip(grads, self.params))
 
-                with tf.variable_scope("info", reuse=False):
+                with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.reward_ph))
                     tf.summary.histogram('rewards', self.reward_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
@@ -450,6 +451,7 @@ class ACER(BaseRLModel):
             episode_stats = EpisodeStats(self.n_steps, self.n_envs)
 
             runner = _Runner(env=self.env, model=self, n_steps=self.n_steps)
+            self.episode_reward = np.zeros((self.n_envs,))
             if self.replay_ratio > 0:
                 buffer = Buffer(env=self.env, n_steps=self.n_steps, size=self.buffer_size)
             else:
@@ -464,6 +466,12 @@ class ACER(BaseRLModel):
 
                 if buffer is not None:
                     buffer.put(enc_obs, actions, rewards, mus, dones, masks)
+
+                if self.writer is not None:
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                      rewards.reshape((self.n_envs, self.n_steps)),
+                                                                      dones.reshape((self.n_envs, self.n_steps)),
+                                                                      self.writer, steps)
 
                 # reshape stuff correctly
                 obs = obs.reshape(runner.batch_ob_shape)

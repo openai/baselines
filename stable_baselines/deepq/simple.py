@@ -9,7 +9,7 @@ from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from stable_baselines.deepq.utils import ObservationInput
-from stable_baselines.a2c.utils import find_trainable_variables
+from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 
 
 class DeepQ(BaseRLModel):
@@ -95,6 +95,7 @@ class DeepQ(BaseRLModel):
         self.params = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -169,6 +170,7 @@ class DeepQ(BaseRLModel):
             episode_rewards = [0.0]
             obs = self.env.reset()
             reset = True
+            self.episode_reward = np.zeros((1,))
 
             for step in range(total_timesteps):
                 if callback is not None:
@@ -198,6 +200,13 @@ class DeepQ(BaseRLModel):
                 # Store transition in the replay buffer.
                 self.replay_buffer.add(obs, action, rew, new_obs, float(done))
                 obs = new_obs
+
+                if self.writer is not None:
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                      rew.reshape((1, 1)),
+                                                                      done.reshape((1, 1)),
+                                                                      self.writer,
+                                                                      step)
 
                 episode_rewards[-1] += rew
                 if done:

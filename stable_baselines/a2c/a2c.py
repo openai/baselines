@@ -7,7 +7,8 @@ from stable_baselines import logger
 from stable_baselines.common import explained_variance, tf_util, BaseRLModel, SetVerbosity
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse
+from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse, \
+    total_episode_reward_logger
 
 
 class A2C(BaseRLModel):
@@ -72,6 +73,7 @@ class A2C(BaseRLModel):
         self.learning_rate_schedule = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         # if we are loading, it is possible the environment is not known, however the obs and action space are known
         if _init_setup_model:
@@ -123,7 +125,7 @@ class A2C(BaseRLModel):
                         grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
                     grads = list(zip(grads, self.params))
 
-                with tf.variable_scope("info", reuse=False):
+                with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.rewards_ph))
                     tf.summary.histogram('rewards', self.rewards_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
@@ -203,13 +205,20 @@ class A2C(BaseRLModel):
                                                     schedule=self.lr_schedule)
 
             runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
+            self.episode_reward = np.zeros((self.n_envs,))
 
             t_start = time.time()
             for update in range(1, total_timesteps // self.n_batch + 1):
-                obs, states, rewards, masks, actions, values = runner.run()
+                obs, states, rewards, masks, actions, values, true_reward = runner.run()
                 _, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values, update)
                 n_seconds = time.time() - t_start
                 fps = int((update * self.n_batch) / n_seconds)
+
+                if self.writer is not None:
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                      true_reward.reshape((self.n_envs, self.n_steps)),
+                                                                      masks.reshape((self.n_envs, self.n_steps)),
+                                                                      self.writer, update * (self.n_batch + 1))
 
                 if callback is not None:
                     callback(locals(), globals())
@@ -331,6 +340,7 @@ class A2CRunner(AbstractEnvRunner):
         mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(0, 1)
         mb_masks = mb_dones[:, :-1]
         mb_dones = mb_dones[:, 1:]
+        true_rewards = np.copy(mb_rewards)
         last_values = self.model.value(self.obs, self.states, self.dones).tolist()
         # discount/bootstrap off value fn
         for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
@@ -347,4 +357,4 @@ class A2CRunner(AbstractEnvRunner):
         mb_actions = mb_actions.reshape(-1, *mb_actions.shape[2:])
         mb_values = mb_values.reshape(-1, *mb_values.shape[2:])
         mb_masks = mb_masks.reshape(-1, *mb_masks.shape[2:])
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
+        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values, true_rewards

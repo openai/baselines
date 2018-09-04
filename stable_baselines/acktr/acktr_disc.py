@@ -10,7 +10,8 @@ import numpy as np
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
 from stable_baselines.a2c.a2c import A2CRunner
-from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse
+from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse, \
+    total_episode_reward_logger
 from stable_baselines.acktr import kfac
 from stable_baselines.common.policies import LstmPolicy
 
@@ -85,6 +86,7 @@ class ACKTR(BaseRLModel):
         self.n_batch = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -145,7 +147,7 @@ class ACKTR(BaseRLModel):
 
                     self.grads_check = tf.gradients(train_loss, params)
 
-                with tf.variable_scope("info", reuse=False):
+                with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.rewards_ph))
                     tf.summary.histogram('rewards', self.rewards_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.pg_lr_ph))
@@ -253,16 +255,24 @@ class ACKTR(BaseRLModel):
                         self.sess.run(tf.variables_initializer(new_uninitialized_vars))
 
             runner = A2CRunner(self.env, self, n_steps=self.n_steps, gamma=self.gamma)
+            self.episode_reward = np.zeros((self.n_envs,))
 
             t_start = time.time()
             coord = tf.train.Coordinator()
             enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
             for update in range(1, total_timesteps // self.n_batch + 1):
-                obs, states, rewards, masks, actions, values = runner.run()
+                obs, states, rewards, masks, actions, values, true_reward = runner.run()
                 policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values,
                                                                            update)
                 n_seconds = time.time() - t_start
                 fps = int((update * self.n_batch) / n_seconds)
+
+                if self.writer is not None:
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                      true_reward.reshape((self.n_envs, self.n_steps)),
+                                                                      masks.reshape((self.n_envs, self.n_steps)),
+                                                                      self.writer, update * (self.n_batch + 1))
+
 
                 if callback is not None:
                     callback(locals(), globals())

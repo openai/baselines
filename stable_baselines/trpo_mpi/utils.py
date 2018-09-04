@@ -47,6 +47,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     rews = np.zeros(horizon, 'float32')
     vpreds = np.zeros(horizon, 'float32')
     news = np.zeros(horizon, 'int32')
+    dones = np.zeros(horizon, 'bool')
     actions = np.array([action for _ in range(horizon)])
     prev_actions = actions.copy()
     states = policy.initial_state
@@ -68,8 +69,8 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
             else:
                 total_timesteps = sum(ep_lens) + cur_ep_len
 
-            yield {"ob": observations, "rew": rews, "vpred": vpreds, "new": news,
-                   "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
+            yield {"ob": observations, "rew": rews, "dones": dones, "true_rew": true_rews, "vpred": vpreds,
+                   "new": news, "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new),
                    "ep_rets": ep_rets, "ep_lens": ep_lens, "ep_true_rets": ep_true_rets,
                    "total_timestep": total_timesteps}
             _, vpred, _, _ = policy.step(observation.reshape(-1, *observation.shape))
@@ -87,17 +88,18 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
 
         if gail:
             rew = reward_giver.get_reward(observation, action[0])
-            observation, true_rew, new, done = env.step(action[0])
+            observation, true_rew, done, info = env.step(action[0])
         else:
-            observation, rew, new, done = env.step(action[0])
+            observation, rew, done, info = env.step(action[0])
             true_rew = rew
         rews[i] = rew
         true_rews[i] = true_rew
+        dones[i] = done
 
         cur_ep_ret += rew
         cur_ep_true_ret += true_rew
         cur_ep_len += 1
-        if new:
+        if done:
             ep_rets.append(cur_ep_ret)
             ep_true_rets.append(cur_ep_true_ret)
             ep_lens.append(cur_ep_len)

@@ -10,6 +10,7 @@ from stable_baselines import logger
 from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity
 from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
 class PPO2(BaseRLModel):
@@ -89,6 +90,7 @@ class PPO2(BaseRLModel):
         self.n_batch = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -165,7 +167,7 @@ class PPO2(BaseRLModel):
 
                 self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
-                with tf.variable_scope("info", reuse=False):
+                with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.rewards_ph))
                     tf.summary.histogram('rewards', self.rewards_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph))
@@ -251,6 +253,7 @@ class PPO2(BaseRLModel):
             self._setup_learn(seed)
 
             runner = Runner(env=self.env, model=self, n_steps=self.n_steps, gamma=self.gamma, lam=self.lam)
+            self.episode_reward = np.zeros((self.n_envs,))
 
             ep_info_buf = deque(maxlen=100)
             t_first_start = time.time()
@@ -263,7 +266,7 @@ class PPO2(BaseRLModel):
                 frac = 1.0 - (update / (nupdates + 1))
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
-                obs, returns, masks, actions, values, neglogpacs, states, ep_infos = runner.run()  # pylint: disable=E0632
+                obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run()
                 ep_info_buf.extend(ep_infos)
                 mb_loss_vals = []
                 if states is None:  # nonrecurrent version
@@ -298,6 +301,12 @@ class PPO2(BaseRLModel):
                 loss_vals = np.mean(mb_loss_vals, axis=0)
                 t_now = time.time()
                 fps = int(self.n_batch / (t_now - t_start))
+
+                if self.writer is not None:
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                      true_reward.reshape((self.n_envs, self.n_steps)),
+                                                                      masks.reshape((self.n_envs, self.n_steps)),
+                                                                      self.writer, update * (self.n_batch + 1))
 
                 if callback is not None:
                     callback(locals(), globals())
@@ -438,6 +447,7 @@ class Runner(AbstractEnvRunner):
         last_values = self.model.value(self.obs, self.states, self.dones)
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)
+        true_reward = np.copy(mb_rewards)
         last_gae_lam = 0
         for step in reversed(range(self.n_steps)):
             if step == self.n_steps - 1:
@@ -449,8 +459,11 @@ class Runner(AbstractEnvRunner):
             delta = mb_rewards[step] + self.gamma * nextvalues * nextnonterminal - mb_values[step]
             mb_advs[step] = last_gae_lam = delta + self.gamma * self.lam * nextnonterminal * last_gae_lam
         mb_returns = mb_advs + mb_values
-        return (*map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)), mb_states,
-                ep_infos)
+
+        mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs = \
+            map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs))
+
+        return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward
 
 
 # obs, returns, masks, actions, values, neglogpacs, states = runner.run()

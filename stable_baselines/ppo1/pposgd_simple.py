@@ -12,6 +12,7 @@ from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.mpi_moments import mpi_moments
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
+from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
 class PPO1(BaseRLModel):
@@ -69,6 +70,7 @@ class PPO1(BaseRLModel):
         self.initial_state = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -142,7 +144,7 @@ class PPO1(BaseRLModel):
                 with tf.variable_scope("Adam_mpi", reuse=False):
                     self.adam = MpiAdam(self.params, epsilon=self.adam_epsilon, sess=self.sess)
 
-                with tf.variable_scope("info", reuse=False):
+                with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(ret))
                     tf.summary.histogram('rewards', ret)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.optim_stepsize))
@@ -192,6 +194,8 @@ class PPO1(BaseRLModel):
                 # rolling buffer for episode rewards
                 rewbuffer = deque(maxlen=100)
 
+                self.episode_reward = np.zeros((self.n_envs,))
+
                 while True:
                     if callback:
                         callback(locals(), globals())
@@ -212,6 +216,12 @@ class PPO1(BaseRLModel):
 
                     # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
                     obs_ph, action_ph, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+
+                    if self.writer is not None:
+                        self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                          seg["true_rew"].reshape((self.n_envs, -1)),
+                                                                          seg["dones"].reshape((self.n_envs, -1)),
+                                                                          self.writer, timesteps_so_far)
 
                     # predicted value function before udpate
                     vpredbefore = seg["vpred"]

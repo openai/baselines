@@ -16,7 +16,7 @@ from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.policies import LstmPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
-from stable_baselines.a2c.utils import find_trainable_variables
+from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 from stable_baselines.ddpg.memory import Memory
 
 
@@ -245,6 +245,7 @@ class DDPG(BaseRLModel):
         self.params = None
         self.writer = None
         self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -331,7 +332,7 @@ class DDPG(BaseRLModel):
                     self._setup_stats()
                     self._setup_target_network_updates()
 
-                with tf.variable_scope("info", reuse=False):
+                with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.rewards))
                     tf.summary.histogram('rewards', self.rewards)
                     tf.summary.scalar('param_noise_stddev', tf.reduce_mean(self.param_noise_stddev))
@@ -687,6 +688,7 @@ class DDPG(BaseRLModel):
 
             eval_episode_rewards_history = deque(maxlen=100)
             episode_rewards_history = deque(maxlen=100)
+            self.episode_reward = np.zeros((1,))
             with self.sess.as_default(), self.graph.as_default():
                 # Prepare everything.
                 self._reset()
@@ -730,6 +732,13 @@ class DDPG(BaseRLModel):
                             assert max_action.shape == action.shape
                             # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                             new_obs, reward, done, _ = self.env.step(max_action * action)
+
+                            if self.writer is not None:
+                                self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                                  reward.reshape((1, 1)),
+                                                                                  done.reshape((1, 1)),
+                                                                                  self.writer,
+                                                                                  total_steps)
                             step += 1
                             total_steps += 1
                             if rank == 0 and self.render:
