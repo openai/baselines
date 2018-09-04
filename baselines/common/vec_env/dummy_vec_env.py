@@ -66,3 +66,8 @@ class DummyVecEnv(VecEnv):
     def get_images(self):
         return [env.render(mode='rgb_array') for env in self.envs]
         
+    def render(self, mode='human'):
+        if self.num_envs == 1:
+            self.envs[0].render(mode=mode)
+        else:
+            super().render(mode=mode)
