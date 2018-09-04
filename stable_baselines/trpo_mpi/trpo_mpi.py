@@ -300,6 +300,7 @@ class TRPO(BaseRLModel):
                         vpredbefore = seg["vpred"]  # predicted value function before udpate
                         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
+                        # true_rew is the reward without discount
                         if writer is not None:
                             self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                               seg["true_rew"].reshape(
@@ -316,6 +317,7 @@ class TRPO(BaseRLModel):
                             steps = timesteps_so_far + (k + 1) * (seg["total_timestep"] / self.g_step)
                             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                             run_metadata = tf.RunMetadata()
+                            # run loss backprop with summary, and save the metadata (memory, compute time, ...)
                             if writer is not None:
                                 summary, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
                                                                                       options=run_options,

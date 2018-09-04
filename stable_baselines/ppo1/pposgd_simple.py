@@ -214,6 +214,7 @@ class PPO1(BaseRLModel):
                     # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
                     obs_ph, action_ph, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
 
+                    # true_rew is the reward without discount
                     if writer is not None:
                         self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                           seg["true_rew"].reshape((self.n_envs, -1)),
@@ -243,7 +244,9 @@ class PPO1(BaseRLModel):
                                      k * optim_batchsize +
                                      int(i * (optim_batchsize / len(dataset.data_map))))
                             if writer is not None:
-                                if k % 10 == 99:
+                                # run loss backprop with summary, but once every 10 runs save the metadata
+                                # (memory, compute time, ...)
+                                if (1 + k )% 10 == 0:
                                     run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                                     run_metadata = tf.RunMetadata()
                                     summary, grad, *newlosses = self.lossandgrad(batch["ob"], batch["ob"], batch["ac"],

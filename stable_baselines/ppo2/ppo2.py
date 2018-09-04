@@ -228,7 +228,8 @@ class PPO2(BaseRLModel):
             update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps
 
         if writer is not None:
-            if update % 10 == 9:
+            # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)
+            if (1 + update) % 10 == 0:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
@@ -264,6 +265,7 @@ class PPO2(BaseRLModel):
                 frac = 1.0 - (update / (nupdates + 1))
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
+                # true_reward is the reward without discount
                 obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = runner.run()
                 ep_info_buf.extend(ep_infos)
                 mb_loss_vals = []

@@ -569,7 +569,8 @@ class DDPG(BaseRLModel):
             self.param_noise_stddev: 0 if self.param_noise is None else self.param_noise.current_stddev
         }
         if writer is not None:
-            if step % 100 == 0 and step >= 1:
+            # run loss backprop with summary, but once every 100 steps save the metadata (memory, compute time, ...)
+            if (1 + step) % 100 == 0:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 summary, actor_grads, actor_loss, critic_grads, critic_loss = \

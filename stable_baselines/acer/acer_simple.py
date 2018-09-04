@@ -422,7 +422,8 @@ class ACER(BaseRLModel):
             td_map[self.polyak_model.masks_ph] = masks
 
         if writer is not None:
-            if (steps / self.n_batch) % 10 == 9:
+            # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)
+            if (1 + (steps / self.n_batch)) % 10 == 0:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 step_return = self.sess.run([self.summary] + self.run_ops, td_map, options=run_options,

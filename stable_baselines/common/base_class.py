@@ -53,11 +53,11 @@ class BaseRLModel(ABC):
                 if isinstance(env, VecEnv):
                     if env.num_envs == 1:
                         self.env = _UnvecWrapper(env)
-                        self.n_envs = 1
                         self._vectorize_action = True
                     else:
                         raise ValueError("Error: the model requires a non vectorized environment or a single vectorized"
                                          " environment.")
+                self.n_envs = 1
 
     def get_env(self):
         """

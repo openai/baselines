@@ -1,6 +1,6 @@
 .. _tensorboard:
 
-Tensorboard Intergration
+Tensorboard Integration
 ==========================
 
 To use the Tensorboard with the rl baselines, you simply need to define a log location for the RL agent:
@@ -36,7 +36,8 @@ Or after loading an existing model (by default the log path is not saved):
     model.learn(total_timesteps=10000)
 
 
-You can also define custom logging name when training
+You can also define custom logging name when training (by default it is the algorithm name)
+
 .. code-block:: python
 
     import gym
@@ -52,11 +53,12 @@ You can also define custom logging name when training
     model.learn(total_timesteps=10000, tb_log_name="second_run")
     model.learn(total_timesteps=10000, tb_log_name="thrid_run")
 
+
 Once the learn function is called, you can monitor the RL agent during or after the training, with the following bash command:
 
 .. code-block:: bash
 
-  tensorboard --logdir ./a2c_cartpole/
+  tensorboard --logdir ./a2c_cartpole_tensorboard/
 
 It will display information such as the model graph, the episode reward, the model losses, the observation and other parameter unique to some models.
 

@@ -205,7 +205,8 @@ class ACKTR(BaseRLModel):
             td_map[self.train_model.masks_ph] = masks
 
         if writer is not None:
-            if update % 10 == 9:
+            # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)
+            if (1 + update) % 10 == 0:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 summary, policy_loss, value_loss, policy_entropy, _ = self.sess.run(
@@ -261,6 +262,7 @@ class ACKTR(BaseRLModel):
             coord = tf.train.Coordinator()
             enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
             for update in range(1, total_timesteps // self.n_batch + 1):
+                # true_reward is the reward without discount
                 obs, states, rewards, masks, actions, values, true_reward = runner.run()
                 policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values,
                                                                            update, writer)

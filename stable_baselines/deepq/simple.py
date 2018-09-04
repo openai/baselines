@@ -218,7 +218,9 @@ class DeepQ(BaseRLModel):
                         weights, batch_idxes = np.ones_like(rewards), None
 
                     if writer is not None:
-                        if step % 100 == 99:
+                        # run loss backprop with summary, but once every 10 runs save the metadata
+                        # (memory, compute time, ...)
+                        if (1 + step) % 100 == 0:
                             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                             run_metadata = tf.RunMetadata()
                             summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
