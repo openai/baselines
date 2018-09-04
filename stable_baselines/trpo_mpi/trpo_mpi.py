@@ -87,6 +87,7 @@ class TRPO(BaseRLModel):
         self.initial_state = None
         self.params = None
         self.writer = None
+        self.summary = None
 
         if _init_setup_model:
             self.setup_model()
@@ -164,12 +165,16 @@ class TRPO(BaseRLModel):
                         [tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
                     fvp = tf_util.flatgrad(gvp, var_list)
 
+                    tf.summary.scalar('entropy_loss', meanent)
+                    tf.summary.scalar('policy_gradient_loss', optimgain)
+                    tf.summary.scalar('value_function_loss', surrgain)
+                    tf.summary.scalar('approximate_kullback-leiber', meankl)
+                    tf.summary.scalar('loss', optimgain + meankl + entbonus + surrgain + meanent)
+
                     self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
                                                                                zipsame(tf_util.get_globals_vars("oldpi"),
                                                                                        tf_util.get_globals_vars("model"))])
                     self.compute_losses = tf_util.function([observation, old_policy.obs_ph, action, atarg], losses)
-                    self.compute_lossandgrad = tf_util.function([observation, old_policy.obs_ph, action, atarg],
-                                                                losses + [tf_util.flatgrad(optimgain, var_list)])
                     self.compute_fvp = tf_util.function([flat_tangent, observation, old_policy.obs_ph, action, atarg], fvp)
                     self.compute_vflossandgrad = tf_util.function([observation, old_policy.obs_ph, ret],
                                                                   tf_util.flatgrad(vferr, vf_var_list))
@@ -204,6 +209,20 @@ class TRPO(BaseRLModel):
                         self.d_adam.sync()
                     self.vfadam.sync()
 
+                with tf.variable_scope("info", reuse=False):
+                    tf.summary.scalar('rewards', tf.reduce_mean(ret))
+                    tf.summary.histogram('rewards', ret)
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.vf_stepsize))
+                    tf.summary.histogram('learning_rate', self.vf_stepsize)
+                    tf.summary.scalar('advantage', tf.reduce_mean(atarg))
+                    tf.summary.histogram('advantage', atarg)
+                    tf.summary.scalar('kl_clip_range', tf.reduce_mean(self.max_kl))
+                    tf.summary.histogram('kl_clip_range', self.max_kl)
+                    if len(self.observation_space.shape) == 3:
+                        tf.summary.image('observation', observation)
+                    else:
+                        tf.summary.histogram('observation', observation)
+
                 self.timed = timed
                 self.allmean = allmean
 
@@ -214,6 +233,12 @@ class TRPO(BaseRLModel):
                 self.params = find_trainable_variables("model")
                 if self.using_gail:
                     self.params.extend(self.reward_giver.get_trainable_variables())
+
+                self.summary = tf.summary.merge_all()
+
+                self.compute_lossandgrad = \
+                    tf_util.function([observation, old_policy.obs_ph, action, atarg, ret],
+                                     [self.summary, tf_util.flatgrad(optimgain, var_list)] + losses)
 
             if self.tensorboard_log is not None:
                 self.writer = tf.summary.FileWriter(self.tensorboard_log, graph=self.graph)
@@ -265,7 +290,7 @@ class TRPO(BaseRLModel):
                     observation = None
                     action = None
                     seg = None
-                    for _ in range(self.g_step):
+                    for k in range(self.g_step):
                         with self.timed("sampling"):
                             seg = seg_gen.__next__()
                         add_vtarg_and_adv(seg, self.gamma, self.lam)
@@ -280,7 +305,16 @@ class TRPO(BaseRLModel):
                         self.assign_old_eq_new(sess=self.sess)
 
                         with self.timed("computegrad"):
-                            *lossbefore, grad = self.compute_lossandgrad(*args, sess=self.sess)
+                            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                            run_metadata = tf.RunMetadata()
+                            summary, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
+                                                                                  options=run_options,
+                                                                                  run_metadata=run_metadata)
+                            if self.writer is not None:
+                                self.writer.add_run_metadata(run_metadata, 'step%d' %
+                                                             (timesteps_so_far + seg["total_timestep"]))
+                                self.writer.add_summary(summary, timesteps_so_far + seg["total_timestep"])
+
                         lossbefore = self.allmean(np.array(lossbefore))
                         grad = self.allmean(grad)
                         if np.allclose(grad, 0):
