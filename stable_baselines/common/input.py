@@ -27,7 +27,7 @@ def observation_input(ob_space, batch_size=None, name='Ob', scale=False):
         # rescale to [1, 0] if the bounds are defined
         if (scale and
            not np.any(np.isinf(ob_space.low)) and not np.any(np.isinf(ob_space.high)) and
-           np.any(ob_space.high - ob_space.low) != 0):
+           np.any((ob_space.high - ob_space.low) != 0)):
 
             # equivalent to processed_x / 255.0 when bounds are set to [255, 0]
             processed_x = ((processed_x - ob_space.low) / (ob_space.high - ob_space.low))
