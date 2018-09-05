@@ -1,3 +1,5 @@
+from abc import ABC
+
 import numpy as np
 import tensorflow as tf
 from gym.spaces import Discrete
@@ -23,9 +25,9 @@ def nature_cnn(scaled_images, **kwargs):
     return activ(linear(layer_3, 'fc1', n_hidden=512, init_scale=np.sqrt(2)))
 
 
-class ActorCriticPolicy(object):
+class BasePolicy(ABC):
     """
-    Policy object that implements actor critic
+    base policy object that implements
 
     :param sess: (TensorFlow session) The current TensorFlow session
     :param ob_space: (Gym Space) The observation space of the environment
@@ -45,14 +47,68 @@ class ActorCriticPolicy(object):
             self.obs_ph, self.processed_x = observation_input(ob_space, n_batch, scale=scale)
             self.masks_ph = tf.placeholder(tf.float32, [n_batch], name="masks_ph")  # mask (done t-1)
             self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2], name="states_ph")  # states
-        self.pdtype = make_proba_dist_type(ac_space)
         self.sess = sess
         self.reuse = reuse
+        self.ob_space = ob_space
+        self.ac_space = ac_space
+
+    def step(self, obs, state=None, mask=None):
+        """
+        Returns the policy for a single step
+
+        :param obs: ([float] or [int]) The current observation of the environment
+        :param state: ([float]) The last states (used in reccurent policies)
+        :param mask: ([float]) The last masks (used in reccurent policies)
+        :return: ([float], [float], [float], [float]) actions, values, states, neglogp
+        """
+        raise NotImplementedError
+
+    def proba_step(self, obs, state=None, mask=None):
+        """
+        Returns the action probability for a single step
+
+        :param obs: ([float] or [int]) The current observation of the environment
+        :param state: ([float]) The last states (used in reccurent policies)
+        :param mask: ([float]) The last masks (used in reccurent policies)
+        :return: ([float]) the action probability
+        """
+        raise NotImplementedError
+
+    def value(self, obs, state=None, mask=None):
+        """
+        Returns the value for a single step
+
+        :param obs: ([float] or [int]) The current observation of the environment
+        :param state: ([float]) The last states (used in reccurent policies)
+        :param mask: ([float]) The last masks (used in reccurent policies)
+        :return: ([float]) The associated value of the action
+        """
+        raise NotImplementedError
+
+
+class ActorCriticPolicy(BasePolicy):
+    """
+    Policy object that implements actor critic
+
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param reuse: (bool) If the policy is reusable or not
+    :param scale: (bool) whether or not to scale the input
+    """
+
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
+        super(ActorCriticPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm,
+                                                reuse=reuse, scale=scale)
+        self.pdtype = make_proba_dist_type(ac_space)
         self.is_discrete = isinstance(ac_space, Discrete)
         self.policy = None
         self.proba_distribution = None
         self.value_fn = None
-        self.ob_space = ob_space
 
     def _setup_init(self):
         """

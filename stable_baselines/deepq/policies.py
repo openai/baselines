@@ -2,6 +2,10 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 
+class DeepQPolicy(object):
+    pass
+
+
 def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt

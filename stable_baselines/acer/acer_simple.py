@@ -10,7 +10,7 @@ from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, fi
 from stable_baselines.acer.buffer import Buffer
 from stable_baselines.common import BaseRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
 
 
 def strip(var, n_envs, n_steps, flat=False):
@@ -153,6 +153,9 @@ class ACER(BaseRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
+
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the ACER model must an " \
+                                                               "instance of ActorCriticPolicy."
 
             if isinstance(self.action_space, Discrete):
                 self.n_act = self.action_space.n

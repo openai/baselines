@@ -9,7 +9,7 @@ from stable_baselines.common import Dataset, explained_variance, fmt_row, zipsam
     TensorboardWriter
 from stable_baselines import logger
 import stable_baselines.common.tf_util as tf_util
-from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.mpi_moments import mpi_moments
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
@@ -174,6 +174,9 @@ class PPO1(BaseRLModel):
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="PPO1"):
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
+
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO1 model must an " \
+                                                               "instance of ActorCriticPolicy."
 
             with self.sess.as_default():
                 self.adam.sync()

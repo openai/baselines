@@ -3,7 +3,7 @@ import argparse
 from stable_baselines import bench, logger
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.atari_wrappers import make_atari
-from stable_baselines.deepq import DeepQ, wrap_atari_dqn, models as deepq_models
+from stable_baselines.deepq import DeepQ, wrap_atari_dqn, policies as deepq_models
 
 
 def main():

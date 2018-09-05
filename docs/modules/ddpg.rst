@@ -8,6 +8,10 @@ DDPG
 `Deep Deterministic Policy Gradient (DDPG) <https://arxiv.org/abs/1509.02971>`_
 
 
+.. warning::
+
+  The DDPG model does not support Actor critic policies, as a result it must use its own policy models (```stable_baselines.ddpg.polices```).
+
 Notes
 -----
 
@@ -41,7 +45,7 @@ Example
 
   import gym
 
-  from stable_baselines.common.policies import MlpPolicy, CnnPolicy
+  from stable_baselines.ddpg.policies import MlpPolicy, CnnPolicy
   from stable_baselines.common.vec_env import DummyVecEnv
   from stable_baselines.ddpg.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise, AdaptiveParamNoiseSpec
   from stable_baselines import DDPG

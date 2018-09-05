@@ -9,7 +9,7 @@ import tensorflow as tf
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
@@ -96,6 +96,9 @@ class PPO2(BaseRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
+
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO2 model must an " \
+                                                               "instance of ActorCriticPolicy."
 
             self.n_batch = self.n_envs * self.n_steps
 

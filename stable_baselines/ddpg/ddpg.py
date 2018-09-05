@@ -14,7 +14,7 @@ from stable_baselines import logger
 from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.mpi_adam import MpiAdam
-from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.ddpg.policies import DDPGPolicy
 from stable_baselines.common.mpi_running_mean_std import RunningMeanStd
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 from stable_baselines.ddpg.memory import Memory
@@ -126,7 +126,7 @@ class DDPG(BaseRLModel):
 
     DDPG: https://arxiv.org/pdf/1509.02971.pdf
 
-    :param policy: (ActorCriticPolicy) the policy
+    :param policy: (DDPGPolicy) the policy
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) the discount rate
     :param memory_policy: (Memory) the replay buffer (if None, default to baselines.ddpg.memory.Memory)
@@ -144,7 +144,6 @@ class DDPG(BaseRLModel):
     :param normalize_observations: (bool) should the observation be normalized
     :param batch_size: (int) the size of the batch for learning the policy
     :param observation_range: (tuple) the bounding values for the observation
-    :param action_range: (tuple) the bounding values for the actions
     :param return_range: (tuple) the bounding values for the critic output
     :param critic_l2_reg: (float) l2 regularizer coefficient
     :param actor_lr: (float) the actor learning rate
@@ -162,11 +161,11 @@ class DDPG(BaseRLModel):
 
     def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None,
                  nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
-                 action_range=(-1., 1.), normalize_observations=False, tau=0.001, batch_size=128,
-                 param_noise_adaption_interval=50, normalize_returns=False, enable_popart=False,
-                 observation_range=(-5., 5.), critic_l2_reg=0., return_range=(-np.inf, np.inf), actor_lr=1e-4,
-                 critic_lr=1e-3, clip_norm=None, reward_scale=1., render=False, render_eval=False, layer_norm=True,
-                 memory_limit=100, verbose=0, tensorboard_log=None, _init_setup_model=True):
+                 normalize_observations=False, tau=0.001, batch_size=128, param_noise_adaption_interval=50,
+                 normalize_returns=False, enable_popart=False, observation_range=(-5., 5.), critic_l2_reg=0.,
+                 return_range=(-np.inf, np.inf), actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.,
+                 render=False, render_eval=False, layer_norm=True, memory_limit=100, verbose=0, tensorboard_log=None,
+                 _init_setup_model=True):
 
         super(DDPG, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
 
@@ -178,7 +177,6 @@ class DDPG(BaseRLModel):
         self.normalize_returns = normalize_returns
         self.action_noise = action_noise
         self.param_noise = param_noise
-        self.action_range = action_range
         self.return_range = return_range
         self.observation_range = observation_range
         self.actor_lr = actor_lr
@@ -254,7 +252,8 @@ class DDPG(BaseRLModel):
 
             assert isinstance(self.action_space, gym.spaces.Box), \
                 "Error: DDPG cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
-            assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the DDPG model."
+            assert issubclass(self.policy, DDPGPolicy), "Error: the input policy for the DDPG model must an instance " \
+                                                        "of DDPGPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
@@ -510,7 +509,6 @@ class DDPG(BaseRLModel):
             noise = self.action_noise()
             assert noise.shape == action.shape
             action += noise
-        action = np.clip(action, self.action_range[0], self.action_range[1])
         return action, q_value
 
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
@@ -678,8 +676,6 @@ class DDPG(BaseRLModel):
             rank = MPI.COMM_WORLD.Get_rank()
             # we assume symmetric actions.
             assert np.all(np.abs(self.env.action_space.low) == self.env.action_space.high)
-            max_action = self.env.action_space.high
-            logger.log('scaling actions by {} before executing in env'.format(max_action))
             logger.log('Using agent with the following configuration:')
             logger.log(str(self.__dict__.items()))
 
@@ -726,9 +722,7 @@ class DDPG(BaseRLModel):
                             # Execute next action.
                             if rank == 0 and self.render:
                                 self.env.render()
-                            assert max_action.shape == action.shape
-                            # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                            new_obs, reward, done, _ = self.env.step(max_action * action)
+                            new_obs, reward, done, _ = self.env.step(action)
 
                             if writer is not None:
                                 self.episode_reward = total_episode_reward_logger(self.episode_reward,
@@ -795,8 +789,7 @@ class DDPG(BaseRLModel):
                                     return self
 
                                 eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
-                                # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
-                                eval_obs, eval_r, eval_done, _ = self.eval_env.step(max_action * eval_action)
+                                eval_obs, eval_r, eval_done, _ = self.eval_env.step(eval_action)
                                 if self.render_eval:
                                     self.eval_env.render()
                                 eval_episode_reward += eval_r
@@ -906,7 +899,6 @@ class DDPG(BaseRLModel):
             "normalize_observations": self.normalize_observations,
             "batch_size": self.batch_size,
             "observation_range": self.observation_range,
-            "action_range": self.action_range,
             "return_range": self.return_range,
             "critic_l2_reg": self.critic_l2_reg,
             "actor_lr": self.actor_lr,

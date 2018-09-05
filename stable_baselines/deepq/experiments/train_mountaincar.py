@@ -2,7 +2,7 @@ import argparse
 
 import gym
 
-from stable_baselines.deepq import DeepQ, models as deepq_models
+from stable_baselines.deepq import DeepQ, policies as deepq_models
 
 
 def main(args):

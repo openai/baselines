@@ -86,12 +86,14 @@ class HER(BaseRLModel):
             assert isinstance(self.action_space, gym.spaces.Box), \
                 "Error: HER cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
             assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the HER model."
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the HER model must an " \
+                                                               "instance of ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
                 pass
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="HER"):
         with SetVerbosity(self.verbose):
             self._setup_learn(seed)
 

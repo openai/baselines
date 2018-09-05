@@ -12,6 +12,7 @@ from stable_baselines.common import explained_variance, zipsame, dataset, fmt_ro
 from stable_baselines import logger
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.cg import conjugate_gradient
+from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
 # from stable_baselines.gail.statistics import Stats
@@ -98,6 +99,9 @@ class TRPO(BaseRLModel):
         from stable_baselines.gail.adversary import TransitionClassifier
 
         with SetVerbosity(self.verbose):
+
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the TRPO model must an " \
+                                                               "instance of ActorCriticPolicy."
 
             self.nworkers = MPI.COMM_WORLD.Get_size()
             self.rank = MPI.COMM_WORLD.Get_rank()

@@ -13,7 +13,7 @@ from stable_baselines.common import set_global_seeds
 from stable_baselines.common.identity_env import IdentityEnv
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
-from stable_baselines.deepq import models as deepq_models
+from stable_baselines.deepq import policies as deepq_models
 
 N_TRIALS = 2000
 

@@ -11,7 +11,7 @@ from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
-from stable_baselines.deepq import models as deepq_models
+from stable_baselines.deepq import policies as deepq_models
 
 learn_func_list = [
     lambda e: A2C(policy=MlpPolicy, learning_rate=1e-3, n_steps=1,

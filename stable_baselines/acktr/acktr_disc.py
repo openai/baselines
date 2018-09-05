@@ -13,7 +13,7 @@ from stable_baselines.a2c.a2c import A2CRunner
 from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse, \
     total_episode_reward_logger
 from stable_baselines.acktr import kfac
-from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
 
 
 class ACKTR(BaseRLModel):
@@ -93,6 +93,9 @@ class ACKTR(BaseRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
+
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the ACKTR model must an " \
+                                                               "instance of ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():

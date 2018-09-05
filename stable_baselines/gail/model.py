@@ -1,6 +1,7 @@
 import gym
 
 from stable_baselines.common import BaseRLModel
+from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.trpo_mpi import TRPO
 
 
@@ -58,12 +59,14 @@ class GAIL(BaseRLModel):
         self.trpo.set_env(env)
 
     def setup_model(self):
+        assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the GAIL model must an " \
+                                                           "instance of ActorCriticPolicy."
         assert isinstance(self.action_space, gym.spaces.Box), "Error: GAIL requires a continuous action space."
 
         self.trpo.setup_model()
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        self.trpo.learn(total_timesteps, callback, seed, log_interval)
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="GAIL"):
+        self.trpo.learn(total_timesteps, callback, seed, log_interval, tb_log_name)
         return self
 
     def predict(self, observation, state=None, mask=None):
