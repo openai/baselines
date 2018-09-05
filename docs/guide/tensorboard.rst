@@ -49,7 +49,7 @@ You can also define custom logging name when training (by default it is the algo
     env = gym.make('CartPole-v1')
     env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
 
-    model = A2C((MlpPolicy, env, verbose=1, tensorboard_log="./a2c_cartpole_tensorboard/")
+    model = A2C(MlpPolicy, env, verbose=1, tensorboard_log="./a2c_cartpole_tensorboard/")
     model.learn(total_timesteps=10000, tb_log_name="first_run")
     model.learn(total_timesteps=10000, tb_log_name="second_run")
     model.learn(total_timesteps=10000, tb_log_name="thrid_run")
