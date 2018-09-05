@@ -4,10 +4,11 @@ from stable_baselines.a2c import A2C
 from stable_baselines.acer import ACER
 from stable_baselines.acktr import ACKTR
 from stable_baselines.deepq import DeepQ
+from stable_baselines.ddpg import DDPG
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
-from stable_baselines.common.identity_env import IdentityEnv
+from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.deepq import models as deepq_models
@@ -40,6 +41,28 @@ def test_identity(learn_func):
     env = DummyVecEnv([lambda: IdentityEnv(10)])
 
     model = learn_func(env)
+
+    n_trials = 1000
+    reward_sum = 0
+    obs = env.reset()
+    for _ in range(n_trials):
+        action, _ = model.predict(obs)
+        obs, reward, _, _ = env.step(action)
+        reward_sum += reward
+    assert reward_sum > 0.9 * n_trials
+    # Free memory
+    del model, env
+
+
+@pytest.mark.slow
+def test_identity_ddpg():
+    """
+    Test if the algorithm (with a given policy)
+    can learn an identity transformation (i.e. return observation as an action)
+    """
+    env = DummyVecEnv([lambda: IdentityEnvBox(10)])
+
+    model = DDPG(MlpPolicy, env).learn(total_timesteps=10000, seed=0)
 
     n_trials = 1000
     reward_sum = 0

@@ -9,6 +9,10 @@ DQN
 `Deep Q Network (DQN) <https://arxiv.org/abs/1312.5602>`_
 and its extensions (Double-DQN, Dueling-DQN, Prioritized Experience Replay).
 
+.. warning::
+
+  The DQN model does not support Actor critic policies, as a result it must use its own policy models (```stable_baselines.deepq.models```).
+
 Notes
 -----
 

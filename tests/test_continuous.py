@@ -2,7 +2,6 @@ import subprocess
 import os
 
 import pytest
-import gym
 
 from stable_baselines.a2c import A2C
 # TODO: add support for continuous actions
@@ -16,8 +15,8 @@ from stable_baselines.common import set_global_seeds
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
 from tests.test_common import _assert_eq
+from stable_baselines.common.identity_env import IdentityEnvBox
 
-ENV_ID = 'Pendulum-v0'
 N_TRIALS = 1000
 NUM_TIMESTEPS = 1000
 
@@ -42,8 +41,7 @@ def test_model_manipulation(model_class):
     :param model_class: (BaseRLModel) A model
     """
     try:
-        env = gym.make(ENV_ID)
-        env = DummyVecEnv([lambda: env])
+        env = DummyVecEnv([lambda: IdentityEnvBox(10)])
 
         # create and train
         model = model_class(policy=MlpPolicy, env=env)
@@ -68,8 +66,7 @@ def test_model_manipulation(model_class):
         model = model_class.load("./test_model")
 
         # changing environment (note: this can be done at loading)
-        env = gym.make(ENV_ID)
-        env = DummyVecEnv([lambda: env])
+        env = DummyVecEnv([lambda: IdentityEnvBox(10)])
         model.set_env(env)
 
         # predict the same output before saving
@@ -86,7 +83,7 @@ def test_model_manipulation(model_class):
             "Error: the prediction seems to have changed between loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=int(NUM_TIMESTEPS / 2))
+        model.learn(total_timesteps=100)
 
         # validate no reset post learning
         loaded_acc_reward = 0
@@ -116,7 +113,7 @@ def test_model_manipulation(model_class):
 
 
 def test_ddpg():
-    args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
+    args = ['--env-id', 'Pendulum-v0', '--nb-rollout-steps', 100]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'stable_baselines.ddpg.main'] + args)
     _assert_eq(return_code, 0)
