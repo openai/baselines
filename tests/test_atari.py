@@ -15,7 +15,7 @@ import stable_baselines.trpo_mpi.run_atari as trpo_atari
 ENV_ID = 'BreakoutNoFrameskip-v4'
 SEED = 3
 NUM_TIMESTEPS = 500
-NUM_CPU = 4
+NUM_CPU = 2
 
 
 @pytest.mark.slow

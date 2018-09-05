@@ -89,7 +89,7 @@ def test_model_manipulation(model_policy):
                                                           "loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=1000)
+        model.learn(total_timesteps=100)
 
         # validate no reset post learning
         loaded_acc_reward = 0
