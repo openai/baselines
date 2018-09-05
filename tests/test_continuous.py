@@ -41,7 +41,7 @@ def test_model_manipulation(model_class):
     :param model_class: (BaseRLModel) A model
     """
     try:
-        env = DummyVecEnv([lambda: IdentityEnvBox(10)])
+        env = DummyVecEnv([lambda: IdentityEnvBox()])
 
         # create and train
         model = model_class(policy=MlpPolicy, env=env)
@@ -66,7 +66,7 @@ def test_model_manipulation(model_class):
         model = model_class.load("./test_model")
 
         # changing environment (note: this can be done at loading)
-        env = DummyVecEnv([lambda: IdentityEnvBox(10)])
+        env = DummyVecEnv([lambda: IdentityEnvBox()])
         model.set_env(env)
 
         # predict the same output before saving

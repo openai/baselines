@@ -42,7 +42,7 @@ class IdentityEnv(Env):
 
 
 class IdentityEnvBox(IdentityEnv):
-    def __init__(self, dim, low=0, high=1, eps=0.05, ep_length=100):
+    def __init__(self, low=-1, high=1, eps=0.5, ep_length=100):
         """
         Identity environment for testing purposes
 
@@ -52,8 +52,8 @@ class IdentityEnvBox(IdentityEnv):
         :param eps: (float) the epsilon bound for correct value
         :param ep_length: (int) the length of each episodes in timesteps
         """
-        super(IdentityEnvBox, self).__init__(dim, ep_length)
-        self.action_space = Box(low=low, high=high, shape=(dim,), dtype=np.float32)
+        super(IdentityEnvBox, self).__init__(1, ep_length)
+        self.action_space = Box(low=low, high=high, shape=(1,), dtype=np.float32)
         self.observation_space = self.action_space
         self.eps = eps
         self.reset()
@@ -66,7 +66,7 @@ class IdentityEnvBox(IdentityEnv):
         return self.state, reward, done, {}
 
     def _get_reward(self, action):
-        return 1 if np.all((self.state - self.eps) <= action <= (self.state + self.eps)) else 0
+        return 1 if (self.state - self.eps) <= action <= (self.state + self.eps) else 0
 
 
 class IdentityEnvMultiDiscrete(IdentityEnv):
