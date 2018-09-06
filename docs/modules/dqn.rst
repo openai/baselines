@@ -111,3 +111,35 @@ DQN Policies
 .. autoclass:: CnnPolicy
   :members:
   :inherited-members:
+
+
+Custom Policy Network
+---------------------
+
+Similarly to the example given in the `examples <guide/examples.html#custom-policy-network>`_ page.
+You can easily define a custom architecture for the policy network:
+
+.. code-block:: python
+
+  import gym
+
+  from stable_baselines.deepq.policies import FeedForwardPolicy
+  from stable_baselines.common.vec_env import DummyVecEnv
+  from stable_baselines import DeepQ
+
+  # Custom MLP policy of three layers of size 128 each
+  class CustomPolicy(FeedForwardPolicy):
+      def __init__(self, *args, **kwargs):
+          super(CustomPolicy, self).__init__(*args, **kwargs,
+                                             layers=[128, 128, 128],
+                                             feature_extraction="mlp")
+
+  # Create and wrap the environment
+  env = gym.make('LunarLander-v2')
+  env = DummyVecEnv([lambda: env])
+
+  model = DeepQ(CustomPolicy, env, verbose=1)
+  # Train the agent
+  model.learn(total_timesteps=100000)
+
+

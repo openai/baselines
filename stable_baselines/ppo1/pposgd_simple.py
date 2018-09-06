@@ -175,8 +175,8 @@ class PPO1(BaseRLModel):
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
-            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO1 model must an " \
-                                                               "instance of common.policies.ActorCriticPolicy."
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO1 model must be " \
+                                                               "an instance of common.policies.ActorCriticPolicy."
 
             with self.sess.as_default():
                 self.adam.sync()

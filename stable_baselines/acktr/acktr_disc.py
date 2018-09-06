@@ -94,8 +94,8 @@ class ACKTR(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
-            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the ACKTR model must an " \
-                                                               "instance of common.policies.ActorCriticPolicy."
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the ACKTR model must be " \
+                                                               "an instance of common.policies.ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():

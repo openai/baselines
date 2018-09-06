@@ -8,6 +8,7 @@ from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from stable_baselines.deepq.policies import DeepQPolicy
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 
 
@@ -102,7 +103,9 @@ class DeepQ(BaseRLModel):
         with SetVerbosity(self.verbose):
 
             assert not isinstance(self.action_space, gym.spaces.Box), \
-                "Error: DeepQ cannot output a gym.spaces.Box action space.".format(self.action_space)
+                "Error: DeepQ cannot output a gym.spaces.Box action space."
+            assert issubclass(self.policy, DeepQPolicy), "Error: the input policy for the DeepQ model must be " \
+                                                         "an instance of DeepQPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():

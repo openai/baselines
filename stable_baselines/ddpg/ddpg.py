@@ -253,8 +253,8 @@ class DDPG(BaseRLModel):
 
             assert isinstance(self.action_space, gym.spaces.Box), \
                 "Error: DDPG cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
-            assert issubclass(self.policy, DDPGPolicy), "Error: the input policy for the DDPG model must an instance " \
-                                                        "of DDPGPolicy."
+            assert issubclass(self.policy, DDPGPolicy), "Error: the input policy for the DDPG model must be " \
+                                                        "an instance of DDPGPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():

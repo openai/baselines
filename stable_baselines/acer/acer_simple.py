@@ -154,8 +154,8 @@ class ACER(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
-            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the ACER model must an " \
-                                                               "instance of common.policies.ActorCriticPolicy."
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the ACER model must be " \
+                                                               "an instance of common.policies.ActorCriticPolicy."
 
             if isinstance(self.action_space, Discrete):
                 self.n_act = self.action_space.n

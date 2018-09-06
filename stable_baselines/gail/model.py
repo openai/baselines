@@ -59,7 +59,7 @@ class GAIL(BaseRLModel):
         self.trpo.set_env(env)
 
     def setup_model(self):
-        assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the GAIL model must an " \
+        assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the GAIL model must be an " \
                                                            "instance of common.policies.ActorCriticPolicy."
         assert isinstance(self.action_space, gym.spaces.Box), "Error: GAIL requires a continuous action space."
 

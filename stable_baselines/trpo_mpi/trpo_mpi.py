@@ -100,8 +100,8 @@ class TRPO(BaseRLModel):
 
         with SetVerbosity(self.verbose):
 
-            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the TRPO model must an " \
-                                                               "instance of common.policies.ActorCriticPolicy."
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the TRPO model must be " \
+                                                               "an instance of common.policies.ActorCriticPolicy."
 
             self.nworkers = MPI.COMM_WORLD.Get_size()
             self.rank = MPI.COMM_WORLD.Get_rank()

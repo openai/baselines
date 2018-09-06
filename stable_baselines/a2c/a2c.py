@@ -81,7 +81,7 @@ class A2C(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
-            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the A2C model must an " \
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the A2C model must be an " \
                                                                 "instance of common.policies.ActorCriticPolicy."
 
             self.graph = tf.Graph()
