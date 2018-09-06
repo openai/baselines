@@ -29,6 +29,7 @@ class VecNormalize(VecEnvWrapper):
         if self.ret_rms:
             self.ret_rms.update(self.ret)
             rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
+        self.ret[news] = 0
         return obs, rews, news, infos
 
     def _obfilt(self, obs):
@@ -43,5 +44,6 @@ class VecNormalize(VecEnvWrapper):
         """
         Reset all environments
         """
+        self.ret = np.zeros(self.num_envs)
         obs = self.venv.reset()
         return self._obfilt(obs)
