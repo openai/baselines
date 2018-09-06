@@ -2,14 +2,14 @@ import numpy as np
 
 
 class AdaptiveParamNoiseSpec(object):
-    def __init__(self, initial_stddev=0.1, desired_action_stddev=0.1, adoption_coefficient=1.01):
-        """
-        Implements adaptive parameter noise
+    """
+    Implements adaptive parameter noise
 
-        :param initial_stddev: (float) the initial value for the standard deviation of the noise
-        :param desired_action_stddev: (float) the desired value for the standard deviation of the noise
-        :param adoption_coefficient: (float) the update coefficient for the standard deviation of the noise
-        """
+    :param initial_stddev: (float) the initial value for the standard deviation of the noise
+    :param desired_action_stddev: (float) the desired value for the standard deviation of the noise
+    :param adoption_coefficient: (float) the update coefficient for the standard deviation of the noise
+    """
+    def __init__(self, initial_stddev=0.1, desired_action_stddev=0.1, adoption_coefficient=1.01):
         self.initial_stddev = initial_stddev
         self.desired_action_stddev = desired_action_stddev
         self.adoption_coefficient = adoption_coefficient
@@ -54,13 +54,13 @@ class ActionNoise(object):
 
 
 class NormalActionNoise(ActionNoise):
-    def __init__(self, mean, sigma):
-        """
-        A guassian action noise
+    """
+    A gaussian action noise
 
-        :param mean: (float) the mean value of the noise
-        :param sigma: (float) the scale of the noise (std here)
-        """
+    :param mean: (float) the mean value of the noise
+    :param sigma: (float) the scale of the noise (std here)
+    """
+    def __init__(self, mean, sigma):
         self._mu = mean
         self._sigma = sigma
 
@@ -72,18 +72,19 @@ class NormalActionNoise(ActionNoise):
 
 
 class OrnsteinUhlenbeckActionNoise(ActionNoise):
+    """
+    A Ornstein Uhlenbeck action noise, this is designed to aproximate brownian motion with friction.
+
+    Based on http://math.stackexchange.com/questions/1287634/implementing-ornstein-uhlenbeck-in-matlab
+
+    :param mean: (float) the mean of the noise
+    :param sigma: (float) the scale of the noise
+    :param theta: (float) the rate of mean reversion
+    :param dt: (float) the timestep for the noise
+    :param initial_noise: ([float]) the initial value for the noise output, (if None: 0)
+    """
+
     def __init__(self, mean, sigma, theta=.15, dt=1e-2, initial_noise=None):
-        """
-        A Ornstein Uhlenbeck action noise, this is designed to aproximate brownian motion with friction.
-
-        Based on http://math.stackexchange.com/questions/1287634/implementing-ornstein-uhlenbeck-in-matlab
-
-        :param mean: (float) the mean of the noise
-        :param sigma: (float) the scale of the noise
-        :param theta: (float) the rate of mean reversion
-        :param dt: (float) the timestep for the noise
-        :param initial_noise: ([float]) the initial value for the noise output, (if None: 0)
-        """
         self._theta = theta
         self._mu = mean
         self._sigma = sigma

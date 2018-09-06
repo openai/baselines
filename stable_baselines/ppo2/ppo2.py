@@ -98,7 +98,7 @@ class PPO2(BaseRLModel):
         with SetVerbosity(self.verbose):
 
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO2 model must an " \
-                                                               "instance of ActorCriticPolicy."
+                                                               "instance of common.policies.ActorCriticPolicy."
 
             self.n_batch = self.n_envs * self.n_steps
 

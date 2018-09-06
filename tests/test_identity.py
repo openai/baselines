@@ -4,7 +4,7 @@ from stable_baselines.a2c import A2C
 from stable_baselines.acer import ACER
 from stable_baselines.acktr import ACKTR
 from stable_baselines.deepq import DeepQ
-from stable_baselines.ddpg import DDPG
+from stable_baselines.ddpg import DDPG, MlpPolicy as DDPGMlpPolicy
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
@@ -63,8 +63,24 @@ def test_identity_ddpg():
     """
     env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
 
+    import numpy as np
+    from stable_baselines.ddpg.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise, AdaptiveParamNoiseSpec
+    # the noise objects for DDPG
+    n_actions = env.action_space.shape[-1]
+    std = 0.2
+    param_noise = None
+    param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(std), desired_action_stddev=float(std))
+    action_noise = None
+    # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=float(std) * np.ones(n_actions))
+
     # FIXME: this test fail for now
-    model = DDPG(MlpPolicy, env).learn(total_timesteps=10000, seed=0)
+    model = DDPG(DDPGMlpPolicy, env, enable_popart=False,
+                 param_noise=param_noise, action_noise=action_noise).learn(total_timesteps=20000, seed=0)
+
+    std = 0.2
+    param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(std), desired_action_stddev=float(std))
+    model = DDPG(DDPGMlpPolicy, env, nb_train_steps=4, nb_rollout_steps=4, param_noise=param_noise, gamma=0.5,
+                 normalize_returns=True, tau=0.001, batch_size=4, tensorboard_log="/tmp/dddpg/")
 
     n_trials = 1000
     reward_sum = 0

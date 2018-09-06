@@ -7,7 +7,7 @@ from stable_baselines.a2c import A2C
 # TODO: add support for continuous actions
 # from stable_baselines.acer import ACER
 # from stable_baselines.acktr import ACKTR
-from stable_baselines.ddpg import DDPG
+from stable_baselines.ddpg import DDPG, MlpPolicy as DDPGMlpPolicy
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
@@ -43,8 +43,14 @@ def test_model_manipulation(model_class):
     try:
         env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
 
+        # Fix for DDPG:
+        if model_class == DDPG:
+            policy = DDPGMlpPolicy
+        else:
+            policy = MlpPolicy
+
         # create and train
-        model = model_class(policy=MlpPolicy, env=env)
+        model = model_class(policy=policy, env=env)
         model.learn(total_timesteps=NUM_TIMESTEPS)
 
         # predict and measure the acc reward

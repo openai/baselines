@@ -87,7 +87,7 @@ class HER(BaseRLModel):
                 "Error: HER cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
             assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the HER model."
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the HER model must an " \
-                                                               "instance of ActorCriticPolicy."
+                                                               "instance of common.policies.ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():

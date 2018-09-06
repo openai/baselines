@@ -10,7 +10,8 @@ DDPG
 
 .. warning::
 
-  The DDPG model does not support Actor critic policies, as a result it must use its own policy models (```stable_baselines.ddpg.polices```).
+  The DDPG model does not support Actor critic policies,
+  as a result it must use its own policy models (see :ref:`ddpg_policies`).
 
 Notes
 -----
@@ -44,26 +45,28 @@ Example
 .. code-block:: python
 
   import gym
+  import numpy as np
 
   from stable_baselines.ddpg.policies import MlpPolicy, CnnPolicy
   from stable_baselines.common.vec_env import DummyVecEnv
   from stable_baselines.ddpg.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise, AdaptiveParamNoiseSpec
   from stable_baselines import DDPG
 
-  env = gym.make('CartPole-v1')
+  env = gym.make('MountainCarContinuous-v0')
   env = DummyVecEnv([lambda: env])
 
   # the noise objects for DDPG
+  n_actions = env.action_space.shape[-1]
   param_noise = None
-  action_noise = NormalActionNoise(mean=1, sigma=0)
+  action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=float(0.2) * np.ones(n_actions))
 
   model = DDPG(MlpPolicy, env, verbose=1, param_noise=param_noise, action_noise=action_noise)
   model.learn(total_timesteps=25000)
-  model.save("ddpg_cartpole")
+  model.save("ddpg_mountain")
 
   del model # remove to demonstrate saving and loading
 
-  DDPG.load("ddpg_cartpole")
+  DDPG.load("ddpg_mountain")
 
   obs = env.reset()
   while True:
@@ -75,5 +78,34 @@ Parameters
 ----------
 
 .. autoclass:: DDPG
+  :members:
+  :inherited-members:
+
+.. _ddpg_policies:
+
+DDPG Policies
+-------------
+
+.. autoclass:: MlpPolicy
+  :members:
+  :inherited-members:
+
+
+.. autoclass:: CnnPolicy
+  :members:
+  :inherited-members:
+
+Action and Parameters Noise
+---------------------------
+
+.. autoclass:: AdaptiveParamNoiseSpec
+  :members:
+  :inherited-members:
+
+.. autoclass:: NormalActionNoise
+  :members:
+  :inherited-members:
+
+.. autoclass:: OrnsteinUhlenbeckActionNoise
   :members:
   :inherited-members:

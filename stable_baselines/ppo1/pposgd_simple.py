@@ -176,7 +176,7 @@ class PPO1(BaseRLModel):
             self._setup_learn(seed)
 
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO1 model must an " \
-                                                               "instance of ActorCriticPolicy."
+                                                               "instance of common.policies.ActorCriticPolicy."
 
             with self.sess.as_default():
                 self.adam.sync()
