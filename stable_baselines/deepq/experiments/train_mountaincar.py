@@ -2,7 +2,7 @@ import argparse
 
 import gym
 
-from stable_baselines.deepq import DeepQ, policies as deepq_models
+from stable_baselines.deepq import DeepQ, MlpPolicy
 
 
 def main(args):
@@ -16,7 +16,7 @@ def main(args):
     q_func = deepq_models.mlp([64], layer_norm=True)
 
     model = DeepQ(
-        policy=q_func,
+        policy=MlpPolicy,
         env=env,
         learning_rate=1e-3,
         buffer_size=50000,

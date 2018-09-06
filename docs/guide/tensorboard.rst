@@ -61,6 +61,12 @@ Once the learn function is called, you can monitor the RL agent during or after 
 
   tensorboard --logdir ./a2c_cartpole_tensorboard/
 
+you can also add past logging folders:
+
+.. code-block:: bash
+
+  tensorboard --logdir ./a2c_cartpole_tensorboard/;./ppo2_cartpole_tensorboard/
+
 It will display information such as the model graph, the episode reward, the model losses, the observation and other parameter unique to some models.
 
 .. image:: ../_static/img/Tensorboard_example_1.png

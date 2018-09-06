@@ -3,7 +3,7 @@ import argparse
 import gym
 import numpy as np
 
-from stable_baselines.deepq import DeepQ, policies as deepq_models
+from stable_baselines.deepq import DeepQ, MlpPolicy
 
 
 def callback(lcl, _glb):
@@ -30,10 +30,9 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("CartPole-v0")
-    q_func = deepq_models.mlp([64])
     model = DeepQ(
         env=env,
-        policy=q_func,
+        policy=MlpPolicy,
         learning_rate=1e-3,
         buffer_size=50000,
         exploration_fraction=0.1,

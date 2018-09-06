@@ -5,7 +5,7 @@ import pytest
 from stable_baselines.a2c import A2C
 from stable_baselines.acer import ACER
 from stable_baselines.acktr import ACKTR
-from stable_baselines.deepq import DeepQ
+from stable_baselines.deepq import DeepQ, MlpPolicy as DeepQMlpPolicy
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
@@ -13,7 +13,6 @@ from stable_baselines.common import set_global_seeds
 from stable_baselines.common.identity_env import IdentityEnv
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
-from stable_baselines.deepq import policies as deepq_models
 
 N_TRIALS = 2000
 
@@ -21,7 +20,7 @@ MODEL_POLICY_LIST = [
     (A2C, MlpPolicy),
     (ACER, MlpPolicy),
     (ACKTR, MlpPolicy),
-    (DeepQ, deepq_models.mlp([32])),
+    (DeepQ, DeepQMlpPolicy),
     (PPO1, MlpPolicy),
     (PPO2, MlpPolicy),
     (TRPO, MlpPolicy)

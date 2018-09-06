@@ -1,4 +1,4 @@
-from stable_baselines.deepq import policies  # noqa
+from stable_baselines.deepq.policies import MlpPolicy, CnnPolicy
 from stable_baselines.deepq.build_graph import build_act, build_train  # noqa
 from stable_baselines.deepq.simple import DeepQ
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer  # noqa

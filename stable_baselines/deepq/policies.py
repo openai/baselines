@@ -105,7 +105,7 @@ class FeedForwardPolicy(DeepQPolicy):
                 extracted_features = cnn_extractor(self.processed_x, **kwargs)
                 pi_latent = extracted_features
             else:
-                activ = tf.tanh
+                activ = tf.nn.relu
                 processed_x = tf.layers.flatten(self.processed_x)
                 pi_h = processed_x
                 for i, layer_size in enumerate(layers):
@@ -115,7 +115,7 @@ class FeedForwardPolicy(DeepQPolicy):
             self.proba_distribution, self.policy, self.q_value = \
                 self.pdtype.proba_distribution_from_latent(pi_latent, pi_latent, init_scale=0.01)
 
-        self.value_fn = pi_latent
+        self.value_fn = self.policy
         self.initial_state = None
         self._setup_init()
 
@@ -132,7 +132,7 @@ class FeedForwardPolicy(DeepQPolicy):
 
 class CnnPolicy(FeedForwardPolicy):
     """
-    Policy object that implements actor critic, using a CNN (the nature CNN)
+    Policy object that implements DQN policy, using a CNN (the nature CNN)
 
     :param sess: (TensorFlow session) The current TensorFlow session
     :param ob_space: (Gym Space) The observation space of the environment
@@ -151,7 +151,7 @@ class CnnPolicy(FeedForwardPolicy):
 
 class MlpPolicy(FeedForwardPolicy):
     """
-    Policy object that implements actor critic, using a MLP (2 layers of 64)
+    Policy object that implements DQN policy, using a MLP (2 layers of 64)
 
     :param sess: (TensorFlow session) The current TensorFlow session
     :param ob_space: (Gym Space) The observation space of the environment
@@ -166,80 +166,3 @@ class MlpPolicy(FeedForwardPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
         super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
                                         feature_extraction="mlp", **_kwargs)
-
-
-def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
-    with tf.variable_scope(scope, reuse=reuse):
-        out = inpt
-        for hidden in hiddens:
-            out = layers.fully_connected(out, num_outputs=hidden, activation_fn=None)
-            if layer_norm:
-                out = layers.layer_norm(out, center=True, scale=True)
-            out = tf.nn.relu(out)
-        q_out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
-        return q_out
-
-
-def mlp(hiddens=None, layer_norm=False):
-    """
-    This model takes as input an observation and returns values of all actions.
-
-    :param hiddens: ([int]) list of sizes of hidden layers
-    :param layer_norm: (bool) if true, use layer normalization
-
-    :return: (function) q_function for DQN algorithm.
-    """
-    if hiddens is None:
-        hiddens = []
-    return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
-
-
-def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, layer_norm=False):
-    with tf.variable_scope(scope, reuse=reuse):
-        out = inpt
-        with tf.variable_scope("convnet"):
-            for num_outputs, kernel_size, stride in convs:
-                out = layers.convolution2d(out,
-                                           num_outputs=num_outputs,
-                                           kernel_size=kernel_size,
-                                           stride=stride,
-                                           activation_fn=tf.nn.relu)
-        conv_out = layers.flatten(out)
-        with tf.variable_scope("action_value"):
-            action_out = conv_out
-            for hidden in hiddens:
-                action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=None)
-                if layer_norm:
-                    action_out = layers.layer_norm(action_out, center=True, scale=True)
-                action_out = tf.nn.relu(action_out)
-            action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
-
-        if dueling:
-            with tf.variable_scope("state_value"):
-                state_out = conv_out
-                for hidden in hiddens:
-                    state_out = layers.fully_connected(state_out, num_outputs=hidden, activation_fn=None)
-                    if layer_norm:
-                        state_out = layers.layer_norm(state_out, center=True, scale=True)
-                    state_out = tf.nn.relu(state_out)
-                state_score = layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
-            action_scores_mean = tf.reduce_mean(action_scores, 1)
-            action_scores_centered = action_scores - tf.expand_dims(action_scores_mean, 1)
-            q_out = state_score + action_scores_centered
-        else:
-            q_out = action_scores
-        return q_out
-
-
-def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
-    """This model takes as input an observation and returns values of all actions.
-
-    :param convs: ([(int, int, int)]) list of convolutional layers in form of (num_outputs, kernel_size, stride)
-    :param hiddens: ([int]) list of sizes of hidden layers
-    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
-    :param layer_norm: (bool) if true, use layer normalization
-    :return: (function) q_function for DQN algorithm.
-    """
-
-    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, layer_norm=layer_norm, *args, **kwargs)
-

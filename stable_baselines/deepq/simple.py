@@ -8,7 +8,6 @@ from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from stable_baselines.deepq.utils import ObservationInput
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 
 
@@ -102,37 +101,24 @@ class DeepQ(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
-            assert isinstance(self.action_space, gym.spaces.Discrete), \
-                "Error: DeepQ cannot output a {} action space, only spaces.Discrete is supported."\
-                .format(self.action_space)
+            assert not isinstance(self.action_space, gym.spaces.Box), \
+                "Error: DeepQ cannot output a gym.spaces.Box action space.".format(self.action_space)
 
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.sess = tf_util.make_session(graph=self.graph)
 
-                # capture the shape outside the closure so that the env object is not serialized
-                # by cloudpickle when serializing make_obs_ph
-                observation_space = self.observation_space
-
-                def make_obs_ph(name):
-                    """
-                    makes the observation placeholder
-
-                    :param name: (str) the placeholder name
-                    :return: (TensorFlow Tensor) the placeholder
-                    """
-                    return ObservationInput(observation_space, name=name)
-
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
                 self.act, self._train_step, self.update_target, _ = deepq.build_train(
-                    make_obs_ph=make_obs_ph,
                     q_func=self.policy,
-                    num_actions=self.action_space.n,
+                    ob_space=self.observation_space,
+                    ac_space=self.action_space,
                     optimizer=optimizer,
                     gamma=self.gamma,
                     grad_norm_clipping=10,
-                    param_noise=self.param_noise
+                    param_noise=self.param_noise,
+                    sess=self.sess
                 )
 
                 self.params = find_trainable_variables("deepq")
@@ -223,16 +209,16 @@ class DeepQ(BaseRLModel):
                         if (1 + step) % 100 == 0:
                             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                             run_metadata = tf.RunMetadata()
-                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
-                                                                  sess=self.sess, options=run_options,
+                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                  dones, weights, sess=self.sess, options=run_options,
                                                                   run_metadata=run_metadata)
                             writer.add_run_metadata(run_metadata, 'step%d' % step)
                         else:
-                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
-                                                                  sess=self.sess)
+                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                  dones, weights, sess=self.sess)
                         writer.add_summary(summary, step)
                     else:
-                        _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
+                        _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1, dones, weights,
                                                         sess=self.sess)
 
                     if self.prioritized_replay:

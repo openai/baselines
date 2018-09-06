@@ -3,7 +3,7 @@ import pytest
 from stable_baselines.a2c import A2C
 from stable_baselines.acer import ACER
 from stable_baselines.acktr import ACKTR
-from stable_baselines.deepq import DeepQ
+from stable_baselines.deepq import DeepQ, MlpPolicy as DeepQMlpPolicy
 from stable_baselines.ddpg import DDPG, MlpPolicy as DDPGMlpPolicy
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
@@ -11,7 +11,6 @@ from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
-from stable_baselines.deepq import policies as deepq_models
 
 
 learn_func_list = [
@@ -20,7 +19,7 @@ learn_func_list = [
     lambda e: ACER(policy=MlpPolicy, env=e,
                    n_steps=1, replay_ratio=1).learn(total_timesteps=15000, seed=0),
     lambda e: ACKTR(policy=MlpPolicy, env=e, learning_rate=5e-4, n_steps=1).learn(total_timesteps=20000, seed=0),
-    lambda e: DeepQ(policy=deepq_models.mlp([32]), batch_size=16, gamma=0.1,
+    lambda e: DeepQ(policy=DeepQMlpPolicy, batch_size=16, gamma=0.1,
                     exploration_fraction=0.001, env=e).learn(total_timesteps=40000, seed=0),
     lambda e: PPO1(policy=MlpPolicy, env=e, lam=0.5,
                    optim_batchsize=16, optim_stepsize=1e-3).learn(total_timesteps=15000, seed=0),

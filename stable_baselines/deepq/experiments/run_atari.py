@@ -3,7 +3,7 @@ import argparse
 from stable_baselines import bench, logger
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.atari_wrappers import make_atari
-from stable_baselines.deepq import DeepQ, wrap_atari_dqn, policies as deepq_models
+from stable_baselines.deepq import DeepQ, wrap_atari_dqn, CnnPolicy
 
 
 def main():
@@ -26,15 +26,10 @@ def main():
     env = make_atari(args.env)
     env = bench.Monitor(env, logger.get_dir())
     env = wrap_atari_dqn(env)
-    q_func = deepq_models.cnn_to_mlp(
-        convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-        hiddens=[256],
-        dueling=bool(args.dueling),
-    )
 
     model = DeepQ(
         env=env,
-        policy=q_func,
+        policy=CnnPolicy,
         learning_rate=1e-4,
         buffer_size=10000,
         exploration_fraction=0.1,
