@@ -208,7 +208,8 @@ def main():
         logger.configure(format_strs=[])
         rank = MPI.COMM_WORLD.Get_rank()
 
-    model, _ = train(args, extra_args)
+    model, env = train(args, extra_args)
+    env.close()
 
     if args.save_path is not None and rank == 0:
         save_path = osp.expanduser(args.save_path)
@@ -227,6 +228,7 @@ def main():
             if done:
                 obs = env.reset()
 
+        env.close()
 
 if __name__ == '__main__':
     main()

@@ -173,6 +173,5 @@ def learn(
             logger.record_tabular("value_loss", float(value_loss))
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()
-    env.close()
     return model
 
