@@ -50,9 +50,6 @@ class DummyVecEnv(VecEnv):
             self._save_obs(e, obs)
         return self._obs_from_buf()
 
-    def close(self):
-        return
-
     def _save_obs(self, e, obs):
         for k in self.keys:
             if k is None:
