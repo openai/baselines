@@ -42,7 +42,7 @@ class IdentityEnv(Env):
 
 
 class IdentityEnvBox(IdentityEnv):
-    def __init__(self, low=-1, high=1, eps=0.5, ep_length=100):
+    def __init__(self, low=-1, high=1, eps=0.05, ep_length=100):
         """
         Identity environment for testing purposes
 

@@ -726,8 +726,8 @@ class DDPG(BaseRLModel):
 
                             if writer is not None:
                                 self.episode_reward = total_episode_reward_logger(self.episode_reward,
-                                                                                  reward.reshape((1, 1)),
-                                                                                  done.reshape((1, 1)), writer,
+                                                                                  reward.reshape((1, -1)),
+                                                                                  done.reshape((1, -1)), writer,
                                                                                   total_steps)
                             step += 1
                             total_steps += 1

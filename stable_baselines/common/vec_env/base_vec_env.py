@@ -93,6 +93,12 @@ class VecEnv(ABC):
         self.step_async(actions)
         return self.step_wait()
 
+    def get_images(self):
+        """
+        Return RGB images from each environment
+        """
+        raise NotImplementedError
+
     def render(self, **kwargs):
         """
         Gym environment rendering

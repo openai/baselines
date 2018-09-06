@@ -61,7 +61,7 @@ def test_identity_ddpg():
     Test if the algorithm (with a given policy)
     can learn an identity transformation (i.e. return observation as an action)
     """
-    env = DummyVecEnv([lambda: IdentityEnvBox()])
+    env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
 
     # FIXME: this test fail for now
     model = DDPG(MlpPolicy, env).learn(total_timesteps=10000, seed=0)

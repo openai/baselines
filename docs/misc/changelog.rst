@@ -5,19 +5,22 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Master version 1.0.8 (2018-09-05)
+Master version 1.0.8.a0 (WIP)
 -----------------------------
 
-**Tensorboard and fixes**
+**Tensorboard and bug fixes**
 
 - added more documentation (some modules from common).
 - added doc about using custom env
 - added Tensorboard support for A2C, ACER, ACKTR, DDPG, DeepQ, PPO1, PPO2 and TRPO
 - added episode reward to Tensorboard
 - added documentation for Tensorboard usage
+- added Identity for Box action space
 - fixed render function ignoring parameters when using wrapped environments
 - fixed PPO1 and TRPO done values for recurrent policies
 - fixed image normalization not occurring when using images
+- updated VecEnv objects for the new Gym version
+- changed default policies for DDPG, so that DDPG now works correctly
 
 
 Release 1.0.7 (2018-08-29)

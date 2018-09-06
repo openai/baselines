@@ -303,6 +303,12 @@ class TensorboardWriter:
         return self.writer
 
     def _get_latest_run_id(self):
+        """
+        returns the latest run number for the given log name and log path,
+        by finding the greatest number in the directories.
+
+        :return: (int) latest run number
+        """
         max_run_id = 0
         for path in glob.glob(self.tensorboard_log_path + "/{}_[0-9]*".format(self.tb_log_name)):
             file_name = path.split("/")[-1]

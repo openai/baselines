@@ -21,7 +21,7 @@ def _worker(remote, parent_remote, env_fn_wrapper):
                 observation = env.reset()
                 remote.send(observation)
             elif cmd == 'render':
-                remote.send(env.render(mode='rgb_array'))
+                remote.send(env.render(**data))
             elif cmd == 'close':
                 remote.close()
                 break
@@ -98,3 +98,9 @@ class SubprocVecEnv(VecEnv):
             return bigimg
         else:
             raise NotImplementedError
+
+    def get_images(self):
+        for pipe in self.remotes:
+            pipe.send(('render', {"mode": 'rgb_array'}))
+        imgs = [pipe.recv() for pipe in self.remotes]
+        return imgs
