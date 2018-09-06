@@ -27,7 +27,7 @@ def nature_cnn(scaled_images, **kwargs):
 
 class BasePolicy(ABC):
     """
-    base policy object that implements
+    The base policy object
 
     :param sess: (TensorFlow session) The current TensorFlow session
     :param ob_space: (Gym Space) The observation space of the environment

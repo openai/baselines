@@ -243,6 +243,7 @@ class DDPG(BaseRLModel):
         self.params = None
         self.summary = None
         self.episode_reward = None
+        self.tb_seen_steps = None
 
         if _init_setup_model:
             self.setup_model()
@@ -568,13 +569,16 @@ class DDPG(BaseRLModel):
         }
         if writer is not None:
             # run loss backprop with summary, but once every 100 steps save the metadata (memory, compute time, ...)
-            if (1 + step) % 100 == 0:
+            # and the step_id was not already logged (can happen with the right parameters as the step value is
+            # only an estimate)
+            if (1 + step) % 100 == 0 and step not in self.tb_seen_steps:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 summary, actor_grads, actor_loss, critic_grads, critic_loss = \
                     self.sess.run([self.summary] + ops, td_map, options=run_options, run_metadata=run_metadata)
 
                 writer.add_run_metadata(run_metadata, 'step%d' % step)
+                self.tb_seen_steps.append(step)
             else:
                 summary, actor_grads, actor_loss, critic_grads, critic_loss = self.sess.run([self.summary] + ops,
                                                                                             td_map)
@@ -672,6 +676,9 @@ class DDPG(BaseRLModel):
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DDPG"):
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
+
+            # a list for tensorboard logging, to prevent logging with the same step number, if it already occured
+            self.tb_seen_steps = []
 
             rank = MPI.COMM_WORLD.Get_rank()
             # we assume symmetric actions.
