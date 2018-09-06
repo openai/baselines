@@ -103,6 +103,14 @@ python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=0 --
 *NOTE:* At the moment Mujoco training uses VecNormalize wrapper for the environment which is not being saved correctly; so loading the models trained on Mujoco will not work well if the environment is recreated. If necessary, you can work around that by replacing RunningMeanStd by TfRunningMeanStd in [baselines/common/vec_env/vec_normalize.py](baselines/common/vec_env/vec_normalize.py#L12). This way, mean and std of environment normalizing wrapper will be saved in tensorflow variables and included in the model file; however, training is slower that way - hence not including it by default
 
 
+## Logging, Tensorboard
+Set the environment variables `OPENAI_LOGDIR` and `OPENAI_LOG_FORMAT` to specify the directory to write logs and the formats to use. For example,
+```
+export OPENAI_LOGDIR='/mypath/logs'
+export OPENAI_LOG_FORMAT='stdout,log,csv,tensorboard'
+```
+
+
 ## Subpackages
 
 - [A2C](baselines/a2c)
