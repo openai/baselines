@@ -343,7 +343,7 @@ def load_variables(load_path, variables=None, sess=None):
     variables = variables or tf.trainable_variables()
 
     loaded_params = joblib.load(os.path.expanduser(load_path))
-    restores = []   
+    restores = []
     if isinstance(loaded_params, list):
         assert len(loaded_params) == len(variables), 'number of variables loaded mismatches len(variables)'
         for d, v in zip(loaded_params, variables):
@@ -387,7 +387,6 @@ def adjust_shape(placeholder, data):
 def _check_shape(placeholder_shape, data_shape):
     ''' check if two shapes are compatible (i.e. differ only by dimensions of size 1, or by the batch dimension)'''
 
-    return True
     squeezed_placeholder_shape = _squeeze_shape(placeholder_shape)
     squeezed_data_shape = _squeeze_shape(data_shape)
 
