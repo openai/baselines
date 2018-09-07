@@ -37,29 +37,29 @@ class DDPGCustomPolicy(DDPGFeedForwardPolicy):
                                                feature_extraction="mlp")
 
 
-# @pytest.mark.slow
-# @pytest.mark.parametrize("learn_func", learn_func_list)
-# def test_identity(learn_func):
-#     """
-#     Test if the algorithm (with a given policy)
-#     can learn an identity transformation (i.e. return observation as an action)
-#
-#     :param learn_func: (lambda (Gym Environment): A2CPolicy) the policy generator
-#     """
-#     env = DummyVecEnv([lambda: IdentityEnv(10)])
-#
-#     model = learn_func(env)
-#
-#     n_trials = 1000
-#     reward_sum = 0
-#     obs = env.reset()
-#     for _ in range(n_trials):
-#         action, _ = model.predict(obs)
-#         obs, reward, _, _ = env.step(action)
-#         reward_sum += reward
-#     assert reward_sum > 0.9 * n_trials
-#     # Free memory
-#     del model, env
+@pytest.mark.slow
+@pytest.mark.parametrize("learn_func", learn_func_list)
+def test_identity(learn_func):
+    """
+    Test if the algorithm (with a given policy)
+    can learn an identity transformation (i.e. return observation as an action)
+
+    :param learn_func: (lambda (Gym Environment): A2CPolicy) the policy generator
+    """
+    env = DummyVecEnv([lambda: IdentityEnv(10)])
+
+    model = learn_func(env)
+
+    n_trials = 1000
+    reward_sum = 0
+    obs = env.reset()
+    for _ in range(n_trials):
+        action, _ = model.predict(obs)
+        obs, reward, _, _ = env.step(action)
+        reward_sum += reward
+    assert reward_sum > 0.9 * n_trials
+    # Free memory
+    del model, env
 
 
 @pytest.mark.slow
@@ -81,7 +81,7 @@ def test_identity_ddpg():
     # action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(std) * np.ones(n_actions))
 
     # FIXME: this test fail for now
-    model = DDPG(DDPGCustomPolicy, env, enable_popart=False, gamma=0.99, actor_lr=1e-4, critic_lr=1e-3, batch_size=64,
+    model = DDPG(DDPGCustomPolicy, env, enable_popart=False, gamma=0.0, actor_lr=1e-5, critic_lr=1e-4, batch_size=64,
                  layer_norm=True, normalize_observations=True, normalize_returns=False, critic_l2_reg=1e-2, reward_scale=1.,
                  param_noise=param_noise, action_noise=action_noise, tensorboard_log="/tmp/dddpg/").learn(total_timesteps=50000, seed=0)
 

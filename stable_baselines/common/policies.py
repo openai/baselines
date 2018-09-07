@@ -40,10 +40,11 @@ class BasePolicy(ABC):
     :param scale: (bool) whether or not to scale the input
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param add_action_ph: (bool) whether or not to create an action placeholder
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False,
-                 obs_phs=None):
+                 obs_phs=None, add_action_ph=False):
         self.n_env = n_env
         self.n_steps = n_steps
         with tf.variable_scope("input", reuse=False):
@@ -53,6 +54,9 @@ class BasePolicy(ABC):
                 self.obs_ph, self.processed_x = obs_phs
             self.masks_ph = tf.placeholder(tf.float32, [n_batch], name="masks_ph")  # mask (done t-1)
             self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2], name="states_ph")  # states
+            self.action_ph = None
+            if add_action_ph:
+                self.action_ph = tf.placeholder(dtype=ac_space.dtype, shape=(None,) + ac_space.shape, name="action_ph")
         self.sess = sess
         self.reuse = reuse
         self.ob_space = ob_space
@@ -77,17 +81,6 @@ class BasePolicy(ABC):
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
         :return: ([float]) the action probability
-        """
-        raise NotImplementedError
-
-    def value(self, obs, state=None, mask=None):
-        """
-        Returns the value for a single step
-
-        :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
-        :return: ([float]) The associated value of the action
         """
         raise NotImplementedError
 

@@ -22,7 +22,7 @@ class DDPGPolicy(BasePolicy):
     """
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
         super(DDPGPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
-                                         scale=scale)
+                                         scale=scale, add_action_ph=True)
         assert isinstance(ac_space, Box), "Error: the action space must be of type gym.spaces.Box"
         assert np.abs(ac_space.low) == ac_space.high, "Error: the action space low and high must be symetric"
         self.value_fn = None
@@ -35,7 +35,7 @@ class DDPGPolicy(BasePolicy):
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
-        :return: ([float], [float], [float]) actions, values, states
+        :return: ([float]) actions
         """
         raise NotImplementedError
 
@@ -50,11 +50,12 @@ class DDPGPolicy(BasePolicy):
         """
         raise NotImplementedError
 
-    def value(self, obs, state=None, mask=None):
+    def value(self, obs, action, state=None, mask=None):
         """
         Returns the value for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
+        :param action: ([float] or [int]) The taken action
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
         :return: ([float]) The associated value of the action
@@ -86,22 +87,28 @@ class FeedForwardPolicy(DDPGPolicy):
         if layers is None:
             layers = [64, 64]
 
+        assert len(layers) >= 1, "Error: must have at least one hidden layer for the policy."
+
         with tf.variable_scope("model", reuse=reuse):
             if feature_extraction == "cnn":
                 processed_x = cnn_extractor(self.processed_x, **kwargs)
             else:
                 processed_x = tf.layers.flatten(self.processed_x)
 
-            activ = tf.tanh
+            activ = tf.nn.relu
             pi_h = processed_x
             for i, layer_size in enumerate(layers):
                 pi_h = activ(linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2)))
-            pi_latent = tf.tanh(linear(pi_h, 'pi_fc_out', n_hidden=self.ac_space.shape[0], init_scale=np.sqrt(2)))
+            pi_latent = tf.tanh(tf.layers.dense(pi_h, self.ac_space.shape[0], name='pi',
+                                kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3)))
 
-            vf_h = tf.concat([processed_x, pi_latent], axis=-1)
+            vf_h = processed_x
             for i, layer_size in enumerate(layers):
                 vf_h = activ(linear(vf_h, 'vf_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2)))
-            value_fn = linear(vf_h, 'vf', 1)
+                if i == 0:
+                    vf_h = tf.concat([vf_h, self.action_ph], axis=-1)
+            value_fn = tf.layers.dense(vf_h, 1, name='vf',
+                                       kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
 
             self.policy = tf.multiply(pi_latent, tf.convert_to_tensor(np.abs(self.ac_space.low)))
 
@@ -109,14 +116,13 @@ class FeedForwardPolicy(DDPGPolicy):
         self._value = value_fn[:, 0]
 
     def step(self, obs, state=None, mask=None):
-        action, value = self.sess.run([self.policy, self._value], {self.obs_ph: obs})
-        return action, value, None
+        return self.sess.run(self.policy, {self.obs_ph: obs})
 
     def proba_step(self, obs, state=None, mask=None):
         return self.sess.run(self.policy, {self.obs_ph: obs})
 
-    def value(self, obs, state=None, mask=None):
-        return self.sess.run(self._value, {self.obs_ph: obs})
+    def value(self, obs, action, state=None, mask=None):
+        return self.sess.run(self._value, {self.obs_ph: obs, self.action_ph: action})
 
 
 class CnnPolicy(FeedForwardPolicy):

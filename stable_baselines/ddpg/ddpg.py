@@ -72,21 +72,24 @@ def reduce_var(tensor, axis=None, keepdims=False):
     return tf.reduce_mean(devs_squared, axis=axis, keepdims=keepdims)
 
 
-def get_target_updates(_vars, target_vars, tau):
+def get_target_updates(_vars, target_vars, tau, verbose=0):
     """
     get target update operations
 
     :param _vars: ([TensorFlow Tensor]) the initial variables
     :param target_vars: ([TensorFlow Tensor]) the target variables
     :param tau: (float) the soft update coefficient (keep old values, between 0 and 1)
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :return: (TensorFlow Operation, TensorFlow Operation) initial update, soft update
     """
-    logger.info('setting up target updates ...')
+    if verbose >= 2:
+        logger.info('setting up target updates ...')
     soft_updates = []
     init_updates = []
     assert len(_vars) == len(target_vars)
     for var, target_var in zip(_vars, target_vars):
-        logger.info('  {} <- {}'.format(target_var.name, var.name))
+        if verbose >= 2:
+            logger.info('  {} <- {}'.format(target_var.name, var.name))
         init_updates.append(tf.assign(target_var, var))
         soft_updates.append(tf.assign(target_var, (1. - tau) * target_var + tau * var))
     assert len(init_updates) == len(_vars)
@@ -94,13 +97,14 @@ def get_target_updates(_vars, target_vars, tau):
     return tf.group(*init_updates), tf.group(*soft_updates)
 
 
-def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
+def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev, verbose=0):
     """
     get the actor update, with noise.
 
     :param actor: (str) the actor
     :param perturbed_actor: (str) the pertubed actor
     :param param_noise_stddev: (float) the std of the parameter noise
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :return: (TensorFlow Operation) the update function
     """
     assert len(tf_util.get_globals_vars(actor)) == len(tf_util.get_globals_vars(perturbed_actor))
@@ -110,11 +114,13 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
     updates = []
     for var, perturbed_var in zip(tf_util.get_globals_vars(actor), tf_util.get_globals_vars(perturbed_actor)):
         if var in [var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]:
-            logger.info('  {} <- {} + noise'.format(perturbed_var.name, var.name))
+            if verbose >= 2:
+                logger.info('  {} <- {} + noise'.format(perturbed_var.name, var.name))
             updates.append(tf.assign(perturbed_var,
                                      var + tf.random_normal(tf.shape(var), mean=0., stddev=param_noise_stddev)))
         else:
-            logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
+            if verbose >= 2:
+                logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
             updates.append(tf.assign(perturbed_var, var))
     assert len(updates) == len(tf_util.get_globals_vars(actor))
     return tf.group(*updates)
@@ -230,9 +236,13 @@ class DDPG(BaseRLModel):
         self.critic_with_actor_tf = None
         self.target_q = None
         self.obs_train = None
+        self.action_train_ph = None
         self.obs_target = None
+        self.action_target = None
         self.obs_noise = None
+        self.action_noise_ph = None
         self.obs_adapt_noise = None
+        self.action_adapt_noise = None
         self.terminals1 = None
         self.rewards = None
         self.actions = None
@@ -269,6 +279,7 @@ class DDPG(BaseRLModel):
                 with tf.variable_scope("target", reuse=False):
                     self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
                     self.obs_target = self.target_policy.obs_ph
+                    self.action_target = self.target_policy.action_ph
 
                 if self.param_noise is not None:
                     # Configure perturbed actor.
@@ -276,16 +287,19 @@ class DDPG(BaseRLModel):
                         self.param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
                                                              None)
                         self.obs_noise = self.param_noise_actor.obs_ph
+                        self.action_noise_ph = self.param_noise_actor.action_ph
 
                     # Configure separate copy for stddev adoption.
                     with tf.variable_scope("noise_adapt", reuse=False):
                         self.adaptive_param_noise_actor = self.policy(self.sess, self.observation_space,
                                                                       self.action_space, 1, 1, None)
                         self.obs_adapt_noise = self.adaptive_param_noise_actor.obs_ph
+                        self.action_adapt_noise = self.adaptive_param_noise_actor.action_ph
 
                 with tf.variable_scope("loss", reuse=False):
                     # Inputs.
                     self.obs_train = self.policy_tf.obs_ph
+                    self.action_train_ph = self.policy_tf.action_ph
                     self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
                     self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
                     self.actions = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape, name='actions')
@@ -359,7 +373,7 @@ class DDPG(BaseRLModel):
         set the target update operations
         """
         init_updates, soft_updates = get_target_updates(tf_util.get_trainable_vars('model'),
-                                                        tf_util.get_trainable_vars('target'), self.tau)
+                                                        tf_util.get_trainable_vars('target'), self.tau, self.verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
 
@@ -370,24 +384,28 @@ class DDPG(BaseRLModel):
         assert self.param_noise is not None
 
         self.perturbed_actor_tf = self.param_noise_actor.policy
-        logger.info('setting up param noise')
-        self.perturb_policy_ops = get_perturbed_actor_updates('model/', 'noise/', self.param_noise_stddev)
+        if self.verbose >= 2:
+            logger.info('setting up param noise')
+        self.perturb_policy_ops = get_perturbed_actor_updates('model/', 'noise/', self.param_noise_stddev,
+                                                              verbose=self.verbose)
 
         adaptive_actor_tf = self.adaptive_param_noise_actor.policy
         self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/', 'noise_adapt/',
-                                                                       self.param_noise_stddev)
+                                                                       self.param_noise_stddev, verbose=self.verbose)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
     def _setup_actor_optimizer(self):
         """
         setup the optimizer for the actor
         """
-        logger.info('setting up actor optimizer')
+        if self.verbose >= 2:
+            logger.info('setting up actor optimizer')
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
         actor_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model')]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in actor_shapes])
-        logger.info('  actor shapes: {}'.format(actor_shapes))
-        logger.info('  actor params: {}'.format(actor_nb_params))
+        if self.verbose >= 2:
+            logger.info('  actor shapes: {}'.format(actor_shapes))
+            logger.info('  actor params: {}'.format(actor_nb_params))
         self.actor_grads = tf_util.flatgrad(self.actor_loss, tf_util.get_trainable_vars('model'),
                                             clip_norm=self.clip_norm)
         self.actor_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model'), beta1=0.9, beta2=0.999,
@@ -397,16 +415,18 @@ class DDPG(BaseRLModel):
         """
         setup the optimizer for the critic
         """
-        logger.info('setting up critic optimizer')
+        if self.verbose >= 2:
+            logger.info('setting up critic optimizer')
         normalized_critic_target_tf = tf.clip_by_value(normalize(self.critic_target, self.ret_rms),
                                                        self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
             critic_reg_vars = [var for var in tf_util.get_trainable_vars('model')
                                if 'bias' not in var.name and 'output' not in var.name and 'b' not in var.name]
-            for var in critic_reg_vars:
-                logger.info('  regularizing: {}'.format(var.name))
-            logger.info('  applying l2 regularization with {}'.format(self.critic_l2_reg))
+            if self.verbose >= 2:
+                for var in critic_reg_vars:
+                    logger.info('  regularizing: {}'.format(var.name))
+                logger.info('  applying l2 regularization with {}'.format(self.critic_l2_reg))
             critic_reg = tc.layers.apply_regularization(
                 tc.layers.l2_regularizer(self.critic_l2_reg),
                 weights_list=critic_reg_vars
@@ -414,8 +434,9 @@ class DDPG(BaseRLModel):
             self.critic_loss += critic_reg
         critic_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model')]
         critic_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in critic_shapes])
-        logger.info('  critic shapes: {}'.format(critic_shapes))
-        logger.info('  critic params: {}'.format(critic_nb_params))
+        if self.verbose >= 2:
+            logger.info('  critic shapes: {}'.format(critic_shapes))
+            logger.info('  critic params: {}'.format(critic_nb_params))
         self.critic_grads = tf_util.flatgrad(self.critic_loss, tf_util.get_trainable_vars('model'),
                                              clip_norm=self.clip_norm)
         self.critic_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model'), beta1=0.9, beta2=0.999,
@@ -495,16 +516,20 @@ class DDPG(BaseRLModel):
         :return: ([float], float) the action and critic value
         """
         feed_dict = {self.obs_train: [obs]}
+        action_ph = [self.action_train_ph]
         if self.param_noise is not None and apply_noise:
             actor_tf = self.perturbed_actor_tf
+            action_ph.append(self.action_noise_ph)
             feed_dict[self.obs_noise] = [obs]
         else:
             actor_tf = self.actor_tf
+
+        action = self.sess.run(actor_tf, feed_dict=feed_dict)
+        q_value = None
         if compute_q:
-            action, q_value = self.sess.run([actor_tf, self.critic_with_actor_tf], feed_dict=feed_dict)
-        else:
-            action = self.sess.run(actor_tf, feed_dict=feed_dict)
-            q_value = None
+            q_value = self.sess.run(self.critic_with_actor_tf,
+                                    feed_dict={**feed_dict, **{ph: action for ph in action_ph}})
+
         action = action.flatten()
         if self.action_noise is not None and apply_noise:
             noise = self.action_noise()
@@ -538,12 +563,14 @@ class DDPG(BaseRLModel):
         # Get a batch
         batch = self.memory.sample(batch_size=self.batch_size)
 
+        action = self.sess.run(self.target_policy.policy, feed_dict={self.obs_target: batch['obs1']})
         if self.normalize_returns and self.enable_popart:
             old_mean, old_std, target_q = self.sess.run([self.ret_rms.mean, self.ret_rms.std, self.target_q],
                                                         feed_dict={
                                                             self.obs_target: batch['obs1'],
                                                             self.rewards: batch['rewards'],
                                                             self.terminals1: batch['terminals1'].astype('float32'),
+                                                            self.action_target: action,
                                                         })
             self.ret_rms.update(target_q.flatten())
             self.sess.run(self.renormalize_q_outputs_op, feed_dict={
@@ -556,6 +583,7 @@ class DDPG(BaseRLModel):
                 self.obs_target: batch['obs1'],
                 self.rewards: batch['rewards'],
                 self.terminals1: batch['terminals1'].astype('float32'),
+                self.action_target: action,
             })
 
         # Get all gradients and perform a synced update.
@@ -563,6 +591,7 @@ class DDPG(BaseRLModel):
         td_map = {
             self.obs_train: batch['obs0'],
             self.actions: batch['actions'],
+            self.action_train_ph: batch['actions'],
             self.rewards: batch['rewards'],
             self.critic_target: target_q,
             self.param_noise_stddev: 0 if self.param_noise is None else self.param_noise.current_stddev
@@ -624,6 +653,10 @@ class DDPG(BaseRLModel):
             self.actions: self.stats_sample['actions']
         }
 
+        for placeholder in [self.action_train_ph, self.action_target, self.action_adapt_noise, self.action_noise_ph]:
+            if placeholder is not None:
+                feed_dict[placeholder] = self.stats_sample['actions']
+
         for placeholder in [self.obs_train, self.obs_target, self.obs_adapt_noise, self.obs_noise]:
             if placeholder is not None:
                 feed_dict[placeholder] = self.stats_sample['obs0']
@@ -683,8 +716,9 @@ class DDPG(BaseRLModel):
             rank = MPI.COMM_WORLD.Get_rank()
             # we assume symmetric actions.
             assert np.all(np.abs(self.env.action_space.low) == self.env.action_space.high)
-            logger.log('Using agent with the following configuration:')
-            logger.log(str(self.__dict__.items()))
+            if self.verbose >= 2:
+                logger.log('Using agent with the following configuration:')
+                logger.log(str(self.__dict__.items()))
 
             eval_episode_rewards_history = deque(maxlen=100)
             episode_rewards_history = deque(maxlen=100)
