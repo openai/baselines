@@ -322,7 +322,9 @@ def save_state(fname, sess=None):
     from baselines import logger
     logger.warn('save_state method is deprecated, please use save_variables instead')
     sess = sess or get_session()
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
+    dirname = os.path.dirname(fname)
+    if any(dirname):
+        os.makedirs(dirname, exist_ok=True)
     saver = tf.train.Saver()
     saver.save(tf.get_default_session(), fname)
 
@@ -335,7 +337,9 @@ def save_variables(save_path, variables=None, sess=None):
 
     ps = sess.run(variables)
     save_dict = {v.name: value for v, value in zip(variables, ps)}
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    dirname = os.path.dirname(save_path)
+    if any(dirname):
+        os.makedirs(dirname, exist_ok=True)
     joblib.dump(save_dict, save_path)
 
 def load_variables(load_path, variables=None, sess=None):
