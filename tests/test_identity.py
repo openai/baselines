@@ -33,7 +33,8 @@ learn_func_list = [
 class DDPGCustomPolicy(DDPGFeedForwardPolicy):
     def __init__(self, *args, **kwargs):
         super(DDPGCustomPolicy, self).__init__(*args, **kwargs,
-                                               layers=[64],
+                                               layers=[16, 16],
+                                               layer_norm=True,
                                                feature_extraction="mlp")
 
 

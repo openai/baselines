@@ -91,9 +91,20 @@ DDPG Policies
   :inherited-members:
 
 
+.. autoclass:: LnMlpPolicy
+  :members:
+  :inherited-members:
+
+
 .. autoclass:: CnnPolicy
   :members:
   :inherited-members:
+
+
+.. autoclass:: LnCnnPolicy
+  :members:
+  :inherited-members:
+
 
 Action and Parameters Noise
 ---------------------------
@@ -130,6 +141,7 @@ You can easily define a custom architecture for the policy network:
       def __init__(self, *args, **kwargs):
           super(CustomPolicy, self).__init__(*args, **kwargs,
                                              layers=[128, 128, 128],
+                                             layer_norm=False,
                                              feature_extraction="mlp")
 
   # Create and wrap the environment

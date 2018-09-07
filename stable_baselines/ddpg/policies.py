@@ -77,11 +77,12 @@ class FeedForwardPolicy(DDPGPolicy):
     :param layers: ([int]) The size of the Neural network for the policy (if None, default to [64, 64])
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
     :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
+    :param layer_norm: (bool) enable layer normalisation
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
-                 cnn_extractor=nature_cnn, feature_extraction="cnn", **kwargs):
+                 cnn_extractor=nature_cnn, feature_extraction="cnn", layer_norm=False, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
                                                 reuse=reuse, scale=(feature_extraction == "cnn"))
         if layers is None:
@@ -98,13 +99,19 @@ class FeedForwardPolicy(DDPGPolicy):
             activ = tf.nn.relu
             pi_h = processed_x
             for i, layer_size in enumerate(layers):
-                pi_h = activ(linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2)))
+                pi_h = linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2))
+                if layer_norm:
+                    pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
+                pi_h = activ(pi_h)
             pi_latent = tf.tanh(tf.layers.dense(pi_h, self.ac_space.shape[0], name='pi',
                                 kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3)))
 
             vf_h = processed_x
             for i, layer_size in enumerate(layers):
-                vf_h = activ(linear(vf_h, 'vf_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2)))
+                vf_h = linear(vf_h, 'vf_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2))
+                if layer_norm:
+                    vf_h = tf.contrib.layers.layer_norm(vf_h, center=True, scale=True)
+                vf_h = activ(vf_h)
                 if i == 0:
                     vf_h = tf.concat([vf_h, self.action_ph], axis=-1)
             value_fn = tf.layers.dense(vf_h, 1, name='vf',
@@ -144,6 +151,25 @@ class CnnPolicy(FeedForwardPolicy):
                                         feature_extraction="cnn", **_kwargs)
 
 
+class LnCnnPolicy(FeedForwardPolicy):
+    """
+    Policy object that implements actor critic, using a CNN (the nature CNN), with layer normalisation
+
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+    """
+
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+        super(LnCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                          feature_extraction="cnn", layer_norm=True, **_kwargs)
+
+
 class MlpPolicy(FeedForwardPolicy):
     """
     Policy object that implements actor critic, using a MLP (2 layers of 64)
@@ -161,3 +187,22 @@ class MlpPolicy(FeedForwardPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
         super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
                                         feature_extraction="mlp", **_kwargs)
+
+
+class LnMlpPolicy(FeedForwardPolicy):
+    """
+    Policy object that implements actor critic, using a MLP (2 layers of 64), with layer normalisation
+
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+    """
+
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+        super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                          feature_extraction="mlp", layer_norm=True, **_kwargs)
