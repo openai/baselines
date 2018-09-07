@@ -732,10 +732,10 @@ class DDPG(BaseRLModel):
                             new_obs, reward, done, _ = self.env.step(action)
 
                             if writer is not None:
-                                self.episode_reward = total_episode_reward_logger(self.episode_reward,
-                                                                                  reward.reshape((1, -1)),
-                                                                                  done.reshape((1, -1)), writer,
-                                                                                  total_steps)
+                                ep_rew = np.array([reward]).reshape((1, -1))
+                                ep_done = np.array([done]).reshape((1, -1))
+                                self.episode_reward = total_episode_reward_logger(self.episode_reward, ep_rew, ep_done,
+                                                                                  writer, total_steps)
                             step += 1
                             total_steps += 1
                             if rank == 0 and self.render:

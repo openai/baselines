@@ -38,13 +38,19 @@ class BasePolicy(ABC):
     :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
+    :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
+        and the processed observation placeholder respectivly
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False,
+                 obs_phs=None):
         self.n_env = n_env
         self.n_steps = n_steps
         with tf.variable_scope("input", reuse=False):
-            self.obs_ph, self.processed_x = observation_input(ob_space, n_batch, scale=scale)
+            if obs_phs is None:
+                self.obs_ph, self.processed_x = observation_input(ob_space, n_batch, scale=scale)
+            else:
+                self.obs_ph, self.processed_x = obs_phs
             self.masks_ph = tf.placeholder(tf.float32, [n_batch], name="masks_ph")  # mask (done t-1)
             self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2], name="states_ph")  # states
         self.sess = sess

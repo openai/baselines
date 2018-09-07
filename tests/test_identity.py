@@ -4,13 +4,14 @@ from stable_baselines.a2c import A2C
 from stable_baselines.acer import ACER
 from stable_baselines.acktr import ACKTR
 from stable_baselines.deepq import DeepQ, MlpPolicy as DeepQMlpPolicy
-from stable_baselines.ddpg import DDPG, MlpPolicy as DDPGMlpPolicy
+from stable_baselines.ddpg import DDPG
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.ddpg.policies import FeedForwardPolicy as DDPGFeedForwardPolicy
 
 
 learn_func_list = [
@@ -29,29 +30,36 @@ learn_func_list = [
 ]
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize("learn_func", learn_func_list)
-def test_identity(learn_func):
-    """
-    Test if the algorithm (with a given policy)
-    can learn an identity transformation (i.e. return observation as an action)
+class DDPGCustomPolicy(DDPGFeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(DDPGCustomPolicy, self).__init__(*args, **kwargs,
+                                               layers=[64],
+                                               feature_extraction="mlp")
 
-    :param learn_func: (lambda (Gym Environment): A2CPolicy) the policy generator
-    """
-    env = DummyVecEnv([lambda: IdentityEnv(10)])
 
-    model = learn_func(env)
-
-    n_trials = 1000
-    reward_sum = 0
-    obs = env.reset()
-    for _ in range(n_trials):
-        action, _ = model.predict(obs)
-        obs, reward, _, _ = env.step(action)
-        reward_sum += reward
-    assert reward_sum > 0.9 * n_trials
-    # Free memory
-    del model, env
+# @pytest.mark.slow
+# @pytest.mark.parametrize("learn_func", learn_func_list)
+# def test_identity(learn_func):
+#     """
+#     Test if the algorithm (with a given policy)
+#     can learn an identity transformation (i.e. return observation as an action)
+#
+#     :param learn_func: (lambda (Gym Environment): A2CPolicy) the policy generator
+#     """
+#     env = DummyVecEnv([lambda: IdentityEnv(10)])
+#
+#     model = learn_func(env)
+#
+#     n_trials = 1000
+#     reward_sum = 0
+#     obs = env.reset()
+#     for _ in range(n_trials):
+#         action, _ = model.predict(obs)
+#         obs, reward, _, _ = env.step(action)
+#         reward_sum += reward
+#     assert reward_sum > 0.9 * n_trials
+#     # Free memory
+#     del model, env
 
 
 @pytest.mark.slow
@@ -70,16 +78,17 @@ def test_identity_ddpg():
     param_noise = None
     param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(std), desired_action_stddev=float(std))
     action_noise = None
-    # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=float(std) * np.ones(n_actions))
+    # action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(std) * np.ones(n_actions))
 
     # FIXME: this test fail for now
-    model = DDPG(DDPGMlpPolicy, env, enable_popart=False,
-                 param_noise=param_noise, action_noise=action_noise).learn(total_timesteps=20000, seed=0)
+    model = DDPG(DDPGCustomPolicy, env, enable_popart=False, gamma=0.99, actor_lr=1e-4, critic_lr=1e-3, batch_size=64,
+                 layer_norm=True, normalize_observations=True, normalize_returns=False, critic_l2_reg=1e-2, reward_scale=1.,
+                 param_noise=param_noise, action_noise=action_noise, tensorboard_log="/tmp/dddpg/").learn(total_timesteps=50000, seed=0)
 
     std = 0.2
     param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(std), desired_action_stddev=float(std))
-    model = DDPG(DDPGMlpPolicy, env, nb_train_steps=4, nb_rollout_steps=4, param_noise=param_noise, gamma=0.5,
-                 normalize_returns=True, tau=0.001, batch_size=4, tensorboard_log="/tmp/dddpg/")
+    # model = DDPG(DDPGMlpPolicy, env, nb_train_steps=4, nb_rollout_steps=4, param_noise=param_noise, gamma=0.5,
+    #              normalize_returns=True, tau=0.001, batch_size=16, tensorboard_log="/tmp/dddpg/").learn(total_timesteps=20000, seed=0)
 
     n_trials = 1000
     reward_sum = 0

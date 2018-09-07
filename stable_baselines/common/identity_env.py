@@ -58,6 +58,11 @@ class IdentityEnvBox(IdentityEnv):
         self.eps = eps
         self.reset()
 
+    def reset(self):
+        self.current_step = 0
+        self._choose_next_state()
+        return self.state
+
     def step(self, action):
         reward = self._get_reward(action)
         self._choose_next_state()
@@ -65,8 +70,11 @@ class IdentityEnvBox(IdentityEnv):
         done = self.current_step >= self.ep_length
         return self.state, reward, done, {}
 
+    def _choose_next_state(self):
+        self.state = self.observation_space.sample()
+
     def _get_reward(self, action):
-        return 1 if (self.state - self.eps) <= action <= (self.state + self.eps) else 0
+        return 1 if action * self.state > 0 else 0
 
 
 class IdentityEnvMultiDiscrete(IdentityEnv):

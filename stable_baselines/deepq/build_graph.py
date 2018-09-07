@@ -132,12 +132,14 @@ def build_act(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess):
     :param stochastic_ph: (TensorFlow Tensor) the stochastic placeholder
     :param update_eps_ph: (TensorFlow Tensor) the update_eps placeholder
     :param sess: (TensorFlow session) The current TensorFlow session
-    :return: (function (TensorFlow Tensor, bool, float): TensorFlow Tensor, TensorFlow Tensor) act function to select
-        and action given observation (See the top of the file for details), the observation placeholder.
+    :return: (function (TensorFlow Tensor, bool, float): TensorFlow Tensor, (TensorFlow Tensor, TensorFlow Tensor)
+        act function to select and action given observation (See the top of the file for details),
+        A tuple containing the observation placeholder and the processed observation placeholder respectivly.
     """
     eps = tf.get_variable("eps", (), initializer=tf.constant_initializer(0))
 
     policy = q_func(sess, ob_space, ac_space, 1, 1, None)
+    obs_phs = (policy.obs_ph, policy.processed_x)
     deterministic_actions = policy.proba_distribution.mode()
 
     batch_size = tf.shape(policy.obs_ph)[0]
@@ -156,7 +158,7 @@ def build_act(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess):
     def act(obs, stochastic=True, update_eps=-1):
         return _act(obs, stochastic, update_eps)
 
-    return act, policy.obs_ph
+    return act, obs_phs
 
 
 def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess,
@@ -173,8 +175,9 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
     :param param_noise_filter_func: (function (TensorFlow Tensor): bool) function that decides whether or not a
         variable should be perturbed. Only applicable if param_noise is True. If set to None, default_param_noise_filter
         is used by default.
-    :return: (function (TensorFlow Tensor, bool, float): TensorFlow Tensor, TensorFlow Tensor) act function to select
-        and action given observation (See the top of the file for details), the observation placeholder.
+    :return: (function (TensorFlow Tensor, bool, float): TensorFlow Tensor, (TensorFlow Tensor, TensorFlow Tensor)
+        act function to select and action given observation (See the top of the file for details),
+        A tuple containing the observation placeholder and the processed observation placeholder respectivly.
     """
     if param_noise_filter_func is None:
         param_noise_filter_func = default_param_noise_filter
@@ -190,11 +193,12 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
                                             trainable=False)
 
     # Unmodified Q.
-    policy = q_func(sess, ob_space, ac_space, 1, 1, None, reuse=True)
+    policy = q_func(sess, ob_space, ac_space, 1, 1, None)
+    obs_phs = (policy.obs_ph, policy.processed_x)
 
     # Perturbable Q used for the actual rollout.
     with tf.variable_scope("perturbed_model", reuse=False):
-        perturbable_policy = q_func(sess, ob_space, ac_space, 1, 1, None)
+        perturbable_policy = q_func(sess, ob_space, ac_space, 1, 1, None, obs_phs=obs_phs)
 
     def perturb_vars(original_scope, perturbed_scope):
         """
@@ -228,7 +232,7 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
     # of the network and measures the effect of that perturbation in action space. If the perturbation
     # is too big, reduce scale of perturbation, otherwise increase.
     with tf.variable_scope("adaptive_model", reuse=False):
-        adaptive_policy = q_func(sess, ob_space, ac_space, 1, 1, None)
+        adaptive_policy = q_func(sess, ob_space, ac_space, 1, 1, None, obs_phs=obs_phs)
     perturb_for_adaption = perturb_vars(original_scope="model", perturbed_scope="adaptive_model/model")
     kl_loss = tf.reduce_sum(
         tf.nn.softmax(policy.value_fn) *
@@ -270,7 +274,7 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
     update_eps_expr = eps.assign(tf.cond(update_eps_ph >= 0, lambda: update_eps_ph, lambda: eps))
     updates = [
         update_eps_expr,
-        tf.cond(reset_ph, lambda: perturb_vars(original_scope="q_func", perturbed_scope="perturbed_q_func"),
+        tf.cond(reset_ph, lambda: perturb_vars(original_scope="model", perturbed_scope="perturbed_model/model"),
                 lambda: tf.group(*[])),
         tf.cond(update_param_noise_scale_ph, lambda: update_scale(), lambda: tf.Variable(0., trainable=False)),
         update_param_noise_thres_expr,
@@ -312,7 +316,7 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
             return _perturbed_act(obs, stochastic, update_eps, reset, update_param_noise_threshold,
                                   update_param_noise_scale)
 
-    return act, policy.obs_ph
+    return act, obs_phs
 
 
 def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=None, gamma=1.0, double_q=True,
@@ -354,14 +358,14 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
 
     with tf.variable_scope(scope, reuse=reuse):
         if param_noise:
-            act_f, _ = build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess,
-                                                  param_noise_filter_func=param_noise_filter_func)
+            act_f, obs_phs = build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess,
+                                                        param_noise_filter_func=param_noise_filter_func)
         else:
-            act_f, _ = build_act(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess)
+            act_f, obs_phs = build_act(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess)
 
         # q network evaluation
         with tf.variable_scope("eval_q_func", reuse=True, custom_getter=tf_util.outer_scope_getter("eval_q_func")):
-            eval_policy = q_func(sess, ob_space, ac_space, 1, 1, None, reuse=True)
+            eval_policy = q_func(sess, ob_space, ac_space, 1, 1, None, reuse=True, obs_phs=obs_phs)
         q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/model")
         # target q network evalution
 
@@ -428,10 +432,10 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
         tf.summary.histogram('rewards', rew_t_ph)
         tf.summary.scalar('importance_weights', tf.reduce_mean(importance_weights_ph))
         tf.summary.histogram('importance_weights', importance_weights_ph)
-        if len(eval_policy.obs_ph.shape) == 3:
-            tf.summary.image('observation', eval_policy.obs_ph)
+        if len(obs_phs[0].shape) == 3:
+            tf.summary.image('observation', obs_phs[0])
         else:
-            tf.summary.histogram('observation', eval_policy.obs_ph)
+            tf.summary.histogram('observation', obs_phs[0])
 
     optimize_expr = optimizer.apply_gradients(gradients)
 
@@ -440,7 +444,7 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
     # Create callable functions
     train = tf_util.function(
         inputs=[
-            eval_policy.obs_ph,
+            obs_phs[0],
             act_t_ph,
             rew_t_ph,
             target_policy.obs_ph,
@@ -453,6 +457,6 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
     )
     update_target = tf_util.function([], [], updates=[update_target_expr])
 
-    q_values = tf_util.function([eval_policy.obs_ph], eval_policy.value_fn)
+    q_values = tf_util.function([obs_phs[0]], eval_policy.value_fn)
 
     return act_f, train, update_target, {'q_values': q_values}

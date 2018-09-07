@@ -20,11 +20,15 @@ class DeepQPolicy(BasePolicy):
     :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
+    :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
+        and the processed observation placeholder respectivly
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False,
+                 obs_phs=None):
+        # DQN policies need an override for the obs placeholder, due to the architecture of the code
         super(DeepQPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
-                                          scale=scale)
+                                          scale=scale, obs_phs=obs_phs)
         assert not isinstance(ac_space, Box), "Error: the action space cannot be of type gym.spaces.Box"
         self.pdtype = make_proba_dist_type(ac_space)
         self.value_fn = None
@@ -90,13 +94,16 @@ class FeedForwardPolicy(DeepQPolicy):
     :param layers: ([int]) The size of the Neural network for the policy (if None, default to [64, 64])
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
     :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
+    :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
+        and the processed observation placeholder respectivly
+    :param layer_norm: (bool) enable layer normalisation
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
-                 cnn_extractor=nature_cnn, feature_extraction="cnn", **kwargs):
+                 cnn_extractor=nature_cnn, feature_extraction="cnn", obs_phs=None, layer_norm=False, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-                                                reuse=reuse, scale=(feature_extraction == "cnn"))
+                                                reuse=reuse, scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
         if layers is None:
             layers = [64, 64]
 
@@ -109,7 +116,10 @@ class FeedForwardPolicy(DeepQPolicy):
                 processed_x = tf.layers.flatten(self.processed_x)
                 pi_h = processed_x
                 for i, layer_size in enumerate(layers):
-                    pi_h = activ(linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2)))
+                    pi_h = linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2))
+                    if layer_norm:
+                        pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
+                    pi_h = activ(pi_h)
                 pi_latent = pi_h
 
             self.proba_distribution, self.policy, self.q_value = \
@@ -141,12 +151,35 @@ class CnnPolicy(FeedForwardPolicy):
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
+    :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
+        and the processed observation placeholder respectivly
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
         super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="cnn", **_kwargs)
+                                        feature_extraction="cnn", obs_phs=obs_phs, layer_norm=False, **_kwargs)
+
+
+class LnCnnPolicy(FeedForwardPolicy):
+    """
+    Policy object that implements DQN policy, using a CNN (the nature CNN), with layer normalisation
+
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
+        and the processed observation placeholder respectivly
+    :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+    """
+
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+        super(LnCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="cnn", obs_phs=obs_phs, layer_norm=True, **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
@@ -160,9 +193,32 @@ class MlpPolicy(FeedForwardPolicy):
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
+    :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
+        and the processed observation placeholder respectivly
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
         super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="mlp", **_kwargs)
+                                        feature_extraction="mlp", obs_phs=obs_phs, layer_norm=False, **_kwargs)
+
+
+class LnMlpPolicy(FeedForwardPolicy):
+    """
+    Policy object that implements DQN policy, using a MLP (2 layers of 64), with layer normalisation
+
+    :param sess: (TensorFlow session) The current TensorFlow session
+    :param ob_space: (Gym Space) The observation space of the environment
+    :param ac_space: (Gym Space) The action space of the environment
+    :param n_env: (int) The number of environments to run
+    :param n_steps: (int) The number of steps to run for each environment
+    :param n_batch: (int) The number of batch to run (n_envs * n_steps)
+    :param reuse: (bool) If the policy is reusable or not
+    :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
+        and the processed observation placeholder respectivly
+    :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
+    """
+
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+        super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="mlp", obs_phs=obs_phs, layer_norm=True, **_kwargs)

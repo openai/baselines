@@ -187,8 +187,10 @@ class DeepQ(BaseRLModel):
                 obs = new_obs
 
                 if writer is not None:
-                    self.episode_reward = total_episode_reward_logger(self.episode_reward, rew.reshape((1, 1)),
-                                                                      done.reshape((1, 1)), writer, step)
+                    ep_rew = np.array([rew]).reshape((1, -1))
+                    ep_done = np.array([done]).reshape((1, -1))
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward, ep_rew, ep_done, writer,
+                                                                      step)
 
                 episode_rewards[-1] += rew
                 if done:
