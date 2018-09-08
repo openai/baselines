@@ -22,7 +22,12 @@ def test_env_after_learn(algo):
     network = cnn(one_dim_bias=True)
 
     # Commenting out the following line resolves the issue, though crash happens at env.reset().
-    learn(network=network, env=env, total_timesteps=0, load_path=None, seed=None)
+    if algo == 'acktr':
+        kwargs = {'is_async': False}
+    else:
+        kwargs = {}
+
+    learn(network=network, env=env, total_timesteps=0, load_path=None, seed=None, **kwargs)
 
     env.reset()
     env.close()
