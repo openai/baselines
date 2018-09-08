@@ -20,7 +20,7 @@ def main():
         hiddens=[256],
         dueling=True,
         lr=1e-4,
-        total_timesteps=int(100000),
+        total_timesteps=int(1e7),
         buffer_size=10000,
         exploration_fraction=0.1,
         exploration_final_eps=0.01,
