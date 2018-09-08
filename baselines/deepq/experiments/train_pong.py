@@ -1,6 +1,5 @@
 from baselines import deepq
 from baselines import bench
-import argparse
 from baselines import logger
 from baselines.common.atari_wrappers import make_atari
 
