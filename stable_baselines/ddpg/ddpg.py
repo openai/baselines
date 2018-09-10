@@ -107,6 +107,10 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev, verb
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :return: (TensorFlow Operation) the update function
     """
+    # TODO: simplify this to this:
+    # assert len(actor.vars) == len(perturbed_actor.vars)
+    # assert len(actor.perturbable_vars) == len(perturbed_actor.perturbable_vars)
+
     assert len(tf_util.get_globals_vars(actor)) == len(tf_util.get_globals_vars(perturbed_actor))
     assert len([var for var in tf_util.get_trainable_vars(actor) if 'LayerNorm' not in var.name]) == \
         len([var for var in tf_util.get_trainable_vars(perturbed_actor) if 'LayerNorm' not in var.name])
@@ -372,8 +376,8 @@ class DDPG(BaseRLModel):
         """
         set the target update operations
         """
-        init_updates, soft_updates = get_target_updates(tf_util.get_trainable_vars('model'),
-                                                        tf_util.get_trainable_vars('target'), self.tau, self.verbose)
+        init_updates, soft_updates = get_target_updates(tf_util.get_trainable_vars('model/'),
+                                                        tf_util.get_trainable_vars('target/model/'), self.tau, self.verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
 
@@ -386,11 +390,11 @@ class DDPG(BaseRLModel):
         self.perturbed_actor_tf = self.param_noise_actor.policy
         if self.verbose >= 2:
             logger.info('setting up param noise')
-        self.perturb_policy_ops = get_perturbed_actor_updates('model/', 'noise/', self.param_noise_stddev,
+        self.perturb_policy_ops = get_perturbed_actor_updates('model/pi/', 'noise/model/pi/', self.param_noise_stddev,
                                                               verbose=self.verbose)
 
         adaptive_actor_tf = self.adaptive_param_noise_actor.policy
-        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/', 'noise_adapt/',
+        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/pi/', 'noise_adapt/model/pi/',
                                                                        self.param_noise_stddev, verbose=self.verbose)
         self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
@@ -401,14 +405,14 @@ class DDPG(BaseRLModel):
         if self.verbose >= 2:
             logger.info('setting up actor optimizer')
         self.actor_loss = -tf.reduce_mean(self.critic_with_actor_tf)
-        actor_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model')]
+        actor_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model/pi/')]
         actor_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in actor_shapes])
         if self.verbose >= 2:
             logger.info('  actor shapes: {}'.format(actor_shapes))
             logger.info('  actor params: {}'.format(actor_nb_params))
-        self.actor_grads = tf_util.flatgrad(self.actor_loss, tf_util.get_trainable_vars('model'),
+        self.actor_grads = tf_util.flatgrad(self.actor_loss, tf_util.get_trainable_vars('model/pi/'),
                                             clip_norm=self.clip_norm)
-        self.actor_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model'), beta1=0.9, beta2=0.999,
+        self.actor_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model/pi/'), beta1=0.9, beta2=0.999,
                                        epsilon=1e-08)
 
     def _setup_critic_optimizer(self):
@@ -421,7 +425,7 @@ class DDPG(BaseRLModel):
                                                        self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
-            critic_reg_vars = [var for var in tf_util.get_trainable_vars('model')
+            critic_reg_vars = [var for var in tf_util.get_trainable_vars('model/vf/')
                                if 'bias' not in var.name and 'output' not in var.name and 'b' not in var.name]
             if self.verbose >= 2:
                 for var in critic_reg_vars:
@@ -432,14 +436,14 @@ class DDPG(BaseRLModel):
                 weights_list=critic_reg_vars
             )
             self.critic_loss += critic_reg
-        critic_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model')]
+        critic_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model/vf/')]
         critic_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in critic_shapes])
         if self.verbose >= 2:
             logger.info('  critic shapes: {}'.format(critic_shapes))
             logger.info('  critic params: {}'.format(critic_nb_params))
-        self.critic_grads = tf_util.flatgrad(self.critic_loss, tf_util.get_trainable_vars('model'),
+        self.critic_grads = tf_util.flatgrad(self.critic_loss, tf_util.get_trainable_vars('model/vf/'),
                                              clip_norm=self.clip_norm)
-        self.critic_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model'), beta1=0.9, beta2=0.999,
+        self.critic_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model/vf/'), beta1=0.9, beta2=0.999,
                                         epsilon=1e-08)
 
     def _setup_popart(self):
@@ -455,8 +459,8 @@ class DDPG(BaseRLModel):
         new_mean = self.ret_rms.mean
 
         self.renormalize_q_outputs_op = []
-        for out_vars in [[var for var in tf_util.get_trainable_vars('model') if 'output' in var.name],
-                         [var for var in tf_util.get_trainable_vars('target') if 'output' in var.name]]:
+        for out_vars in [[var for var in tf_util.get_trainable_vars('model/pi/') if 'output' in var.name],
+                         [var for var in tf_util.get_trainable_vars('target/model/vf/') if 'output' in var.name]]:
             assert len(out_vars) == 2
             # wieght and bias of the last layer
             weight, bias = out_vars

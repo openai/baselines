@@ -96,26 +96,29 @@ class FeedForwardPolicy(DDPGPolicy):
             else:
                 processed_x = tf.layers.flatten(self.processed_x)
 
-            activ = tf.nn.relu
-            pi_h = processed_x
-            for i, layer_size in enumerate(layers):
-                pi_h = linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2))
-                if layer_norm:
-                    pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
-                pi_h = activ(pi_h)
-            pi_latent = tf.tanh(tf.layers.dense(pi_h, self.ac_space.shape[0], name='pi',
-                                kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3)))
+            with tf.variable_scope("pi", reuse=reuse):
+                activ = tf.nn.relu
+                pi_h = processed_x
+                for i, layer_size in enumerate(layers):
+                    pi_h = tf.layers.dense(pi_h, layer_size, name='fc' + str(i))
+                    if layer_norm:
+                        pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
+                    pi_h = activ(pi_h)
+                pi_latent = tf.nn.tanh(tf.layers.dense(pi_h, self.ac_space.shape[0], name='pi',
+                                    kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3)))
 
-            vf_h = processed_x
-            for i, layer_size in enumerate(layers):
-                vf_h = linear(vf_h, 'vf_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2))
-                if layer_norm:
-                    vf_h = tf.contrib.layers.layer_norm(vf_h, center=True, scale=True)
-                vf_h = activ(vf_h)
-                if i == 0:
-                    vf_h = tf.concat([vf_h, self.action_ph], axis=-1)
-            value_fn = tf.layers.dense(vf_h, 1, name='vf',
-                                       kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
+            with tf.variable_scope("vf", reuse=reuse):
+                vf_h = processed_x
+                for i, layer_size in enumerate(layers):
+                    vf_h = tf.layers.dense(vf_h, layer_size, name='fc' + str(i))
+                    if layer_norm:
+                        vf_h = tf.contrib.layers.layer_norm(vf_h, center=True, scale=True)
+                    vf_h = activ(vf_h)
+                    if i == 0:
+                        vf_h = tf.concat([vf_h, self.action_ph], axis=-1)
+
+                value_fn = tf.layers.dense(vf_h, 1, name='vf',
+                                           kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
 
             self.policy = tf.multiply(pi_latent, tf.convert_to_tensor(np.abs(self.ac_space.low)))
 
