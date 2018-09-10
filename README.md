@@ -21,6 +21,8 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 
 Documentation is available online: [http://stable-baselines.readthedocs.io/](http://stable-baselines.readthedocs.io/)
 
+Note: Current DDPG implementation is buggy, we are working on fixing it (see tensorboard branch).
+
 ## Installation
 
 ### Prerequisites
