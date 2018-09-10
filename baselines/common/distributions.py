@@ -107,6 +107,9 @@ class BernoulliPdType(PdType):
         return [self.size]
     def sample_dtype(self):
         return tf.int32
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        pdparam = fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
+        return self.pdfromflat(pdparam), pdparam
 
 # WRONG SECOND DERIVATIVES
 # class CategoricalPd(Pd):

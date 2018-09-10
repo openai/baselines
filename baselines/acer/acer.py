@@ -370,5 +370,4 @@ def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6
             for _ in range(n):
                 acer.call(on_policy=False)  # no simulation steps in this
 
-    env.close()
     return model

@@ -149,5 +149,4 @@ def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interva
             model.save(savepath)
     coord.request_stop()
     coord.join(enqueue_threads)
-    env.close()
     return model

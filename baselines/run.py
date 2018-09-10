@@ -20,9 +20,19 @@ try:
 except ImportError:
     MPI = None
 
+try:
+    import pybullet_envs
+except ImportError:
+    pybullet_envs = None
+
+try:
+    import roboschool
+except ImportError:
+    roboschool = None
+
 _game_envs = defaultdict(set)
 for env in gym.envs.registry.all():
-    # solve this with regexes
+    # TODO: solve this with regexes
     env_type = env._entry_point.split(':')[0].split('.')[-1]
     _game_envs[env_type].add(env.id)
 
@@ -43,6 +53,7 @@ _game_envs['retro'] = {
 
 def train(args, extra_args):
     env_type, env_id = get_env_type(args.env)
+    print('env_type: {}'.format(env_type))
 
     total_timesteps = int(args.num_timesteps)
     seed = args.seed
@@ -197,7 +208,8 @@ def main():
         logger.configure(format_strs=[])
         rank = MPI.COMM_WORLD.Get_rank()
 
-    model, _ = train(args, extra_args)
+    model, env = train(args, extra_args)
+    env.close()
 
     if args.save_path is not None and rank == 0:
         save_path = osp.expanduser(args.save_path)
@@ -216,6 +228,7 @@ def main():
             if done:
                 obs = env.reset()
 
+        env.close()
 
 if __name__ == '__main__':
     main()
