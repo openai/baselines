@@ -2,7 +2,6 @@ import pytest
 import gym
 import tensorflow as tf
 
-from baselines.common.models import cnn
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.run import get_learn_function
 from baselines.common.tf_util import make_session
