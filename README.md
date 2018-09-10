@@ -116,7 +116,10 @@ Baselines logger can save data in the TensorBoard format. To do so, set environm
 export OPENAI_LOG_FORMAT='stdout,log,csv,tensorboard' # formats are comma-separated, but for tensorboard you only really need the last one
 export OPENAI_LOGDIR=path/to/tensorboard/data
 ```
-
+And you can now start TensorBoard with:
+```bash
+tensorboard --logdir=$OPENAI_LOGDIR
+```
 ## Subpackages
 
 - [A2C](baselines/a2c)
