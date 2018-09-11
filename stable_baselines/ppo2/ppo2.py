@@ -18,7 +18,7 @@ class PPO2(BaseRLModel):
     Proximal Policy Optimization algorithm (GPU version).
     Paper: https://arxiv.org/abs/1707.06347
 
-    :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) Discount factor
     :param n_steps: (int) The number of steps to run for each environment per update

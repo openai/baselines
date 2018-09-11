@@ -136,7 +136,7 @@ class DDPG(BaseRLModel):
 
     DDPG: https://arxiv.org/pdf/1509.02971.pdf
 
-    :param policy: (DDPGPolicy) the policy
+    :param policy: (DDPGPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) the discount rate
     :param memory_policy: (Memory) the replay buffer (if None, default to baselines.ddpg.memory.Memory)

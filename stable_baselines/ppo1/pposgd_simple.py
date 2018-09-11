@@ -22,7 +22,7 @@ class PPO1(BaseRLModel):
     Paper: https://arxiv.org/abs/1707.06347
 
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-    :param policy: (function (str, Gym Spaces, Gym Spaces): TensorFlow Tensor) creates the policy
+    :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
     :param timesteps_per_actorbatch: (int) timesteps per actor per update
     :param clip_param: (float) clipping parameter epsilon
     :param entcoeff: (float) the entropy loss weight

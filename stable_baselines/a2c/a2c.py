@@ -15,7 +15,7 @@ class A2C(BaseRLModel):
     """
     The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
-    :param policy: (ActorCriticPolicy or str) The policy model to use (MLP, CNN, LSTM, ...)
+    :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) Discount factor
     :param n_steps: (int) The number of steps to run for each environment per update

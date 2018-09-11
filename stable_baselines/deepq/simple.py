@@ -6,7 +6,6 @@ from stable_baselines import logger, deepq
 from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
-from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from stable_baselines.deepq.policies import DeepQPolicy
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
@@ -16,13 +15,7 @@ class DeepQ(BaseRLModel):
     """
     The DQN model class. DQN paper: https://arxiv.org/pdf/1312.5602.pdf
 
-    :param policy: (function (TensorFlow Tensor, int, str, bool): TensorFlow Tensor)
-                    the policy that takes the following inputs:
-                    - observation_in: (object) the output of observation placeholder
-                    - num_actions: (int) number of actions
-                    - scope: (str)
-                    - reuse: (bool) should be passed to outer variable scope
-                    and returns a tensor of shape (batch_size, num_actions) with values of every action.
+    :param policy: (DeepQPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) discount factor
     :param learning_rate: (float) learning rate for adam optimizer
