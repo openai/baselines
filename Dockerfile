@@ -22,10 +22,10 @@ RUN \
     pip install progressbar2 && \
     pip install mpi4py && \
     pip install cloudpickle && \
-    pip install tensorflow>=1.5.0 && \
+    pip install tensorflow==1.5.0 && \
     pip install click && \
     pip install opencv-python && \
-    pip install numpy==1.14.4 && \
+    pip install numpy && \
     pip install pandas && \
     pip install pytest && \
     pip install matplotlib && \

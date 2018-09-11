@@ -25,6 +25,7 @@ Master version 1.0.8.a0 (WIP)
 - refactored DQN policies
 - added registry for policies, can be passed as string to the agent
 - added documentation for custom policies + policy registration
+- fixed numpy warning when using DDPG Memory
 
 Known bug: VecEnv hurts DDPG performance
 
