@@ -278,40 +278,7 @@ class DDPG(BaseRLModel):
                 self.memory = self.memory_policy(limit=self.memory_limit, action_shape=self.action_space.shape,
                                                  observation_shape=self.observation_space.shape)
 
-                self.policy_tf = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
-
-                # Create target networks.
-                with tf.variable_scope("target", reuse=False):
-                    self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
-                    self.obs_target = self.target_policy.obs_ph
-                    self.action_target = self.target_policy.action_ph
-
-                if self.param_noise is not None:
-                    # Configure perturbed actor.
-                    with tf.variable_scope("noise", reuse=False):
-                        self.param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
-                                                             None, make_critic=False, make_actor=True)
-                        self.obs_noise = self.param_noise_actor.obs_ph
-                        self.action_noise_ph = self.param_noise_actor.action_ph
-
-                    # Configure separate copy for stddev adoption.
-                    with tf.variable_scope("noise_adapt", reuse=False):
-                        self.adaptive_param_noise_actor = self.policy(self.sess, self.observation_space,
-                                                                      self.action_space, 1, 1, None, make_critic=False,
-                                                                      make_actor=True)
-                        self.obs_adapt_noise = self.adaptive_param_noise_actor.obs_ph
-                        self.action_adapt_noise = self.adaptive_param_noise_actor.action_ph
-
-                with tf.variable_scope("loss", reuse=False):
-                    # Inputs.
-                    self.obs_train = self.policy_tf.obs_ph
-                    self.action_train_ph = self.policy_tf.action_ph
-                    self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
-                    self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
-                    self.actions = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape, name='actions')
-                    self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
-                    self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
-
+                with tf.variable_scope("input", reuse=False):
                     # Observation normalization.
                     if self.normalize_observations:
                         with tf.variable_scope('obs_rms'):
@@ -326,26 +293,72 @@ class DDPG(BaseRLModel):
                     else:
                         self.ret_rms = None
 
-                    # Create networks and core TF parts that are shared across setup parts.
-                    self.actor_tf = self.policy_tf.policy
-                    self.normalized_critic_tf = self.policy_tf.value_fn
+                    self.policy_tf = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
+
+                    # Create target networks.
+                    self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
+                    self.obs_target = self.target_policy.obs_ph
+                    self.action_target = self.target_policy.action_ph
+
+                    normalized_obs0 = tf.clip_by_value(normalize(self.policy_tf.processed_x, self.obs_rms),
+                                                       self.observation_range[0], self.observation_range[1])
+                    normalized_obs1 = tf.clip_by_value(normalize(self.target_policy.processed_x, self.obs_rms),
+                                                       self.observation_range[0], self.observation_range[1])
+
+                    if self.param_noise is not None:
+                        # Configure perturbed actor.
+                        self.param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
+                                                             None)
+                        self.obs_noise = self.param_noise_actor.obs_ph
+                        self.action_noise_ph = self.param_noise_actor.action_ph
+
+                        # Configure separate copy for stddev adoption.
+                        self.adaptive_param_noise_actor = self.policy(self.sess, self.observation_space,
+                                                                      self.action_space, 1, 1, None)
+                        self.obs_adapt_noise = self.adaptive_param_noise_actor.obs_ph
+                        self.action_adapt_noise = self.adaptive_param_noise_actor.action_ph
+
+                    # Inputs.
+                    self.obs_train = self.policy_tf.obs_ph
+                    self.action_train_ph = self.policy_tf.action_ph
+                    self.terminals1 = tf.placeholder(tf.float32, shape=(None, 1), name='terminals1')
+                    self.rewards = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
+                    self.actions = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape, name='actions')
+                    self.critic_target = tf.placeholder(tf.float32, shape=(None, 1), name='critic_target')
+                    self.param_noise_stddev = tf.placeholder(tf.float32, shape=(), name='param_noise_stddev')
+
+                # Create networks and core TF parts that are shared across setup parts.
+                with tf.variable_scope("model", reuse=False):
+                    self.actor_tf = self.policy_tf.make_actor(normalized_obs0)
+                    self.normalized_critic_tf = self.policy_tf.make_critic(normalized_obs0, self.actions)
+                    self.normalized_critic_with_actor_tf = self.policy_tf.make_critic(normalized_obs0,
+                                                                                      self.actor_tf,
+                                                                                      reuse=True)
+                # Noise setup
+                if self.param_noise is not None:
+                    self._setup_param_noise(normalized_obs0)
+
+                with tf.variable_scope("target", reuse=False):
+                    critic_target = self.target_policy.make_critic(normalized_obs1,
+                                                                   self.target_policy.make_actor(normalized_obs1))
+
+                with tf.variable_scope("loss", reuse=False):
                     self.critic_tf = denormalize(
                         tf.clip_by_value(self.normalized_critic_tf, self.return_range[0], self.return_range[1]),
                         self.ret_rms)
-                    self.normalized_critic_with_actor_tf = self.policy_tf.value_fn
+
                     self.critic_with_actor_tf = denormalize(
                         tf.clip_by_value(self.normalized_critic_with_actor_tf,
                                          self.return_range[0], self.return_range[1]),
                         self.ret_rms)
-                    q_obs1 = denormalize(self.target_policy.value_fn, self.ret_rms)
+
+                    q_obs1 = denormalize(critic_target, self.ret_rms)
                     self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
 
                     tf.summary.scalar('critic_target', tf.reduce_mean(self.critic_target))
                     tf.summary.histogram('critic_target', self.critic_target)
 
                     # Set up parts.
-                    if self.param_noise is not None:
-                        self._setup_param_noise()
                     if self.normalize_returns and self.enable_popart:
                         self._setup_popart()
                     self._setup_stats()
@@ -379,27 +392,34 @@ class DDPG(BaseRLModel):
         set the target update operations
         """
         init_updates, soft_updates = get_target_updates(tf_util.get_trainable_vars('model/'),
-                                                        tf_util.get_trainable_vars('target/model/'), self.tau,
+                                                        tf_util.get_trainable_vars('target/'), self.tau,
                                                         self.verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
 
-    def _setup_param_noise(self):
+    def _setup_param_noise(self, normalized_obs0):
         """
         set the parameter noise operations
+
+        :param normalized_obs0: (TensorFlow Tensor) the normalized observation
         """
         assert self.param_noise is not None
 
-        self.perturbed_actor_tf = self.param_noise_actor.policy
-        if self.verbose >= 2:
-            logger.info('setting up param noise')
-        self.perturb_policy_ops = get_perturbed_actor_updates('model/pi/', 'noise/model/pi/', self.param_noise_stddev,
-                                                              verbose=self.verbose)
+        with tf.variable_scope("noise", reuse=False):
+            self.perturbed_actor_tf = self.param_noise_actor.make_actor(normalized_obs0)
 
-        adaptive_actor_tf = self.adaptive_param_noise_actor.policy
-        self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/pi/', 'noise_adapt/model/pi/',
-                                                                       self.param_noise_stddev, verbose=self.verbose)
-        self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
+        with tf.variable_scope("noise_adapt", reuse=False):
+            adaptive_actor_tf = self.adaptive_param_noise_actor.make_actor(normalized_obs0)
+
+        with tf.variable_scope("noise_update_func", reuse=False):
+            if self.verbose >= 2:
+                logger.info('setting up param noise')
+            self.perturb_policy_ops = get_perturbed_actor_updates('model/pi/', 'noise/pi/', self.param_noise_stddev,
+                                                                  verbose=self.verbose)
+
+            self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/pi/', 'noise_adapt/pi/',
+                                                                           self.param_noise_stddev, verbose=self.verbose)
+            self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
     def _setup_actor_optimizer(self):
         """
@@ -428,7 +448,7 @@ class DDPG(BaseRLModel):
                                                        self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
-            critic_reg_vars = [var for var in tf_util.get_trainable_vars('model/vf/')
+            critic_reg_vars = [var for var in tf_util.get_trainable_vars('model/qf/')
                                if 'bias' not in var.name and 'output' not in var.name and 'b' not in var.name]
             if self.verbose >= 2:
                 for var in critic_reg_vars:
@@ -439,14 +459,14 @@ class DDPG(BaseRLModel):
                 weights_list=critic_reg_vars
             )
             self.critic_loss += critic_reg
-        critic_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model/vf/')]
+        critic_shapes = [var.get_shape().as_list() for var in tf_util.get_trainable_vars('model/qf/')]
         critic_nb_params = sum([reduce(lambda x, y: x * y, shape) for shape in critic_shapes])
         if self.verbose >= 2:
             logger.info('  critic shapes: {}'.format(critic_shapes))
             logger.info('  critic params: {}'.format(critic_nb_params))
-        self.critic_grads = tf_util.flatgrad(self.critic_loss, tf_util.get_trainable_vars('model/vf/'),
+        self.critic_grads = tf_util.flatgrad(self.critic_loss, tf_util.get_trainable_vars('model/qf/'),
                                              clip_norm=self.clip_norm)
-        self.critic_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model/vf/'), beta1=0.9, beta2=0.999,
+        self.critic_optimizer = MpiAdam(var_list=tf_util.get_trainable_vars('model/qf/'), beta1=0.9, beta2=0.999,
                                         epsilon=1e-08)
 
     def _setup_popart(self):
@@ -462,8 +482,8 @@ class DDPG(BaseRLModel):
         new_mean = self.ret_rms.mean
 
         self.renormalize_q_outputs_op = []
-        for out_vars in [[var for var in tf_util.get_trainable_vars('model/vf/') if 'output' in var.name],
-                         [var for var in tf_util.get_trainable_vars('target/model/vf/') if 'output' in var.name]]:
+        for out_vars in [[var for var in tf_util.get_trainable_vars('model/qf/') if 'output' in var.name],
+                         [var for var in tf_util.get_trainable_vars('target/qf/') if 'output' in var.name]]:
             assert len(out_vars) == 2
             # wieght and bias of the last layer
             weight, bias = out_vars
@@ -523,25 +543,24 @@ class DDPG(BaseRLModel):
         :return: ([float], float) the action and critic value
         """
         feed_dict = {self.obs_train: [obs]}
-        action_ph = [self.action_train_ph]
         if self.param_noise is not None and apply_noise:
             actor_tf = self.perturbed_actor_tf
-            action_ph.append(self.action_noise_ph)
             feed_dict[self.obs_noise] = [obs]
         else:
             actor_tf = self.actor_tf
 
-        action = self.sess.run(actor_tf, feed_dict=feed_dict)
-        q_value = None
         if compute_q:
-            q_value = self.sess.run(self.critic_with_actor_tf,
-                                    feed_dict={**feed_dict, **{ph: action for ph in action_ph}})
+            action, q_value = self.sess.run([actor_tf, self.critic_with_actor_tf], feed_dict=feed_dict)
+        else:
+            action = self.sess.run(actor_tf, feed_dict=feed_dict)
+            q_value = None
 
         action = action.flatten()
         if self.action_noise is not None and apply_noise:
             noise = self.action_noise()
             assert noise.shape == action.shape
             action += noise
+        action = np.clip(action, self.action_space.low, self.action_space.high)
         return action, q_value
 
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
@@ -570,14 +589,12 @@ class DDPG(BaseRLModel):
         # Get a batch
         batch = self.memory.sample(batch_size=self.batch_size)
 
-        action = self.sess.run(self.target_policy.policy, feed_dict={self.obs_target: batch['obs1']})
         if self.normalize_returns and self.enable_popart:
             old_mean, old_std, target_q = self.sess.run([self.ret_rms.mean, self.ret_rms.std, self.target_q],
                                                         feed_dict={
                                                             self.obs_target: batch['obs1'],
                                                             self.rewards: batch['rewards'],
-                                                            self.terminals1: batch['terminals1'].astype('float32'),
-                                                            self.action_target: action,
+                                                            self.terminals1: batch['terminals1'].astype('float32')
                                                         })
             self.ret_rms.update(target_q.flatten())
             self.sess.run(self.renormalize_q_outputs_op, feed_dict={
@@ -589,8 +606,7 @@ class DDPG(BaseRLModel):
             target_q = self.sess.run(self.target_q, feed_dict={
                 self.obs_target: batch['obs1'],
                 self.rewards: batch['rewards'],
-                self.terminals1: batch['terminals1'].astype('float32'),
-                self.action_target: action,
+                self.terminals1: batch['terminals1'].astype('float32')
             })
 
         # Get all gradients and perform a synced update.

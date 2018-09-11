@@ -18,19 +18,37 @@ class DDPGPolicy(BasePolicy):
     :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
-    :param make_actor: (bool) creates an actor
-    :param make_critic: (bool) creates a critic
     """
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False,
-                 make_actor=True, make_critic=True):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
         super(DDPGPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
                                          scale=scale, add_action_ph=True)
         assert isinstance(ac_space, Box), "Error: the action space must be of type gym.spaces.Box"
         assert np.abs(ac_space.low) == ac_space.high, "Error: the action space low and high must be symetric"
         self.value_fn = None
         self.policy = None
-        self.make_actor = make_actor
-        self.make_critic = make_critic
+
+    def make_actor(self, obs=None, reuse=False, scope="pi"):
+        """
+        creates an actor object
+
+        :param obs: (TensorFlow Tensor) The observation placeholder (can be None for default placeholder)
+        :param reuse: (bool) whether or not to resue parameters
+        :param scope: (str) the scope name of the actor
+        :return: (TensorFlow Tensor) the output tensor
+        """
+        raise NotImplementedError
+
+    def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
+        """
+        creates a critic object
+
+        :param obs: (TensorFlow Tensor) The observation placeholder (can be None for default placeholder)
+        :param action: (TensorFlow Tensor) The action placeholder (can be None for default placeholder)
+        :param reuse: (bool) whether or not to resue parameters
+        :param scope: (str) the scope name of the critic
+        :return: (TensorFlow Tensor) the output tensor
+        """
+        raise NotImplementedError
 
     def step(self, obs, state=None, mask=None):
         """
@@ -82,60 +100,73 @@ class FeedForwardPolicy(DDPGPolicy):
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
     :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
     :param layer_norm: (bool) enable layer normalisation
-    :param make_actor: (bool) creates an actor
-    :param make_critic: (bool) creates a critic
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
-                 cnn_extractor=nature_cnn, feature_extraction="cnn", layer_norm=False, make_actor=True,
-                 make_critic=True, **kwargs):
+                 cnn_extractor=nature_cnn, feature_extraction="cnn", layer_norm=False, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-                                                reuse=reuse, scale=(feature_extraction == "cnn"), make_actor=make_actor,
-                                                make_critic=make_critic)
+                                                reuse=reuse, scale=(feature_extraction == "cnn"))
+        self.layer_norm = layer_norm
+        self.feature_extraction = feature_extraction
+        self.cnn_kwargs = kwargs
+        self.cnn_extractor = cnn_extractor
+        self.reuse = reuse
+        self._value = None
         if layers is None:
             layers = [64, 64]
+        self.layers = layers
 
         assert len(layers) >= 1, "Error: must have at least one hidden layer for the policy."
 
-        with tf.variable_scope("model", reuse=reuse):
-            activ = tf.nn.relu
+        self.activ = tf.nn.relu
 
-            if self.make_actor:
-                with tf.variable_scope("pi", reuse=reuse):
-                    if feature_extraction == "cnn":
-                        pi_h = cnn_extractor(self.processed_x, **kwargs)
-                    else:
-                        pi_h = tf.layers.flatten(self.processed_x)
-                    for i, layer_size in enumerate(layers):
-                        pi_h = tf.layers.dense(pi_h, layer_size, name='fc' + str(i))
-                        if layer_norm:
-                            pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
-                        pi_h = activ(pi_h)
-                    pi_latent = tf.nn.tanh(tf.layers.dense(pi_h, self.ac_space.shape[0], name='pi',
-                                           kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3)))
-                    self.policy = tf.multiply(pi_latent, tf.convert_to_tensor(np.abs(self.ac_space.low)))
+    def make_actor(self, obs=None, reuse=False, scope="pi"):
+        if obs is None:
+            obs = self.processed_x
 
-            if self.make_critic:
-                with tf.variable_scope("vf", reuse=reuse):
-                    if feature_extraction == "cnn":
-                        vf_h = cnn_extractor(self.processed_x, **kwargs)
-                    else:
-                        vf_h = tf.layers.flatten(self.processed_x)
-                    for i, layer_size in enumerate(layers):
-                        vf_h = tf.layers.dense(vf_h, layer_size, name='fc' + str(i))
-                        if layer_norm:
-                            vf_h = tf.contrib.layers.layer_norm(vf_h, center=True, scale=True)
-                        vf_h = activ(vf_h)
-                        if i == 0:
-                            vf_h = tf.concat([vf_h, self.action_ph], axis=-1)
+        with tf.variable_scope(scope, reuse=reuse):
+            if self.feature_extraction == "cnn":
+                pi_h = self.cnn_extractor(obs, **self.cnn_kwargs)
+            else:
+                pi_h = tf.layers.flatten(obs)
+            for i, layer_size in enumerate(self.layers):
+                pi_h = tf.layers.dense(pi_h, layer_size, name='fc' + str(i))
+                if self.layer_norm:
+                    pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
+                pi_h = self.activ(pi_h)
+            pi_latent = tf.nn.tanh(tf.layers.dense(pi_h, self.ac_space.shape[0], name=scope,
+                                                   kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
+                                                                                                    maxval=3e-3)))
+            self.policy = tf.multiply(pi_latent, tf.convert_to_tensor(np.abs(self.ac_space.low)))
+        return self.policy
 
-                    value_fn = tf.layers.dense(vf_h, 1, name='vf',
-                                               kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
-                                                                                                maxval=3e-3))
+    def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
+        if obs is None:
+            obs = self.processed_x
+        if action is None:
+            action = self.action_ph
 
-                self.value_fn = value_fn
-                self._value = value_fn[:, 0]
+        with tf.variable_scope(scope, reuse=reuse):
+            if self.feature_extraction == "cnn":
+                vf_h = self.cnn_extractor(obs, **self.cnn_kwargs)
+            else:
+                vf_h = tf.layers.flatten(obs)
+            for i, layer_size in enumerate(self.layers):
+                vf_h = tf.layers.dense(vf_h, layer_size, name='fc' + str(i))
+                if self.layer_norm:
+                    vf_h = tf.contrib.layers.layer_norm(vf_h, center=True, scale=True)
+                vf_h = self.activ(vf_h)
+                if i == 0:
+                    vf_h = tf.concat([vf_h, action], axis=-1)
+
+            value_fn = tf.layers.dense(vf_h, 1, name=scope,
+                                       kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
+                                                                                        maxval=3e-3))
+
+            self.value_fn = value_fn
+            self._value = value_fn[:, 0]
+        return self.value_fn
 
     def step(self, obs, state=None, mask=None):
         return self.sess.run(self.policy, {self.obs_ph: obs})
@@ -158,15 +189,12 @@ class CnnPolicy(FeedForwardPolicy):
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
-    :param make_actor: (bool) creates an actor
-    :param make_critic: (bool) creates a critic
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, make_actor=True,
-                 make_critic=True, **_kwargs):
-        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse, make_actor=make_actor,
-                                        make_critic=make_critic, feature_extraction="cnn", **_kwargs)
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+        super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="cnn", **_kwargs)
 
 
 class LnCnnPolicy(FeedForwardPolicy):
@@ -180,16 +208,12 @@ class LnCnnPolicy(FeedForwardPolicy):
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
-    :param make_actor: (bool) creates an actor
-    :param make_critic: (bool) creates a critic
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, make_actor=True,
-                 make_critic=True, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
         super(LnCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                          make_actor=make_actor, make_critic=make_critic, feature_extraction="cnn",
-                                          layer_norm=True, **_kwargs)
+                                          feature_extraction="cnn", layer_norm=True, **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
@@ -203,15 +227,12 @@ class MlpPolicy(FeedForwardPolicy):
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
-    :param make_actor: (bool) creates an actor
-    :param make_critic: (bool) creates a critic
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, make_actor=True,
-                 make_critic=True, **_kwargs):
-        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse, make_actor=make_actor,
-                                        make_critic=make_critic, feature_extraction="mlp", **_kwargs)
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
+        super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
+                                        feature_extraction="mlp", **_kwargs)
 
 
 class LnMlpPolicy(FeedForwardPolicy):
@@ -225,16 +246,12 @@ class LnMlpPolicy(FeedForwardPolicy):
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
-    :param make_actor: (bool) creates an actor
-    :param make_critic: (bool) creates a critic
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, make_actor=True,
-                 make_critic=True, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
         super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                          make_actor=make_actor, make_critic=make_critic, feature_extraction="mlp",
-                                          layer_norm=True, **_kwargs)
+                                          feature_extraction="mlp", layer_norm=True, **_kwargs)
 
 
 register_policy("CnnPolicy", CnnPolicy)
