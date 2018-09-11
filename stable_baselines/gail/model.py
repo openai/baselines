@@ -36,7 +36,7 @@ class GAIL(BaseRLModel):
     def __init__(self, policy, env, pretrained_weight=False, hidden_size_adversary=100, adversary_entcoeff=1e-3,
                  expert_dataset=None, save_per_iter=1, checkpoint_dir="/tmp/gail/ckpt/", g_step=1, d_step=1,
                  task_name="task_name", d_stepsize=3e-4, verbose=0, _init_setup_model=True, **kwargs):
-        super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+        super().__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy, requires_vec_env=False)
 
         self.trpo = TRPO(policy, env, verbose=verbose, _init_setup_model=False, **kwargs)
         self.trpo.using_gail = True

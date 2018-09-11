@@ -43,7 +43,7 @@ class PPO1(BaseRLModel):
                  optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5,
                  schedule='linear', verbose=0, tensorboard_log=None, _init_setup_model=True):
 
-        super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+        super().__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy, requires_vec_env=False)
 
         self.gamma = gamma
         self.timesteps_per_actorbatch = timesteps_per_actorbatch

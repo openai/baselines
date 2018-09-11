@@ -41,7 +41,8 @@ class PPO2(BaseRLModel):
                  max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0,
                  tensorboard_log=None, _init_setup_model=True):
 
-        super(PPO2, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
+        super(PPO2, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
+                                   requires_vec_env=True)
 
         if isinstance(learning_rate, float):
             learning_rate = constfn(learning_rate)

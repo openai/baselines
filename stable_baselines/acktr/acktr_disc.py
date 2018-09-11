@@ -42,7 +42,8 @@ class ACKTR(BaseRLModel):
                  learning_rate=0.25, max_grad_norm=0.5, kfac_clip=0.001, lr_schedule='linear', verbose=0,
                  tensorboard_log=None, _init_setup_model=True):
 
-        super(ACKTR, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
+        super(ACKTR, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
+                                    requires_vec_env=True)
 
         self.n_steps = n_steps
         self.gamma = gamma

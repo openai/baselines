@@ -8,7 +8,7 @@ import gym
 import tensorflow as tf
 
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.common.policies import LstmPolicy, get_policy_from_name
 from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
 from stable_baselines import logger
 
@@ -20,14 +20,18 @@ class BaseRLModel(ABC):
     :param policy: (Object) Policy object
     :param env: (Gym environment) The environment to learn from
                 (if registered in Gym, can be str. Can be None for loading trained models)
-    :param requires_vec_env: (bool)
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param requires_vec_env: (bool)
+    :param policy_base: (BasePolicy) the base policy used by this method
     """
 
-    def __init__(self, policy, env, requires_vec_env, verbose=0):
+    def __init__(self, policy, env, verbose=0, *, requires_vec_env, policy_base):
         super(BaseRLModel, self).__init__()
 
-        self.policy = policy
+        if isinstance(policy, str):
+            self.policy = get_policy_from_name(policy_base, policy)
+        else:
+            self.policy = policy
         self.env = env
         self.verbose = verbose
         self._requires_vec_env = requires_vec_env

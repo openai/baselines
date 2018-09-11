@@ -15,7 +15,7 @@ class A2C(BaseRLModel):
     """
     The A2C (Advantage Actor Critic) model class, https://arxiv.org/abs/1602.01783
 
-    :param policy: (ActorCriticPolicy) The policy model to use (MLP, CNN, LSTM, ...)
+    :param policy: (ActorCriticPolicy or str) The policy model to use (MLP, CNN, LSTM, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) Discount factor
     :param n_steps: (int) The number of steps to run for each environment per update
@@ -39,7 +39,8 @@ class A2C(BaseRLModel):
                  learning_rate=7e-4, alpha=0.99, epsilon=1e-5, lr_schedule='linear', verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
-        super(A2C, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
+        super(A2C, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
+                                  requires_vec_env=True)
 
         self.n_steps = n_steps
         self.gamma = gamma

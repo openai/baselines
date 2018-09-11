@@ -4,7 +4,7 @@ from gym.spaces import Box
 
 from stable_baselines.a2c.utils import linear
 from stable_baselines.common.distributions import make_proba_dist_type
-from stable_baselines.common.policies import BasePolicy, nature_cnn
+from stable_baselines.common.policies import BasePolicy, nature_cnn, register_policy
 
 
 class DeepQPolicy(BasePolicy):
@@ -179,7 +179,7 @@ class LnCnnPolicy(FeedForwardPolicy):
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
         super(LnCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="cnn", obs_phs=obs_phs, layer_norm=True, **_kwargs)
+                                          feature_extraction="cnn", obs_phs=obs_phs, layer_norm=True, **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
@@ -221,4 +221,10 @@ class LnMlpPolicy(FeedForwardPolicy):
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
         super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="mlp", obs_phs=obs_phs, layer_norm=True, **_kwargs)
+                                          feature_extraction="mlp", obs_phs=obs_phs, layer_norm=True, **_kwargs)
+
+
+register_policy("CnnPolicy", CnnPolicy)
+register_policy("LnCnnPolicy", LnCnnPolicy)
+register_policy("MlpPolicy", MlpPolicy)
+register_policy("LnMlpPolicy", LnMlpPolicy)

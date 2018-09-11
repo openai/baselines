@@ -58,12 +58,8 @@ class DeepQ(BaseRLModel):
                  prioritized_replay_eps=1e-6, param_noise=False, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
-        super(DeepQ, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
-
-        assert not isinstance(policy, ActorCriticPolicy), \
-            "Error: DeepQ does not support the actor critic policies, please use the " \
-            "'stable_baselines.deepq.models.mlp' and 'stable_baselines.deepq.models.cnn_to_mlp' " \
-            "functions to create your policies."
+        super(DeepQ, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DeepQPolicy,
+                                    requires_vec_env=False)
 
         self.checkpoint_path = checkpoint_path
         self.param_noise = param_noise

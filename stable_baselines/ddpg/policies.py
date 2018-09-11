@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from gym.spaces import Box
 
-from stable_baselines.common.policies import BasePolicy, nature_cnn
+from stable_baselines.common.policies import BasePolicy, nature_cnn, register_policy
 
 
 class DDPGPolicy(BasePolicy):
@@ -235,3 +235,9 @@ class LnMlpPolicy(FeedForwardPolicy):
         super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
                                           make_actor=make_actor, make_critic=make_critic, feature_extraction="mlp",
                                           layer_norm=True, **_kwargs)
+
+
+register_policy("CnnPolicy", CnnPolicy)
+register_policy("LnCnnPolicy", LnCnnPolicy)
+register_policy("MlpPolicy", MlpPolicy)
+register_policy("LnMlpPolicy", LnMlpPolicy)

@@ -393,3 +393,54 @@ class MlpLnLstmPolicy(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, **_kwargs):
         super(MlpLnLstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, reuse,
                                               layer_norm=True, feature_extraction="mlp", **_kwargs)
+
+
+_policy_registry = {
+    ActorCriticPolicy: {
+        "CnnPolicy": CnnPolicy,
+        "CnnLstmPolicy": CnnLstmPolicy,
+        "CnnLnLstmPolicy": CnnLnLstmPolicy,
+        "MlpPolicy": MlpPolicy,
+        "MlpLstmPolicy": MlpLstmPolicy,
+        "MlpLnLstmPolicy": MlpLnLstmPolicy,
+    }
+}
+
+
+def get_policy_from_name(base_policy_type, name):
+    """
+    returns the registed policy from the base type and name
+
+    :param base_policy_type: (BasePolicy) the base policy object
+    :param name: (str) the policy name
+    :return: (base_policy_type) the policy
+    """
+    if base_policy_type not in _policy_registry:
+        raise ValueError("Error: the policy type {} is not registered!".format(base_policy_type))
+    if name not in _policy_registry[base_policy_type]:
+        raise ValueError("Error: unknown policy type {}, the only registed policy type are: {}!"
+                         .format(name, list(_policy_registry[base_policy_type].keys())))
+    return _policy_registry[base_policy_type][name]
+
+
+def register_policy(name, policy):
+    """
+    returns the registed policy from the base type and name
+
+    :param name: (str) the policy name
+    :param policy: (subclass of BasePolicy) the policy
+    """
+    sub_class = None
+    for cls in BasePolicy.__subclasses__():
+        if issubclass(policy, cls):
+            sub_class = cls
+            break
+    if sub_class is None:
+        raise ValueError("Error: the policy {} is not of any known subclasses of BasePolicy!".format(policy))
+
+    if sub_class not in _policy_registry:
+        _policy_registry[sub_class] = {}
+    if name in _policy_registry[sub_class]:
+        raise ValueError("Error: the name {} is alreay registered for a different policy, will not override."
+                         .format(name))
+    _policy_registry[sub_class][name] = policy

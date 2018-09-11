@@ -97,7 +97,8 @@ class ACER(BaseRLModel):
                  replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True, alpha=0.99, delta=1,
                  verbose=0, tensorboard_log=None, _init_setup_model=True):
 
-        super(ACER, self).__init__(policy=policy, env=env, requires_vec_env=True, verbose=verbose)
+        super(ACER, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
+                                   requires_vec_env=True)
 
         self.n_steps = n_steps
         self.replay_ratio = replay_ratio

@@ -177,7 +177,8 @@ class DDPG(BaseRLModel):
                  render=False, render_eval=False, layer_norm=True, memory_limit=100, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
-        super(DDPG, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+        super(DDPG, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DDPGPolicy,
+                                   requires_vec_env=False)
 
         # Parameters.
         self.gamma = gamma

@@ -40,7 +40,8 @@ class TRPO(BaseRLModel):
         :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(TRPO, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+        super(TRPO, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
+                                   requires_vec_env=False)
 
         self.using_gail = False
         self.timesteps_per_batch = timesteps_per_batch
