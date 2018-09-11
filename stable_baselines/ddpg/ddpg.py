@@ -560,7 +560,7 @@ class DDPG(BaseRLModel):
             noise = self.action_noise()
             assert noise.shape == action.shape
             action += noise
-        action = np.clip(action, self.action_space.low, self.action_space.high)
+        action = np.clip(action, -1, 1)
         return action, q_value
 
     def _store_transition(self, obs0, action, reward, obs1, terminal1):
@@ -786,7 +786,7 @@ class DDPG(BaseRLModel):
                             # Execute next action.
                             if rank == 0 and self.render:
                                 self.env.render()
-                            new_obs, reward, done, _ = self.env.step(action)
+                            new_obs, reward, done, _ = self.env.step(action * np.abs(self.action_space.low))
 
                             if writer is not None:
                                 ep_rew = np.array([reward]).reshape((1, -1))
@@ -853,7 +853,8 @@ class DDPG(BaseRLModel):
                                     return self
 
                                 eval_action, eval_q = self._policy(eval_obs, apply_noise=False, compute_q=True)
-                                eval_obs, eval_r, eval_done, _ = self.eval_env.step(eval_action)
+                                eval_obs, eval_r, eval_done, _ = self.eval_env.step(eval_action *
+                                                                                    np.abs(self.action_space.low))
                                 if self.render_eval:
                                     self.eval_env.render()
                                 eval_episode_reward += eval_r
@@ -933,6 +934,7 @@ class DDPG(BaseRLModel):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         action, _ = self._policy(observation, apply_noise=False, compute_q=True)
+        action = action * np.abs(self.action_space.low)  # scale the output for the prediction
         if self._vectorize_action:
             return [action], [None]
         else:
