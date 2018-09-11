@@ -7,7 +7,7 @@ from baselines.common import models
 def main():
     env = gym.make("MountainCar-v0")
     act = deepq.learn(
-        env, 
+        env,
         network=models.mlp(num_layers=1, num_hidden=64),
         total_timesteps=0,
         load_path='mountaincar_model.pkl'
