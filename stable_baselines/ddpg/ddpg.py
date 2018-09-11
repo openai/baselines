@@ -162,19 +162,18 @@ class DDPG(BaseRLModel):
     :param reward_scale: (float) the value the reward should be scaled by
     :param render: (bool) enable rendering of the environment
     :param render_eval: (bool) enable rendering of the evalution environment
-    :param layer_norm: (bool) enable layer normalization for the policies
     :param memory_limit: (int) the max number of transitions to store
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     """
 
-    def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None,
-                 nb_train_steps=50, nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
+    def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None, nb_train_steps=50,
+                 nb_rollout_steps=100, nb_eval_steps=100, param_noise=None, action_noise=None,
                  normalize_observations=False, tau=0.001, batch_size=128, param_noise_adaption_interval=50,
                  normalize_returns=False, enable_popart=False, observation_range=(-5., 5.), critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf), actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.,
-                 render=False, render_eval=False, layer_norm=True, memory_limit=100, verbose=0, tensorboard_log=None,
+                 render=False, render_eval=False, memory_limit=100, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
         super(DDPG, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DDPGPolicy,
@@ -418,7 +417,8 @@ class DDPG(BaseRLModel):
                                                                   verbose=self.verbose)
 
             self.perturb_adaptive_policy_ops = get_perturbed_actor_updates('model/pi/', 'noise_adapt/pi/',
-                                                                           self.param_noise_stddev, verbose=self.verbose)
+                                                                           self.param_noise_stddev,
+                                                                           verbose=self.verbose)
             self.adaptive_policy_distance = tf.sqrt(tf.reduce_mean(tf.square(self.actor_tf - adaptive_actor_tf)))
 
     def _setup_actor_optimizer(self):

@@ -4,8 +4,8 @@ Custom Policy Network
 ---------------------
 
 Stable baselines provides default policy networks for images (CNNPolicies)
-and other type of inputs (MlpPolicies).
-However, you can also easily define a custom parameters for the policy network:
+and other type of input features (MlpPolicies).
+However, you can also easily define a custom architecture for the policy (or value) network:
 
 .. code-block:: python
 
@@ -31,7 +31,7 @@ However, you can also easily define a custom parameters for the policy network:
   model.learn(total_timesteps=100000)
 
 
-You can also registed your policy, to help with code simplicity
+You can also registered your policy, to help with code simplicity: you can refer to your custom policy using a string.
 
 .. code-block:: python
 
@@ -113,5 +113,3 @@ If however, your task requires a more granular control over the policy architect
   model = A2C(CustomPolicy, env, verbose=1)
   # Train the agent
   model.learn(total_timesteps=100000)
-
-
