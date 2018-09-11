@@ -21,7 +21,12 @@ Master version 1.0.8.a0 (WIP)
 - fixed image normalization not occurring when using images
 - updated VecEnv objects for the new Gym version
 - changed default policies for DDPG, so that DDPG now works correctly
+- fixed DDPG behavior
 - refactored DQN policies
+- added registry for policies, can be passed as string to the agent
+- added documentation for custom policies + policy registration
+
+Known bug: VecEnv hurts DDPG performance
 
 
 Release 1.0.7 (2018-08-29)
