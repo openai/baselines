@@ -35,7 +35,6 @@ Or just train a model with a one liner if
 
 .. code-block:: python
 
-    from stable_baselines.common.policies import MlpPolicy
     from stable_baselines import PPO2
 
     model = PPO2('MlpPolicy', 'CartPole-v1').learn(10000)

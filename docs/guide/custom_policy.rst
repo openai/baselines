@@ -1,3 +1,5 @@
+.. _custom_policy:
+
 Custom Policy Network
 ---------------------
 

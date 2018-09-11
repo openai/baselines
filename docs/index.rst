@@ -38,6 +38,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
    guide/examples
    guide/vec_envs
    guide/custom_env
+   guide/custom_policy
    guide/tensorboard
 
 
