@@ -25,7 +25,7 @@ RUN \
     pip install tensorflow>=1.5.0 && \
     pip install click && \
     pip install opencv-python && \
-    pip install numpy && \
+    pip install numpy==1.14.4 && \
     pip install pandas && \
     pip install pytest && \
     pip install matplotlib && \
