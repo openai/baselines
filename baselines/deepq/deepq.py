@@ -176,7 +176,7 @@ def learn(env,
     load_path: str
         path to load the model from. (default: None)
     **network_kwargs
-        additional keyword arguments to pass to the network builder. 
+        additional keyword arguments to pass to the network builder.
 
     Returns
     -------
@@ -215,7 +215,7 @@ def learn(env,
     }
 
     act = ActWrapper(act, act_params)
-  
+
     # Create the replay buffer
     if prioritized_replay:
         replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
@@ -246,7 +246,7 @@ def learn(env,
 
         model_file = os.path.join(td, "model")
         model_saved = False
-        
+
         if tf.train.latest_checkpoint(td) is not None:
             load_variables(model_file)
             logger.log('Loaded model from {}'.format(model_file))
@@ -254,7 +254,7 @@ def learn(env,
         elif load_path is not None:
             load_variables(load_path)
             logger.log('Loaded model from {}'.format(load_path))
-        
+
 
         for t in range(total_timesteps):
             if callback is not None:

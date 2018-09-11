@@ -94,8 +94,8 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
 def build_q_func(network, hiddens=[256], dueling=True, layer_norm=False, **network_kwargs):
     if isinstance(network, str):
         from baselines.common.models import get_network_builder
-        network = get_network_builder(network)(**network_kwargs)   
-        
+        network = get_network_builder(network)(**network_kwargs)
+
     def q_func_builder(input_placeholder, num_actions, scope, reuse=False):
         with tf.variable_scope(scope, reuse=reuse):
             latent, _ = network(input_placeholder)
@@ -125,5 +125,5 @@ def build_q_func(network, hiddens=[256], dueling=True, layer_norm=False, **netwo
             else:
                 q_out = action_scores
             return q_out
-            
+
     return q_func_builder

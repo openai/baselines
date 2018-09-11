@@ -30,7 +30,7 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
                 a, v, state, _ = model.step(obs, S=state, M=[False])
             else:
                 a, v, _, _ = model.step(obs)
-            
+
             obs, rew, done, _ = env.step(a)
             sum_rew += float(rew)
 
@@ -46,7 +46,7 @@ def reward_per_episode_test(env_fn, learn_fn, min_avg_reward, n_trials=N_EPISODE
     with tf.Graph().as_default(), tf.Session(config=tf.ConfigProto(allow_soft_placement=True)).as_default():
         model = learn_fn(env)
 
-        N_TRIALS = 100    
+        N_TRIALS = 100
 
         observations, actions, rewards = rollout(env, model, N_TRIALS)
         rewards = [sum(r) for r in rewards]

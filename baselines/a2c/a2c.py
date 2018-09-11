@@ -97,21 +97,21 @@ def learn(
     load_path=None,
     **network_kwargs):
 
-    ''' 
+    '''
     Main entrypoint for A2C algorithm. Train a policy with given network architecture on a given environment using a2c algorithm.
 
     Parameters:
     -----------
 
     network:            policy network architecture. Either string (mlp, lstm, lnlstm, cnn_lstm, cnn, cnn_small, conv_only - see baselines.common/models.py for full list)
-                        specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns 
+                        specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns
                         tuple (output_tensor, extra_feed) where output tensor is the last network layer output, extra_feed is None for feed-forward
                         neural nets, and extra_feed is a dictionary describing how to feed state into the network for recurrent neural nets.
                         See baselines.common/policies.py/lstm for more details on using recurrent nets in policies
-                
+
 
     env:                RL environment. Should implement interface similar to VecEnv (baselines.common/vec_env) or be wrapped with DummyVecEnv (baselines.common/vec_env/dummy_vec_env.py)
-                    
+
 
     seed:               seed to make random number sequence in the alorightm reproducible. By default is None which means seed from system noise generator (not reproducible)
 
@@ -128,7 +128,7 @@ def learn(
 
     lr:                 float, learning rate for RMSProp (current implementation has RMSProp hardcoded in) (default: 7e-4)
 
-    lrschedule:         schedule of learning rate. Can be 'linear', 'constant', or a function [0..1] -> [0..1] that takes fraction of the training progress as input and 
+    lrschedule:         schedule of learning rate. Can be 'linear', 'constant', or a function [0..1] -> [0..1] that takes fraction of the training progress as input and
                         returns fraction of the learning rate (specified as lr) as output
 
     epsilon:            float, RMSProp epsilon (stabilizes square root computation in denominator of RMSProp update) (default: 1e-5)
@@ -140,17 +140,17 @@ def learn(
     log_interval:       int, specifies how frequently the logs are printed out (default: 100)
 
     **network_kwargs:   keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
-                        For instance, 'mlp' network architecture has arguments num_hidden and num_layers. 
+                        For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
     '''
-    
+
 
 
     set_global_seeds(seed)
 
     nenvs = env.num_envs
     policy = build_policy(env, network, **network_kwargs)
-   
+
     model = Model(policy=policy, env=env, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     if load_path is not None:

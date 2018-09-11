@@ -70,7 +70,7 @@ class Model(object):
         MU = tf.placeholder(tf.float32, [nbatch, nact]) # mu's
         LR = tf.placeholder(tf.float32, [])
         eps = 1e-6
-    
+
         step_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs,) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
         train_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs*(nsteps+1),) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
         with tf.variable_scope('acer_model', reuse=tf.AUTO_REUSE):
@@ -78,7 +78,7 @@ class Model(object):
             step_model = policy(observ_placeholder=step_ob_placeholder, sess=sess)
             train_model = policy(observ_placeholder=train_ob_placeholder, sess=sess)
 
-    
+
         params = find_trainable_variables("acer_model")
         print("Params {}".format(len(params)))
         for var in params:
@@ -97,10 +97,10 @@ class Model(object):
             polyak_model = policy(observ_placeholder=train_ob_placeholder, sess=sess)
 
         # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
-        
+
         # action probability distributions according to train_model, polyak_model and step_model
         # poilcy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
-        train_model_p = tf.nn.softmax(train_model.pi)  
+        train_model_p = tf.nn.softmax(train_model.pi)
         polyak_model_p = tf.nn.softmax(polyak_model.pi)
         step_model_p = tf.nn.softmax(step_model.pi)
         v = tf.reduce_sum(train_model_p * train_model.q, axis = -1) # shape is [nenvs * (nsteps + 1)]
@@ -119,7 +119,7 @@ class Model(object):
         qret = q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma)
 
         # Calculate losses
-        # Entropy   
+        # Entropy
         # entropy = tf.reduce_mean(strip(train_model.pd.entropy(), nenvs, nsteps))
         entropy = tf.reduce_mean(cat_entropy_softmax(f))
 
@@ -212,8 +212,8 @@ class Model(object):
 
         def _step(observation, **kwargs):
             return step_model._evaluate([step_model.action, step_model_p, step_model.state], observation, **kwargs)
-                
-                    
+
+
 
         self.train = train
         self.save = functools.partial(save_variables, sess=sess, variables=params)
@@ -283,18 +283,18 @@ def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6
     ----------
 
     network:            policy network architecture. Either string (mlp, lstm, lnlstm, cnn_lstm, cnn, cnn_small, conv_only - see baselines.common/models.py for full list)
-                        specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns 
+                        specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns
                         tuple (output_tensor, extra_feed) where output tensor is the last network layer output, extra_feed is None for feed-forward
                         neural nets, and extra_feed is a dictionary describing how to feed state into the network for recurrent neural nets.
                         See baselines.common/policies.py/lstm for more details on using recurrent nets in policies
 
-    env:                environment. Needs to be vectorized for parallel environment simulation. 
+    env:                environment. Needs to be vectorized for parallel environment simulation.
                         The environments produced by gym.make can be wrapped using baselines.common.vec_env.DummyVecEnv class.
 
     nsteps:             int, number of steps of the vectorized environment per update (i.e. batch size is nsteps * nenv where
                         nenv is number of environment copies simulated in parallel) (default: 20)
 
-    nstack:             int, size of the frame stack, i.e. number of the frames passed to the step model. Frames are stacked along channel dimension 
+    nstack:             int, size of the frame stack, i.e. number of the frames passed to the step model. Frames are stacked along channel dimension
                         (last image dimension) (default: 4)
 
     total_timesteps:    int, number of timesteps (i.e. number of actions taken in the environment) (default: 80M)
@@ -303,11 +303,11 @@ def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6
 
     ent_coef:           float, policy entropy coefficient in the optimization objective (default: 0.01)
 
-    max_grad_norm:      float, gradient norm clipping coefficient. If set to None, no clipping. (default: 10), 
-    
+    max_grad_norm:      float, gradient norm clipping coefficient. If set to None, no clipping. (default: 10),
+
     lr:                 float, learning rate for RMSProp (current implementation has RMSProp hardcoded in) (default: 7e-4)
 
-    lrschedule:         schedule of learning rate. Can be 'linear', 'constant', or a function [0..1] -> [0..1] that takes fraction of the training progress as input and 
+    lrschedule:         schedule of learning rate. Can be 'linear', 'constant', or a function [0..1] -> [0..1] that takes fraction of the training progress as input and
                         returns fraction of the learning rate (specified as lr) as output
 
     rprop_epsilon:      float, RMSProp epsilon (stabilizes square root computation in denominator of RMSProp update) (default: 1e-5)
@@ -325,17 +325,17 @@ def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6
     replay_start:       int, the sampling from the replay buffer does not start until replay buffer has at least that many samples (default: 10k)
 
     c:                  float, importance weight clipping factor (default: 10)
-    
+
     trust_region        bool, whether or not algorithms estimates the gradient KL divergence between the old and updated policy and uses it to determine step size  (default: True)
 
     delta:              float, max KL divergence between the old policy and updated policy (default: 1)
 
-    alpha:              float, momentum factor in the Polyak (exponential moving average) averaging of the model parameters (default: 0.99) 
+    alpha:              float, momentum factor in the Polyak (exponential moving average) averaging of the model parameters (default: 0.99)
 
     load_path:          str, path to load the model from (default: None)
 
     **network_kwargs:               keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
-                                    For instance, 'mlp' network architecture has arguments num_hidden and num_layers. 
+                                    For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
 
     '''
 

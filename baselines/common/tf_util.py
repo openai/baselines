@@ -347,7 +347,7 @@ def load_variables(load_path, variables=None, sess=None):
     variables = variables or tf.trainable_variables()
 
     loaded_params = joblib.load(os.path.expanduser(load_path))
-    restores = []   
+    restores = []
     if isinstance(loaded_params, list):
         assert len(loaded_params) == len(variables), 'number of variables loaded mismatches len(variables)'
         for d, v in zip(loaded_params, variables):

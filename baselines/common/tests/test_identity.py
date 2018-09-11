@@ -9,7 +9,7 @@ common_kwargs = dict(
     gamma=0.9,
     seed=0,
 )
-   
+
 learn_kwargs = {
     'a2c' : {},
     'acktr': {},
@@ -51,5 +51,5 @@ def test_continuous_identity(alg):
     simple_test(env_fn, learn_fn, -0.1)
 
 if __name__ == '__main__':
-    test_continuous_identity('a2c')    
+    test_continuous_identity('a2c')
 

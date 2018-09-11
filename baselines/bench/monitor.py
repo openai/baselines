@@ -102,7 +102,7 @@ def get_monitor_files(dir):
 def load_results(dir):
     import pandas
     monitor_files = (
-        glob(osp.join(dir, "*monitor.json")) + 
+        glob(osp.join(dir, "*monitor.json")) +
         glob(osp.join(dir, "*monitor.csv"))) # get both csv and (old) json files
     if not monitor_files:
         raise LoadMonitorResultsError("no monitor files of the form *%s found in %s" % (Monitor.EXT, dir))

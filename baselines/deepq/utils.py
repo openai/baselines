@@ -66,13 +66,13 @@ class Uint8Input(PlaceholderTfInput):
 class ObservationInput(PlaceholderTfInput):
     def __init__(self, observation_space, name=None):
         """Creates an input placeholder tailored to a specific observation space
-        
+
         Parameters
         ----------
 
-        observation_space: 
+        observation_space:
                 observation space of the environment. Should be one of the gym.spaces types
-        name: str 
+        name: str
                 tensorflow name of the underlying placeholder
         """
         inpt, self.processed_inpt = observation_input(observation_space, name=name)
@@ -80,5 +80,5 @@ class ObservationInput(PlaceholderTfInput):
 
     def get(self):
         return self.processed_inpt
-    
-    
+
+

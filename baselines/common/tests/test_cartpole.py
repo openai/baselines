@@ -10,7 +10,7 @@ common_kwargs = dict(
     gamma=1.0,
     seed=0,
 )
-   
+
 learn_kwargs = {
     'a2c' : dict(nsteps=32, value_network='copy', lr=0.05),
     'acktr': dict(nsteps=32, value_network='copy'),
@@ -31,8 +31,8 @@ def test_cartpole(alg):
     kwargs.update(learn_kwargs[alg])
 
     learn_fn = lambda e: get_learn_function(alg)(env=e, **kwargs)
-    def env_fn(): 
-        
+    def env_fn():
+
         env = gym.make('CartPole-v0')
         env.seed(0)
         return env

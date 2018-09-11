@@ -14,15 +14,15 @@ from functools import partial
 
 learn_kwargs = {
     'deepq': {},
-    'a2c': {}, 
+    'a2c': {},
     'acktr': {},
     'ppo2': {'nminibatches': 1, 'nsteps': 10},
     'trpo_mpi': {},
 }
 
 network_kwargs = {
-    'mlp': {}, 
-    'cnn': {'pad': 'SAME'}, 
+    'mlp': {},
+    'cnn': {'pad': 'SAME'},
     'lstm': {},
     'cnn_lnlstm': {'pad': 'SAME'}
 }
@@ -32,15 +32,15 @@ network_kwargs = {
 @pytest.mark.parametrize("network_fn", network_kwargs.keys())
 def test_serialization(learn_fn, network_fn):
     '''
-    Test if the trained model can be serialized 
+    Test if the trained model can be serialized
     '''
 
-    
+
     if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
             # TODO make acktr work with recurrent policies
             # and test
             # github issue: https://github.com/openai/baselines/issues/194
-            return 
+            return
 
     env = DummyVecEnv([lambda: MnistEnv(10, episode_len=100)])
     ob = env.reset().copy()
@@ -74,14 +74,14 @@ def test_serialization(learn_fn, network_fn):
         np.testing.assert_allclose(mean1, mean2, atol=0.5)
         np.testing.assert_allclose(std1, std2, atol=0.5)
 
- 
+
 
 def _serialize_variables():
     sess = get_session()
-    variables = tf.trainable_variables()    
+    variables = tf.trainable_variables()
     values = sess.run(variables)
     return {var.name: value for var, value in zip(variables, values)}
-    
+
 
 def _get_action_stats(model, ob):
     ntrials = 1000

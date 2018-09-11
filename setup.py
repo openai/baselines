@@ -8,7 +8,7 @@ if sys.version_info.major != 3:
 
 extras = {
     'test': [
-        'filelock', 
+        'filelock',
         'pytest'
     ]
 }

@@ -9,7 +9,7 @@ class Runner(AbstractEnvRunner):
         self.gamma = gamma
         self.batch_action_shape = [x if x is not None else -1 for x in model.train_model.action.shape.as_list()]
         self.ob_dtype = model.train_model.X.dtype.as_numpy_dtype
-    
+
     def run(self):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]
         mb_states = self.states
@@ -51,7 +51,7 @@ class Runner(AbstractEnvRunner):
                     rewards = discount_with_dones(rewards, dones, self.gamma)
 
                 mb_rewards[n] = rewards
-    
+
         mb_actions = mb_actions.reshape(self.batch_action_shape)
 
         mb_rewards = mb_rewards.flatten()
