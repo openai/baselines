@@ -113,7 +113,7 @@ class FeedForwardPolicy(DDPGPolicy):
                             pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
                         pi_h = activ(pi_h)
                     pi_latent = tf.nn.tanh(tf.layers.dense(pi_h, self.ac_space.shape[0], name='pi',
-                                        kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3)))
+                                           kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3)))
                     self.policy = tf.multiply(pi_latent, tf.convert_to_tensor(np.abs(self.ac_space.low)))
 
             if self.make_critic:

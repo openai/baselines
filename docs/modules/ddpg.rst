@@ -125,7 +125,7 @@ Action and Parameters Noise
 Custom Policy Network
 ---------------------
 
-Similarly to the example given in the `examples <../guide/examples.html#custom-policy-network>`_ page.
+Similarly to the example given in the `examples <../guide/custom_policy.html>`_ page.
 You can easily define a custom architecture for the policy network:
 
 .. code-block:: python
