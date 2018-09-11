@@ -19,8 +19,7 @@ _NP_TO_CT = {np.float32: ctypes.c_float,
 
 class ShmemVecEnv(VecEnv):
     """
-    An AsyncEnv that uses multiprocessing to run multiple
-    environments in parallel.
+    Optimized version of SubprocVecEnv that uses shared variables to communicate observations.
     """
 
     def __init__(self, env_fns, spaces=None):
