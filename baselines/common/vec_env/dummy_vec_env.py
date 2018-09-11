@@ -4,7 +4,18 @@ from . import VecEnv
 from .util import copy_obs_dict, dict_to_obs, obs_space_info
 
 class DummyVecEnv(VecEnv):
+    """
+    VecEnv that does runs multiple environments sequentially, that is,
+    the step and reset commands are send to one environment at a time.
+    Useful when debugging and when num_env == 1 (in the latter case, 
+    avoids communication overhead)
+    """
     def __init__(self, env_fns):
+        """
+        Arguments:
+    
+        env_fns: iterable of callables      functions that build environments   
+        """
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
