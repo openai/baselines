@@ -289,14 +289,15 @@ class DDPG(BaseRLModel):
                     # Configure perturbed actor.
                     with tf.variable_scope("noise", reuse=False):
                         self.param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
-                                                             None)
+                                                             None, make_critic=False, make_actor=True)
                         self.obs_noise = self.param_noise_actor.obs_ph
                         self.action_noise_ph = self.param_noise_actor.action_ph
 
                     # Configure separate copy for stddev adoption.
                     with tf.variable_scope("noise_adapt", reuse=False):
                         self.adaptive_param_noise_actor = self.policy(self.sess, self.observation_space,
-                                                                      self.action_space, 1, 1, None)
+                                                                      self.action_space, 1, 1, None, make_critic=False,
+                                                                      make_actor=True)
                         self.obs_adapt_noise = self.adaptive_param_noise_actor.obs_ph
                         self.action_adapt_noise = self.adaptive_param_noise_actor.action_ph
 
@@ -377,7 +378,8 @@ class DDPG(BaseRLModel):
         set the target update operations
         """
         init_updates, soft_updates = get_target_updates(tf_util.get_trainable_vars('model/'),
-                                                        tf_util.get_trainable_vars('target/model/'), self.tau, self.verbose)
+                                                        tf_util.get_trainable_vars('target/model/'), self.tau,
+                                                        self.verbose)
         self.target_init_updates = init_updates
         self.target_soft_updates = soft_updates
 
@@ -459,7 +461,7 @@ class DDPG(BaseRLModel):
         new_mean = self.ret_rms.mean
 
         self.renormalize_q_outputs_op = []
-        for out_vars in [[var for var in tf_util.get_trainable_vars('model/pi/') if 'output' in var.name],
+        for out_vars in [[var for var in tf_util.get_trainable_vars('model/vf/') if 'output' in var.name],
                          [var for var in tf_util.get_trainable_vars('target/model/vf/') if 'output' in var.name]]:
             assert len(out_vars) == 2
             # wieght and bias of the last layer
