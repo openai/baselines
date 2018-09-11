@@ -7,14 +7,14 @@ class DummyVecEnv(VecEnv):
     """
     VecEnv that does runs multiple environments sequentially, that is,
     the step and reset commands are send to one environment at a time.
-    Useful when debugging and when num_env == 1 (in the latter case, 
+    Useful when debugging and when num_env == 1 (in the latter case,
     avoids communication overhead)
     """
     def __init__(self, env_fns):
         """
         Arguments:
-    
-        env_fns: iterable of callables      functions that build environments   
+
+        env_fns: iterable of callables      functions that build environments
         """
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]

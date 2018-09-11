@@ -25,9 +25,9 @@ class NotSteppingError(Exception):
 
 class VecEnv(ABC):
     """
-    An abstract asynchronous, vectorized environment. 
+    An abstract asynchronous, vectorized environment.
     Used to batch data from multiple copies of an environment, so that
-    each observation becomes an batch of observations, and expected action is a batch of actions to 
+    each observation becomes an batch of observations, and expected action is a batch of actions to
     be applied per-environment.
     """
 
