@@ -55,6 +55,7 @@ class IdentityEnvBox(IdentityEnv):
         super(IdentityEnvBox, self).__init__(1, ep_length)
         self.action_space = Box(low=low, high=high, shape=(1,), dtype=np.float32)
         self.observation_space = self.action_space
+        # TODO: test with epsilon instead of just pos/neg actions
         self.eps = eps
         self.reset()
 

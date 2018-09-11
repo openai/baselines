@@ -203,7 +203,6 @@ class DDPG(BaseRLModel):
         self.param_noise_adaption_interval = param_noise_adaption_interval
         self.nb_train_steps = nb_train_steps
         self.nb_rollout_steps = nb_rollout_steps
-        self.layer_norm = layer_norm
         self.memory_limit = memory_limit
         self.tensorboard_log = tensorboard_log
 
@@ -971,7 +970,6 @@ class DDPG(BaseRLModel):
             "critic_lr": self.critic_lr,
             "clip_norm": self.clip_norm,
             "reward_scale": self.reward_scale,
-            "layer_norm": self.layer_norm,
             "memory_limit": self.memory_limit,
             "policy": self.policy,
             "memory_policy": self.memory_policy,

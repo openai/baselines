@@ -7,13 +7,12 @@ from stable_baselines.a2c import A2C
 # TODO: add support for continuous actions
 # from stable_baselines.acer import ACER
 # from stable_baselines.acktr import ACKTR
-from stable_baselines.ddpg import DDPG, MlpPolicy as DDPGMlpPolicy
+from stable_baselines.ddpg import DDPG
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.common.vec_env import DummyVecEnv
 from tests.test_common import _assert_eq
 from stable_baselines.common.identity_env import IdentityEnvBox
 
@@ -43,14 +42,8 @@ def test_model_manipulation(model_class):
     try:
         env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
 
-        # Fix for DDPG:
-        if model_class == DDPG:
-            policy = DDPGMlpPolicy
-        else:
-            policy = MlpPolicy
-
         # create and train
-        model = model_class(policy=policy, env=env)
+        model = model_class(policy="MlpPolicy", env=env)
         model.learn(total_timesteps=NUM_TIMESTEPS)
 
         # predict and measure the acc reward
@@ -119,7 +112,7 @@ def test_model_manipulation(model_class):
 
 
 def test_ddpg():
-    args = ['--env-id', 'Pendulum-v0', '--nb-rollout-steps', 100]
+    args = ['--env-id', 'Pendulum-v0', '--num-timesteps', 1000]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'stable_baselines.ddpg.main'] + args)
     _assert_eq(return_code, 0)
