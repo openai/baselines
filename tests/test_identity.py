@@ -3,7 +3,7 @@ import pytest
 from stable_baselines import A2C, ACER, ACKTR, DeepQ, DDPG, PPO1, PPO2, TRPO
 from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
-from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 # Hyperparameters for learning identity for each RL model
 LEARN_FUNC_DICT = {
@@ -55,13 +55,12 @@ def test_identity_ddpg():
     Test if the algorithm (with a given policy)
     can learn an identity transformation (i.e. return observation as an action)
     """
-    env = IdentityEnvBox(eps=0.5)
+    env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
 
     std = 0.2
     param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(std), desired_action_stddev=float(std))
 
-    model = DDPG("MlpPolicy", env, gamma=0.0, param_noise=param_noise, memory_limit=int(1e6), verbose=2,
-                 tensorboard_log="/tmp/log/ddpg/")
+    model = DDPG("MlpPolicy", env, gamma=0.0, param_noise=param_noise, memory_limit=int(1e6))
     model.learn(total_timesteps=20000, seed=0)
 
     n_trials = 1000

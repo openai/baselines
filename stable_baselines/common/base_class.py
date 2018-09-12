@@ -249,7 +249,7 @@ class _UnvecWrapper(VecEnvWrapper):
 
     def step_wait(self):
         actions, values, states, information = self.venv.step_wait()
-        return actions[0], values[0], states[0], information[0]
+        return actions[0], float(values[0]), states[0], information[0]
 
     def render(self, mode='human'):
         return self.venv.render(mode)[0]

@@ -26,8 +26,7 @@ Master version 1.0.8.a0 (WIP)
 - added registry for policies, can be passed as string to the agent
 - added documentation for custom policies + policy registration
 - fixed numpy warning when using DDPG Memory
-
-Known bug: VecEnv hurts DDPG performance
+- fixed DummyVecEnv not copying the observation array when stepping and reseting
 
 
 Release 1.0.7 (2018-08-29)
