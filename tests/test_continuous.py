@@ -18,7 +18,7 @@ from tests.test_common import _assert_eq
 
 
 N_TRIALS = 1000
-NUM_TIMESTEPS = 1000
+NUM_TIMESTEPS = 10000
 
 MODEL_LIST = [
     A2C,
