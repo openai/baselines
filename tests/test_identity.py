@@ -3,7 +3,7 @@ import pytest
 from stable_baselines import A2C, ACER, ACKTR, DeepQ, DDPG, PPO1, PPO2, TRPO
 from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
-from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines.common.vec_env import DummyVecEnv
 
 # Hyperparameters for learning identity for each RL model
 LEARN_FUNC_DICT = {
