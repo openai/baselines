@@ -4,6 +4,8 @@ from stable_baselines import A2C, ACER, ACKTR, DeepQ, DDPG, PPO1, PPO2, TRPO
 from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common import set_global_seeds
+
 
 # Hyperparameters for learning identity for each RL model
 LEARN_FUNC_DICT = {
@@ -39,6 +41,7 @@ def test_identity(model_name):
 
     n_trials = 1000
     reward_sum = 0
+    set_global_seeds(0)
     obs = env.reset()
     for _ in range(n_trials):
         action, _ = model.predict(obs)
@@ -65,6 +68,7 @@ def test_identity_ddpg():
 
     n_trials = 1000
     reward_sum = 0
+    set_global_seeds(0)
     obs = env.reset()
     for _ in range(n_trials):
         action, _ = model.predict(obs)

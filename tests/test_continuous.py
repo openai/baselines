@@ -13,8 +13,9 @@ from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.vec_env import DummyVecEnv
-from tests.test_common import _assert_eq
 from stable_baselines.common.identity_env import IdentityEnvBox
+from tests.test_common import _assert_eq
+
 
 N_TRIALS = 1000
 NUM_TIMESTEPS = 1000
@@ -44,12 +45,12 @@ def test_model_manipulation(model_class):
 
         # create and train
         model = model_class(policy="MlpPolicy", env=env)
-        model.learn(total_timesteps=NUM_TIMESTEPS)
+        model.learn(total_timesteps=NUM_TIMESTEPS, seed=0)
 
         # predict and measure the acc reward
         acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
@@ -70,8 +71,8 @@ def test_model_manipulation(model_class):
 
         # predict the same output before saving
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
@@ -82,12 +83,12 @@ def test_model_manipulation(model_class):
             "Error: the prediction seems to have changed between loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=100)
+        model.learn(total_timesteps=100, seed=0)
 
         # validate no reset post learning
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)

@@ -33,22 +33,14 @@ def test_model_manipulation(model_class):
     try:
         env = DummyVecEnv([lambda: IdentityEnv(10)])
 
-        # check the env is deterministic
-        action = [env.action_space.sample()]
-        set_global_seeds(0)
-        obs = env.step(action)[0]
-        for _ in range(N_TRIALS):
-            set_global_seeds(0)
-            assert obs == env.step(action)[0], "Error: environment tested not deterministic with the same seed"
-
         # create and train
         model = model_class(policy="MlpPolicy", env=env)
-        model.learn(total_timesteps=50000)
+        model.learn(total_timesteps=50000, seed=0)
 
         # predict and measure the acc reward
         acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
@@ -69,8 +61,8 @@ def test_model_manipulation(model_class):
 
         # predict the same output before saving
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
@@ -80,12 +72,12 @@ def test_model_manipulation(model_class):
                                                           "loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=100)
+        model.learn(total_timesteps=100, seed=0)
 
         # validate no reset post learning
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
