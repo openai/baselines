@@ -1,6 +1,8 @@
 RL Algorithms
 =============
 
+This table displays the rl algorithms that are implemented in the stable baselines project,
+along with some useful characteristics: support for recurrent policies, discrete/continuous actions, multiprocessing.
 
 .. Table too large
 .. ===== ======================== ========= ======= ============ ================= =============== ================

@@ -10,15 +10,15 @@ DDPG
 
 .. warning::
 
-  The DDPG model does not support Actor critic policies,
-  as a result it must use its own policy models (see :ref:`ddpg_policies`).
+  The DDPG model does not support ``stable_baselines.common.policies`` because it uses q-value instead
+  of value estimation, as a result it must use its own policy models (see :ref:`ddpg_policies`).
 
 Notes
 -----
 
 - Original paper: https://arxiv.org/abs/1509.02971
 - Baselines post: https://blog.openai.com/better-exploration-with-parameter-noise/
-- ``python -m baselines.ddpg.main`` runs the algorithm for 1M frames = 10M timesteps
+- ``python -m stable_baselines.ddpg.main`` runs the algorithm for 1M frames = 10M timesteps
   on a Mujoco environment. See help (``-h``) for more options.
 
 Can I use?
@@ -151,5 +151,3 @@ You can easily define a custom architecture for the policy network:
   model = DDPG(CustomPolicy, env, verbose=1)
   # Train the agent
   model.learn(total_timesteps=100000)
-
-

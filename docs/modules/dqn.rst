@@ -11,7 +11,7 @@ and its extensions (Double-DQN, Dueling-DQN, Prioritized Experience Replay).
 
 .. warning::
 
-  The DQN model does not support Actor critic policies,
+  The DQN model does not support ``stable_baselines.common.policies``,
   as a result it must use its own policy models (see :ref:`deepq_policies`).
 
 Notes
@@ -152,5 +152,3 @@ You can easily define a custom architecture for the policy network:
   model = DeepQ(CustomPolicy, env, verbose=1)
   # Train the agent
   model.learn(total_timesteps=100000)
-
-

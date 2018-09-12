@@ -48,8 +48,11 @@ You can also registered your policy, to help with code simplicity: you can refer
                                              layers=[128, 128, 128],
                                              feature_extraction="mlp")
 
+  # Register the policy, it will check that the name is not already taken
   register_policy('CustomPolicy', CustomPolicy)
 
+  # Because the policy is now registered, you can pass
+  # a string to the agent constructor instead of passing a class
   model = A2C(policy='CustomPolicy', env='LunarLander-v2', verbose=1).learn(total_timesteps=100000)
 
 

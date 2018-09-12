@@ -3,6 +3,9 @@
 Tensorboard Integration
 ==========================
 
+Basic Usage
+------------
+
 To use Tensorboard with the rl baselines, you simply need to define a log location for the RL agent:
 
 .. code-block:: python
@@ -80,3 +83,23 @@ It will display information such as the model graph, the episode reward, the mod
 .. image:: ../_static/img/Tensorboard_example_3.png
   :width: 400
   :alt: graph
+
+Legacy Integration
+-------------------
+
+All the information displayed in the terminal (default logging) can be also logged in tensorboard.
+For that, you need to define several environment variables:
+
+.. code-block:: bash
+
+  # formats are comma-separated, but for tensorboard you only need the last one
+  # stdout -> terminal
+  export OPENAI_LOG_FORMAT='stdout,log,csv,tensorboard'
+  export OPENAI_LOGDIR=path/to/tensorboard/data
+
+
+Then start tensorboard with:
+
+.. code-block:: bash
+
+  tensorboard --logdir=$OPENAI_LOGDIR

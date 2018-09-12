@@ -49,7 +49,7 @@ See help (``-h``) for more options.
 
 .. code:: bash
 
-   python -m baselines.gail.behavior_clone
+   python -m stable_baselines.gail.behavior_clone
 
 See help (``-h``) for more options.
 

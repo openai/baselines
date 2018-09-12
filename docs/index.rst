@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Stable Baselines docs!
-============================================
+Welcome to Stable Baselines docs! - RL Baselines Made Easy
+===========================================================
 
 `Stable Baselines <https://github.com/hill-a/stable-baselines>`_ is a set of improved implementations
 of Reinforcement Learning (RL) algorithms based on OpenAI `Baselines <https://github.com/openai/baselines>`_.

@@ -5,8 +5,8 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Master version 1.0.8.a0 (WIP)
------------------------------
+Master version 1.0.8.rc0 (TO BE RELEASED SOON)
+-----------------------------------------------
 
 **Tensorboard and bug fixes**
 
@@ -22,6 +22,7 @@ Master version 1.0.8.a0 (WIP)
 - updated VecEnv objects for the new Gym version
 - changed default policies for DDPG, so that DDPG now works correctly
 - fixed DDPG behavior
+- added test for DDPG
 - refactored DQN policies
 - added registry for policies, can be passed as string to the agent
 - added documentation for custom policies + policy registration

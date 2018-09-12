@@ -285,7 +285,7 @@ Custom Policy Network
 
 Stable baselines provides default policy networks for images (CNNPolicies)
 and other type of inputs (MlpPolicies).
-However, you can also easily define a custom architecture for the policy network `(for more details)<custom_policy.html>`_:
+However, you can also easily define a custom architecture for the policy network `(see custom policy section) <custom_policy.html>`_:
 
 .. code-block:: python
 
