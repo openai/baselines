@@ -10,9 +10,11 @@ extras = {
     'test': [
         'filelock',
         'pytest'
+    ],
+    'bullet': [
+        'pybullet',
     ]
 }
-
 
 all_deps = []
 for group_name in extras:

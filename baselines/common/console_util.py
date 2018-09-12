@@ -58,6 +58,9 @@ def print_cmd(cmd, dry=False):
 def get_git_commit(cwd=None):
     return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=cwd).decode('utf8')
 
+def get_git_commit_message(cwd=None):
+    return subprocess.check_output(['git', 'show', '-s', '--format=%B', 'HEAD'], cwd=cwd).decode('utf8')
+
 def ccap(cmd, dry=False, env=None, **kwargs):
     print_cmd(cmd, dry)
     if not dry:

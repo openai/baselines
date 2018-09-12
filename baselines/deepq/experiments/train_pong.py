@@ -30,6 +30,5 @@ def main():
     model.save('pong_model.pkl')
     env.close()
 
-
 if __name__ == '__main__':
     main()

@@ -23,6 +23,11 @@ class Pd(object):
         raise NotImplementedError
     def logp(self, x):
         return - self.neglogp(x)
+    def get_shape(self):
+        return self.flatparam().shape
+    @property
+    def shape(self):
+        return self.get_shape()
 
 class PdType(object):
     """
@@ -145,10 +150,22 @@ class CategoricalPd(Pd):
         # return tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=x)
         # Note: we can't use sparse_softmax_cross_entropy_with_logits because
         #       the implementation does not allow second-order derivatives...
-        one_hot_actions = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
+        if x.dtype in {tf.uint8, tf.int32, tf.int64}:
+            # one-hot encoding
+            x_shape_list = x.shape.as_list()
+            logits_shape_list = self.logits.get_shape().as_list()[:-1]
+            for xs, ls in zip(x_shape_list, logits_shape_list):
+                if xs is not None and ls is not None:
+                    assert xs == ls, 'shape mismatch: {} in x vs {} in logits'.format(xs, ls)
+
+            x = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
+        else:
+            # already encoded
+            assert x.shape.as_list() == self.logits.shape.as_list()
+
         return tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=self.logits,
-            labels=one_hot_actions)
+            labels=x)
     def kl(self, other):
         a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
         a1 = other.logits - tf.reduce_max(other.logits, axis=-1, keepdims=True)
@@ -216,13 +233,19 @@ class DiagGaussianPd(Pd):
     @classmethod
     def fromflat(cls, flat):
         return cls(flat)
+    def __getitem__(self, idx):
+        return DiagGaussianPd(self.flat[idx])
+
 
 class BernoulliPd(Pd):
     def __init__(self, logits):
         self.logits = logits
         self.ps = tf.sigmoid(logits)
     def flatparam(self):
-        return self.logits
+        return self.logit
+    @property
+    def mean(self):
+        return self.ps
     def mode(self):
         return tf.round(self.ps)
     def neglogp(self, x):
