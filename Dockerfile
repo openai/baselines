@@ -27,7 +27,7 @@ RUN \
     pip install opencv-python && \
     pip install numpy && \
     pip install pandas && \
-    pip install pytest && \
+    pip install pytest==3.5.1 && \
     pip install matplotlib && \
     pip install seaborn && \
     pip install glob2 && \

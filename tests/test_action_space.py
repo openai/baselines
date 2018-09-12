@@ -6,29 +6,28 @@ from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common.identity_env import IdentityEnvMultiBinary, IdentityEnvMultiDiscrete
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.common.policies import MlpPolicy
 
-MODEL_FUNC_LIST = [
-    lambda e: A2C(policy=MlpPolicy, env=e),
-    lambda e: PPO1(policy=MlpPolicy, env=e),
-    lambda e: PPO2(policy=MlpPolicy, env=e),
-    lambda e: TRPO(policy=MlpPolicy, env=e),
+MODEL_LIST = [
+    A2C,
+    PPO1,
+    PPO2,
+    TRPO
 ]
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_func", MODEL_FUNC_LIST)
-def test_identity_multidiscrete(model_func):
+@pytest.mark.parametrize("model_class", MODEL_LIST)
+def test_identity_multidiscrete(model_class):
     """
     Test if the algorithm (with a given policy)
     can learn an identity transformation (i.e. return observation as an action)
     with a multidiscrete action space
 
-    :param model_func: (lambda (Gym Environment): BaseRLModel) the model generator
+    :param model_class: (BaseRLModel) A RL Model
     """
     env = DummyVecEnv([lambda: IdentityEnvMultiDiscrete(10)])
 
-    model = model_func(env)
+    model = model_class("MlpPolicy", env)
     model.learn(total_timesteps=1000, seed=0)
 
     n_trials = 1000
@@ -41,18 +40,18 @@ def test_identity_multidiscrete(model_func):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_func", MODEL_FUNC_LIST)
-def test_identity_multibinary(model_func):
+@pytest.mark.parametrize("model_class", MODEL_LIST)
+def test_identity_multibinary(model_class):
     """
     Test if the algorithm (with a given policy)
     can learn an identity transformation (i.e. return observation as an action)
     with a multibinary action space
 
-    :param model_func: (lambda (Gym Environment): BaseRLModel) the model generator
+    :param model_class: (BaseRLModel) A RL Model
     """
     env = DummyVecEnv([lambda: IdentityEnvMultiBinary(10)])
 
-    model = model_func(env)
+    model = model_class("MlpPolicy", env)
     model.learn(total_timesteps=1000, seed=0)
 
     n_trials = 1000
