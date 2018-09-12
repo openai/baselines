@@ -92,7 +92,7 @@ def learn(*,
         gamma=0.99,
         lam=1.0, # advantage estimation
         seed=None,
-        entcoeff=0.0,
+        ent_coef=0.0,
         cg_damping=1e-2,
         vf_stepsize=3e-4,
         vf_iters =3,
@@ -117,7 +117,7 @@ def learn(*,
 
     max_kl                  max KL divergence between old policy and new policy ( KL(pi_old || pi) )
 
-    entcoeff                coefficient of policy entropy term in the optimization objective
+    ent_coef                coefficient of policy entropy term in the optimization objective
 
     cg_iters                number of iterations of conjugate gradient algorithm
 
@@ -182,7 +182,7 @@ def learn(*,
     ent = pi.pd.entropy()
     meankl = tf.reduce_mean(kloldnew)
     meanent = tf.reduce_mean(ent)
-    entbonus = entcoeff * meanent
+    entbonus = ent_coef * meanent
 
     vferr = tf.reduce_mean(tf.square(pi.vf - ret))
 
