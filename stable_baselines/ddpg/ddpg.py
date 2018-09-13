@@ -577,12 +577,13 @@ class DDPG(BaseRLModel):
         if self.normalize_observations:
             self.obs_rms.update(np.array([obs0]))
 
-    def _train_step(self, step, writer):
+    def _train_step(self, step, writer, log=False):
         """
         run a step of training from batch
 
         :param step: (int) the current step iteration
         :param writer: (TensorFlow Summary.writer) the writer for tensorboard
+        :param log: (bool) whether or not to log to metadata
         :return: (float, float) critic loss, actor loss
         """
         # Get a batch
@@ -619,10 +620,9 @@ class DDPG(BaseRLModel):
             self.param_noise_stddev: 0 if self.param_noise is None else self.param_noise.current_stddev
         }
         if writer is not None:
-            # run loss backprop with summary, but once every 100 steps save the metadata (memory, compute time, ...)
-            # and the step_id was not already logged (can happen with the right parameters as the step value is
-            # only an estimate)
-            if (1 + step) % 100 == 0 and step not in self.tb_seen_steps:
+            # run loss backprop with summary if the step_id was not already logged (can happen with the right
+            # parameters as the step value is only an estimate)
+            if log and step not in self.tb_seen_steps:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 summary, actor_grads, actor_loss, critic_grads, critic_loss = \
@@ -837,7 +837,7 @@ class DDPG(BaseRLModel):
                             step = (int(t_train * (self.nb_rollout_steps / self.nb_train_steps)) +
                                     total_steps - self.nb_rollout_steps)
 
-                            critic_loss, actor_loss = self._train_step(step, writer)
+                            critic_loss, actor_loss = self._train_step(t_train, writer, log=t_train==0)
                             epoch_critic_losses.append(critic_loss)
                             epoch_actor_losses.append(actor_loss)
                             self._update_target_net()
