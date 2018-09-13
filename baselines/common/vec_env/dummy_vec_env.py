@@ -48,6 +48,8 @@ class DummyVecEnv(VecEnv):
         return self._obs_from_buf()
 
     def close(self):
+        for env in self.envs:
+            env.close()
         return
 
     def render(self, mode='human'):
