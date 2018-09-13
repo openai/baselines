@@ -46,7 +46,7 @@ Using pip from pypi:
 pip install stable-baselines
 ```
 
-Please read the [documentation](http://stable-baselines.readthedocs.io/) for more details and alternatives.
+Please read the [documentation](http://stable-baselines.readthedocs.io/) for more details and alternatives (from source, using docker).
 
 
 ## Example
