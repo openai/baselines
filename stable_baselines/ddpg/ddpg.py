@@ -929,10 +929,10 @@ class DDPG(BaseRLModel):
                             with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
                                 pickle.dump(self.eval_env.get_state(), file_handler)
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
-        action, _ = self._policy(observation, apply_noise=False, compute_q=True)
+        action, _ = self._policy(observation, apply_noise=not deterministic, compute_q=False)
         action = action * np.abs(self.action_space.low)  # scale the output for the prediction
         if self._vectorize_action:
             return [action], [None]

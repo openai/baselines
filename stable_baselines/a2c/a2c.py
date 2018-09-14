@@ -240,14 +240,14 @@ class A2C(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         if state is None:
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
         observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
-        actions, _, states, _ = self.step(observation, state, mask)
+        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
         return actions, states
 
     def action_probability(self, observation, state=None, mask=None):

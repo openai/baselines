@@ -108,6 +108,8 @@ class ActorCriticPolicy(BasePolicy):
         self.policy = None
         self.proba_distribution = None
         self.value_fn = None
+        self.deterministic_action = None
+        self.initial_state = None
 
     def _setup_init(self):
         """
@@ -120,15 +122,17 @@ class ActorCriticPolicy(BasePolicy):
             self.policy_proba = self.policy
             if self.is_discrete:
                 self.policy_proba = tf.nn.softmax(self.policy_proba)
+            self.deterministic_action = tf.argmax(self.policy_proba)
             self._value = self.value_fn[:, 0]
 
-    def step(self, obs, state=None, mask=None):
+    def step(self, obs, state=None, mask=None, deterministic=False):
         """
         Returns the policy for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in reccurent policies)
         :param mask: ([float]) The last masks (used in reccurent policies)
+        :param deterministic: (bool) Whether or not to return deterministic actions.
         :return: ([float], [float], [float], [float]) actions, values, states, neglogp
         """
         raise NotImplementedError
@@ -206,9 +210,13 @@ class LstmPolicy(ActorCriticPolicy):
         self.initial_state = np.zeros((self.n_env, n_lstm * 2), dtype=np.float32)
         self._setup_init()
 
-    def step(self, obs, state=None, mask=None):
-        return self.sess.run([self.action, self._value, self.snew, self.neglogp],
-                             {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            return self.sess.run([self.deterministic_action, self._value, self.snew, self.neglogp],
+                                 {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
+        else:
+            return self.sess.run([self.action, self._value, self.snew, self.neglogp],
+                                 {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
 
     def proba_step(self, obs, state=None, mask=None):
         return self.sess.run(self.policy_proba, {self.obs_ph: obs, self.states_ph: state, self.masks_ph: mask})
@@ -266,8 +274,13 @@ class FeedForwardPolicy(ActorCriticPolicy):
         self.initial_state = None
         self._setup_init()
 
-    def step(self, obs, state=None, mask=None):
-        action, value, neglogp = self.sess.run([self.action, self._value, self.neglogp], {self.obs_ph: obs})
+    def step(self, obs, state=None, mask=None, deterministic=False):
+        if deterministic:
+            action, value, neglogp = self.sess.run([self.deterministic_action, self._value, self.neglogp],
+                                                   {self.obs_ph: obs})
+        else:
+            action, value, neglogp = self.sess.run([self.action, self._value, self.neglogp],
+                                                   {self.obs_ph: obs})
         return action, value, self.initial_state, neglogp
 
     def proba_step(self, obs, state=None, mask=None):

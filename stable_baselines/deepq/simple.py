@@ -238,11 +238,11 @@ class DeepQ(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         with self.sess.as_default():
-            action = self.act(observation[None])[0]
+            action = self.act(observation[None], stochastic=not deterministic)[0]
 
         if self._vectorize_action:
             return [action], [None]

@@ -518,15 +518,7 @@ class ACER(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
-        """
-        Get the model's action from an observation
-
-        :param observation: (np.ndarray) the input observation
-        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
-        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
-        :return: (np.ndarray, np.ndarray) the model's action and the next state (used in reccurent policies)
-        """
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         if state is None:
             state = self.initial_state
         if mask is None:
@@ -534,18 +526,10 @@ class ACER(BaseRLModel):
 
         observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
-        actions, _, states, _ = self.step(observation, state, mask)
+        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
         return actions, states
 
     def action_probability(self, observation, state=None, mask=None):
-        """
-        Get the model's action probability distribution from an observation
-
-        :param observation: (np.ndarray) the input observation
-        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
-        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
-        :return: (np.ndarray) the model's action probability distribution
-        """
         if state is None:
             state = self.initial_state
         if mask is None:
