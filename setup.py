@@ -62,7 +62,7 @@ for i in range(1000):
     env.render()
 ```
 
-Or just train a model with a one liner if [the environment is registered in Gym](https://github.com/openai/gym/wiki/Environments):
+Or just train a model with a one liner if [the environment is registered in Gym](https://github.com/openai/gym/wiki/Environments) and if [the policy is registered](https://stable-baselines.readthedocs.io/en/master/guide/custom_policy.html):
 
 ```python
 from stable_baselines import PPO2
