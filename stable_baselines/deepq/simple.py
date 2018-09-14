@@ -245,7 +245,7 @@ class DeepQ(BaseRLModel):
             action = self.act(observation[None], stochastic=not deterministic)[0]
 
         if self._vectorize_action:
-            return [action], [None]
+            return np.array([action]), np.array([None])
         else:
             return action, None
 

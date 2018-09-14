@@ -41,8 +41,6 @@ class DeepQPolicy(BasePolicy):
         """
         with tf.variable_scope("output", reuse=True):
             assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
-            self.action = self.proba_distribution.sample()
-            self.neglogp = self.proba_distribution.neglogp(self.action)
             self.policy_proba = tf.nn.softmax(self.policy)
             self._value = self.value_fn[:, 0]
 

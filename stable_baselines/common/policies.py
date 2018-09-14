@@ -118,11 +118,11 @@ class ActorCriticPolicy(BasePolicy):
         with tf.variable_scope("output", reuse=True):
             assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
             self.action = self.proba_distribution.sample()
+            self.deterministic_action = self.proba_distribution.mode()
             self.neglogp = self.proba_distribution.neglogp(self.action)
             self.policy_proba = self.policy
             if self.is_discrete:
                 self.policy_proba = tf.nn.softmax(self.policy_proba)
-            self.deterministic_action = tf.argmax(self.policy_proba, axis=-1)
             self._value = self.value_fn[:, 0]
 
     def step(self, obs, state=None, mask=None, deterministic=False):

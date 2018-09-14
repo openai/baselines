@@ -935,7 +935,7 @@ class DDPG(BaseRLModel):
         action, _ = self._policy(observation, apply_noise=not deterministic, compute_q=False)
         action = action * np.abs(self.action_space.low)  # scale the output for the prediction
         if self._vectorize_action:
-            return [action], [None]
+            return np.array([action]), np.array([None])
         else:
             return action, None
 

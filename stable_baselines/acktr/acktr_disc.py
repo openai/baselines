@@ -6,6 +6,7 @@ import time
 
 import tensorflow as tf
 import numpy as np
+from gym.spaces import Box
 
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity, TensorboardWriter
@@ -97,6 +98,9 @@ class ACKTR(BaseRLModel):
 
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the ACKTR model must be " \
                                                                "an instance of common.policies.ActorCriticPolicy."
+
+            if isinstance(self.action_space, Box):
+                raise NotImplementedError("WIP: ACKTR does not support Continuous actions yet.")
 
             self.graph = tf.Graph()
             with self.graph.as_default():

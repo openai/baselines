@@ -21,9 +21,9 @@ class ProbabilityDistribution(object):
 
     def mode(self):
         """
-        Returns the index of the highest probability
+        Returns the probability
 
-        :return: (int) the max index of the probabilites
+        :return: (Tensorflow Tensor) the deterministic action
         """
         raise NotImplementedError
 
@@ -56,9 +56,9 @@ class ProbabilityDistribution(object):
 
     def sample(self):
         """
-        Sample an index from the probabilty distribution
+        returns a sample from the probabilty distribution
 
-        :return: (int) the sampled index
+        :return: (Tensorflow Tensor) the stochastic action
         """
         raise NotImplementedError
 
