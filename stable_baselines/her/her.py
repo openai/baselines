@@ -99,7 +99,7 @@ class HER(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         pass
 
     def action_probability(self, observation, state=None, mask=None):

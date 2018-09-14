@@ -69,8 +69,8 @@ class GAIL(BaseRLModel):
         self.trpo.learn(total_timesteps, callback, seed, log_interval, tb_log_name)
         return self
 
-    def predict(self, observation, state=None, mask=None):
-        return self.trpo.predict(observation, state, mask)
+    def predict(self, observation, state=None, mask=None, deterministic=False):
+        return self.trpo.predict(observation, state, mask, deterministic=deterministic)
 
     def action_probability(self, observation, state=None, mask=None):
         return self.trpo.action_probability(observation, state, mask)
