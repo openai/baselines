@@ -17,7 +17,7 @@ class DeepQPolicy(BasePolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
@@ -49,8 +49,8 @@ class DeepQPolicy(BasePolicy):
         Returns the policy for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :return: ([float], [float], [float], [float]) actions, values, states, neglogp
         """
         raise NotImplementedError
@@ -60,8 +60,8 @@ class DeepQPolicy(BasePolicy):
         Returns the action probability for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :return: ([float]) the action probability
         """
         raise NotImplementedError
@@ -71,8 +71,8 @@ class DeepQPolicy(BasePolicy):
         Returns the value for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :return: ([float]) The associated value of the action
         """
         raise NotImplementedError

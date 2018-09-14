@@ -35,7 +35,7 @@ class BasePolicy(ABC):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
@@ -67,8 +67,8 @@ class BasePolicy(ABC):
         Returns the policy for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :return: ([float], [float], [float], [float]) actions, values, states, neglogp
         """
         raise NotImplementedError
@@ -78,8 +78,8 @@ class BasePolicy(ABC):
         Returns the action probability for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :return: ([float]) the action probability
         """
         raise NotImplementedError
@@ -95,7 +95,7 @@ class ActorCriticPolicy(BasePolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
     """
@@ -130,8 +130,8 @@ class ActorCriticPolicy(BasePolicy):
         Returns the policy for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :param deterministic: (bool) Whether or not to return deterministic actions.
         :return: ([float], [float], [float], [float]) actions, values, states, neglogp
         """
@@ -142,8 +142,8 @@ class ActorCriticPolicy(BasePolicy):
         Returns the action probability for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :return: ([float]) the action probability
         """
         raise NotImplementedError
@@ -153,8 +153,8 @@ class ActorCriticPolicy(BasePolicy):
         Returns the value for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in reccurent policies)
-        :param mask: ([float]) The last masks (used in reccurent policies)
+        :param state: ([float]) The last states (used in recurrent policies)
+        :param mask: ([float]) The last masks (used in recurrent policies)
         :return: ([float]) The associated value of the action
         """
         raise NotImplementedError
@@ -170,7 +170,7 @@ class LstmPolicy(ActorCriticPolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param layers: ([int]) The size of the Neural network before the LSTM layer  (if None, default to [64, 64])
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
@@ -319,7 +319,7 @@ class CnnLstmPolicy(LstmPolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
@@ -339,7 +339,7 @@ class CnnLnLstmPolicy(LstmPolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
@@ -378,7 +378,7 @@ class MlpLstmPolicy(LstmPolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
@@ -398,7 +398,7 @@ class MlpLnLstmPolicy(LstmPolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for reccurent policies)
+    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """

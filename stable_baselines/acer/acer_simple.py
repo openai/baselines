@@ -409,8 +409,8 @@ class ACER(BaseRLModel):
         :param rewards: ([float]) The rewards from the environment
         :param dones: ([bool]) Whether or not the episode is over (aligned with reward, used for reward calculation)
         :param mus: ([float]) The logits values
-        :param states: ([float]) The states (used for reccurent policies)
-        :param masks: ([bool]) Whether or not the episode is over (used for reccurent policies)
+        :param states: ([float]) The states (used for recurrent policies)
+        :param masks: ([bool]) Whether or not the episode is over (used for recurrent policies)
         :param steps: (int) the number of steps done so far (can be None)
         :param writer: (TensorFlow Summary.writer) the writer for tensorboard
         :return: ([str], [float]) the list of update operation name, and the list of the results of the operations
