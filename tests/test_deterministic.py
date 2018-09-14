@@ -5,7 +5,7 @@ from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env import DummyVecEnv
 
-param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(0.2), desired_action_stddev=float(0.2))
+PARAM_NOISE_DDPG = AdaptiveParamNoiseSpec(initial_stddev=float(0.2), desired_action_stddev=float(0.2))
 
 # Hyperparameters for learning identity for each RL model
 LEARN_FUNC_DICT = {
@@ -13,7 +13,7 @@ LEARN_FUNC_DICT = {
     'acer': lambda e: ACER(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
     'acktr': lambda e: ACKTR(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
     'deepq': lambda e: DeepQ(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
-    'ddpg': lambda e: DDPG(policy="MlpPolicy", env=e, param_noise=param_noise).learn(total_timesteps=1000),
+    'ddpg': lambda e: DDPG(policy="MlpPolicy", env=e, param_noise=PARAM_NOISE_DDPG).learn(total_timesteps=1000),
     'ppo1': lambda e: PPO1(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
     'ppo2': lambda e: PPO2(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
     'trpo': lambda e: TRPO(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
