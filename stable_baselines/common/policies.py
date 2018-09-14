@@ -122,7 +122,7 @@ class ActorCriticPolicy(BasePolicy):
             self.policy_proba = self.policy
             if self.is_discrete:
                 self.policy_proba = tf.nn.softmax(self.policy_proba)
-            self.deterministic_action = tf.argmax(self.policy_proba)
+            self.deterministic_action = tf.argmax(self.policy_proba, axis=-1)
             self._value = self.value_fn[:, 0]
 
     def step(self, obs, state=None, mask=None, deterministic=False):
