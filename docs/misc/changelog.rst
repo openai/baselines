@@ -29,6 +29,7 @@ Master version 1.0.8.rc0 (TO BE RELEASED SOON)
 - fixed numpy warning when using DDPG Memory
 - fixed DummyVecEnv not copying the observation array when stepping and resetting
 - added pre-built docker images + installation instructions
+- added ``deterministic`` argument in the predict function
 
 
 Release 1.0.7 (2018-08-29)
