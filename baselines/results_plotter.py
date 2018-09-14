@@ -65,7 +65,6 @@ def plot_results(dirs, num_timesteps, xaxis, yaxis, task_name):
     tslist = []
     for dir in dirs:
         ts = load_results(dir)
-        ts.drop(columns=['v'])
         ts = ts[ts.l.cumsum() <= num_timesteps]
         tslist.append(ts)
     xy_list = [ts2xy(ts, xaxis, yaxis) for ts in tslist]
