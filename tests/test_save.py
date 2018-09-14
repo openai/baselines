@@ -2,62 +2,45 @@ import os
 
 import pytest
 
-from stable_baselines.a2c import A2C
-from stable_baselines.acer import ACER
-from stable_baselines.acktr import ACKTR
-from stable_baselines.deepq import DeepQ
-from stable_baselines.ppo1 import PPO1
-from stable_baselines.ppo2 import PPO2
-from stable_baselines.trpo_mpi import TRPO
+from stable_baselines import A2C, ACER, ACKTR, DeepQ, PPO1, PPO2, TRPO
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.identity_env import IdentityEnv
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.common.policies import MlpPolicy
-from stable_baselines.deepq import models as deepq_models
+from stable_baselines.common.vec_env import DummyVecEnv
 
 N_TRIALS = 2000
 
-MODEL_POLICY_LIST = [
-    (A2C, MlpPolicy),
-    (ACER, MlpPolicy),
-    (ACKTR, MlpPolicy),
-    (DeepQ, deepq_models.mlp([32])),
-    (PPO1, MlpPolicy),
-    (PPO2, MlpPolicy),
-    (TRPO, MlpPolicy)
+MODEL_LIST = [
+    A2C,
+    ACER,
+    ACKTR,
+    DeepQ,
+    PPO1,
+    PPO2,
+    TRPO,
 ]
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_policy", MODEL_POLICY_LIST)
-def test_model_manipulation(model_policy):
+@pytest.mark.parametrize("model_class", MODEL_LIST)
+def test_model_manipulation(model_class):
     """
     Test if the algorithm (with a given policy) can be loaded and saved without any issues, the environment switching
     works and that the action prediction works
 
-    :param model_policy: (BaseRLModel, Object) A model, policy pair
+    :param model_class: (BaseRLModel) A RL model
     """
-    model_class, policy = model_policy
 
     try:
         env = DummyVecEnv([lambda: IdentityEnv(10)])
 
-        # check the env is deterministic
-        action = [env.action_space.sample()]
-        set_global_seeds(0)
-        obs = env.step(action)[0]
-        for _ in range(N_TRIALS):
-            set_global_seeds(0)
-            assert obs == env.step(action)[0], "Error: environment tested not deterministic with the same seed"
-
         # create and train
-        model = model_class(policy=policy, env=env)
-        model.learn(total_timesteps=50000)
+        model = model_class(policy="MlpPolicy", env=env)
+        model.learn(total_timesteps=50000, seed=0)
 
         # predict and measure the acc reward
         acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
@@ -78,8 +61,8 @@ def test_model_manipulation(model_policy):
 
         # predict the same output before saving
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
@@ -89,12 +72,12 @@ def test_model_manipulation(model_policy):
                                                           "loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=1000)
+        model.learn(total_timesteps=100, seed=0)
 
         # validate no reset post learning
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)

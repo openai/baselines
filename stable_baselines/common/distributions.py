@@ -21,9 +21,9 @@ class ProbabilityDistribution(object):
 
     def mode(self):
         """
-        Returns the index of the highest probability
+        Returns the probability
 
-        :return: (int) the max index of the probabilites
+        :return: (Tensorflow Tensor) the deterministic action
         """
         raise NotImplementedError
 
@@ -56,9 +56,9 @@ class ProbabilityDistribution(object):
 
     def sample(self):
         """
-        Sample an index from the probabilty distribution
+        returns a sample from the probabilty distribution
 
-        :return: (int) the sampled index
+        :return: (Tensorflow Tensor) the stochastic action
         """
         raise NotImplementedError
 
@@ -392,7 +392,11 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
         return self.flat
 
     def mode(self):
-        return self.mean
+        low = self.bounds[0]
+        high = self.bounds[1]
+
+        # clip the output (clip_by_value does not broadcast correctly)
+        return tf.minimum(tf.maximum(self.mean, low), high)
 
     def neglogp(self, x):
         return 0.5 * tf.reduce_sum(tf.square((x - self.mean) / self.std), axis=-1) \

@@ -52,6 +52,7 @@ class VecNormalize(VecEnvWrapper):
             if self.training:
                 self.ret_rms.update(self.ret)
             rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.clip_reward, self.clip_reward)
+        self.ret[news] = 0
         return obs, rews, news, infos
 
     def _normalize_observation(self, obs):
@@ -84,6 +85,7 @@ class VecNormalize(VecEnvWrapper):
             self.old_obs = [obs]
         else:
             self.old_obs = obs
+        self.ret = np.zeros(self.num_envs)
         return self._normalize_observation(obs)
 
     def save_running_average(self, path):

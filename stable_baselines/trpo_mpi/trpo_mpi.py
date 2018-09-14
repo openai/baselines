@@ -7,22 +7,25 @@ import tensorflow as tf
 import numpy as np
 
 import stable_baselines.common.tf_util as tf_util
-from stable_baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel, SetVerbosity
+from stable_baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel, \
+    SetVerbosity, TensorboardWriter
 from stable_baselines import logger
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.cg import conjugate_gradient
-from stable_baselines.a2c.utils import find_trainable_variables
+from stable_baselines.common.policies import ActorCriticPolicy
+from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
 # from stable_baselines.gail.statistics import Stats
 
 
 class TRPO(BaseRLModel):
     def __init__(self, policy, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, lam=0.98,
-                 entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0, _init_setup_model=True):
+                 entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0, tensorboard_log=None,
+                 _init_setup_model=True):
         """
         learns a TRPO policy using the given environment
 
-        :param policy: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
+        :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
         :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
         :param gamma: (float) the discount value
         :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
@@ -34,9 +37,11 @@ class TRPO(BaseRLModel):
         :param vf_stepsize: (float) the value function stepsize
         :param vf_iters: (int) the value function's number iterations for learning
         :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(TRPO, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+        super(TRPO, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
+                                   requires_vec_env=False)
 
         self.using_gail = False
         self.timesteps_per_batch = timesteps_per_batch
@@ -48,6 +53,7 @@ class TRPO(BaseRLModel):
         self.vf_iters = vf_iters
         self.vf_stepsize = vf_stepsize
         self.entcoeff = entcoeff
+        self.tensorboard_log = tensorboard_log
 
         # GAIL Params
         self.pretrained_weight = None
@@ -83,6 +89,8 @@ class TRPO(BaseRLModel):
         self.proba_step = None
         self.initial_state = None
         self.params = None
+        self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -92,6 +100,9 @@ class TRPO(BaseRLModel):
         from stable_baselines.gail.adversary import TransitionClassifier
 
         with SetVerbosity(self.verbose):
+
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the TRPO model must be " \
+                                                               "an instance of common.policies.ActorCriticPolicy."
 
             self.nworkers = MPI.COMM_WORLD.Get_size()
             self.rank = MPI.COMM_WORLD.Get_rank()
@@ -106,99 +117,119 @@ class TRPO(BaseRLModel):
                                                              entcoeff=self.adversary_entcoeff)
 
                 # Construct network for new policy
-                with tf.variable_scope("pi", reuse=False):
-                    self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                                 None, reuse=False)
+                self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
+                                             None, reuse=False)
 
                 # Network for old policy
                 with tf.variable_scope("oldpi", reuse=False):
                     old_policy = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                              None, reuse=False)
 
-                atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
-                ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
+                with tf.variable_scope("loss", reuse=False):
+                    atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)
+                    ret = tf.placeholder(dtype=tf.float32, shape=[None])  # Empirical return
 
-                observation = self.policy_pi.obs_ph
-                action = self.policy_pi.pdtype.sample_placeholder([None])
+                    observation = self.policy_pi.obs_ph
+                    action = self.policy_pi.pdtype.sample_placeholder([None])
 
-                kloldnew = old_policy.proba_distribution.kl(self.policy_pi.proba_distribution)
-                ent = self.policy_pi.proba_distribution.entropy()
-                meankl = tf.reduce_mean(kloldnew)
-                meanent = tf.reduce_mean(ent)
-                entbonus = self.entcoeff * meanent
+                    kloldnew = old_policy.proba_distribution.kl(self.policy_pi.proba_distribution)
+                    ent = self.policy_pi.proba_distribution.entropy()
+                    meankl = tf.reduce_mean(kloldnew)
+                    meanent = tf.reduce_mean(ent)
+                    entbonus = self.entcoeff * meanent
 
-                vferr = tf.reduce_mean(tf.square(self.policy_pi.value_fn[:, 0] - ret))
+                    vferr = tf.reduce_mean(tf.square(self.policy_pi.value_fn[:, 0] - ret))
 
-                # advantage * pnew / pold
-                ratio = tf.exp(self.policy_pi.proba_distribution.logp(action) -
-                               old_policy.proba_distribution.logp(action))
-                surrgain = tf.reduce_mean(ratio * atarg)
+                    # advantage * pnew / pold
+                    ratio = tf.exp(self.policy_pi.proba_distribution.logp(action) -
+                                   old_policy.proba_distribution.logp(action))
+                    surrgain = tf.reduce_mean(ratio * atarg)
 
-                optimgain = surrgain + entbonus
-                losses = [optimgain, meankl, entbonus, surrgain, meanent]
-                self.loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
+                    optimgain = surrgain + entbonus
+                    losses = [optimgain, meankl, entbonus, surrgain, meanent]
+                    self.loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
 
-                dist = meankl
+                    dist = meankl
 
-                all_var_list = tf_util.get_trainable_vars("pi")
-                var_list = [v for v in all_var_list if "/vf" not in v.name and "/q/" not in v.name]
-                vf_var_list = [v for v in all_var_list if "/pi" not in v.name and "/logstd" not in v.name]
-                self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
-                self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
-                self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
+                    all_var_list = tf_util.get_trainable_vars("model")
+                    var_list = [v for v in all_var_list if "/vf" not in v.name and "/q/" not in v.name]
+                    vf_var_list = [v for v in all_var_list if "/pi" not in v.name and "/logstd" not in v.name]
 
-                if self.using_gail:
-                    self.d_adam = MpiAdam(self.reward_giver.get_trainable_variables())
+                    self.get_flat = tf_util.GetFlat(var_list, sess=self.sess)
+                    self.set_from_flat = tf_util.SetFromFlat(var_list, sess=self.sess)
 
-                klgrads = tf.gradients(dist, var_list)
-                flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
-                shapes = [var.get_shape().as_list() for var in var_list]
-                start = 0
-                tangents = []
-                for shape in shapes:
-                    var_size = tf_util.intprod(shape)
-                    tangents.append(tf.reshape(flat_tangent[start: start + var_size], shape))
-                    start += var_size
-                gvp = tf.add_n(
-                    [tf.reduce_sum(grad * tangent) for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
-                fvp = tf_util.flatgrad(gvp, var_list)
+                    klgrads = tf.gradients(dist, var_list)
+                    flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
+                    shapes = [var.get_shape().as_list() for var in var_list]
+                    start = 0
+                    tangents = []
+                    for shape in shapes:
+                        var_size = tf_util.intprod(shape)
+                        tangents.append(tf.reshape(flat_tangent[start: start + var_size], shape))
+                        start += var_size
+                    gvp = tf.add_n([tf.reduce_sum(grad * tangent)
+                                    for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
+                    fvp = tf_util.flatgrad(gvp, var_list)
 
-                self.assign_old_eq_new = tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
-                                                                           zipsame(tf_util.get_globals_vars("oldpi"),
-                                                                                   tf_util.get_globals_vars("pi"))])
-                self.compute_losses = tf_util.function([observation, old_policy.obs_ph, action, atarg], losses)
-                self.compute_lossandgrad = tf_util.function([observation, old_policy.obs_ph, action, atarg],
-                                                            losses + [tf_util.flatgrad(optimgain, var_list)])
-                self.compute_fvp = tf_util.function([flat_tangent, observation, old_policy.obs_ph, action, atarg], fvp)
-                self.compute_vflossandgrad = tf_util.function([observation, old_policy.obs_ph, ret],
-                                                              tf_util.flatgrad(vferr, vf_var_list))
+                    tf.summary.scalar('entropy_loss', meanent)
+                    tf.summary.scalar('policy_gradient_loss', optimgain)
+                    tf.summary.scalar('value_function_loss', surrgain)
+                    tf.summary.scalar('approximate_kullback-leiber', meankl)
+                    tf.summary.scalar('loss', optimgain + meankl + entbonus + surrgain + meanent)
 
-                @contextmanager
-                def timed(msg):
-                    if self.rank == 0 and self.verbose >= 1:
-                        print(colorize(msg, color='magenta'))
-                        start_time = time.time()
-                        yield
-                        print(colorize("done in %.3f seconds" % (time.time() - start_time), color='magenta'))
+                    self.assign_old_eq_new = \
+                        tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
+                                                          zipsame(tf_util.get_globals_vars("oldpi"),
+                                                          tf_util.get_globals_vars("model"))])
+                    self.compute_losses = tf_util.function([observation, old_policy.obs_ph, action, atarg], losses)
+                    self.compute_fvp = tf_util.function([flat_tangent, observation, old_policy.obs_ph, action, atarg],
+                                                        fvp)
+                    self.compute_vflossandgrad = tf_util.function([observation, old_policy.obs_ph, ret],
+                                                                  tf_util.flatgrad(vferr, vf_var_list))
+
+                    @contextmanager
+                    def timed(msg):
+                        if self.rank == 0 and self.verbose >= 1:
+                            print(colorize(msg, color='magenta'))
+                            start_time = time.time()
+                            yield
+                            print(colorize("done in %.3f seconds" % (time.time() - start_time), color='magenta'))
+                        else:
+                            yield
+
+                    def allmean(arr):
+                        assert isinstance(arr, np.ndarray)
+                        out = np.empty_like(arr)
+                        MPI.COMM_WORLD.Allreduce(arr, out, op=MPI.SUM)
+                        out /= self.nworkers
+                        return out
+
+                    tf_util.initialize(sess=self.sess)
+
+                    th_init = self.get_flat()
+                    MPI.COMM_WORLD.Bcast(th_init, root=0)
+                    self.set_from_flat(th_init)
+
+                with tf.variable_scope("Adam_mpi", reuse=False):
+                    self.vfadam = MpiAdam(vf_var_list, sess=self.sess)
+                    if self.using_gail:
+                        self.d_adam = MpiAdam(self.reward_giver.get_trainable_variables())
+                        self.d_adam.sync()
+                    self.vfadam.sync()
+
+                with tf.variable_scope("input_info", reuse=False):
+                    tf.summary.scalar('discounted_rewards', tf.reduce_mean(ret))
+                    tf.summary.histogram('discounted_rewards', ret)
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.vf_stepsize))
+                    tf.summary.histogram('learning_rate', self.vf_stepsize)
+                    tf.summary.scalar('advantage', tf.reduce_mean(atarg))
+                    tf.summary.histogram('advantage', atarg)
+                    tf.summary.scalar('kl_clip_range', tf.reduce_mean(self.max_kl))
+                    tf.summary.histogram('kl_clip_range', self.max_kl)
+                    if len(self.observation_space.shape) == 3:
+                        tf.summary.image('observation', observation)
                     else:
-                        yield
-
-                def allmean(arr):
-                    assert isinstance(arr, np.ndarray)
-                    out = np.empty_like(arr)
-                    MPI.COMM_WORLD.Allreduce(arr, out, op=MPI.SUM)
-                    out /= self.nworkers
-                    return out
-
-                tf_util.initialize(sess=self.sess)
-
-                th_init = self.get_flat()
-                MPI.COMM_WORLD.Bcast(th_init, root=0)
-                self.set_from_flat(th_init)
-
-                if self.using_gail:
-                    self.d_adam.sync()
-                self.vfadam.sync()
+                        tf.summary.histogram('observation', observation)
 
                 self.timed = timed
                 self.allmean = allmean
@@ -207,12 +238,18 @@ class TRPO(BaseRLModel):
                 self.proba_step = self.policy_pi.proba_step
                 self.initial_state = self.policy_pi.initial_state
 
-                self.params = find_trainable_variables("pi")
+                self.params = find_trainable_variables("model")
                 if self.using_gail:
                     self.params.extend(self.reward_giver.get_trainable_variables())
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+                self.summary = tf.summary.merge_all()
+
+                self.compute_lossandgrad = \
+                    tf_util.function([observation, old_policy.obs_ph, action, atarg, ret],
+                                     [self.summary, tf_util.flatgrad(optimgain, var_list)] + losses)
+
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="TRPO"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             with self.sess.as_default():
@@ -225,6 +262,7 @@ class TRPO(BaseRLModel):
                 t_start = time.time()
                 lenbuffer = deque(maxlen=40)  # rolling buffer for episode lengths
                 rewbuffer = deque(maxlen=40)  # rolling buffer for episode rewards
+                self.episode_reward = np.zeros((self.n_envs,))
 
                 true_rewbuffer = None
                 if self.using_gail:
@@ -258,7 +296,7 @@ class TRPO(BaseRLModel):
                     observation = None
                     action = None
                     seg = None
-                    for _ in range(self.g_step):
+                    for k in range(self.g_step):
                         with self.timed("sampling"):
                             seg = seg_gen.__next__()
                         add_vtarg_and_adv(seg, self.gamma, self.lam)
@@ -267,13 +305,35 @@ class TRPO(BaseRLModel):
                         vpredbefore = seg["vpred"]  # predicted value function before udpate
                         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
+                        # true_rew is the reward without discount
+                        if writer is not None:
+                            self.episode_reward = total_episode_reward_logger(self.episode_reward,
+                                                                              seg["true_rew"].reshape(
+                                                                                  (self.n_envs, -1)),
+                                                                              seg["dones"].reshape((self.n_envs, -1)),
+                                                                              writer, timesteps_so_far)
+
                         args = seg["ob"], seg["ob"], seg["ac"], atarg
                         fvpargs = [arr[::5] for arr in args]
 
                         self.assign_old_eq_new(sess=self.sess)
 
                         with self.timed("computegrad"):
-                            *lossbefore, grad = self.compute_lossandgrad(*args, sess=self.sess)
+                            steps = timesteps_so_far + (k + 1) * (seg["total_timestep"] / self.g_step)
+                            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                            run_metadata = tf.RunMetadata()
+                            # run loss backprop with summary, and save the metadata (memory, compute time, ...)
+                            if writer is not None:
+                                summary, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
+                                                                                      options=run_options,
+                                                                                      run_metadata=run_metadata)
+                                writer.add_run_metadata(run_metadata, 'step%d' % steps)
+                                writer.add_summary(summary, steps)
+                            else:
+                                _, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
+                                                                                options=run_options,
+                                                                                run_metadata=run_metadata)
+
                         lossbefore = self.allmean(np.array(lossbefore))
                         grad = self.allmean(grad)
                         if np.allclose(grad, 0):
@@ -379,14 +439,14 @@ class TRPO(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         if state is None:
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
         observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
 
-        actions, _, states, _ = self.step(observation, state, mask)
+        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
         return actions, states
 
     def action_probability(self, observation, state=None, mask=None):

@@ -3,26 +3,19 @@ import numpy as np
 import gym
 
 from stable_baselines import logger, deepq
-from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity
+from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
-from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from stable_baselines.deepq.utils import ObservationInput
-from stable_baselines.a2c.utils import find_trainable_variables
+from stable_baselines.deepq.policies import DeepQPolicy
+from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 
 
 class DeepQ(BaseRLModel):
     """
     The DQN model class. DQN paper: https://arxiv.org/pdf/1312.5602.pdf
 
-    :param policy: (function (TensorFlow Tensor, int, str, bool): TensorFlow Tensor)
-                    the policy that takes the following inputs:
-                    - observation_in: (object) the output of observation placeholder
-                    - num_actions: (int) number of actions
-                    - scope: (str)
-                    - reuse: (bool) should be passed to outer variable scope
-                    and returns a tensor of shape (batch_size, num_actions) with values of every action.
+    :param policy: (DeepQPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) discount factor
     :param learning_rate: (float) learning rate for adam optimizer
@@ -47,6 +40,7 @@ class DeepQ(BaseRLModel):
     :param prioritized_replay_eps: (float) epsilon to add to the TD errors when updating priorities.
     :param param_noise: (bool) Whether or not to apply noise to the parameters of the policy.
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     """
 
@@ -54,13 +48,11 @@ class DeepQ(BaseRLModel):
                  exploration_final_eps=0.02, train_freq=1, batch_size=32, checkpoint_freq=10000, checkpoint_path=None,
                  learning_starts=1000, target_network_update_freq=500, prioritized_replay=False,
                  prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4, prioritized_replay_beta_iters=None,
-                 prioritized_replay_eps=1e-6, param_noise=False, verbose=0, _init_setup_model=True):
-        super(DeepQ, self).__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+                 prioritized_replay_eps=1e-6, param_noise=False, verbose=0, tensorboard_log=None,
+                 _init_setup_model=True):
 
-        assert not isinstance(policy, ActorCriticPolicy), \
-            "Error: DeepQ does not support the actor critic policies, please use the " \
-            "'stable_baselines.deepq.models.mlp' and 'stable_baselines.deepq.models.cnn_to_mlp' " \
-            "functions to create your policies."
+        super(DeepQ, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DeepQPolicy,
+                                    requires_vec_env=False)
 
         self.checkpoint_path = checkpoint_path
         self.param_noise = param_noise
@@ -79,6 +71,7 @@ class DeepQ(BaseRLModel):
         self.buffer_size = buffer_size
         self.learning_rate = learning_rate
         self.gamma = gamma
+        self.tensorboard_log = tensorboard_log
 
         self.graph = None
         self.sess = None
@@ -89,6 +82,8 @@ class DeepQ(BaseRLModel):
         self.beta_schedule = None
         self.exploration = None
         self.params = None
+        self.summary = None
+        self.episode_reward = None
 
         if _init_setup_model:
             self.setup_model()
@@ -96,35 +91,26 @@ class DeepQ(BaseRLModel):
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
-            assert isinstance(self.action_space, gym.spaces.Discrete), \
-                "Error: DeepQ cannot output a {} action space, only spaces.Discrete is supported."\
-                .format(self.action_space)
+            assert not isinstance(self.action_space, gym.spaces.Box), \
+                "Error: DeepQ cannot output a gym.spaces.Box action space."
+            assert issubclass(self.policy, DeepQPolicy), "Error: the input policy for the DeepQ model must be " \
+                                                         "an instance of DeepQPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
                 self.sess = tf_util.make_session(graph=self.graph)
 
-                # capture the shape outside the closure so that the env object is not serialized
-                # by cloudpickle when serializing make_obs_ph
-                observation_space = self.observation_space
-
-                def make_obs_ph(name):
-                    """
-                    makes the observation placeholder
-
-                    :param name: (str) the placeholder name
-                    :return: (TensorFlow Tensor) the placeholder
-                    """
-                    return ObservationInput(observation_space, name=name)
+                optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
                 self.act, self._train_step, self.update_target, _ = deepq.build_train(
-                    make_obs_ph=make_obs_ph,
                     q_func=self.policy,
-                    num_actions=self.action_space.n,
-                    optimizer=tf.train.AdamOptimizer(learning_rate=self.learning_rate),
+                    ob_space=self.observation_space,
+                    ac_space=self.action_space,
+                    optimizer=optimizer,
                     gamma=self.gamma,
                     grad_norm_clipping=10,
-                    param_noise=self.param_noise
+                    param_noise=self.param_noise,
+                    sess=self.sess
                 )
 
                 self.params = find_trainable_variables("deepq")
@@ -133,8 +119,10 @@ class DeepQ(BaseRLModel):
                 tf_util.initialize(self.sess)
                 self.update_target(sess=self.sess)
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        with SetVerbosity(self.verbose):
+                self.summary = tf.summary.merge_all()
+
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DeepQ"):
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
             # Create the replay buffer
@@ -156,6 +144,7 @@ class DeepQ(BaseRLModel):
             episode_rewards = [0.0]
             obs = self.env.reset()
             reset = True
+            self.episode_reward = np.zeros((1,))
 
             for step in range(total_timesteps):
                 if callback is not None:
@@ -186,6 +175,12 @@ class DeepQ(BaseRLModel):
                 self.replay_buffer.add(obs, action, rew, new_obs, float(done))
                 obs = new_obs
 
+                if writer is not None:
+                    ep_rew = np.array([rew]).reshape((1, -1))
+                    ep_done = np.array([done]).reshape((1, -1))
+                    self.episode_reward = total_episode_reward_logger(self.episode_reward, ep_rew, ep_done, writer,
+                                                                      step)
+
                 episode_rewards[-1] += rew
                 if done:
                     if not isinstance(self.env, VecEnv):
@@ -201,8 +196,25 @@ class DeepQ(BaseRLModel):
                     else:
                         obses_t, actions, rewards, obses_tp1, dones = self.replay_buffer.sample(self.batch_size)
                         weights, batch_idxes = np.ones_like(rewards), None
-                    td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, dones, weights,
-                                                 sess=self.sess)
+
+                    if writer is not None:
+                        # run loss backprop with summary, but once every 100 steps save the metadata
+                        # (memory, compute time, ...)
+                        if (1 + step) % 100 == 0:
+                            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                            run_metadata = tf.RunMetadata()
+                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                  dones, weights, sess=self.sess, options=run_options,
+                                                                  run_metadata=run_metadata)
+                            writer.add_run_metadata(run_metadata, 'step%d' % step)
+                        else:
+                            summary, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1,
+                                                                  dones, weights, sess=self.sess)
+                        writer.add_summary(summary, step)
+                    else:
+                        _, td_errors = self._train_step(obses_t, actions, rewards, obses_tp1, obses_tp1, dones, weights,
+                                                        sess=self.sess)
+
                     if self.prioritized_replay:
                         new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
                         self.replay_buffer.update_priorities(batch_idxes, new_priorities)
@@ -226,14 +238,14 @@ class DeepQ(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         with self.sess.as_default():
-            action = self.act(observation[None])[0]
+            action = self.act(observation[None], stochastic=not deterministic)[0]
 
         if self._vectorize_action:
-            return [action], [None]
+            return np.array([action]), np.array([None])
         else:
             return action, None
 

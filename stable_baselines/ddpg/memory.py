@@ -88,7 +88,7 @@ class Memory(object):
         :return: (dict) the sampled batch
         """
         # Draw such that we always have a proceeding element.
-        batch_idxs = np.random.random_integers(self.nb_entries - 2, size=batch_size)
+        batch_idxs = np.random.randint(low=1, high=self.nb_entries - 1, size=batch_size)
 
         obs0_batch = self.observations0.get_batch(batch_idxs)
         obs1_batch = self.observations1.get_batch(batch_idxs)
@@ -118,7 +118,7 @@ class Memory(object):
         """
         if not training:
             return
-        
+
         self.observations0.append(obs0)
         self.actions.append(action)
         self.rewards.append(reward)

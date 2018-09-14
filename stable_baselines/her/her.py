@@ -3,7 +3,7 @@ import numpy as np
 import gym
 
 from stable_baselines.common import BaseRLModel, SetVerbosity
-from stable_baselines.common.policies import LstmPolicy
+from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
 
 
 def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
@@ -70,7 +70,7 @@ def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
 
 class HER(BaseRLModel):
     def __init__(self, policy, env, verbose=0, _init_setup_model=True):
-        super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+        super().__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy, requires_vec_env=False)
 
         self.policy = policy
 
@@ -85,19 +85,21 @@ class HER(BaseRLModel):
 
             assert isinstance(self.action_space, gym.spaces.Box), \
                 "Error: HER cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
-            assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a reccurent policy for the HER model."
+            assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a recurrent policy for the HER model."
+            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the HER model must be an " \
+                                                               "instance of common.policies.ActorCriticPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
                 pass
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="HER"):
         with SetVerbosity(self.verbose):
             self._setup_learn(seed)
 
         return self
 
-    def predict(self, observation, state=None, mask=None):
+    def predict(self, observation, state=None, mask=None, deterministic=False):
         pass
 
     def action_probability(self, observation, state=None, mask=None):

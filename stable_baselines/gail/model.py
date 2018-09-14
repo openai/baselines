@@ -1,6 +1,7 @@
 import gym
 
 from stable_baselines.common import BaseRLModel
+from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.trpo_mpi import TRPO
 
 
@@ -8,7 +9,7 @@ class GAIL(BaseRLModel):
     """
     Generative Adversarial Imitation Learning (GAIL)
 
-    :param policy: (function (str, Gym Space, Gym Space, bool): MLPPolicy) policy generator
+    :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) the discount value
     :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
@@ -35,7 +36,7 @@ class GAIL(BaseRLModel):
     def __init__(self, policy, env, pretrained_weight=False, hidden_size_adversary=100, adversary_entcoeff=1e-3,
                  expert_dataset=None, save_per_iter=1, checkpoint_dir="/tmp/gail/ckpt/", g_step=1, d_step=1,
                  task_name="task_name", d_stepsize=3e-4, verbose=0, _init_setup_model=True, **kwargs):
-        super().__init__(policy=policy, env=env, requires_vec_env=False, verbose=verbose)
+        super().__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy, requires_vec_env=False)
 
         self.trpo = TRPO(policy, env, verbose=verbose, _init_setup_model=False, **kwargs)
         self.trpo.using_gail = True
@@ -58,16 +59,18 @@ class GAIL(BaseRLModel):
         self.trpo.set_env(env)
 
     def setup_model(self):
+        assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the GAIL model must be an " \
+                                                           "instance of common.policies.ActorCriticPolicy."
         assert isinstance(self.action_space, gym.spaces.Box), "Error: GAIL requires a continuous action space."
 
         self.trpo.setup_model()
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100):
-        self.trpo.learn(total_timesteps, callback, seed, log_interval)
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="GAIL"):
+        self.trpo.learn(total_timesteps, callback, seed, log_interval, tb_log_name)
         return self
 
-    def predict(self, observation, state=None, mask=None):
-        return self.trpo.predict(observation, state, mask)
+    def predict(self, observation, state=None, mask=None, deterministic=False):
+        return self.trpo.predict(observation, state, mask, deterministic=deterministic)
 
     def action_probability(self, observation, state=None, mask=None):
         return self.trpo.action_probability(observation, state, mask)

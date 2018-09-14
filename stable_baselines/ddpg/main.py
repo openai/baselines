@@ -9,7 +9,7 @@ from mpi4py import MPI
 
 from stable_baselines import logger, bench
 from stable_baselines.common.misc_util import set_global_seeds, boolean_flag
-from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.ddpg.policies import MlpPolicy, LnMlpPolicy
 from stable_baselines.ddpg import DDPG
 from stable_baselines.ddpg.memory import Memory
 from stable_baselines.ddpg.noise import AdaptiveParamNoiseSpec, OrnsteinUhlenbeckActionNoise, NormalActionNoise
@@ -78,9 +78,18 @@ def run(env_id, seed, noise_type, layer_norm, evaluation, **kwargs):
     start_time = 0
     if rank == 0:
         start_time = time.time()
-    model = DDPG(policy=MlpPolicy, env=env, memory_policy=Memory, eval_env=eval_env, param_noise=param_noise,
-                 action_noise=action_noise, memory_limit=int(1e6), layer_norm=layer_norm, verbose=2, **kwargs)
-    model.learn(total_timesteps=10000)
+
+    if layer_norm:
+        policy = LnMlpPolicy
+    else:
+        policy = MlpPolicy
+
+    num_timesteps = kwargs['num_timesteps']
+    del kwargs['num_timesteps']
+
+    model = DDPG(policy=policy, env=env, memory_policy=Memory, eval_env=eval_env, param_noise=param_noise,
+                 action_noise=action_noise, memory_limit=int(1e6), verbose=2, **kwargs)
+    model.learn(total_timesteps=num_timesteps)
     env.close()
     if eval_env is not None:
         eval_env.close()
@@ -116,6 +125,7 @@ def parse_args():
     parser.add_argument('--nb-rollout-steps', type=int, default=100)  # per epoch cycle and MPI worker
     # choices are adaptive-param_xx, ou_xx, normal_xx, none
     parser.add_argument('--noise-type', type=str, default='adaptive-param_0.2')
+    parser.add_argument('--num-timesteps', type=int, default=int(1e6))
     boolean_flag(parser, 'evaluation', default=False)
     args = parser.parse_args()
     dict_args = vars(args)

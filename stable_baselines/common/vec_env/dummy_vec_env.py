@@ -48,20 +48,26 @@ class DummyVecEnv(VecEnv):
             if self.buf_dones[env_idx]:
                 obs = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
+        return (np.copy(self._obs_from_buf()), np.copy(self.buf_rews), np.copy(self.buf_dones),
                 self.buf_infos.copy())
 
     def reset(self):
         for env_idx in range(self.num_envs):
             obs = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return self._obs_from_buf()
+        return np.copy(self._obs_from_buf())
 
     def close(self):
         return
 
-    def render(self, mode='human'):
-        return [e.render(mode=mode) for e in self.envs]
+    def get_images(self):
+        return [env.render(mode='rgb_array') for env in self.envs]
+
+    def render(self, **kwargs):
+        if self.num_envs == 1:
+            return self.envs[0].render(**kwargs)
+        else:
+            return super().render(**kwargs)
 
     def _save_obs(self, env_idx, obs):
         for key in self.keys:

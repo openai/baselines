@@ -149,13 +149,13 @@ def linear(input_tensor, scope, n_hidden, *, init_scale=1.0, init_bias=0.0):
 
 def batch_to_seq(tensor_batch, n_batch, n_steps, flat=False):
     """
-    Transform a batch of Tensors, into a sequence of Tensors for reccurent policies
+    Transform a batch of Tensors, into a sequence of Tensors for recurrent policies
 
     :param tensor_batch: (TensorFlow Tensor) The input tensor to unroll
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param n_steps: (int) The number of steps to run for each environment
     :param flat: (bool) If the input Tensor is flat
-    :return: (TensorFlow Tensor) sequence of Tensors for reccurent policies
+    :return: (TensorFlow Tensor) sequence of Tensors for recurrent policies
     """
     if flat:
         tensor_batch = tf.reshape(tensor_batch, [n_batch, n_steps])
@@ -166,11 +166,11 @@ def batch_to_seq(tensor_batch, n_batch, n_steps, flat=False):
 
 def seq_to_batch(tensor_sequence, flat=False):
     """
-    Transform a sequence of Tensors, into a batch of Tensors for reccurent policies
+    Transform a sequence of Tensors, into a batch of Tensors for recurrent policies
 
     :param tensor_sequence: (TensorFlow Tensor) The input tensor to batch
     :param flat: (bool) If the input Tensor is flat
-    :return: (TensorFlow Tensor) batch of Tensors for reccurent policies
+    :return: (TensorFlow Tensor) batch of Tensors for recurrent policies
     """
     shape = tensor_sequence[0].get_shape().as_list()
     if not flat:
@@ -557,3 +557,34 @@ def q_explained_variance(q_pred, q_true):
     _, var_pred = tf.nn.moments(q_true - q_pred, axes=[0, 1])
     check_shape([var_y, var_pred], [[]] * 2)
     return 1.0 - (var_pred / var_y)
+
+
+def total_episode_reward_logger(rew_acc, rewards, masks, writer, steps):
+    """
+    calculates the cumulated episode reward, and prints to tensorflow log the output
+
+    :param rew_acc: (np.array float) the total running reward
+    :param rewards: (np.array float) the rewards
+    :param masks: (np.array bool) the end of episodes
+    :param writer: (TensorFlow Session.writer) the writer to log to
+    :param steps: (int) the current timestep
+    :return: (np.array float) the updated total running reward
+    :return: (np.array float) the updated total running reward
+    """
+    with tf.variable_scope("environment_info", reuse=True):
+        for env_idx in range(rewards.shape[0]):
+            dones_idx = np.sort(np.argwhere(masks[env_idx]))
+
+            if len(dones_idx) == 0:
+                rew_acc[env_idx] += sum(rewards[env_idx])
+            else:
+                rew_acc[env_idx] += sum(rewards[env_idx, :dones_idx[0, 0]])
+                summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
+                writer.add_summary(summary, steps + dones_idx[0, 0])
+                for k in range(1, len(dones_idx[:, 0])):
+                    rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[k-1, 0]:dones_idx[k, 0]])
+                    summary = tf.Summary(value=[tf.Summary.Value(tag="episode_reward", simple_value=rew_acc[env_idx])])
+                    writer.add_summary(summary, steps + dones_idx[k, 0])
+                rew_acc[env_idx] = sum(rewards[env_idx, dones_idx[-1, 0]:])
+
+    return rew_acc

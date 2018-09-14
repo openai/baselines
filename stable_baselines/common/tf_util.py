@@ -272,7 +272,7 @@ class _Function(object):
         else:
             feed_dict[inpt] = value
 
-    def __call__(self, *args, sess=None):
+    def __call__(self, *args, sess=None, **kwargs):
         assert len(args) <= len(self.inputs), "Too many arguments provided"
         if sess is None:
             sess = tf.get_default_session()
@@ -283,7 +283,7 @@ class _Function(object):
         # Update feed dict with givens.
         for inpt in self.givens:
             feed_dict[inpt] = feed_dict.get(inpt, self.givens[inpt])
-        results = sess.run(self.outputs_update, feed_dict=feed_dict)[:-1]
+        results = sess.run(self.outputs_update, feed_dict=feed_dict, **kwargs)[:-1]
         return results
 
 
@@ -504,3 +504,18 @@ def get_globals_vars(name):
     :return: ([TensorFlow Variable])
     """
     return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
+
+
+def outer_scope_getter(scope, new_scope=""):
+    """
+    remove a scope layer for the getter
+
+    :param scope: (str) the layer to remove
+    :param new_scope: (str) optional replacement name
+    :return: (function (function, str, ``*args``, ``**kwargs``): Tensorflow Tensor)
+    """
+    def _getter(getter, name, *args, **kwargs):
+        name = name.replace(scope + "/", new_scope, 1)
+        val = getter(name, *args, **kwargs)
+        return val
+    return _getter

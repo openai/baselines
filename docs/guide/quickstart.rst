@@ -30,14 +30,14 @@ Here is a quick example of how to train and run PPO2 on a cartpole environment:
 
 
 Or just train a model with a one liner if
-`the environment is registered in Gym <https://github.com/openai/gym/wiki/Environments>`_:
+`the environment is registered in Gym <https://github.com/openai/gym/wiki/Environments>`_ and if
+`the policy is registered <custom_policy.html>`_:
 
 .. code-block:: python
 
-    from stable_baselines.common.policies import MlpPolicy
     from stable_baselines import PPO2
 
-    model = PPO2(MlpPolicy, 'CartPole-v1').learn(10000)
+    model = PPO2('MlpPolicy', 'CartPole-v1').learn(10000)
 
 
 .. figure:: https://cdn-images-1.medium.com/max/960/1*R_VMmdgKAY0EDhEjHVelzw.gif

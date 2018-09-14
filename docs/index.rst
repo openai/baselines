@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Stable Baselines docs!
-============================================
+Welcome to Stable Baselines docs! - RL Baselines Made Easy
+===========================================================
 
 `Stable Baselines <https://github.com/hill-a/stable-baselines>`_ is a set of improved implementations
 of Reinforcement Learning (RL) algorithms based on OpenAI `Baselines <https://github.com/openai/baselines>`_.
@@ -38,6 +38,8 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
    guide/examples
    guide/vec_envs
    guide/custom_env
+   guide/custom_policy
+   guide/tensorboard
 
 
 .. toctree::
@@ -93,7 +95,7 @@ Contributing
 ------------
 
 To any interested in making the rl baselines better, there is still some improvements
-that needs to be done: good-to-have features like tensorboard integration or support for continuous actions (ACER)
+that needs to be done: good-to-have features like support for continuous actions (ACER)
 and more documentation on the rl algorithms.
 
 If you want to contribute, please open an issue first and then propose your pull request on Github at

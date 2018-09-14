@@ -2,7 +2,16 @@ import argparse
 
 import gym
 
-from stable_baselines.deepq import DeepQ, models as deepq_models
+from stable_baselines.deepq import DeepQ
+from stable_baselines.deepq.policies import FeedForwardPolicy
+
+
+class CustomPolicy(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomPolicy, self).__init__(*args, **kwargs,
+                                           layers=[64],
+                                           layer_norm=True,
+                                           feature_extraction="mlp")
 
 
 def main(args):
@@ -12,11 +21,10 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("MountainCar-v0")
-    # Enabling layer_norm here is important for parameter space noise!
-    q_func = deepq_models.mlp([64], layer_norm=True)
 
+    # using layer norm policy here is important for parameter space noise!
     model = DeepQ(
-        policy=q_func,
+        policy=CustomPolicy,
         env=env,
         learning_rate=1e-3,
         buffer_size=50000,

@@ -2,7 +2,6 @@ import subprocess
 import os
 
 import pytest
-import gym
 
 from stable_baselines.a2c import A2C
 # TODO: add support for continuous actions
@@ -13,13 +12,13 @@ from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from stable_baselines.common.policies import MlpPolicy
+from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common.identity_env import IdentityEnvBox
 from tests.test_common import _assert_eq
 
-ENV_ID = 'Pendulum-v0'
+
 N_TRIALS = 1000
-NUM_TIMESTEPS = 1000
+NUM_TIMESTEPS = 10000
 
 MODEL_LIST = [
     A2C,
@@ -42,17 +41,16 @@ def test_model_manipulation(model_class):
     :param model_class: (BaseRLModel) A model
     """
     try:
-        env = gym.make(ENV_ID)
-        env = DummyVecEnv([lambda: env])
+        env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
 
         # create and train
-        model = model_class(policy=MlpPolicy, env=env)
-        model.learn(total_timesteps=NUM_TIMESTEPS)
+        model = model_class(policy="MlpPolicy", env=env)
+        model.learn(total_timesteps=NUM_TIMESTEPS, seed=0)
 
         # predict and measure the acc reward
         acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
@@ -68,37 +66,36 @@ def test_model_manipulation(model_class):
         model = model_class.load("./test_model")
 
         # changing environment (note: this can be done at loading)
-        env = gym.make(ENV_ID)
-        env = DummyVecEnv([lambda: env])
+        env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
         model.set_env(env)
 
         # predict the same output before saving
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
-        # assert <5% diff
-        assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.05, \
+        # assert <10% diff
+        assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.1, \
             "Error: the prediction seems to have changed between loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=int(NUM_TIMESTEPS / 2))
+        model.learn(total_timesteps=100, seed=0)
 
         # validate no reset post learning
         loaded_acc_reward = 0
-        obs = env.reset()
         set_global_seeds(0)
+        obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
-        # assert <5% diff
-        assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.05, \
+        # assert <10% diff
+        assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.1, \
             "Error: the prediction seems to have changed between pre learning and post learning"
 
         # predict new values
@@ -116,7 +113,7 @@ def test_model_manipulation(model_class):
 
 
 def test_ddpg():
-    args = ['--env-id', ENV_ID, '--nb-rollout-steps', 100]
+    args = ['--env-id', 'Pendulum-v0', '--num-timesteps', 1000]
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'stable_baselines.ddpg.main'] + args)
     _assert_eq(return_code, 0)

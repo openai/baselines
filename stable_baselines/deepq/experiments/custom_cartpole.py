@@ -4,30 +4,19 @@ import argparse
 import gym
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.layers as layers
 
 import stable_baselines.common.tf_util as tf_utils
 from stable_baselines import logger, deepq
 from stable_baselines.deepq.replay_buffer import ReplayBuffer
-from stable_baselines.deepq.utils import ObservationInput
+from stable_baselines.deepq.policies import FeedForwardPolicy
 from stable_baselines.common.schedules import LinearSchedule
 
 
-def model(inpt, num_actions, scope, reuse=False):
-    """
-    This model takes as input an observation and returns values of all actions.
-
-    :param inpt: (TensorFlow Tensor) the input placeholder
-    :param num_actions: (int) size of the action space
-    :param scope: (str) the variable scope
-    :param reuse: (bool) is a reusable model
-    :return: (TensorFlow Tensor)
-    """
-    with tf.variable_scope(scope, reuse=reuse):
-        out = inpt
-        out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.tanh)
-        out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
-        return out
+class CustomPolicy(FeedForwardPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomPolicy, self).__init__(*args, **kwargs,
+                                           layers=[64],
+                                           feature_extraction="mlp")
 
 
 def main(args):
@@ -35,15 +24,16 @@ def main(args):
     Train a DeepQ agent on cartpole env
     :param args: (Parsed Arguments) the input arguments
     """
-    with tf_utils.make_session(8):
+    with tf_utils.make_session(8) as sess:
         # Create the environment
         env = gym.make("CartPole-v0")
         # Create all the functions necessary to train the model
         act, train, update_target, _ = deepq.build_train(
-            make_obs_ph=lambda name: ObservationInput(env.observation_space, name=name),
-            q_func=model,
-            num_actions=env.action_space.n,
+            q_func=CustomPolicy,
+            ob_space=env.observation_space,
+            ac_space=env.action_space,
             optimizer=tf.train.AdamOptimizer(learning_rate=5e-4),
+            sess=sess
         )
         # Create the replay buffer
         replay_buffer = ReplayBuffer(50000)
