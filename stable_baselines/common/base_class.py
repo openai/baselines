@@ -155,10 +155,10 @@ class BaseRLModel(ABC):
         Get the model's action from an observation
 
         :param observation: (np.ndarray) the input observation
-        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
-        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :param state: (np.ndarray) The last states (can be None, used in recurrent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in recurrent policies)
         :param deterministic: (bool) Whether or not to return deterministic actions.
-        :return: (np.ndarray, np.ndarray) the model's action and the next state (used in reccurent policies)
+        :return: (np.ndarray, np.ndarray) the model's action and the next state (used in recurrent policies)
         """
         pass
 
@@ -168,8 +168,8 @@ class BaseRLModel(ABC):
         Get the model's action probability distribution from an observation
 
         :param observation: (np.ndarray) the input observation
-        :param state: (np.ndarray) The last states (can be None, used in reccurent policies)
-        :param mask: (np.ndarray) The last masks (can be None, used in reccurent policies)
+        :param state: (np.ndarray) The last states (can be None, used in recurrent policies)
+        :param mask: (np.ndarray) The last masks (can be None, used in recurrent policies)
         :return: (np.ndarray) the model's action probability distribution
         """
         pass

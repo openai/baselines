@@ -159,9 +159,9 @@ class A2C(BaseRLModel):
         applies a training step to the model
 
         :param obs: ([float]) The input observations
-        :param states: ([float]) The states (used for reccurent policies)
+        :param states: ([float]) The states (used for recurrent policies)
         :param rewards: ([float]) The rewards from the environment
-        :param masks: ([bool]) Whether or not the episode is over (used for reccurent policies)
+        :param masks: ([bool]) Whether or not the episode is over (used for recurrent policies)
         :param actions: ([float]) The actions taken
         :param values: ([float]) The logits values
         :param update: (int) the current step iteration
