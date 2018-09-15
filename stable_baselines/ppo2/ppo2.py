@@ -29,7 +29,7 @@ class PPO2(BaseRLModel):
     :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param lam: (float) Factor for trade-off of bias vs variance for Generalized Advantage Estimator
     :param nminibatches: (int) Number of training minibatches per update. For recurrent policies,
-        should be smaller or equal than number of environments run in parallel.
+        the number of environments run in parallel should be a multiple of nminibatches.
     :param noptepochs: (int) Number of epoch when optimizing the surrogate
     :param cliprange: (float or callable) Clipping parameter, it can be a function
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
@@ -114,8 +114,8 @@ class PPO2(BaseRLModel):
                 n_batch_step = None
                 n_batch_train = None
                 if issubclass(self.policy, LstmPolicy):
-                    assert self.nminibatches <= self.n_envs, "For recurrent policies, nminibatches should be smaller "\
-                                                              "or equal than the number of environments run in parallel."
+                    assert self.n_envs % self.nminibatches == 0, "For recurrent policies, "\
+                        'the number of environments run in parallel should be a multiple of nminibatches."
                     n_batch_step = self.n_envs
                     n_batch_train = self.n_batch // self.nminibatches
 
