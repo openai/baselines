@@ -115,7 +115,7 @@ class PPO2(BaseRLModel):
                 n_batch_train = None
                 if issubclass(self.policy, LstmPolicy):
                     assert self.n_envs % self.nminibatches == 0, "For recurrent policies, "\
-                        'the number of environments run in parallel should be a multiple of nminibatches."
+                        "the number of environments run in parallel should be a multiple of nminibatches."
                     n_batch_step = self.n_envs
                     n_batch_train = self.n_batch // self.nminibatches
 
