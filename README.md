@@ -27,12 +27,14 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 | Tensorboard support         | :heavy_check_mark:                | :heavy_minus_sign: <sup>(4)</sup> |
 | Ipython / Notebook friendly | :heavy_check_mark:                | :x:                               |
 | PEP8 code style             | :heavy_check_mark:                | :heavy_minus_sign: <sup>(5)</sup> |
+| Custom callback             | :heavy_check_mark:                | :heavy_minus_sign: <sup>(6)</sup> |
 
 <sup><sup>(1): Forked from previous version of OpenAI baselines, however missing refactoring for HER.</sup></sup><br>
 <sup><sup>(2): Currently not available for DDPG, and only from the run script. </sup></sup><br>
 <sup><sup>(3): Only via the run script.</sup></sup><br>
 <sup><sup>(4): Rudimentary logging of training information (no loss nor graph). </sup></sup><br>
 <sup><sup>(5): WIP on OpenAI's side (you can do it OpenAI! :cat:)</sup></sup><br>
+<sup><sup>(6): Passing a callback function is only available for DQN</sup></sup><br>
 
 ## Documentation
 
