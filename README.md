@@ -38,7 +38,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 
 ## Documentation
 
-Documentation is available online: [http://stable-baselines.readthedocs.io/](http://stable-baselines.readthedocs.io/)
+Documentation is available online: [https://stable-baselines.readthedocs.io/](https://stable-baselines.readthedocs.io/)
 
 ## Installation
 
@@ -65,7 +65,7 @@ Using pip from pypi:
 pip install stable-baselines
 ```
 
-Please read the [documentation](http://stable-baselines.readthedocs.io/) for more details and alternatives (from source, using docker).
+Please read the [documentation](https://stable-baselines.readthedocs.io/) for more details and alternatives (from source, using docker).
 
 
 ## Example
@@ -101,7 +101,7 @@ from stable_baselines import PPO2
 model = PPO2('MlpPolicy', 'CartPole-v1').learn(10000)
 ```
 
-Please read the [documentation](http://stable-baselines.readthedocs.io/) for more examples.
+Please read the [documentation](https://stable-baselines.readthedocs.io/) for more examples.
 
 
 ## Try it online with Colab Notebooks !
