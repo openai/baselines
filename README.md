@@ -1,3 +1,5 @@
+<img src="docs/\_static/img/logo.png" align="right" width="40%"/>
+
 [![Build Status](https://travis-ci.com/hill-a/stable-baselines.svg?branch=master)](https://travis-ci.com/hill-a/stable-baselines) [![Documentation Status](https://readthedocs.org/projects/stable-baselines/badge/?version=master)](https://stable-baselines.readthedocs.io/en/master/?badge=master) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=hill-a/stable-baselines&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/3bcb4cd6d76a4270acb16b5fe6dd9efa)](https://www.codacy.com/app/baselines_janitors/stable-baselines?utm_source=github.com&utm_medium=referral&utm_content=hill-a/stable-baselines&utm_campaign=Badge_Coverage)
 
 # Stable Baselines
@@ -27,16 +29,18 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 | Tensorboard support         | :heavy_check_mark:                | :heavy_minus_sign: <sup>(4)</sup> |
 | Ipython / Notebook friendly | :heavy_check_mark:                | :x:                               |
 | PEP8 code style             | :heavy_check_mark:                | :heavy_minus_sign: <sup>(5)</sup> |
+| Custom callback             | :heavy_check_mark:                | :heavy_minus_sign: <sup>(6)</sup> |
 
 <sup><sup>(1): Forked from previous version of OpenAI baselines, however missing refactoring for HER.</sup></sup><br>
 <sup><sup>(2): Currently not available for DDPG, and only from the run script. </sup></sup><br>
 <sup><sup>(3): Only via the run script.</sup></sup><br>
 <sup><sup>(4): Rudimentary logging of training information (no loss nor graph). </sup></sup><br>
 <sup><sup>(5): WIP on OpenAI's side (you can do it OpenAI! :cat:)</sup></sup><br>
+<sup><sup>(6): Passing a callback function is only available for DQN</sup></sup><br>
 
 ## Documentation
 
-Documentation is available online: [http://stable-baselines.readthedocs.io/](http://stable-baselines.readthedocs.io/)
+Documentation is available online: [https://stable-baselines.readthedocs.io/](https://stable-baselines.readthedocs.io/)
 
 ## Installation
 
@@ -63,7 +67,7 @@ Using pip from pypi:
 pip install stable-baselines
 ```
 
-Please read the [documentation](http://stable-baselines.readthedocs.io/) for more details and alternatives (from source, using docker).
+Please read the [documentation](https://stable-baselines.readthedocs.io/) for more details and alternatives (from source, using docker).
 
 
 ## Example
@@ -99,7 +103,7 @@ from stable_baselines import PPO2
 model = PPO2('MlpPolicy', 'CartPole-v1').learn(10000)
 ```
 
-Please read the [documentation](http://stable-baselines.readthedocs.io/) for more examples.
+Please read the [documentation](https://stable-baselines.readthedocs.io/) for more examples.
 
 
 ## Try it online with Colab Notebooks !
@@ -174,3 +178,9 @@ If you want to contribute, please open an issue first and then propose your pull
 Nice to have (for the future):
 - [ ] Continuous actions support for ACER
 - [ ] Continuous actions support for ACKTR
+
+## Acknowledgments
+
+Stable Baselines was created in the [robotics lab U2IS](http://u2is.ensta-paristech.fr/index.php?lang=en) ([INRIA Flowers](https://flowers.inria.fr/) team) at [ENSTA ParisTech](http://www.ensta-paristech.fr/en).
+
+Logo credits: L.M. Tenkes

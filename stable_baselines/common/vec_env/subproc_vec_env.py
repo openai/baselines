@@ -39,7 +39,7 @@ class SubprocVecEnv(VecEnv):
 
     :param env_fns: ([Gym Environment]) Environments to run in subprocesses
     """
-    
+
     def __init__(self, env_fns):
         self.waiting = False
         self.closed = False
@@ -87,8 +87,11 @@ class SubprocVecEnv(VecEnv):
 
     def render(self, mode='human', **kwargs):
         for pipe in self.remotes:
-            pipe.send(('render', kwargs))
+            # gather images from subprocesses
+            # `mode` will be taken into account later
+            pipe.send(('render', {'mode':'rgb_array', **kwargs}))
         imgs = [pipe.recv() for pipe in self.remotes]
+        # Create a big image by tiling images from subprocesses
         bigimg = tile_images(imgs)
         if mode == 'human':
             import cv2

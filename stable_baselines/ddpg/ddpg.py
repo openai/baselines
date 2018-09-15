@@ -837,7 +837,7 @@ class DDPG(BaseRLModel):
                             step = (int(t_train * (self.nb_rollout_steps / self.nb_train_steps)) +
                                     total_steps - self.nb_rollout_steps)
 
-                            critic_loss, actor_loss = self._train_step(t_train, writer, log=t_train == 0)
+                            critic_loss, actor_loss = self._train_step(step, writer, log=t_train == 0)
                             epoch_critic_losses.append(critic_loss)
                             epoch_actor_losses.append(actor_loss)
                             self._update_target_net()
@@ -929,7 +929,7 @@ class DDPG(BaseRLModel):
                             with open(os.path.join(logdir, 'eval_env_state.pkl'), 'wb') as file_handler:
                                 pickle.dump(self.eval_env.get_state(), file_handler)
 
-    def predict(self, observation, state=None, mask=None, deterministic=False):
+    def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation).reshape(self.observation_space.shape)
 
         action, _ = self._policy(observation, apply_noise=not deterministic, compute_q=False)
