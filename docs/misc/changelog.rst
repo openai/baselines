@@ -5,7 +5,7 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Master version 1.0.8.rc0 (TO BE RELEASED SOON)
+Master version 1.0.8.rc1 (TO BE RELEASED SOON)
 -----------------------------------------------
 
 **Tensorboard and bug fixes**
@@ -30,6 +30,7 @@ Master version 1.0.8.rc0 (TO BE RELEASED SOON)
 - fixed DummyVecEnv not copying the observation array when stepping and resetting
 - added pre-built docker images + installation instructions
 - added ``deterministic`` argument in the predict function
+- added assert in PPO2 for recurrent policies
 
 
 Release 1.0.7 (2018-08-29)
