@@ -21,7 +21,7 @@ def _worker(remote, parent_remote, env_fn_wrapper):
                 observation = env.reset()
                 remote.send(observation)
             elif cmd == 'render':
-                remote.send(env.render(**data))
+                remote.send(env.render(**data}))
             elif cmd == 'close':
                 remote.close()
                 break
@@ -87,7 +87,7 @@ class SubprocVecEnv(VecEnv):
 
     def render(self, mode='human', **kwargs):
         for pipe in self.remotes:
-            pipe.send(('render', kwargs))
+            pipe.send(('render', {'mode':'rgb_array', **kwargs}))
         imgs = [pipe.recv() for pipe in self.remotes]
         bigimg = tile_images(imgs)
         if mode == 'human':
