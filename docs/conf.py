@@ -108,6 +108,9 @@ if on_rtd:
 else:
     html_theme = 'sphinx_rtd_theme'
 
+html_logo = '_static/img/logo.png'
+
+
 def setup(app):
     app.add_stylesheet("css/baselines_theme.css")
 
