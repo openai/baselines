@@ -55,7 +55,6 @@ class IdentityEnvBox(IdentityEnv):
         super(IdentityEnvBox, self).__init__(1, ep_length)
         self.action_space = Box(low=low, high=high, shape=(1,), dtype=np.float32)
         self.observation_space = self.action_space
-        # TODO: test with epsilon instead of just pos/neg actions
         self.eps = eps
         self.reset()
 
@@ -75,7 +74,7 @@ class IdentityEnvBox(IdentityEnv):
         self.state = self.observation_space.sample()
 
     def _get_reward(self, action):
-        return 1 if action * self.state > 0 else 0
+        return 1 if (self.state - self.eps) <= action <= (self.state + self.eps) else 0
 
 
 class IdentityEnvMultiDiscrete(IdentityEnv):
