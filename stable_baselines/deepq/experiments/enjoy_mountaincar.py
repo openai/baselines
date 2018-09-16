@@ -2,7 +2,7 @@ import argparse
 
 import gym
 
-from stable_baselines.deepq import DeepQ
+from stable_baselines.deepq import DQN
 
 
 def main(args):
@@ -12,7 +12,7 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("MountainCar-v0")
-    model = DeepQ.load("mountaincar_model.pkl", env)
+    model = DQN.load("mountaincar_model.pkl", env)
 
     while True:
         obs, done = env.reset(), False

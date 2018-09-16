@@ -11,7 +11,7 @@ from stable_baselines.deepq.policies import DeepQPolicy
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 
 
-class DeepQ(BaseRLModel):
+class DQN(BaseRLModel):
     """
     The DQN model class. DQN paper: https://arxiv.org/pdf/1312.5602.pdf
 
@@ -51,8 +51,8 @@ class DeepQ(BaseRLModel):
                  prioritized_replay_eps=1e-6, param_noise=False, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
-        super(DeepQ, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DeepQPolicy,
-                                    requires_vec_env=False)
+        super(DQN, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DeepQPolicy,
+                                  requires_vec_env=False)
 
         self.checkpoint_path = checkpoint_path
         self.param_noise = param_noise
@@ -92,8 +92,8 @@ class DeepQ(BaseRLModel):
         with SetVerbosity(self.verbose):
 
             assert not isinstance(self.action_space, gym.spaces.Box), \
-                "Error: DeepQ cannot output a gym.spaces.Box action space."
-            assert issubclass(self.policy, DeepQPolicy), "Error: the input policy for the DeepQ model must be " \
+                "Error: DQN cannot output a gym.spaces.Box action space."
+            assert issubclass(self.policy, DeepQPolicy), "Error: the input policy for the DQN model must be " \
                                                          "an instance of DeepQPolicy."
 
             self.graph = tf.Graph()
@@ -121,7 +121,7 @@ class DeepQ(BaseRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DeepQ"):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DQN"):
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
