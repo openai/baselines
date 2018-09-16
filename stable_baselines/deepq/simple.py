@@ -239,23 +239,28 @@ class DeepQ(BaseRLModel):
         return self
 
     def predict(self, observation, state=None, mask=None, deterministic=False):
-        observation = np.array(observation).reshape(self.observation_space.shape)
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
+        observation = observation.reshape((-1,) + self.observation_space.shape)
         with self.sess.as_default():
-            action = self.act(observation[None], stochastic=not deterministic)[0]
+            actions = self.act(observation, stochastic=not deterministic)
 
-        if self._vectorize_action:
-            return np.array([action]), np.array([None])
-        else:
-            return action, None
+        if not vectorized_env:
+            actions = actions[0]
+
+        return actions, None
 
     def action_probability(self, observation, state=None, mask=None):
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
 
         # Get the tensor just before the softmax function in the TensorFlow graph,
         # then execute the graph from the input observation to this tensor.
         tensor = self.graph.get_tensor_by_name('deepq/q_func/fully_connected_2/BiasAdd:0')
-        if self._vectorize_action:
+        if vectorized_env:
             return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))
         else:
             return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))[0]

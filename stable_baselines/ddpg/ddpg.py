@@ -541,10 +541,11 @@ class DDPG(BaseRLModel):
         :param compute_q: (bool) compute the critic output
         :return: ([float], float) the action and critic value
         """
-        feed_dict = {self.obs_train: [obs]}
+        obs = np.array(obs).reshape((-1,) + self.observation_space.shape)
+        feed_dict = {self.obs_train: obs}
         if self.param_noise is not None and apply_noise:
             actor_tf = self.perturbed_actor_tf
-            feed_dict[self.obs_noise] = [obs]
+            feed_dict[self.obs_noise] = obs
         else:
             actor_tf = self.actor_tf
 
@@ -930,18 +931,26 @@ class DDPG(BaseRLModel):
                                 pickle.dump(self.eval_env.get_state(), file_handler)
 
     def predict(self, observation, state=None, mask=None, deterministic=True):
-        observation = np.array(observation).reshape(self.observation_space.shape)
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
-        action, _ = self._policy(observation, apply_noise=not deterministic, compute_q=False)
-        action = action * np.abs(self.action_space.low)  # scale the output for the prediction
-        if self._vectorize_action:
-            return np.array([action]), np.array([None])
-        else:
-            return action, None
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions, _, = self._policy(observation, apply_noise=not deterministic, compute_q=False)
+        actions = actions * np.abs(self.action_space.low)  # scale the output for the prediction
+
+        if not vectorized_env:
+            actions = actions[0]
+
+        return actions, None
 
     def action_probability(self, observation, state=None, mask=None):
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+
         # here there are no action probabilities, as DDPG is continuous
-        if self._vectorize_action:
+        if vectorized_env:
             return self.sess.run(self.policy_tf.policy_proba, feed_dict={self.obs_train: observation})
         else:
             return self.sess.run(self.policy_tf.policy_proba, feed_dict={self.obs_train: observation})[0]

@@ -523,10 +523,17 @@ class ACER(BaseRLModel):
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
-
+        observation = observation.reshape((-1,) + self.observation_space.shape)
         actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
+
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            actions = actions[0]
+
         return actions, states
 
     def action_probability(self, observation, state=None, mask=None):
@@ -534,10 +541,18 @@ class ACER(BaseRLModel):
             state = self.initial_state
         if mask is None:
             mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions_proba = self.proba_step(observation, state, mask)
 
-        return self.proba_step(observation, state, mask)
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            actions_proba = actions_proba[0]
+
+        return actions_proba
 
     def save(self, save_path):
         data = {
