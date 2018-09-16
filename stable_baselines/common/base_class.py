@@ -233,6 +233,14 @@ class BaseRLModel(ABC):
 
     @staticmethod
     def _is_vectorized_observation(observation, observation_space):
+        """
+        For every observation type, detects and validates the shape,
+        then returns whether or not the observation is vectorized.
+
+        :param observation: (np.ndarray) the input observation to validate
+        :param observation_space: (gym.spaces) the observation space
+        :return: (bool) whether the given observation is vectorized or not
+        """
         if isinstance(observation_space, gym.spaces.Box):
             if observation.shape == observation_space.shape:
                 return False
