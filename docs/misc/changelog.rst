@@ -35,8 +35,10 @@ Master version 2.0.0.rc0 (TO BE RELEASED SOON)
 - added input check to the predict function
 - changed DeepQ to DQN **breaking changes**
 - changed DeepQPolicy to DQNPolicy **breaking changes**
-- Refactored ActorCritic models to reduce code duplication
-- Refactored Off Policy models (to begin HER and replay_buffer refactoring)
+- refactored ActorCritic models to reduce code duplication
+- refactored Off Policy models (to begin HER and replay_buffer refactoring)
+- added tests for auto vectorization detection
+- fixed render function, to handle positional arguments
 
 
 Release 1.0.7 (2018-08-29)
