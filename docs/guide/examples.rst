@@ -40,7 +40,7 @@ In the following example, we will train, save and load an A2C model on the Lunar
 
 .. note::
   LunarLander requires the python package `box2d`.
-  You can install it using ``apt install swing`` and then ``pip install box2d box2d-kengz``
+  You can install it using ``apt install swig`` and then ``pip install box2d box2d-kengz``
 
 .. code-block:: python
 
