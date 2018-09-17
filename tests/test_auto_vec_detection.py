@@ -11,6 +11,7 @@ from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox, Id
 @pytest.mark.parametrize("model_class", [A2C, ACER, ACKTR, DQN, PPO1, PPO2, TRPO])
 def test_identity(model_class):
     """
+    test the Disrete environment vectorisation detection
 
     :param model_class: (BaseRLModel) the RL model
     """
@@ -35,6 +36,7 @@ def test_identity(model_class):
 @pytest.mark.parametrize("model_class", [A2C, DDPG, PPO1, PPO2, TRPO])
 def test_identity_box(model_class):
     """
+    test the Box environment vectorisation detection
 
     :param model_class: (BaseRLModel) the RL model
     """
@@ -59,6 +61,7 @@ def test_identity_box(model_class):
 @pytest.mark.parametrize("model_class", [A2C, PPO1, PPO2, TRPO])
 def test_identity_multi_binary(model_class):
     """
+    test the MultiBinary environment vectorisation detection
 
     :param model_class: (BaseRLModel) the RL model
     """
@@ -83,6 +86,7 @@ def test_identity_multi_binary(model_class):
 @pytest.mark.parametrize("model_class", [A2C, PPO1, PPO2, TRPO])
 def test_identity_multi_discrete(model_class):
     """
+    test the MultiDiscrete environment vectorisation detection
 
     :param model_class: (BaseRLModel) the RL model
     """
