@@ -18,7 +18,7 @@ def train(env_id, num_timesteps, seed):
         logger.configure()
     else:
         logger.configure(format_strs=[])
-    workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
+    workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank() if seed is not None else None
     set_global_seeds(workerseed)
     env = make_atari(env_id)
     def policy_fn(name, ob_space, ac_space): #pylint: disable=W0613

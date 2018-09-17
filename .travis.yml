@@ -10,5 +10,5 @@ install:
     - docker build . -t baselines-test
 
 script:
-    - flake8 --select=F baselines/common
-    - docker run baselines-test pytest
+    - flake8 .
+    - docker run baselines-test pytest -v .

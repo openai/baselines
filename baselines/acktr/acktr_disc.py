@@ -1,16 +1,17 @@
 import os.path as osp
 import time
-import joblib
+import functools
 import numpy as np
 import tensorflow as tf
 from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
+from baselines.common.policies import build_policy
+from baselines.common.tf_util import get_session, save_variables, load_variables
 
-from baselines.a2c.a2c import Runner
+from baselines.a2c.runner import Runner
 from baselines.a2c.utils import discount_with_dones
 from baselines.a2c.utils import Scheduler, find_trainable_variables
-from baselines.a2c.utils import cat_entropy, mse
 from baselines.acktr import kfac
 
 
@@ -19,11 +20,8 @@ class Model(object):
     def __init__(self, policy, ob_space, ac_space, nenvs,total_timesteps, nprocs=32, nsteps=20,
                  ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
                  kfac_clip=0.001, lrschedule='linear'):
-        config = tf.ConfigProto(allow_soft_placement=True,
-                                intra_op_parallelism_threads=nprocs,
-                                inter_op_parallelism_threads=nprocs)
-        config.gpu_options.allow_growth = True
-        self.sess = sess = tf.Session(config=config)
+
+        self.sess = sess = get_session()
         nact = ac_space.n
         nbatch = nenvs * nsteps
         A = tf.placeholder(tf.int32, [nbatch])
@@ -32,34 +30,35 @@ class Model(object):
         PG_LR = tf.placeholder(tf.float32, [])
         VF_LR = tf.placeholder(tf.float32, [])
 
-        self.model = step_model = policy(sess, ob_space, ac_space, nenvs, 1, reuse=False)
-        self.model2 = train_model = policy(sess, ob_space, ac_space, nenvs*nsteps, nsteps, reuse=True)
+        with tf.variable_scope('acktr_model', reuse=tf.AUTO_REUSE):
+            self.model = step_model = policy(nenvs, 1, sess=sess)
+            self.model2 = train_model = policy(nenvs*nsteps, nsteps, sess=sess)
 
-        logpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=A)
+        neglogpac = train_model.pd.neglogp(A)
         self.logits = logits = train_model.pi
 
         ##training loss
-        pg_loss = tf.reduce_mean(ADV*logpac)
-        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
+        pg_loss = tf.reduce_mean(ADV*neglogpac)
+        entropy = tf.reduce_mean(train_model.pd.entropy())
         pg_loss = pg_loss - ent_coef * entropy
-        vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), R))
+        vf_loss = tf.losses.mean_squared_error(tf.squeeze(train_model.vf), R)
         train_loss = pg_loss + vf_coef * vf_loss
 
 
         ##Fisher loss construction
-        self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(logpac)
+        self.pg_fisher = pg_fisher_loss = -tf.reduce_mean(neglogpac)
         sample_net = train_model.vf + tf.random_normal(tf.shape(train_model.vf))
         self.vf_fisher = vf_fisher_loss = - vf_fisher_coef*tf.reduce_mean(tf.pow(train_model.vf - tf.stop_gradient(sample_net), 2))
         self.joint_fisher = joint_fisher_loss = pg_fisher_loss + vf_fisher_loss
 
-        self.params=params = find_trainable_variables("model")
+        self.params=params = find_trainable_variables("acktr_model")
 
         self.grads_check = grads = tf.gradients(train_loss,params)
 
         with tf.device('/gpu:0'):
             self.optim = optim = kfac.KfacOptimizer(learning_rate=PG_LR, clip_kl=kfac_clip,\
                 momentum=0.9, kfac_update=1, epsilon=0.01,\
-                stats_decay=0.99, async=1, cold_iter=10, max_grad_norm=max_grad_norm)
+                stats_decay=0.99, async_=1, cold_iter=10, max_grad_norm=max_grad_norm)
 
             update_stats_op = optim.compute_and_apply_stats(joint_fisher_loss, var_list=params)
             train_op, q_runner = optim.apply_gradients(list(zip(grads,params)))
@@ -82,22 +81,10 @@ class Model(object):
             )
             return policy_loss, value_loss, policy_entropy
 
-        def save(save_path):
-            ps = sess.run(params)
-            joblib.dump(ps, save_path)
-
-        def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
-
-
 
         self.train = train
-        self.save = save
-        self.load = load
+        self.save = functools.partial(save_variables, sess=sess)
+        self.load = functools.partial(load_variables, sess=sess)
         self.train_model = train_model
         self.step_model = step_model
         self.step = step_model.step
@@ -105,11 +92,16 @@ class Model(object):
         self.initial_state = step_model.initial_state
         tf.global_variables_initializer().run(session=sess)
 
-def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
+def learn(network, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval=1, nprocs=32, nsteps=20,
                  ent_coef=0.01, vf_coef=0.5, vf_fisher_coef=1.0, lr=0.25, max_grad_norm=0.5,
-                 kfac_clip=0.001, save_interval=None, lrschedule='linear'):
-    tf.reset_default_graph()
+                 kfac_clip=0.001, save_interval=None, lrschedule='linear', load_path=None, **network_kwargs):
     set_global_seeds(seed)
+
+
+    if network == 'cnn':
+        network_kwargs['one_dim_bias'] = True
+
+    policy = build_policy(env, network, **network_kwargs)
 
     nenvs = env.num_envs
     ob_space = env.observation_space
@@ -123,6 +115,9 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
+
+    if load_path is not None:
+        model.load(load_path)
 
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
     nbatch = nenvs*nsteps
@@ -152,4 +147,4 @@ def learn(policy, env, seed, total_timesteps=int(40e6), gamma=0.99, log_interval
             model.save(savepath)
     coord.request_stop()
     coord.join(enqueue_threads)
-    env.close()
+    return model
