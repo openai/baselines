@@ -134,7 +134,7 @@ def learn(env, policy, vf, gamma, lam, timesteps_per_batch, num_timesteps,
         logger.record_tabular("EpLenMean", np.mean([pathlength(path) for path in paths]))
         logger.record_tabular("KL", kl)
         if callback:
-            callback()
+            callback(locals(), globals())
         logger.dump_tabular()
         i += 1
 
