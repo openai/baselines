@@ -26,8 +26,6 @@ class BaseRLModel(ABC):
     """
 
     def __init__(self, policy, env, verbose=0, *, requires_vec_env, policy_base):
-        super(BaseRLModel, self).__init__()
-
         if isinstance(policy, str):
             self.policy = get_policy_from_name(policy_base, policy)
         else:
@@ -383,8 +381,8 @@ class OffPolicyRLModel(BaseRLModel):
     """
 
     def __init__(self, policy, env, replay_buffer, verbose=0, *, requires_vec_env, policy_base):
-        super(BaseRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
-                                          policy_base=policy_base)
+        super(OffPolicyRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
+                                               policy_base=policy_base)
 
         self.replay_buffer = replay_buffer
 

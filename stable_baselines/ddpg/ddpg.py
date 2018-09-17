@@ -937,6 +937,7 @@ class DDPG(OffPolicyRLModel):
 
         observation = observation.reshape((-1,) + self.observation_space.shape)
         actions, _, = self._policy(observation, apply_noise=not deterministic, compute_q=False)
+        actions = actions.reshape((-1,) + self.action_space.shape)  # reshape to the correct action shape
         actions = actions * np.abs(self.action_space.low)  # scale the output for the prediction
 
         if not vectorized_env:
