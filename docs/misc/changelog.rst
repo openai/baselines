@@ -8,7 +8,7 @@ For download links, please look at `Github release page <https://github.com/hill
 Master version 1.0.8.rc1 (TO BE RELEASED SOON)
 -----------------------------------------------
 
-**Tensorboard and bug fixes**
+**Tensorboard, refactoring and bug fixes**
 
 - added more documentation (some modules from common).
 - added doc about using custom env
@@ -35,6 +35,8 @@ Master version 1.0.8.rc1 (TO BE RELEASED SOON)
 - added input check to the predict function
 - changed DeepQ to DQN **breaking changes**
 - changed DeepQPolicy to DQNPolicy **breaking changes**
+- Refactored ActorCritic models to reduce code duplication
+- Refactored Off Policy models (to begin HER and replay_buffer refactoring)
 
 
 Release 1.0.7 (2018-08-29)
