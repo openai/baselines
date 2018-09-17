@@ -8,7 +8,7 @@ import gym
 import tensorflow as tf
 
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.policies import LstmPolicy, get_policy_from_name
+from stable_baselines.common.policies import LstmPolicy, get_policy_from_name, ActorCriticPolicy
 from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
 from stable_baselines import logger
 
@@ -17,11 +17,11 @@ class BaseRLModel(ABC):
     """
     The base RL model
 
-    :param policy: (Object) Policy object
+    :param policy: (BasePolicy) Policy object
     :param env: (Gym environment) The environment to learn from
                 (if registered in Gym, can be str. Can be None for loading trained models)
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    :param requires_vec_env: (bool)
+    :param requires_vec_env: (bool) Does this model require a vectorized environment
     :param policy_base: (BasePolicy) the base policy used by this method
     """
 
@@ -279,6 +279,94 @@ class BaseRLModel(ABC):
         else:
             raise ValueError("Error: Cannot determine if the observation is vectorized with the space type {}."
                              .format(observation_space))
+
+
+class ActorCriticRLModel(BaseRLModel):
+    """
+    The base class for Actor critic model
+
+    :param policy: (BasePolicy) Policy object
+    :param env: (Gym environment) The environment to learn from
+                (if registered in Gym, can be str. Can be None for loading trained models)
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param policy_base: (BasePolicy) the base policy used by this method (default=ActorCriticPolicy)
+    :param requires_vec_env: (bool) Does this model require a vectorized environment
+    """
+    def __init__(self, policy, env, _init_setup_model, verbose=0, policy_base=ActorCriticPolicy,
+                 requires_vec_env=False):
+        super(ActorCriticRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
+                                                 policy_base=policy_base)
+
+        self.sess = None
+        self.initial_state = None
+        self.step = None
+        self.proba_step = None
+        self.params = None
+
+    @abstractmethod
+    def setup_model(self):
+        pass
+
+    @abstractmethod
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="run"):
+        pass
+
+    def predict(self, observation, state=None, mask=None, deterministic=False):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
+
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            actions = actions[0]
+
+        return actions, states
+
+    def action_probability(self, observation, state=None, mask=None):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions_proba = self.proba_step(observation, state, mask)
+
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            actions_proba = actions_proba[0]
+
+        return actions_proba
+
+    @abstractmethod
+    def save(self, save_path):
+        pass
+
+    @classmethod
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
+
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
+        model.__dict__.update(data)
+        model.__dict__.update(kwargs)
+        model.set_env(env)
+        model.setup_model()
+
+        restores = []
+        for param, loaded_p in zip(model.params, params):
+            restores.append(param.assign(loaded_p))
+        model.sess.run(restores)
+
+        return model
 
 
 class _UnvecWrapper(VecEnvWrapper):

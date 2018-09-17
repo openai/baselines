@@ -33,7 +33,8 @@ Master version 1.0.8.rc1 (TO BE RELEASED SOON)
 - added assert in PPO2 for recurrent policies
 - fixed predict function to handle both vectorized and unwrapped environment
 - added input check to the predict function
-- changed DeepQ to DQN
+- changed DeepQ to DQN **breaking changes**
+- changed DeepQPolicy to DQNPolicy **breaking changes**
 
 
 Release 1.0.7 (2018-08-29)

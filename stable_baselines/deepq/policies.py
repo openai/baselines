@@ -7,7 +7,7 @@ from stable_baselines.common.distributions import make_proba_dist_type
 from stable_baselines.common.policies import BasePolicy, nature_cnn, register_policy
 
 
-class DeepQPolicy(BasePolicy):
+class DQNPolicy(BasePolicy):
     """
     Policy object that implements a DQN policy
 
@@ -27,8 +27,8 @@ class DeepQPolicy(BasePolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False,
                  obs_phs=None):
         # DQN policies need an override for the obs placeholder, due to the architecture of the code
-        super(DeepQPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
-                                          scale=scale, obs_phs=obs_phs)
+        super(DQNPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
+                                        scale=scale, obs_phs=obs_phs)
         assert not isinstance(ac_space, Box), "Error: the action space cannot be of type gym.spaces.Box"
         self.pdtype = make_proba_dist_type(ac_space)
         self.value_fn = None
@@ -78,7 +78,7 @@ class DeepQPolicy(BasePolicy):
         raise NotImplementedError
 
 
-class FeedForwardPolicy(DeepQPolicy):
+class FeedForwardPolicy(DQNPolicy):
     """
     Policy object that implements a DQN policy, using a feed forward neural network.
 
