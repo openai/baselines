@@ -434,7 +434,7 @@ class _UnvecWrapper(VecEnvWrapper):
         return actions[0], float(values[0]), states[0], information[0]
 
     def render(self, mode='human'):
-        return self.venv.render(mode)[0]
+        return self.venv.render(mode=mode)
 
 
 class SetVerbosity:
