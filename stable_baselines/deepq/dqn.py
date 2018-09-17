@@ -3,7 +3,7 @@ import numpy as np
 import gym
 
 from stable_baselines import logger, deepq
-from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
+from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
@@ -11,7 +11,7 @@ from stable_baselines.deepq.policies import DQNPolicy
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 
 
-class DQN(BaseRLModel):
+class DQN(OffPolicyRLModel):
     """
     The DQN model class. DQN paper: https://arxiv.org/pdf/1312.5602.pdf
 
@@ -51,7 +51,8 @@ class DQN(BaseRLModel):
                  prioritized_replay_eps=1e-6, param_noise=False, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
-        super(DQN, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DQNPolicy,
+        # TODO: replay_buffer refactoring
+        super(DQN, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DQNPolicy,
                                   requires_vec_env=False)
 
         self.checkpoint_path = checkpoint_path

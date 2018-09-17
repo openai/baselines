@@ -369,6 +369,51 @@ class ActorCriticRLModel(BaseRLModel):
         return model
 
 
+class OffPolicyRLModel(BaseRLModel):
+    """
+    The base class for off policy RL model
+
+    :param policy: (BasePolicy) Policy object
+    :param env: (Gym environment) The environment to learn from
+                (if registered in Gym, can be str. Can be None for loading trained models)
+    :param replay_buffer: (ReplayBuffer) the type of replay buffer
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param requires_vec_env: (bool) Does this model require a vectorized environment
+    :param policy_base: (BasePolicy) the base policy used by this method
+    """
+
+    def __init__(self, policy, env, replay_buffer, verbose=0, *, requires_vec_env, policy_base):
+        super(BaseRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
+                                          policy_base=policy_base)
+
+        self.replay_buffer = replay_buffer
+
+    @abstractmethod
+    def setup_model(self):
+        pass
+
+    @abstractmethod
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="run"):
+        pass
+
+    @abstractmethod
+    def predict(self, observation, state=None, mask=None, deterministic=False):
+        pass
+
+    @abstractmethod
+    def action_probability(self, observation, state=None, mask=None):
+        pass
+
+    @abstractmethod
+    def save(self, save_path):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def load(cls, load_path, env=None, **kwargs):
+        pass
+
+
 class _UnvecWrapper(VecEnvWrapper):
     def __init__(self, venv):
         """

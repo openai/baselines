@@ -11,7 +11,7 @@ import tensorflow.contrib as tc
 from mpi4py import MPI
 
 from stable_baselines import logger
-from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
+from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.ddpg.policies import DDPGPolicy
@@ -130,7 +130,7 @@ def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev, verb
     return tf.group(*updates)
 
 
-class DDPG(BaseRLModel):
+class DDPG(OffPolicyRLModel):
     """
     Deep Deterministic Policy Gradient (DDPG) model
 
@@ -176,7 +176,8 @@ class DDPG(BaseRLModel):
                  render=False, render_eval=False, memory_limit=100, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
-        super(DDPG, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DDPGPolicy,
+        # TODO: replay_buffer refactoring
+        super(DDPG, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DDPGPolicy,
                                    requires_vec_env=False)
 
         # Parameters.
