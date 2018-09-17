@@ -247,7 +247,8 @@ class BaseRLModel(ABC):
             else:
                 raise ValueError("Error: Unexpected observation shape {} for ".format(observation.shape) +
                                  "Box environment, please use {} ".format(observation_space.shape) +
-                                 "or {} for the observation shape.".format((-1,) + observation_space.shape))
+                                 "or (n_env, {}) for the observation shape."
+                                 .format(", ".join(map(str, observation_space.shape))))
         elif isinstance(observation_space, gym.spaces.Discrete):
             if observation.shape == ():  # A numpy array of a number, has shape empty tuple '()'
                 return False
@@ -255,7 +256,7 @@ class BaseRLModel(ABC):
                 return True
             else:
                 raise ValueError("Error: Unexpected observation shape {} for ".format(observation.shape) +
-                                 "Discrete environment, please use (1,) or (-1, 1) for the observation shape.")
+                                 "Discrete environment, please use (1,) or (n_env, 1) for the observation shape.")
         elif isinstance(observation_space, gym.spaces.MultiDiscrete):
             if observation.shape == (len(observation_space.nvec),):
                 return False
@@ -264,7 +265,7 @@ class BaseRLModel(ABC):
             else:
                 raise ValueError("Error: Unexpected observation shape {} for MultiDiscrete ".format(observation.shape) +
                                  "environment, please use ({},) or ".format(len(observation_space.nvec)) +
-                                 "(-1, {}) for the observation shape.".format(len(observation_space.nvec)))
+                                 "(n_env, {}) for the observation shape.".format(len(observation_space.nvec)))
         elif isinstance(observation_space, gym.spaces.MultiBinary):
             if observation.shape == (observation_space.n,):
                 return False
@@ -273,7 +274,7 @@ class BaseRLModel(ABC):
             else:
                 raise ValueError("Error: Unexpected observation shape {} for MultiBinary ".format(observation.shape) +
                                  "environment, please use ({},) or ".format(observation_space.n) +
-                                 "(-1, {}) for the observation shape.".format(observation_space.n))
+                                 "(n_env, {}) for the observation shape.".format(observation_space.n))
         else:
             raise ValueError("Error: Cannot determine if the observation is vectorized with the space type {}."
                              .format(observation_space))

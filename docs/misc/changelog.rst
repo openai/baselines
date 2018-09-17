@@ -5,7 +5,7 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Master version 1.0.8.rc1 (TO BE RELEASED SOON)
+Master version 2.0.0.rc0 (TO BE RELEASED SOON)
 -----------------------------------------------
 
 **Tensorboard, refactoring and bug fixes**
