@@ -2,7 +2,8 @@ import argparse
 
 import gym
 
-from stable_baselines.deepq import DeepQ
+from stable_baselines.deepq import DQN
+
 
 def main(args):
     """
@@ -11,7 +12,7 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("CartPole-v0")
-    model = DeepQ.load("cartpole_model.pkl", env)
+    model = DQN.load("cartpole_model.pkl", env)
 
     while True:
         obs, done = env.reset(), False

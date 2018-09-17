@@ -63,11 +63,11 @@ class DummyVecEnv(VecEnv):
     def get_images(self):
         return [env.render(mode='rgb_array') for env in self.envs]
 
-    def render(self, **kwargs):
+    def render(self, *args, **kwargs):
         if self.num_envs == 1:
-            return self.envs[0].render(**kwargs)
+            return self.envs[0].render(*args, **kwargs)
         else:
-            return super().render(**kwargs)
+            return super().render(*args, **kwargs)
 
     def _save_obs(self, env_idx, obs):
         for key in self.keys:

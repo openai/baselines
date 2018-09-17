@@ -99,7 +99,7 @@ class VecEnv(ABC):
         """
         raise NotImplementedError
 
-    def render(self, **kwargs):
+    def render(self, *args, **kwargs):
         """
         Gym environment rendering
 
@@ -143,8 +143,8 @@ class VecEnvWrapper(VecEnv):
     def close(self):
         return self.venv.close()
 
-    def render(self, **kwargs):
-        return self.venv.render(**kwargs)
+    def render(self, *args, **kwargs):
+        return self.venv.render(*args, **kwargs)
 
     def get_images(self):
         return self.venv.get_images()

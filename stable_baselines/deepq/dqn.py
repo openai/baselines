@@ -3,15 +3,15 @@ import numpy as np
 import gym
 
 from stable_baselines import logger, deepq
-from stable_baselines.common import tf_util, BaseRLModel, SetVerbosity, TensorboardWriter
+from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from stable_baselines.deepq.policies import DeepQPolicy
+from stable_baselines.deepq.policies import DQNPolicy
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 
 
-class DeepQ(BaseRLModel):
+class DQN(OffPolicyRLModel):
     """
     The DQN model class. DQN paper: https://arxiv.org/pdf/1312.5602.pdf
 
@@ -51,8 +51,9 @@ class DeepQ(BaseRLModel):
                  prioritized_replay_eps=1e-6, param_noise=False, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
 
-        super(DeepQ, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=DeepQPolicy,
-                                    requires_vec_env=False)
+        # TODO: replay_buffer refactoring
+        super(DQN, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DQNPolicy,
+                                  requires_vec_env=False)
 
         self.checkpoint_path = checkpoint_path
         self.param_noise = param_noise
@@ -92,9 +93,9 @@ class DeepQ(BaseRLModel):
         with SetVerbosity(self.verbose):
 
             assert not isinstance(self.action_space, gym.spaces.Box), \
-                "Error: DeepQ cannot output a gym.spaces.Box action space."
-            assert issubclass(self.policy, DeepQPolicy), "Error: the input policy for the DeepQ model must be " \
-                                                         "an instance of DeepQPolicy."
+                "Error: DQN cannot output a gym.spaces.Box action space."
+            assert issubclass(self.policy, DQNPolicy), "Error: the input policy for the DQN model must be " \
+                                                       "an instance of DQNPolicy."
 
             self.graph = tf.Graph()
             with self.graph.as_default():
@@ -121,7 +122,7 @@ class DeepQ(BaseRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DeepQ"):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DQN"):
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
@@ -239,23 +240,28 @@ class DeepQ(BaseRLModel):
         return self
 
     def predict(self, observation, state=None, mask=None, deterministic=False):
-        observation = np.array(observation).reshape(self.observation_space.shape)
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
+        observation = observation.reshape((-1,) + self.observation_space.shape)
         with self.sess.as_default():
-            action = self.act(observation[None], stochastic=not deterministic)[0]
+            actions = self.act(observation, stochastic=not deterministic)
 
-        if self._vectorize_action:
-            return np.array([action]), np.array([None])
-        else:
-            return action, None
+        if not vectorized_env:
+            actions = actions[0]
+
+        return actions, None
 
     def action_probability(self, observation, state=None, mask=None):
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
 
         # Get the tensor just before the softmax function in the TensorFlow graph,
         # then execute the graph from the input observation to this tensor.
         tensor = self.graph.get_tensor_by_name('deepq/q_func/fully_connected_2/BiasAdd:0')
-        if self._vectorize_action:
+        if vectorized_env:
             return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))
         else:
             return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))[0]

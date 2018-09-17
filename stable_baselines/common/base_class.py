@@ -8,7 +8,7 @@ import gym
 import tensorflow as tf
 
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.policies import LstmPolicy, get_policy_from_name
+from stable_baselines.common.policies import LstmPolicy, get_policy_from_name, ActorCriticPolicy
 from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
 from stable_baselines import logger
 
@@ -17,17 +17,15 @@ class BaseRLModel(ABC):
     """
     The base RL model
 
-    :param policy: (Object) Policy object
+    :param policy: (BasePolicy) Policy object
     :param env: (Gym environment) The environment to learn from
                 (if registered in Gym, can be str. Can be None for loading trained models)
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-    :param requires_vec_env: (bool)
+    :param requires_vec_env: (bool) Does this model require a vectorized environment
     :param policy_base: (BasePolicy) the base policy used by this method
     """
 
     def __init__(self, policy, env, verbose=0, *, requires_vec_env, policy_base):
-        super(BaseRLModel, self).__init__()
-
         if isinstance(policy, str):
             self.policy = get_policy_from_name(policy_base, policy)
         else:
@@ -231,6 +229,189 @@ class BaseRLModel(ABC):
         x_exp = np.exp(x_input.T - np.max(x_input.T, axis=0))
         return (x_exp / x_exp.sum(axis=0)).T
 
+    @staticmethod
+    def _is_vectorized_observation(observation, observation_space):
+        """
+        For every observation type, detects and validates the shape,
+        then returns whether or not the observation is vectorized.
+
+        :param observation: (np.ndarray) the input observation to validate
+        :param observation_space: (gym.spaces) the observation space
+        :return: (bool) whether the given observation is vectorized or not
+        """
+        if isinstance(observation_space, gym.spaces.Box):
+            if observation.shape == observation_space.shape:
+                return False
+            elif observation.shape[1:] == observation_space.shape:
+                return True
+            else:
+                raise ValueError("Error: Unexpected observation shape {} for ".format(observation.shape) +
+                                 "Box environment, please use {} ".format(observation_space.shape) +
+                                 "or (n_env, {}) for the observation shape."
+                                 .format(", ".join(map(str, observation_space.shape))))
+        elif isinstance(observation_space, gym.spaces.Discrete):
+            if observation.shape == ():  # A numpy array of a number, has shape empty tuple '()'
+                return False
+            elif len(observation.shape) == 1:
+                return True
+            else:
+                raise ValueError("Error: Unexpected observation shape {} for ".format(observation.shape) +
+                                 "Discrete environment, please use (1,) or (n_env, 1) for the observation shape.")
+        elif isinstance(observation_space, gym.spaces.MultiDiscrete):
+            if observation.shape == (len(observation_space.nvec),):
+                return False
+            elif len(observation.shape) == 2 and observation.shape[1] == len(observation_space.nvec):
+                return True
+            else:
+                raise ValueError("Error: Unexpected observation shape {} for MultiDiscrete ".format(observation.shape) +
+                                 "environment, please use ({},) or ".format(len(observation_space.nvec)) +
+                                 "(n_env, {}) for the observation shape.".format(len(observation_space.nvec)))
+        elif isinstance(observation_space, gym.spaces.MultiBinary):
+            if observation.shape == (observation_space.n,):
+                return False
+            elif len(observation.shape) == 2 and observation.shape[1] == observation_space.n:
+                return True
+            else:
+                raise ValueError("Error: Unexpected observation shape {} for MultiBinary ".format(observation.shape) +
+                                 "environment, please use ({},) or ".format(observation_space.n) +
+                                 "(n_env, {}) for the observation shape.".format(observation_space.n))
+        else:
+            raise ValueError("Error: Cannot determine if the observation is vectorized with the space type {}."
+                             .format(observation_space))
+
+
+class ActorCriticRLModel(BaseRLModel):
+    """
+    The base class for Actor critic model
+
+    :param policy: (BasePolicy) Policy object
+    :param env: (Gym environment) The environment to learn from
+                (if registered in Gym, can be str. Can be None for loading trained models)
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param policy_base: (BasePolicy) the base policy used by this method (default=ActorCriticPolicy)
+    :param requires_vec_env: (bool) Does this model require a vectorized environment
+    """
+    def __init__(self, policy, env, _init_setup_model, verbose=0, policy_base=ActorCriticPolicy,
+                 requires_vec_env=False):
+        super(ActorCriticRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
+                                                 policy_base=policy_base)
+
+        self.sess = None
+        self.initial_state = None
+        self.step = None
+        self.proba_step = None
+        self.params = None
+
+    @abstractmethod
+    def setup_model(self):
+        pass
+
+    @abstractmethod
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="run"):
+        pass
+
+    def predict(self, observation, state=None, mask=None, deterministic=False):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
+
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            actions = actions[0]
+
+        return actions, states
+
+    def action_probability(self, observation, state=None, mask=None):
+        if state is None:
+            state = self.initial_state
+        if mask is None:
+            mask = [False for _ in range(self.n_envs)]
+        observation = np.array(observation)
+        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
+
+        observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions_proba = self.proba_step(observation, state, mask)
+
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            actions_proba = actions_proba[0]
+
+        return actions_proba
+
+    @abstractmethod
+    def save(self, save_path):
+        pass
+
+    @classmethod
+    def load(cls, load_path, env=None, **kwargs):
+        data, params = cls._load_from_file(load_path)
+
+        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
+        model.__dict__.update(data)
+        model.__dict__.update(kwargs)
+        model.set_env(env)
+        model.setup_model()
+
+        restores = []
+        for param, loaded_p in zip(model.params, params):
+            restores.append(param.assign(loaded_p))
+        model.sess.run(restores)
+
+        return model
+
+
+class OffPolicyRLModel(BaseRLModel):
+    """
+    The base class for off policy RL model
+
+    :param policy: (BasePolicy) Policy object
+    :param env: (Gym environment) The environment to learn from
+                (if registered in Gym, can be str. Can be None for loading trained models)
+    :param replay_buffer: (ReplayBuffer) the type of replay buffer
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param requires_vec_env: (bool) Does this model require a vectorized environment
+    :param policy_base: (BasePolicy) the base policy used by this method
+    """
+
+    def __init__(self, policy, env, replay_buffer, verbose=0, *, requires_vec_env, policy_base):
+        super(OffPolicyRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
+                                               policy_base=policy_base)
+
+        self.replay_buffer = replay_buffer
+
+    @abstractmethod
+    def setup_model(self):
+        pass
+
+    @abstractmethod
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="run"):
+        pass
+
+    @abstractmethod
+    def predict(self, observation, state=None, mask=None, deterministic=False):
+        pass
+
+    @abstractmethod
+    def action_probability(self, observation, state=None, mask=None):
+        pass
+
+    @abstractmethod
+    def save(self, save_path):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def load(cls, load_path, env=None, **kwargs):
+        pass
+
 
 class _UnvecWrapper(VecEnvWrapper):
     def __init__(self, venv):
@@ -253,7 +434,7 @@ class _UnvecWrapper(VecEnvWrapper):
         return actions[0], float(values[0]), states[0], information[0]
 
     def render(self, mode='human'):
-        return self.venv.render(mode)[0]
+        return self.venv.render(mode=mode)
 
 
 class SetVerbosity:

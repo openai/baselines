@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from stable_baselines import A2C, ACER, ACKTR, DeepQ, PPO1, PPO2, TRPO
+from stable_baselines import A2C, ACER, ACKTR, DQN, PPO1, PPO2, TRPO
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.identity_env import IdentityEnv
 from stable_baselines.common.vec_env import DummyVecEnv
@@ -13,7 +13,7 @@ MODEL_LIST = [
     A2C,
     ACER,
     ACKTR,
-    DeepQ,
+    DQN,
     PPO1,
     PPO2,
     TRPO,

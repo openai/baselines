@@ -5,10 +5,10 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Master version 1.0.8.rc1 (TO BE RELEASED SOON)
+Master version 2.0.0.rc0 (TO BE RELEASED SOON)
 -----------------------------------------------
 
-**Tensorboard and bug fixes**
+**Tensorboard, refactoring and bug fixes**
 
 - added more documentation (some modules from common).
 - added doc about using custom env
@@ -31,6 +31,14 @@ Master version 1.0.8.rc1 (TO BE RELEASED SOON)
 - added pre-built docker images + installation instructions
 - added ``deterministic`` argument in the predict function
 - added assert in PPO2 for recurrent policies
+- fixed predict function to handle both vectorized and unwrapped environment
+- added input check to the predict function
+- changed DeepQ to DQN **breaking changes**
+- changed DeepQPolicy to DQNPolicy **breaking changes**
+- refactored ActorCritic models to reduce code duplication
+- refactored Off Policy models (to begin HER and replay_buffer refactoring)
+- added tests for auto vectorization detection
+- fixed render function, to handle positional arguments
 
 
 Release 1.0.7 (2018-08-29)

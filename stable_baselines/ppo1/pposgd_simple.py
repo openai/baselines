@@ -5,7 +5,7 @@ import tensorflow as tf
 import numpy as np
 from mpi4py import MPI
 
-from stable_baselines.common import Dataset, explained_variance, fmt_row, zipsame, BaseRLModel, SetVerbosity, \
+from stable_baselines.common import Dataset, explained_variance, fmt_row, zipsame, ActorCriticRLModel, SetVerbosity, \
     TensorboardWriter
 from stable_baselines import logger
 import stable_baselines.common.tf_util as tf_util
@@ -16,7 +16,7 @@ from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_an
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
-class PPO1(BaseRLModel):
+class PPO1(ActorCriticRLModel):
     """
     Proximal Policy Optimization algorithm (MPI version).
     Paper: https://arxiv.org/abs/1707.06347
@@ -43,7 +43,8 @@ class PPO1(BaseRLModel):
                  optim_epochs=4, optim_stepsize=1e-3, optim_batchsize=64, lam=0.95, adam_epsilon=1e-5,
                  schedule='linear', verbose=0, tensorboard_log=None, _init_setup_model=True):
 
-        super().__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy, requires_vec_env=False)
+        super().__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=False,
+                         _init_setup_model=_init_setup_model)
 
         self.gamma = gamma
         self.timesteps_per_actorbatch = timesteps_per_actorbatch
@@ -306,25 +307,6 @@ class PPO1(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None, deterministic=False):
-        if state is None:
-            state = self.initial_state
-        if mask is None:
-            mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
-
-        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
-        return actions, states
-
-    def action_probability(self, observation, state=None, mask=None):
-        if state is None:
-            state = self.initial_state
-        if mask is None:
-            mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
-
-        return self.proba_step(observation, state, mask)
-
     def save(self, save_path):
         data = {
             "gamma": self.gamma,
@@ -348,20 +330,3 @@ class PPO1(BaseRLModel):
         params = self.sess.run(self.params)
 
         self._save_to_file(save_path, data=data, params=params)
-
-    @classmethod
-    def load(cls, load_path, env=None, **kwargs):
-        data, params = cls._load_from_file(load_path)
-
-        model = cls(None, env=None, _init_setup_model=False)
-        model.__dict__.update(data)
-        model.__dict__.update(kwargs)
-        model.set_env(env)
-        model.setup_model()
-
-        restores = []
-        for param, loaded_p in zip(model.params, params):
-            restores.append(param.assign(loaded_p))
-        model.sess.run(restores)
-
-        return model

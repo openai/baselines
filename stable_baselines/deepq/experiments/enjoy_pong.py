@@ -1,7 +1,7 @@
 import gym
 
 from stable_baselines import deepq
-from stable_baselines.deepq import DeepQ
+from stable_baselines.deepq import DQN
 
 
 def main():
@@ -10,7 +10,7 @@ def main():
     """
     env = gym.make("PongNoFrameskip-v4")
     env = deepq.wrap_atari_dqn(env)
-    model = DeepQ.load("pong_model.pkl", env)
+    model = DQN.load("pong_model.pkl", env)
 
     while True:
         obs, done = env.reset(), False

@@ -7,7 +7,7 @@ import tensorflow as tf
 import numpy as np
 
 import stable_baselines.common.tf_util as tf_util
-from stable_baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, BaseRLModel, \
+from stable_baselines.common import explained_variance, zipsame, dataset, fmt_row, colorize, ActorCriticRLModel, \
     SetVerbosity, TensorboardWriter
 from stable_baselines import logger
 from stable_baselines.common.mpi_adam import MpiAdam
@@ -18,7 +18,7 @@ from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_an
 # from stable_baselines.gail.statistics import Stats
 
 
-class TRPO(BaseRLModel):
+class TRPO(ActorCriticRLModel):
     def __init__(self, policy, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, lam=0.98,
                  entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0, tensorboard_log=None,
                  _init_setup_model=True):
@@ -40,8 +40,8 @@ class TRPO(BaseRLModel):
         :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
         :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
         """
-        super(TRPO, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
-                                   requires_vec_env=False)
+        super(TRPO, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=False,
+                                   _init_setup_model=_init_setup_model)
 
         self.using_gail = False
         self.timesteps_per_batch = timesteps_per_batch
@@ -439,25 +439,6 @@ class TRPO(BaseRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None, deterministic=False):
-        if state is None:
-            state = self.initial_state
-        if mask is None:
-            mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
-
-        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
-        return actions, states
-
-    def action_probability(self, observation, state=None, mask=None):
-        if state is None:
-            state = self.initial_state
-        if mask is None:
-            mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
-
-        return self.proba_step(observation, state, mask)
-
     def save(self, save_path):
         data = {
             "gamma": self.gamma,
@@ -490,20 +471,3 @@ class TRPO(BaseRLModel):
         params = self.sess.run(self.params)
 
         self._save_to_file(save_path, data=data, params=params)
-
-    @classmethod
-    def load(cls, load_path, env=None, **kwargs):
-        data, params = cls._load_from_file(load_path)
-
-        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
-        model.__dict__.update(data)
-        model.__dict__.update(kwargs)
-        model.set_env(env)
-        model.setup_model()
-
-        restores = []
-        for param, loaded_p in zip(model.params, params):
-            restores.append(param.assign(loaded_p))
-        model.sess.run(restores)
-
-        return model

@@ -7,13 +7,13 @@ import numpy as np
 import tensorflow as tf
 
 from stable_baselines import logger
-from stable_baselines.common import explained_variance, BaseRLModel, tf_util, SetVerbosity, TensorboardWriter
+from stable_baselines.common import explained_variance, ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
-class PPO2(BaseRLModel):
+class PPO2(ActorCriticRLModel):
     """
     Proximal Policy Optimization algorithm (GPU version).
     Paper: https://arxiv.org/abs/1707.06347
@@ -41,8 +41,8 @@ class PPO2(BaseRLModel):
                  max_grad_norm=0.5, lam=0.95, nminibatches=4, noptepochs=4, cliprange=0.2, verbose=0,
                  tensorboard_log=None, _init_setup_model=True):
 
-        super(PPO2, self).__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy,
-                                   requires_vec_env=True)
+        super(PPO2, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
+                                   _init_setup_model=_init_setup_model)
 
         if isinstance(learning_rate, float):
             learning_rate = constfn(learning_rate)
@@ -334,25 +334,6 @@ class PPO2(BaseRLModel):
 
             return self
 
-    def predict(self, observation, state=None, mask=None, deterministic=False):
-        if state is None:
-            state = self.initial_state
-        if mask is None:
-            mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
-
-        actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
-        return actions, states
-
-    def action_probability(self, observation, state=None, mask=None):
-        if state is None:
-            state = self.initial_state
-        if mask is None:
-            mask = [False for _ in range(self.n_envs)]
-        observation = np.array(observation).reshape((-1,) + self.observation_space.shape)
-
-        return self.proba_step(observation, state, mask)
-
     def save(self, save_path):
         data = {
             "gamma": self.gamma,
@@ -376,23 +357,6 @@ class PPO2(BaseRLModel):
         params = self.sess.run(self.params)
 
         self._save_to_file(save_path, data=data, params=params)
-
-    @classmethod
-    def load(cls, load_path, env=None, **kwargs):
-        data, params = cls._load_from_file(load_path)
-
-        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
-        model.__dict__.update(data)
-        model.__dict__.update(kwargs)
-        model.set_env(env)
-        model.setup_model()
-
-        restores = []
-        for param, loaded_p in zip(model.params, params):
-            restores.append(param.assign(loaded_p))
-        model.sess.run(restores)
-
-        return model
 
 
 class Runner(AbstractEnvRunner):

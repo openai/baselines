@@ -1,7 +1,7 @@
 import pytest
 
 from stable_baselines import bench, logger
-from stable_baselines.deepq import DeepQ, wrap_atari_dqn, CnnPolicy
+from stable_baselines.deepq import DQN, wrap_atari_dqn, CnnPolicy
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.atari_wrappers import make_atari
 import stable_baselines.a2c.run_atari as a2c_atari
@@ -61,9 +61,9 @@ def test_deepq():
     env = bench.Monitor(env, logger.get_dir())
     env = wrap_atari_dqn(env)
 
-    model = DeepQ(env=env, policy=CnnPolicy, learning_rate=1e-4, buffer_size=10000, exploration_fraction=0.1,
-                  exploration_final_eps=0.01, train_freq=4, learning_starts=10000, target_network_update_freq=1000,
-                  gamma=0.99, prioritized_replay=True, prioritized_replay_alpha=0.6, checkpoint_freq=10000)
+    model = DQN(env=env, policy=CnnPolicy, learning_rate=1e-4, buffer_size=10000, exploration_fraction=0.1,
+                exploration_final_eps=0.01, train_freq=4, learning_starts=10000, target_network_update_freq=1000,
+                gamma=0.99, prioritized_replay=True, prioritized_replay_alpha=0.6, checkpoint_freq=10000)
     model.learn(total_timesteps=NUM_TIMESTEPS)
 
     env.close()

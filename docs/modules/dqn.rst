@@ -47,12 +47,12 @@ Example
 
   from stable_baselines.common.vec_env import DummyVecEnv
   from stable_baselines.deepq.policies import MlpPolicy, CnnPolicy
-  from stable_baselines import DeepQ
+  from stable_baselines import DQN
 
   env = gym.make('CartPole-v1')
   env = DummyVecEnv([lambda: env])
 
-  model = DeepQ(MlpPolicy, env, verbose=1)
+  model = DQN(MlpPolicy, env, verbose=1)
   model.learn(total_timesteps=25000)
   model.save("deepq_cartpole")
 
@@ -73,17 +73,17 @@ With Atari:
 
   from stable_baselines.common.atari_wrappers import make_atari
   from stable_baselines.deepq.policies import MlpPolicy, CnnPolicy
-  from stable_baselines import DeepQ
+  from stable_baselines import DQN
 
   env = make_atari('BreakoutNoFrameskip-v4')
 
-  model = DeepQ(CnnPolicy, env, verbose=1)
+  model = DQN(CnnPolicy, env, verbose=1)
   model.learn(total_timesteps=25000)
   model.save("deepq_breakout")
 
   del model # remove to demonstrate saving and loading
 
-  DeepQ.load("deepq_breakout")
+  DQN.load("deepq_breakout")
 
   obs = env.reset()
   while True:
@@ -94,7 +94,7 @@ With Atari:
 Parameters
 ----------
 
-.. autoclass:: DeepQ
+.. autoclass:: DQN
   :members:
   :inherited-members:
 
@@ -135,7 +135,7 @@ You can easily define a custom architecture for the policy network:
 
   from stable_baselines.deepq.policies import FeedForwardPolicy
   from stable_baselines.common.vec_env import DummyVecEnv
-  from stable_baselines import DeepQ
+  from stable_baselines import DQN
 
   # Custom MLP policy of three layers of size 128 each
   class CustomPolicy(FeedForwardPolicy):
@@ -149,6 +149,6 @@ You can easily define a custom architecture for the policy network:
   env = gym.make('LunarLander-v2')
   env = DummyVecEnv([lambda: env])
 
-  model = DeepQ(CustomPolicy, env, verbose=1)
+  model = DQN(CustomPolicy, env, verbose=1)
   # Train the agent
   model.learn(total_timesteps=100000)
