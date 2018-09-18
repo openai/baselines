@@ -8,7 +8,7 @@ from stable_baselines.deepq import DQN, wrap_atari_dqn, CnnPolicy
 
 def main():
     """
-    run the atari test
+    Run the atari test
     """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')

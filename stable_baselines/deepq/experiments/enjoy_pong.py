@@ -6,7 +6,7 @@ from stable_baselines.deepq import DQN
 
 def main():
     """
-    run a trained model for the pong problem
+    Run a trained model for the pong problem
     """
     env = gym.make("PongNoFrameskip-v4")
     env = deepq.wrap_atari_dqn(env)

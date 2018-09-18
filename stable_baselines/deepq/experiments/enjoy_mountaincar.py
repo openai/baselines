@@ -7,7 +7,7 @@ from stable_baselines.deepq import DQN
 
 def main(args):
     """
-    run a trained model for the mountain car problem
+    Run a trained model for the mountain car problem
 
     :param args: (ArgumentParser) the input arguments
     """

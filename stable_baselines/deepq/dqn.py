@@ -15,7 +15,7 @@ class DQN(OffPolicyRLModel):
     """
     The DQN model class. DQN paper: https://arxiv.org/pdf/1312.5602.pdf
 
-    :param policy: (DeepQPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
+    :param policy: (DQNPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) discount factor
     :param learning_rate: (float) learning rate for adam optimizer

@@ -21,7 +21,7 @@ class CustomPolicy(FeedForwardPolicy):
 
 def main(args):
     """
-    Train a DeepQ agent on cartpole env
+    Train a DQN agent on cartpole env
     :param args: (Parsed Arguments) the input arguments
     """
     with tf_utils.make_session(8) as sess:
@@ -99,5 +99,3 @@ if __name__ == '__main__':
                         help="Maximum number of timesteps when not rendering")
     args = parser.parse_args()
     main(args)
-
-

@@ -8,7 +8,7 @@ from stable_baselines.deepq import DQN, MlpPolicy
 
 def callback(lcl, _glb):
     """
-    the callback function for logging and saving
+    The callback function for logging and saving
 
     :param lcl: (dict) the local variables
     :param _glb: (dict) the global variables
@@ -25,7 +25,7 @@ def callback(lcl, _glb):
 
 def main(args):
     """
-    train and save the DeepQ model, for the cartpole problem
+    Train and save the DQN model, for the cartpole problem
 
     :param args: (ArgumentParser) the input arguments
     """

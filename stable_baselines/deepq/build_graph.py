@@ -126,7 +126,7 @@ def build_act(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess):
     """
     Creates the act function:
 
-    :param q_func: (DeepQPolicy) the policy
+    :param q_func: (DQNPolicy) the policy
     :param ob_space: (Gym Space) The observation space of the environment
     :param ac_space: (Gym Space) The action space of the environment
     :param stochastic_ph: (TensorFlow Tensor) the stochastic placeholder
@@ -166,7 +166,7 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
     """
     Creates the act function with support for parameter space noise exploration (https://arxiv.org/abs/1706.01905):
 
-    :param q_func: (DeepQPolicy) the policy
+    :param q_func: (DQNPolicy) the policy
     :param ob_space: (Gym Space) The observation space of the environment
     :param ac_space: (Gym Space) The action space of the environment
     :param stochastic_ph: (TensorFlow Tensor) the stochastic placeholder
@@ -324,7 +324,7 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
     """
     Creates the train function:
 
-    :param q_func: (DeepQPolicy) the policy
+    :param q_func: (DQNPolicy) the policy
     :param ob_space: (Gym Space) The observation space of the environment
     :param ac_space: (Gym Space) The action space of the environment
     :param reuse: (bool) whether or not to reuse the graph variables

@@ -16,7 +16,7 @@ class CustomPolicy(FeedForwardPolicy):
 
 def main(args):
     """
-    train and save the DeepQ model, for the mountain car problem
+    Train and save the DQN model, for the mountain car problem
 
     :param args: (ArgumentParser) the input arguments
     """

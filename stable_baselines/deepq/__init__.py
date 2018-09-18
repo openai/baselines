@@ -6,7 +6,7 @@ from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplay
 
 def wrap_atari_dqn(env):
     """
-    wrap the environment in atari wrappers for DeepQ
+    wrap the environment in atari wrappers for DQN
 
     :param env: (Gym Environment) the environment
     :return: (Gym Environment) the wrapped environment
