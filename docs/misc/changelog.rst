@@ -5,11 +5,20 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Master version 2.0.0.rc0 (TO BE RELEASED SOON)
------------------------------------------------
+Release 2.0.0 (2018-09-18)
+--------------------------
+
+.. warning::
+
+	This version contains breaking changes, please read the full details
 
 **Tensorboard, refactoring and bug fixes**
 
+
+- Renamed DeepQ to DQN **breaking changes**
+- Renamed DeepQPolicy to DQNPolicy **breaking changes**
+- fixed DDPG behavior **breaking changes**
+- changed default policies for DDPG, so that DDPG now works correctly **breaking changes**
 - added more documentation (some modules from common).
 - added doc about using custom env
 - added Tensorboard support for A2C, ACER, ACKTR, DDPG, DeepQ, PPO1, PPO2 and TRPO
@@ -20,8 +29,6 @@ Master version 2.0.0.rc0 (TO BE RELEASED SOON)
 - fixed PPO1 and TRPO done values for recurrent policies
 - fixed image normalization not occurring when using images
 - updated VecEnv objects for the new Gym version
-- changed default policies for DDPG, so that DDPG now works correctly
-- fixed DDPG behavior
 - added test for DDPG
 - refactored DQN policies
 - added registry for policies, can be passed as string to the agent
@@ -33,8 +40,6 @@ Master version 2.0.0.rc0 (TO BE RELEASED SOON)
 - added assert in PPO2 for recurrent policies
 - fixed predict function to handle both vectorized and unwrapped environment
 - added input check to the predict function
-- changed DeepQ to DQN **breaking changes**
-- changed DeepQPolicy to DQNPolicy **breaking changes**
 - refactored ActorCritic models to reduce code duplication
 - refactored Off Policy models (to begin HER and replay_buffer refactoring)
 - added tests for auto vectorization detection
