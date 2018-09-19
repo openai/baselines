@@ -1,4 +1,5 @@
 import gym
+import numpy as np
 
 from stable_baselines.a2c import A2C
 from stable_baselines.acer import ACER
@@ -12,14 +13,16 @@ from stable_baselines.trpo_mpi import TRPO
 
 __version__ = "2.0.0"
 
-if not hasattr(gym.spaces.MultiBinary, '__eq__'):
+
+# patch Gym spaces to add equal functions, if not implemented
+if gym.spaces.MultiBinary.__eq__ == object.__eq__:  # by default, all classes have the __eq__ function from object.
     def _eq(self, other):
         return self.n == other.n
 
     gym.spaces.MultiBinary.__eq__ = _eq
 
-if not hasattr(gym.spaces.MultiDiscrete, '__eq__'):
+if gym.spaces.MultiDiscrete.__eq__ == object.__eq__:
     def _eq(self, other):
-        return self.nvec == other.nvec
+        return np.all(self.nvec == other.nvec)
 
     gym.spaces.MultiDiscrete.__eq__ = _eq
