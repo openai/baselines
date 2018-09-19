@@ -46,7 +46,7 @@ def ts2xy(ts, xaxis, yaxis):
     return x, y
 
 def plot_curves(xy_list, xaxis, yaxis, title):
-    plt.figure(figsize=(8,2))
+    fig = plt.figure(figsize=(8,2))
     maxx = max(xy[0][-1] for xy in xy_list)
     minx = 0
     for (i, (x, y)) in enumerate(xy_list):
@@ -59,7 +59,8 @@ def plot_curves(xy_list, xaxis, yaxis, title):
     plt.xlabel(xaxis)
     plt.ylabel(yaxis)
     plt.tight_layout()
-    plt.grid('on')
+    fig.canvas.mpl_connect('resize_event', lambda event: plt.tight_layout())
+    plt.grid(True)
 
 def plot_results(dirs, num_timesteps, xaxis, yaxis, task_name):
     tslist = []
