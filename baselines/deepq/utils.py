@@ -1,4 +1,5 @@
 from baselines.common.input import observation_input
+from baselines.common.tf_util import adjust_shape
 
 import tensorflow as tf
 
@@ -36,7 +37,7 @@ class PlaceholderTfInput(TfInput):
         return self._placeholder
 
     def make_feed_dict(self, data):
-        return {self._placeholder: data}
+        return {self._placeholder: adjust_shape(self._placeholder, data)}
 
 
 class Uint8Input(PlaceholderTfInput):
@@ -65,13 +66,13 @@ class Uint8Input(PlaceholderTfInput):
 class ObservationInput(PlaceholderTfInput):
     def __init__(self, observation_space, name=None):
         """Creates an input placeholder tailored to a specific observation space
-        
+
         Parameters
         ----------
 
-        observation_space: 
+        observation_space:
                 observation space of the environment. Should be one of the gym.spaces types
-        name: str 
+        name: str
                 tensorflow name of the underlying placeholder
         """
         inpt, self.processed_inpt = observation_input(observation_space, name=name)
@@ -79,5 +80,5 @@ class ObservationInput(PlaceholderTfInput):
 
     def get(self):
         return self.processed_inpt
-    
-    
+
+

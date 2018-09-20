@@ -10,6 +10,5 @@ install:
     - docker build . -t baselines-test
 
 script:
-    - flake8 --select=F baselines/common
-    - flake8 --select=E901,E999,F821,F822,F823 --show-source --statistics .
-    - docker run baselines-test pytest
+    - flake8 . --show-source --statistics
+    - docker run baselines-test pytest -v .

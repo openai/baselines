@@ -68,13 +68,20 @@ class EzPickle(object):
 
 def set_global_seeds(i):
     try:
+        import MPI
+        rank = MPI.COMM_WORLD.Get_rank()
+    except ImportError:
+        rank = 0
+
+    myseed = i  + 1000 * rank if i is not None else None
+    try:
         import tensorflow as tf
     except ImportError:
         pass
     else:
-        tf.set_random_seed(i)
-    np.random.seed(i)
-    random.seed(i)
+        tf.set_random_seed(myseed)
+    np.random.seed(myseed)
+    random.seed(myseed)
 
 
 def pretty_eta(seconds_left):

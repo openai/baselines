@@ -1,21 +1,29 @@
 import os
 import time
-import joblib
+import functools
 import numpy as np
 import os.path as osp
 import tensorflow as tf
 from baselines import logger
 from collections import deque
-from baselines.common import explained_variance
+from baselines.common import explained_variance, set_global_seeds
+from baselines.common.policies import build_policy
 from baselines.common.runners import AbstractEnvRunner
+from baselines.common.tf_util import get_session, save_variables, load_variables
+from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
+
+from mpi4py import MPI
+from baselines.common.tf_util import initialize
+from baselines.common.mpi_util import sync_from_root
 
 class Model(object):
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
                 nsteps, ent_coef, vf_coef, max_grad_norm):
-        sess = tf.get_default_session()
+        sess = get_session()
 
-        act_model = policy(sess, ob_space, ac_space, nbatch_act, 1, reuse=False)
-        train_model = policy(sess, ob_space, ac_space, nbatch_train, nsteps, reuse=True)
+        with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
+            act_model = policy(nbatch_act, 1, sess)
+            train_model = policy(nbatch_train, nsteps, sess)
 
         A = train_model.pdtype.sample_placeholder([None])
         ADV = tf.placeholder(tf.float32, [None])
@@ -40,14 +48,16 @@ class Model(object):
         approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
         clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
-        with tf.variable_scope('model'):
-            params = tf.trainable_variables()
-        grads = tf.gradients(loss, params)
+        params = tf.trainable_variables('ppo2_model')
+        trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=LR, epsilon=1e-5)
+        grads_and_var = trainer.compute_gradients(loss, params)
+        grads, var = zip(*grads_and_var)
+
         if max_grad_norm is not None:
             grads, _grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
-        grads = list(zip(grads, params))
-        trainer = tf.train.AdamOptimizer(learning_rate=LR, epsilon=1e-5)
-        _train = trainer.apply_gradients(grads)
+        grads_and_var = list(zip(grads, var))
+
+        _train = trainer.apply_gradients(grads_and_var)
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
             advs = returns - values
@@ -63,17 +73,6 @@ class Model(object):
             )[:-1]
         self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
-        def save(save_path):
-            ps = sess.run(params)
-            joblib.dump(ps, save_path)
-
-        def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
-            # If you want to load weights, also save/load observation scaling inside VecNormalize
 
         self.train = train
         self.train_model = train_model
@@ -81,9 +80,14 @@ class Model(object):
         self.step = act_model.step
         self.value = act_model.value
         self.initial_state = act_model.initial_state
-        self.save = save
-        self.load = load
-        tf.global_variables_initializer().run(session=sess) #pylint: disable=E1101
+
+        self.save = functools.partial(save_variables, sess=sess)
+        self.load = functools.partial(load_variables, sess=sess)
+
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            initialize()
+        global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
+        sync_from_root(sess, global_variables) #pylint: disable=E1101
 
 class Runner(AbstractEnvRunner):
 
@@ -97,7 +101,7 @@ class Runner(AbstractEnvRunner):
         mb_states = self.states
         epinfos = []
         for _ in range(self.nsteps):
-            actions, values, self.states, neglogpacs = self.model.step(self.obs, self.states, self.dones)
+            actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
             mb_values.append(values)
@@ -115,7 +119,7 @@ class Runner(AbstractEnvRunner):
         mb_values = np.asarray(mb_values, dtype=np.float32)
         mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
         mb_dones = np.asarray(mb_dones, dtype=np.bool)
-        last_values = self.model.value(self.obs, self.states, self.dones)
+        last_values = self.model.value(self.obs, S=self.states, M=self.dones)
         #discount/bootstrap off value fn
         mb_returns = np.zeros_like(mb_rewards)
         mb_advs = np.zeros_like(mb_rewards)
@@ -145,16 +149,74 @@ def constfn(val):
         return val
     return f
 
-def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
+def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-            save_interval=0, load_path=None):
+            save_interval=0, load_path=None, **network_kwargs):
+    '''
+    Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
+
+    Parameters:
+    ----------
+
+    network:                          policy network architecture. Either string (mlp, lstm, lnlstm, cnn_lstm, cnn, cnn_small, conv_only - see baselines.common/models.py for full list)
+                                      specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns
+                                      tuple (output_tensor, extra_feed) where output tensor is the last network layer output, extra_feed is None for feed-forward
+                                      neural nets, and extra_feed is a dictionary describing how to feed state into the network for recurrent neural nets.
+                                      See common/models.py/lstm for more details on using recurrent nets in policies
+
+    env: baselines.common.vec_env.VecEnv     environment. Needs to be vectorized for parallel environment simulation.
+                                      The environments produced by gym.make can be wrapped using baselines.common.vec_env.DummyVecEnv class.
+
+
+    nsteps: int                       number of steps of the vectorized environment per update (i.e. batch size is nsteps * nenv where
+                                      nenv is number of environment copies simulated in parallel)
+
+    total_timesteps: int              number of timesteps (i.e. number of actions taken in the environment)
+
+    ent_coef: float                   policy entropy coefficient in the optimization objective
+
+    lr: float or function             learning rate, constant or a schedule function [0,1] -> R+ where 1 is beginning of the
+                                      training and 0 is the end of the training.
+
+    vf_coef: float                    value function loss coefficient in the optimization objective
+
+    max_grad_norm: float or None      gradient norm clipping coefficient
+
+    gamma: float                      discounting factor
+
+    lam: float                        advantage estimation discounting factor (lambda in the paper)
+
+    log_interval: int                 number of timesteps between logging events
+
+    nminibatches: int                 number of training minibatches per update. For recurrent policies,
+                                      should be smaller or equal than number of environments run in parallel.
+
+    noptepochs: int                   number of training epochs per update
+
+    cliprange: float or function      clipping range, constant or schedule function [0,1] -> R+ where 1 is beginning of the training
+                                      and 0 is the end of the training
+
+    save_interval: int                number of timesteps between saving events
+
+    load_path: str                    path to load the model from
+
+    **network_kwargs:                 keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
+                                      For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
+
+
+
+    '''
+
+    set_global_seeds(seed)
 
     if isinstance(lr, float): lr = constfn(lr)
     else: assert callable(lr)
     if isinstance(cliprange, float): cliprange = constfn(cliprange)
     else: assert callable(cliprange)
     total_timesteps = int(total_timesteps)
+
+    policy = build_policy(env, network, **network_kwargs)
 
     nenvs = env.num_envs
     ob_space = env.observation_space
@@ -165,10 +227,6 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
     make_model = lambda : Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
                     max_grad_norm=max_grad_norm)
-    if save_interval and logger.get_dir():
-        import cloudpickle
-        with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
-            fh.write(cloudpickle.dumps(make_model))
     model = make_model()
     if load_path is not None:
         model.load(load_path)
@@ -180,7 +238,6 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
     nupdates = total_timesteps//nbatch
     for update in range(1, nupdates+1):
         assert nbatch % nminibatches == 0
-        nbatch_train = nbatch // nminibatches
         tstart = time.time()
         frac = 1.0 - (update - 1.0) / nupdates
         lrnow = lr(frac)
@@ -228,15 +285,18 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             logger.logkv('time_elapsed', tnow - tfirststart)
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
-            logger.dumpkvs()
-        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir():
+            if MPI.COMM_WORLD.Get_rank() == 0:
+                logger.dumpkvs()
+        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir() and MPI.COMM_WORLD.Get_rank() == 0:
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
             savepath = osp.join(checkdir, '%.5i'%update)
             print('Saving to', savepath)
             model.save(savepath)
-    env.close()
     return model
 
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
+
+
+

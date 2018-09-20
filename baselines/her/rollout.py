@@ -116,7 +116,7 @@ class RolloutWorker:
                     return self.generate_rollouts()
 
             if np.isnan(o_new).any():
-                self.logger.warning('NaN caught during rollout generation. Trying again...')
+                self.logger.warn('NaN caught during rollout generation. Trying again...')
                 self.reset_all_rollouts()
                 return self.generate_rollouts()
 

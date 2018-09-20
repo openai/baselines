@@ -41,7 +41,7 @@ def main(policy_file, seed, n_test_rollouts, render):
 
     for name in ['T', 'gamma', 'noise_eps', 'random_eps']:
         eval_params[name] = params[name]
-    
+
     evaluator = RolloutWorker(params['make_env'], policy, dims, logger, **eval_params)
     evaluator.seed(seed)
 

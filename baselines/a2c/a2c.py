@@ -1,42 +1,48 @@
-import os.path as osp
 import time
-import joblib
-import numpy as np
+import functools
 import tensorflow as tf
+
 from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
-from baselines.common.runners import AbstractEnvRunner
 from baselines.common import tf_util
+from baselines.common.policies import build_policy
 
-from baselines.a2c.utils import discount_with_dones
-from baselines.a2c.utils import Scheduler, make_path, find_trainable_variables
-from baselines.a2c.utils import cat_entropy, mse
+
+from baselines.a2c.utils import Scheduler, find_trainable_variables
+from baselines.a2c.runner import Runner
+
+from tensorflow import losses
 
 class Model(object):
 
-    def __init__(self, policy, ob_space, ac_space, nenvs, nsteps,
+    def __init__(self, policy, env, nsteps,
             ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
             alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
 
-        sess = tf_util.make_session()
+        sess = tf_util.get_session()
+        nenvs = env.num_envs
         nbatch = nenvs*nsteps
 
-        A = tf.placeholder(tf.int32, [nbatch])
+
+        with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
+            step_model = policy(nenvs, 1, sess)
+            train_model = policy(nbatch, nsteps, sess)
+
+        A = tf.placeholder(train_model.action.dtype, train_model.action.shape)
         ADV = tf.placeholder(tf.float32, [nbatch])
         R = tf.placeholder(tf.float32, [nbatch])
         LR = tf.placeholder(tf.float32, [])
 
-        step_model = policy(sess, ob_space, ac_space, nenvs, 1, reuse=False)
-        train_model = policy(sess, ob_space, ac_space, nenvs*nsteps, nsteps, reuse=True)
+        neglogpac = train_model.pd.neglogp(A)
+        entropy = tf.reduce_mean(train_model.pd.entropy())
 
-        neglogpac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=train_model.pi, labels=A)
         pg_loss = tf.reduce_mean(ADV * neglogpac)
-        vf_loss = tf.reduce_mean(mse(tf.squeeze(train_model.vf), R))
-        entropy = tf.reduce_mean(cat_entropy(train_model.pi))
+        vf_loss = losses.mean_squared_error(tf.squeeze(train_model.vf), R)
+
         loss = pg_loss - entropy*ent_coef + vf_loss * vf_coef
 
-        params = find_trainable_variables("model")
+        params = find_trainable_variables("a2c_model")
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
             grads, grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
@@ -50,6 +56,7 @@ class Model(object):
             advs = rewards - values
             for step in range(len(obs)):
                 cur_lr = lr.value()
+
             td_map = {train_model.X:obs, A:actions, ADV:advs, R:rewards, LR:cur_lr}
             if states is not None:
                 td_map[train_model.S] = states
@@ -60,17 +67,6 @@ class Model(object):
             )
             return policy_loss, value_loss, policy_entropy
 
-        def save(save_path):
-            ps = sess.run(params)
-            make_path(osp.dirname(save_path))
-            joblib.dump(ps, save_path)
-
-        def load(load_path):
-            loaded_params = joblib.load(load_path)
-            restores = []
-            for p, loaded_p in zip(params, loaded_params):
-                restores.append(p.assign(loaded_p))
-            sess.run(restores)
 
         self.train = train
         self.train_model = train_model
@@ -78,66 +74,87 @@ class Model(object):
         self.step = step_model.step
         self.value = step_model.value
         self.initial_state = step_model.initial_state
-        self.save = save
-        self.load = load
+        self.save = functools.partial(tf_util.save_variables, sess=sess)
+        self.load = functools.partial(tf_util.load_variables, sess=sess)
         tf.global_variables_initializer().run(session=sess)
 
-class Runner(AbstractEnvRunner):
 
-    def __init__(self, env, model, nsteps=5, gamma=0.99):
-        super().__init__(env=env, model=model, nsteps=nsteps)
-        self.gamma = gamma
+def learn(
+    network,
+    env,
+    seed=None,
+    nsteps=5,
+    total_timesteps=int(80e6),
+    vf_coef=0.5,
+    ent_coef=0.01,
+    max_grad_norm=0.5,
+    lr=7e-4,
+    lrschedule='linear',
+    epsilon=1e-5,
+    alpha=0.99,
+    gamma=0.99,
+    log_interval=100,
+    load_path=None,
+    **network_kwargs):
 
-    def run(self):
-        mb_obs, mb_rewards, mb_actions, mb_values, mb_dones = [],[],[],[],[]
-        mb_states = self.states
-        for n in range(self.nsteps):
-            actions, values, states, _ = self.model.step(self.obs, self.states, self.dones)
-            mb_obs.append(np.copy(self.obs))
-            mb_actions.append(actions)
-            mb_values.append(values)
-            mb_dones.append(self.dones)
-            obs, rewards, dones, _ = self.env.step(actions)
-            self.states = states
-            self.dones = dones
-            for n, done in enumerate(dones):
-                if done:
-                    self.obs[n] = self.obs[n]*0
-            self.obs = obs
-            mb_rewards.append(rewards)
-        mb_dones.append(self.dones)
-        #batch of steps to batch of rollouts
-        mb_obs = np.asarray(mb_obs, dtype=np.uint8).swapaxes(1, 0).reshape(self.batch_ob_shape)
-        mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
-        mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
-        mb_values = np.asarray(mb_values, dtype=np.float32).swapaxes(1, 0)
-        mb_dones = np.asarray(mb_dones, dtype=np.bool).swapaxes(1, 0)
-        mb_masks = mb_dones[:, :-1]
-        mb_dones = mb_dones[:, 1:]
-        last_values = self.model.value(self.obs, self.states, self.dones).tolist()
-        #discount/bootstrap off value fn
-        for n, (rewards, dones, value) in enumerate(zip(mb_rewards, mb_dones, last_values)):
-            rewards = rewards.tolist()
-            dones = dones.tolist()
-            if dones[-1] == 0:
-                rewards = discount_with_dones(rewards+[value], dones+[0], self.gamma)[:-1]
-            else:
-                rewards = discount_with_dones(rewards, dones, self.gamma)
-            mb_rewards[n] = rewards
-        mb_rewards = mb_rewards.flatten()
-        mb_actions = mb_actions.flatten()
-        mb_values = mb_values.flatten()
-        mb_masks = mb_masks.flatten()
-        return mb_obs, mb_states, mb_rewards, mb_masks, mb_actions, mb_values
+    '''
+    Main entrypoint for A2C algorithm. Train a policy with given network architecture on a given environment using a2c algorithm.
 
-def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, ent_coef=0.01, max_grad_norm=0.5, lr=7e-4, lrschedule='linear', epsilon=1e-5, alpha=0.99, gamma=0.99, log_interval=100):
+    Parameters:
+    -----------
+
+    network:            policy network architecture. Either string (mlp, lstm, lnlstm, cnn_lstm, cnn, cnn_small, conv_only - see baselines.common/models.py for full list)
+                        specifying the standard network architecture, or a function that takes tensorflow tensor as input and returns
+                        tuple (output_tensor, extra_feed) where output tensor is the last network layer output, extra_feed is None for feed-forward
+                        neural nets, and extra_feed is a dictionary describing how to feed state into the network for recurrent neural nets.
+                        See baselines.common/policies.py/lstm for more details on using recurrent nets in policies
+
+
+    env:                RL environment. Should implement interface similar to VecEnv (baselines.common/vec_env) or be wrapped with DummyVecEnv (baselines.common/vec_env/dummy_vec_env.py)
+
+
+    seed:               seed to make random number sequence in the alorightm reproducible. By default is None which means seed from system noise generator (not reproducible)
+
+    nsteps:             int, number of steps of the vectorized environment per update (i.e. batch size is nsteps * nenv where
+                        nenv is number of environment copies simulated in parallel)
+
+    total_timesteps:    int, total number of timesteps to train on (default: 80M)
+
+    vf_coef:            float, coefficient in front of value function loss in the total loss function (default: 0.5)
+
+    ent_coef:           float, coeffictiant in front of the policy entropy in the total loss function (default: 0.01)
+
+    max_gradient_norm:  float, gradient is clipped to have global L2 norm no more than this value (default: 0.5)
+
+    lr:                 float, learning rate for RMSProp (current implementation has RMSProp hardcoded in) (default: 7e-4)
+
+    lrschedule:         schedule of learning rate. Can be 'linear', 'constant', or a function [0..1] -> [0..1] that takes fraction of the training progress as input and
+                        returns fraction of the learning rate (specified as lr) as output
+
+    epsilon:            float, RMSProp epsilon (stabilizes square root computation in denominator of RMSProp update) (default: 1e-5)
+
+    alpha:              float, RMSProp decay parameter (default: 0.99)
+
+    gamma:              float, reward discounting parameter (default: 0.99)
+
+    log_interval:       int, specifies how frequently the logs are printed out (default: 100)
+
+    **network_kwargs:   keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
+                        For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
+
+    '''
+
+
+
     set_global_seeds(seed)
 
     nenvs = env.num_envs
-    ob_space = env.observation_space
-    ac_space = env.action_space
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
+    policy = build_policy(env, network, **network_kwargs)
+
+    model = Model(policy=policy, env=env, nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
+    if load_path is not None:
+        model.load(load_path)
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 
     nbatch = nenvs*nsteps
@@ -156,5 +173,5 @@ def learn(policy, env, seed, nsteps=5, total_timesteps=int(80e6), vf_coef=0.5, e
             logger.record_tabular("value_loss", float(value_loss))
             logger.record_tabular("explained_variance", float(ev))
             logger.dump_tabular()
-    env.close()
     return model
+

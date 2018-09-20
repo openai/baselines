@@ -1,11 +1,17 @@
 import gym
 
 from baselines import deepq
+from baselines.common import models
 
 
 def main():
     env = gym.make("MountainCar-v0")
-    act = deepq.load("mountaincar_model.pkl")
+    act = deepq.learn(
+        env,
+        network=models.mlp(num_layers=1, num_hidden=64),
+        total_timesteps=0,
+        load_path='mountaincar_model.pkl'
+    )
 
     while True:
         obs, done = env.reset(), False
