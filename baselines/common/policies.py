@@ -43,11 +43,17 @@ class PolicyWithValue(object):
         vf_latent = tf.layers.flatten(vf_latent)
         latent = tf.layers.flatten(latent)
 
+        # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
 
+        # This build a fc connected layer that returns a probability distribution
+        # over actions (self.pd) and our pi logits (self.pi).
         self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
 
+        # Take an action
         self.action = self.pd.sample()
+
+        # Calculate the neg log of our probability
         self.neglogp = self.pd.neglogp(self.action)
         self.sess = sess
 
