@@ -5,10 +5,10 @@ from baselines.common.runners import AbstractEnvRunner
 class Runner(AbstractEnvRunner):
     """
     We use this class to generate batches of experiences
-    
+
     __init__:
     - Initialize the runner
-    
+
     run():
     - Make a mini batch of experiences
     """
@@ -26,13 +26,13 @@ class Runner(AbstractEnvRunner):
              # Given observations, take action and value (V(s))
             # We already have self.obs because AbstractEnvRunner run self.obs[:] = env.reset()
             actions, values, states, _ = self.model.step(self.obs, S=self.states, M=self.dones)
-            
+
             # Append the experiences
             mb_obs.append(np.copy(self.obs))
             mb_actions.append(actions)
             mb_values.append(values)
             mb_dones.append(self.dones)
-           
+
             # Take actions in env and look the results
             obs, rewards, dones, _ = self.env.step(actions)
             self.states = states

@@ -37,7 +37,7 @@ class Model(object):
             # CREATE OUR TWO MODELS
             # act_model that is used for sampling
             act_model = policy(nbatch_act, 1, sess)
-            
+
             # Train model for training
             train_model = policy(nbatch_train, nsteps, sess)
 
@@ -47,21 +47,21 @@ class Model(object):
         R = tf.placeholder(tf.float32, [None])
         # Keep track of old actor
         OLDNEGLOGPAC = tf.placeholder(tf.float32, [None])
-        # Keep track of old critic 
+        # Keep track of old critic
         OLDVPRED = tf.placeholder(tf.float32, [None])
         LR = tf.placeholder(tf.float32, [])
         # Cliprange
         CLIPRANGE = tf.placeholder(tf.float32, [])
 
         neglogpac = train_model.pd.neglogp(A)
-        
+
         # Calculate the entropy
         # Entropy is used to improve exploration by limiting the premature convergence to suboptimal policy.
         entropy = tf.reduce_mean(train_model.pd.entropy())
 
         # CALCULATE THE LOSS
         # Total loss = Policy gradient loss - entropy * entropy coefficient + Value coefficient * value loss
-       
+
         # Clip the value
         # Get the value predicted
         vpred = train_model.vf
@@ -73,32 +73,32 @@ class Model(object):
         vf_losses2 = tf.square(vpredclipped - R)
         # Value loss 0.5 * SUM [max(unclipped, clipped)
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
-        
+
         # Remember we want ratio (pi current policy / pi old policy)
         # But neglopac returns us -log(policy)
         # So we want to transform it into ratio
-        # e^(-log old - (-log new)) == e^(log new - log old) == e^(log(new / old)) 
+        # e^(-log old - (-log new)) == e^(log new - log old) == e^(log(new / old))
         # = new/old (since exponential function cancels log)
         ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
-        
+
         # Remember also that we're doing gradient ascent, aka we want to MAXIMIZE the objective function which is equivalent to say
         # Loss = - J
         # To make objective function negative we can put a negation on the multiplication (pi new / pi old) * - Advantages
         pg_losses = -ADV * ratio
-        
+
         # value, min [1 - e] , max [1 + e]
         pg_losses2 = -ADV * tf.clip_by_value(ratio, 1.0 - CLIPRANGE, 1.0 + CLIPRANGE)
-        
+
         # Final PG loss
         # Why maximum, because pg_loss_unclipped and pg_loss_clipped are negative, getting the min of positive elements = getting
         # the max of negative elements
         pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
         approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
         clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
-        
+
         # Total loss (Remember that L = - J because it's the same thing than max J
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
-        
+
         # UPDATE THE PARAMETERS USING LOSS
         # 1. Get the model parameters
         params = tf.trainable_variables('ppo2_model')
@@ -121,7 +121,7 @@ class Model(object):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
             # Returns = R + yV(s')
             advs = returns - values
-            
+
             # Normalize the advantages
             advs = (advs - advs.mean()) / (advs.std() + 1e-8)
             td_map = {train_model.X:obs, A:actions, ADV:advs, R:returns, LR:lr,
@@ -182,7 +182,7 @@ class Runner(AbstractEnvRunner):
             mb_values.append(values)
             mb_neglogpacs.append(neglogpacs)
             mb_dones.append(self.dones)
-            
+
             # Take actions in env and look the results
             # Infos contains a ton of useful informations
             self.obs[:], rewards, self.dones, infos = self.env.step(actions)
@@ -198,7 +198,7 @@ class Runner(AbstractEnvRunner):
         mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
         mb_dones = np.asarray(mb_dones, dtype=np.bool)
         last_values = self.model.value(self.obs, S=self.states, M=self.dones)
-        
+
         ### GENERALIZED ADVANTAGE ESTIMATION
         # discount/bootstrap off value fn
         # We create mb_returns and mb_advantages
@@ -214,7 +214,7 @@ class Runner(AbstractEnvRunner):
                 # In fact nextnonterminal allows us to do that logic
 
                 #if done (so nextnonterminal = 0):
-                #    delta = R - V(s) (because self.gamma * nextvalues * nextnonterminal = 0) 
+                #    delta = R - V(s) (because self.gamma * nextvalues * nextnonterminal = 0)
                 # else (not done)
                 #delta = R + gamma * V(st+1)
                 nextnonterminal = 1.0 - self.dones
@@ -315,11 +315,11 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
 
     # Get the nb of env
     nenvs = env.num_envs
-   
+
     # Get state_space and action_space
     ob_space = env.observation_space
     ac_space = env.action_space
-    
+
     # Calculate the batch_size
     nbatch = nenvs * nsteps
     nbatch_train = nbatch // nminibatches
@@ -352,7 +352,7 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
         # Get minibatch
         obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run() #pylint: disable=E0632
         epinfobuf.extend(epinfos)
-        
+
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
         if states is None: # nonrecurrent version

@@ -21,10 +21,10 @@ class Model(object):
         __init__:
         - Creates the step_model
         - Creates the train_model
-        
+
         train():
         - Make the training part (feedforward and retropropagation of gradients)
-    
+
         save/load():
         - Save load the model
     """
@@ -40,7 +40,7 @@ class Model(object):
         with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
             # step_model is used for sampling
             step_model = policy(nenvs, 1, sess)
-            
+
             # train_model is used to train our network
             train_model = policy(nbatch, nsteps, sess)
 
@@ -51,17 +51,17 @@ class Model(object):
 
         # Calculate the loss
         # Total loss = Policy gradient loss - entropy * entropy coefficient + Value coefficient * value loss
-        
+
         # Policy loss
         # Output -log(pi)
         neglogpac = train_model.pd.neglogp(A)
-        
+
         # Entropy is used to improve exploration by limiting the premature convergence to suboptimal policy.
         entropy = tf.reduce_mean(train_model.pd.entropy())
 
         # 1/n * sum A(si,ai) * -logpi(ai|si)
         pg_loss = tf.reduce_mean(ADV * neglogpac)
-        
+
         # Value loss 1/2 SUM [R - V(s)]^2
         vf_loss = losses.mean_squared_error(tf.squeeze(train_model.vf), R)
 
@@ -70,7 +70,7 @@ class Model(object):
         # Update parameters using loss
         # 1. Get the model parameters
         params = find_trainable_variables("a2c_model")
-        
+
         # 2. Calculate the gradients
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:
@@ -82,7 +82,7 @@ class Model(object):
 
         # 3. Build our trainer
         trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=alpha, epsilon=epsilon)
-        
+
         # 4. Backpropagation
         _train = trainer.apply_gradients(grads)
 
@@ -195,23 +195,23 @@ def learn(
         max_grad_norm=max_grad_norm, lr=lr, alpha=alpha, epsilon=epsilon, total_timesteps=total_timesteps, lrschedule=lrschedule)
     if load_path is not None:
         model.load(load_path)
-    
+
     # Instantiate the runner object
     runner = Runner(env, model, nsteps=nsteps, gamma=gamma)
 
     # Calculate the batch_size
     nbatch = nenvs*nsteps
-    
+
     # Start total timer
     tstart = time.time()
 
     for update in range(1, total_timesteps//nbatch+1):
         # Get mini batch of experiences
         obs, states, rewards, masks, actions, values = runner.run()
-        
+
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
         nseconds = time.time()-tstart
-        
+
         # Calculate the fps (frame per second)
         fps = int((update*nbatch)/nseconds)
         if update % log_interval == 0 or update == 1:
