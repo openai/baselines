@@ -222,7 +222,7 @@ def main():
         env = build_env(args)
         obs = env.reset()
         def initialize_placeholders(nlstm=128,**kwargs):
-            return np.zeros((args.num_env, 2*nlstm)), np.zeros((1))
+            return np.zeros((args.num_env or 0, 2*nlstm)), np.zeros((1))
         state, dones = initialize_placeholders(**extra_args)
         while True:
             actions, _, state, _ = model.step(obs,S=state, M=dones)
