@@ -73,7 +73,7 @@ Train a PPO agent on `CartPole-v1` using 4 processes.
 
    del model # remove to demonstrate saving and loading
 
-   PPO2.load("ppo2_cartpole")
+   model = PPO2.load("ppo2_cartpole")
 
    # Enjoy trained agent
    obs = env.reset()

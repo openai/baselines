@@ -57,7 +57,7 @@ Example
 
   del model # remove to demonstrate saving and loading
 
-  TRPO.load("trpo_cartpole")
+  model = TRPO.load("trpo_cartpole")
 
   obs = env.reset()
   while True:

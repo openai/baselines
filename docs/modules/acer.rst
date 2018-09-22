@@ -57,7 +57,7 @@ Example
 
   del model # remove to demonstrate saving and loading
 
-  ACER.load("acer_cartpole")
+  model = ACER.load("acer_cartpole")
 
   obs = env.reset()
   while True:

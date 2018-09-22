@@ -58,7 +58,7 @@ Example
 
   del model # remove to demonstrate saving and loading
 
-  DQN.load("deepq_cartpole")
+  model = DQN.load("deepq_cartpole")
 
   obs = env.reset()
   while True:

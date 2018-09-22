@@ -62,7 +62,7 @@ Train a A2C agent on `CartPole-v1` using 4 processes.
 
   del model # remove to demonstrate saving and loading
 
-  A2C.load("a2c_cartpole")
+  model = A2C.load("a2c_cartpole")
 
   obs = env.reset()
   while True:

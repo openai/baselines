@@ -66,7 +66,7 @@ Example
 
   del model # remove to demonstrate saving and loading
 
-  DDPG.load("ddpg_mountain")
+  model = DDPG.load("ddpg_mountain")
 
   obs = env.reset()
   while True:

@@ -58,7 +58,7 @@ Example
 
   del model # remove to demonstrate saving and loading
 
-  ACKTR.load("acktr_cartpole")
+  model = ACKTR.load("acktr_cartpole")
 
   obs = env.reset()
   while True:
