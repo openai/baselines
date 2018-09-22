@@ -63,14 +63,14 @@ class Model(object):
         # Total loss = Policy gradient loss - entropy * entropy coefficient + Value coefficient * value loss
 
         # Clip the value to reduce variability during Critic training
-        # Get the predicted value 
+        # Get the predicted value
         vpred = train_model.vf
         vpredclipped = OLDVPRED + tf.clip_by_value(train_model.vf - OLDVPRED, - CLIPRANGE, CLIPRANGE)
         # Unclipped value
         vf_losses1 = tf.square(vpred - R)
         # Clipped value
         vf_losses2 = tf.square(vpredclipped - R)
-        
+
         vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
 
         # Calculate ratio (pi current policy / pi old policy)
@@ -86,7 +86,7 @@ class Model(object):
         approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
         clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
 
-        # Total loss 
+        # Total loss
         loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
 
         # UPDATE THE PARAMETERS USING LOSS
@@ -104,7 +104,7 @@ class Model(object):
         grads_and_var = list(zip(grads, var))
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
-        
+
         _train = trainer.apply_gradients(grads_and_var)
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
@@ -365,7 +365,7 @@ def learn(*, network, env, total_timesteps, seed=None, nsteps=2048, ent_coef=0.0
         # Calculate the fps (frame per second)
         fps = int(nbatch / (tnow - tstart))
         if update % log_interval == 0 or update == 1:
-            # Calculates if value function is a good predicator of the returns (ev > 1) 
+            # Calculates if value function is a good predicator of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
             ev = explained_variance(values, returns)
             logger.logkv("serial_timesteps", update*nsteps)
