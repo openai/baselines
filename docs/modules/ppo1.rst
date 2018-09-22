@@ -66,7 +66,7 @@ Example
 
   del model # remove to demonstrate saving and loading
 
-  PPO1.load("ppo1_cartpole")
+  model = PPO1.load("ppo1_cartpole")
 
   obs = env.reset()
   while True:
