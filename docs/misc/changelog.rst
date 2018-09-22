@@ -5,7 +5,7 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre Release 2.0.1.rc0 (WIP)
+Pre Release 2.0.1.a0 (WIP)
 ---------------------------
 
 **logging and bug fixes**

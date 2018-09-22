@@ -11,10 +11,11 @@ from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 
-__version__ = "2.0.1.rc0"
+__version__ = "2.0.1.a0"
 
 
-# patch Gym spaces to add equal functions, if not implemented
+# patch Gym spaces to add equality functions, if not implemented
+# See https://github.com/openai/gym/issues/1171
 if gym.spaces.MultiBinary.__eq__ == object.__eq__:  # by default, all classes have the __eq__ function from object.
     def _eq(self, other):
         return self.n == other.n
