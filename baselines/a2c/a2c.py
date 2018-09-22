@@ -53,16 +53,14 @@ class Model(object):
         # Total loss = Policy gradient loss - entropy * entropy coefficient + Value coefficient * value loss
 
         # Policy loss
-        # Output -log(pi)
         neglogpac = train_model.pd.neglogp(A)
+        # L = A(s,a) * -logpi(a|s)
+        pg_loss = tf.reduce_mean(ADV * neglogpac)
 
         # Entropy is used to improve exploration by limiting the premature convergence to suboptimal policy.
         entropy = tf.reduce_mean(train_model.pd.entropy())
 
-        # 1/n * sum A(si,ai) * -logpi(ai|si)
-        pg_loss = tf.reduce_mean(ADV * neglogpac)
-
-        # Value loss 1/2 SUM [R - V(s)]^2
+        # Value loss
         vf_loss = losses.mean_squared_error(tf.squeeze(train_model.vf), R)
 
         loss = pg_loss - entropy*ent_coef + vf_loss * vf_coef
@@ -80,10 +78,9 @@ class Model(object):
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
-        # 3. Build our trainer
+        # 3. Make op for one policy and value update step of A2C
         trainer = tf.train.RMSPropOptimizer(learning_rate=LR, decay=alpha, epsilon=epsilon)
 
-        # 4. Backpropagation
         _train = trainer.apply_gradients(grads)
 
         lr = Scheduler(v=lr, nvalues=total_timesteps, schedule=lrschedule)
@@ -215,18 +212,8 @@ def learn(
         # Calculate the fps (frame per second)
         fps = int((update*nbatch)/nseconds)
         if update % log_interval == 0 or update == 1:
-            """
-            explained_variances calculates if value function is a good
-            predicator of the returns or if it's just worse than predicting
-            nothing.
-            The goal is that ev goes closer and closer to 1.
-
-
-            interpretation:
-            ev=0  =>  might as well have predicted zero
-            ev=1  =>  perfect prediction
-            ev<0  =>  worse than just predicting zero
-            """
+            # Calculates if value function is a good predicator of the returns (ev > 1) 
+            # or if it's just worse than predicting nothing (ev =< 0)
             ev = explained_variance(values, rewards)
             logger.record_tabular("nupdates", update)
             logger.record_tabular("total_timesteps", update*nbatch)
