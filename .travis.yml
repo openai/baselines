@@ -6,6 +6,7 @@ services:
     - docker
 
 install:
+    - pip install .
     - pip install flake8
     - docker build . -t baselines-test
 
