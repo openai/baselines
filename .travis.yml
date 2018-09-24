@@ -6,11 +6,12 @@ services:
     - docker
 
 install:
-    - pip install tensorflow
-    - pip install .
-    - pip install flake8
     - docker build . -t baselines-test
 
-script:
+before_script:
+    - git clone https://github.com/openai/baselines
+    - pip install flake8
     - flake8 . --show-source --statistics
+
+script:
     - docker run baselines-test pytest -v .
