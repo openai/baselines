@@ -46,8 +46,6 @@ class PolicyWithValue(object):
         # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
 
-        # This build a fc connected layer that returns a probability distribution
-        # over actions (self.pd) and our pi logits (self.pi).
         self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01)
 
         # Take an action
