@@ -9,8 +9,8 @@ install:
     - docker build . -t baselines-test
 
 before_script:
-    - git clone https://github.com/openai/baselines -o source_code
     - pip install flake8
+    - git clone https://github.com/openai/baselines source_code
     - flake8 source_code --show-source --statistics
 
 script:
