@@ -28,7 +28,7 @@ def nature_cnn(unscaled_images, **conv_kwargs):
 
 
 @register("mlp")
-def mlp(num_layers=2, num_hidden=64, activation=tf.tanh):
+def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
     """
     Stack of fully-connected layers to be used in a policy / q-function approximator
 
@@ -49,8 +49,12 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh):
     def network_fn(X):
         h = tf.layers.flatten(X)
         for i in range(num_layers):
-            h = activation(fc(h, 'mlp_fc{}'.format(i), nh=num_hidden, init_scale=np.sqrt(2)))
-        return h, None
+            h = fc(h, 'mlp_fc{}'.format(i), nh=num_hidden, init_scale=np.sqrt(2))
+            if layer_norm:
+                h = tf.contrib.layers.layer_norm(h, center=True, scale=True)
+            h = activation(h)
+
+        return h
 
     return network_fn
 
@@ -58,7 +62,7 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh):
 @register("cnn")
 def cnn(**conv_kwargs):
     def network_fn(X):
-        return nature_cnn(X, **conv_kwargs), None
+        return nature_cnn(X, **conv_kwargs)
     return network_fn
 
 
@@ -72,7 +76,7 @@ def cnn_small(**conv_kwargs):
         h = activ(conv(h, 'c2', nf=16, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
         h = conv_to_fc(h)
         h = activ(fc(h, 'fc1', nh=128, init_scale=np.sqrt(2)))
-        return h, None
+        return h
     return network_fn
 
 
@@ -190,7 +194,7 @@ def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
                                            activation_fn=tf.nn.relu,
                                            **conv_kwargs)
 
-        return out, None
+        return out
     return network_fn
 
 def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
@@ -212,7 +216,9 @@ def get_network_builder(name):
         return network_fn
 
     """
-    if name in mapping:
+    if callable(name):
+        return name
+    elif name in mapping:
         return mapping[name]
     else:
         raise ValueError('Unknown network type: {}'.format(name))
