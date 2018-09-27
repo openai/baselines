@@ -62,7 +62,7 @@ class SubprocChunkVecEnv(VecEnv):
         self.chunk_size = min(chunk_size, nenvs)
         env_fns_chunks = list(chunks(env_fns, chunk_size))
         num_chunks = len(env_fns_chunks)
-        
+
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(num_chunks)])
         self.ps = [Process(target=chunk_worker, args=(work_remote, remote, CloudpickleWrapper(env_fn_chunk)))
                    for (work_remote, remote, env_fn_chunk) in zip(self.work_remotes, self.remotes, env_fns_chunks)]
