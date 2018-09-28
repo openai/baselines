@@ -79,6 +79,7 @@ class DQN(OffPolicyRLModel):
         self._train_step = None
         self.update_target = None
         self.act = None
+        self.proba_step = None
         self.replay_buffer = None
         self.beta_schedule = None
         self.exploration = None
@@ -91,7 +92,6 @@ class DQN(OffPolicyRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
-
             assert not isinstance(self.action_space, gym.spaces.Box), \
                 "Error: DQN cannot output a gym.spaces.Box action space."
             assert issubclass(self.policy, DQNPolicy), "Error: the input policy for the DQN model must be " \
@@ -103,7 +103,7 @@ class DQN(OffPolicyRLModel):
 
                 optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
 
-                self.act, self._train_step, self.update_target, _ = deepq.build_train(
+                self.act, self._train_step, self.update_target, self.step_model = deepq.build_train(
                     q_func=self.policy,
                     ob_space=self.observation_space,
                     ac_space=self.action_space,
@@ -113,7 +113,7 @@ class DQN(OffPolicyRLModel):
                     param_noise=self.param_noise,
                     sess=self.sess
                 )
-
+                self.proba_step = self.step_model.proba_step
                 self.params = find_trainable_variables("deepq")
 
                 # Initialize the parameters and copy them to the target network.
@@ -245,7 +245,7 @@ class DQN(OffPolicyRLModel):
 
         observation = observation.reshape((-1,) + self.observation_space.shape)
         with self.sess.as_default():
-            actions = self.act(observation, stochastic=not deterministic)
+            actions, _, _ = self.step_model.step(observation, deterministic=deterministic)
 
         if not vectorized_env:
             actions = actions[0]
@@ -257,14 +257,14 @@ class DQN(OffPolicyRLModel):
         vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
         observation = observation.reshape((-1,) + self.observation_space.shape)
+        actions_proba = self.proba_step(observation, state, mask)
 
-        # Get the tensor just before the softmax function in the TensorFlow graph,
-        # then execute the graph from the input observation to this tensor.
-        tensor = self.graph.get_tensor_by_name('deepq/q_func/fully_connected_2/BiasAdd:0')
-        if vectorized_env:
-            return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))
-        else:
-            return self._softmax(self.sess.run(tensor, feed_dict={'deepq/observation:0': observation}))[0]
+        if not vectorized_env:
+            if state is not None:
+                raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
+            actions_proba = actions_proba[0]
+
+        return actions_proba
 
     def save(self, save_path):
         # params
