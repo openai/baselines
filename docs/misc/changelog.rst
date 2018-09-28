@@ -12,7 +12,7 @@ Pre Release 2.0.1.a0 (WIP)
 
 - added patch fix for equal function using `gym.spaces.MultiDiscrete` and `gym.spaces.MultiBinary`
 - fixes for DQN action_probability
-- re-added double DQN + refactored DQN policies
+- re-added double DQN + refactored DQN policies **breaking changes**
 
 
 Release 2.0.0 (2018-09-18)
