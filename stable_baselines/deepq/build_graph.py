@@ -457,6 +457,4 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
     )
     update_target = tf_util.function([], [], updates=[update_target_expr])
 
-    q_values = tf_util.function([obs_phs[0]], step_model.q_values)
-
     return act_f, train, update_target, step_model

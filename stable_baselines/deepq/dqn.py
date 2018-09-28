@@ -77,6 +77,7 @@ class DQN(OffPolicyRLModel):
         self.graph = None
         self.sess = None
         self._train_step = None
+        self.step_model = None
         self.update_target = None
         self.act = None
         self.proba_step = None
@@ -239,7 +240,7 @@ class DQN(OffPolicyRLModel):
 
         return self
 
-    def predict(self, observation, state=None, mask=None, deterministic=False):
+    def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 

@@ -43,7 +43,7 @@ class DQNPolicy(BasePolicy):
             assert self.q_values is not None
             self.policy_proba = tf.nn.softmax(self.q_values)
 
-    def step(self, obs, state=None, mask=None, deterministic=False):
+    def step(self, obs, state=None, mask=None, deterministic=True):
         """
         Returns the q_values for a single step
 
@@ -130,14 +130,14 @@ class FeedForwardPolicy(DQNPolicy):
         self.initial_state = None
         self._setup_init()
 
-    def step(self, obs, state=None, mask=None, deterministic=False):
+    def step(self, obs, state=None, mask=None, deterministic=True):
         q_values, actions_proba = self.sess.run([self.q_values, self.policy_proba], {self.obs_ph: obs})
         if deterministic:
             actions = np.argmax(q_values, axis=1)
         else:
             # Unefficient sampling
             # TODO: replace the loop
-            actions = np.zeros((len(obs),))
+            actions = np.zeros((len(obs),), dtype=np.int64)
             for action_idx in range(len(obs)):
                 actions[action_idx] = np.random.choice(self.n_actions, p=actions_proba[action_idx])
 
