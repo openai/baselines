@@ -106,7 +106,7 @@ class FeedForwardPolicy(DQNPolicy):
                     activ = tf.nn.relu
                     extracted_features = tf.layers.flatten(self.processed_x)
                     action_out = extracted_features
-                    for i, layer_size in enumerate(layers):
+                    for layer_size in layers:
                         action_out = tf_layers.fully_connected(action_out, num_outputs=layer_size, activation_fn=None)
                         if layer_norm:
                             action_out = tf_layers.layer_norm(action_out, center=True, scale=True)
