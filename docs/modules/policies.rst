@@ -5,6 +5,25 @@
 Policy Networks
 ===============
 
+Stable-baselines provides a set of default policies, that can be used with most action spaces.
+If you need more control on the policy architecture, You can also create a custom policy (see :ref:`custom_policy`).
+
+.. note::
+
+	CnnPolicies are for images only. MlpPolicies are made for other type of features (e.g. robot joints)
+
+.. rubric:: Available Policies
+
+.. autosummary::
+    :nosignatures:
+
+    MlpPolicy
+    MlpLstmPolicy
+    MlpLnLstmPolicy
+    CnnPolicy
+    CnnLstmPolicy
+    CnnLnLstmPolicy
+
 
 Base Classes
 ------------

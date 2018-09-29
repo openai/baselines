@@ -3,7 +3,7 @@
 Custom Policy Network
 ---------------------
 
-Stable baselines provides default policy networks for images (CNNPolicies)
+Stable baselines provides default policy networks (see :ref:`Policies <policies>` ) for images (CNNPolicies)
 and other type of input features (MlpPolicies).
 However, you can also easily define a custom architecture for the policy (or value) network:
 

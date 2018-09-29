@@ -14,6 +14,16 @@ and its extensions (Double-DQN, Dueling-DQN, Prioritized Experience Replay).
   The DQN model does not support ``stable_baselines.common.policies``,
   as a result it must use its own policy models (see :ref:`deepq_policies`).
 
+.. rubric:: Available Policies
+
+.. autosummary::
+    :nosignatures:
+
+    MlpPolicy
+    LnMlpPolicy
+    CnnPolicy
+    LnCnnPolicy
+
 Notes
 -----
 
@@ -46,7 +56,7 @@ Example
   import gym
 
   from stable_baselines.common.vec_env import DummyVecEnv
-  from stable_baselines.deepq.policies import MlpPolicy, CnnPolicy
+  from stable_baselines.deepq.policies import MlpPolicy
   from stable_baselines import DQN
 
   env = gym.make('CartPole-v1')
