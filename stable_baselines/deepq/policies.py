@@ -84,12 +84,15 @@ class FeedForwardPolicy(DQNPolicy):
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
     :param layer_norm: (bool) enable layer normalisation
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
-                 cnn_extractor=nature_cnn, feature_extraction="cnn", obs_phs=None, layer_norm=False, **kwargs):
-        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
+                 cnn_extractor=nature_cnn, feature_extraction="cnn",
+                 obs_phs=None, layer_norm=False, dueling=True, **kwargs):
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps,
+                                                n_batch, n_lstm=256, dueling=dueling,
                                                 reuse=reuse, scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
         if layers is None:
             layers = [64, 64]
@@ -160,12 +163,15 @@ class CnnPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="cnn", obs_phs=obs_phs, layer_norm=False, **_kwargs)
+                                        feature_extraction="cnn", obs_phs=obs_phs, dueling=dueling,
+                                        layer_norm=False, **_kwargs)
 
 
 class LnCnnPolicy(FeedForwardPolicy):
@@ -181,12 +187,15 @@ class LnCnnPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(LnCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                          feature_extraction="cnn", obs_phs=obs_phs, layer_norm=True, **_kwargs)
+                                          feature_extraction="cnn", obs_phs=obs_phs, dueling=dueling,
+                                          layer_norm=True, **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
@@ -202,12 +211,15 @@ class MlpPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="mlp", obs_phs=obs_phs, layer_norm=False, **_kwargs)
+                                        feature_extraction="mlp", obs_phs=obs_phs, dueling=dueling,
+                                        layer_norm=False, **_kwargs)
 
 
 class LnMlpPolicy(FeedForwardPolicy):
@@ -223,12 +235,15 @@ class LnMlpPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                          feature_extraction="mlp", obs_phs=obs_phs, layer_norm=True, **_kwargs)
+                                          feature_extraction="mlp", obs_phs=obs_phs,
+                                          layer_norm=True, dueling=True, **_kwargs)
 
 
 register_policy("CnnPolicy", CnnPolicy)

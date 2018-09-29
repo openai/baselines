@@ -1,3 +1,5 @@
+from functools import partial
+
 import tensorflow as tf
 import numpy as np
 import gym
@@ -95,7 +97,14 @@ class DQN(OffPolicyRLModel):
         with SetVerbosity(self.verbose):
             assert not isinstance(self.action_space, gym.spaces.Box), \
                 "Error: DQN cannot output a gym.spaces.Box action space."
-            assert issubclass(self.policy, DQNPolicy), "Error: the input policy for the DQN model must be " \
+
+            # If the policy is wrap in functool.partial (e.g. to disable dueling)
+            # unwrap it to check the class type
+            if isinstance(self.policy, partial):
+                test_policy = self.policy.func
+            else:
+                test_policy = self.policy
+            assert issubclass(test_policy, DQNPolicy), "Error: the input policy for the DQN model must be " \
                                                        "an instance of DQNPolicy."
 
             self.graph = tf.Graph()
