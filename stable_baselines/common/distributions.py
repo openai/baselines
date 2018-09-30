@@ -1,9 +1,18 @@
+import warnings
+
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
-import numpy as np
 from gym import spaces
 
 from stable_baselines.a2c.utils import linear
+
+
+def warn_out_of_bound():
+    # Warn users that action is not bounded
+    message = "Actions are not clipped and can be out of bound "
+    message += "(see issue https://github.com/hill-a/stable-baselines/issues/36)"
+    warnings.warn(message, stacklevel=2)
 
 
 class ProbabilityDistribution(object):
@@ -394,6 +403,7 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
     def mode(self):
         # TODO: squash the ouput instead of clipping
         # and take the change of distribution into account
+        warn_out_of_bound()
         return self.mean
         # low = self.bounds[0]
         # high = self.bounds[1]
@@ -417,6 +427,7 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
     def sample(self):
         # TODO: squash the ouput instead of clipping
         # and take the change of distribution into account
+        warn_out_of_bound()
         return self.mean + self.std * tf.random_normal(tf.shape(self.mean), dtype=self.mean.dtype)
         # low = self.bounds[0]
         # high = self.bounds[1]

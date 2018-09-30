@@ -11,6 +11,7 @@ Pre Release 2.0.1.a0 (WIP)
 **logging and bug fixes**
 
 - added patch fix for equal function using `gym.spaces.MultiDiscrete` and `gym.spaces.MultiBinary`
+- temporary removal of action clipping for continuous actions to avoid NaN (see issue #36)
 
 
 Release 2.0.0 (2018-09-18)
