@@ -36,7 +36,7 @@ class NeuralNetValueFunction(object):
 
         optim = kfac.KfacOptimizer(learning_rate=0.001, cold_lr=0.001 * (1 - 0.9), momentum=0.9,
                                    clip_kl=0.3, epsilon=0.1, stats_decay=0.95,
-                                   async=1, kfac_update=2, cold_iter=50,
+                                   async_eigen_decomp=True, kfac_update=2, cold_iter=50,
                                    weight_decay_dict=wd_dict, max_grad_norm=None, verbose=verbose)
         vf_var_list = []
         for var in tf.trainable_variables():

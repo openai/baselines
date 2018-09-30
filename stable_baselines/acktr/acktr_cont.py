@@ -80,7 +80,7 @@ def learn(env, policy, value_fn, gamma, lam, timesteps_per_batch, num_timesteps,
     stepsize = tf.Variable(initial_value=np.float32(np.array(0.03)), name='stepsize')
     inputs, loss, loss_sampled = policy.update_info
     optim = kfac.KfacOptimizer(learning_rate=stepsize, cold_lr=stepsize * (1 - 0.9), momentum=0.9, kfac_update=2,
-                               epsilon=1e-2, stats_decay=0.99, async=1, cold_iter=1,
+                               epsilon=1e-2, stats_decay=0.99, async_eigen_decomp=1, cold_iter=1,
                                weight_decay_dict=policy.wd_dict, max_grad_norm=None)
     pi_var_list = []
     for var in tf.trainable_variables():
