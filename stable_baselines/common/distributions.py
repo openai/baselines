@@ -235,7 +235,7 @@ class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
         mean = linear(pi_latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
-        logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
+        logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         q_values = linear(vf_latent_vector, 'q', self.size, init_scale=init_scale, init_bias=init_bias)
         return self.proba_distribution_from_flat(pdparam, self.bounds), mean, q_values
@@ -319,7 +319,7 @@ class CategoricalProbabilityDistribution(ProbabilityDistribution):
         return tf.reduce_sum(p_0 * (tf.log(z_0) - a_0), axis=-1)
 
     def sample(self):
-        uniform = tf.random_uniform(tf.shape(self.logits))
+        uniform = tf.random_uniform(tf.shape(self.logits), dtype=self.logits.dtype)
         return tf.argmax(self.logits - tf.log(-tf.log(uniform)), axis=-1)
 
     @classmethod
@@ -392,11 +392,14 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
         return self.flat
 
     def mode(self):
-        low = self.bounds[0]
-        high = self.bounds[1]
-
-        # clip the output (clip_by_value does not broadcast correctly)
-        return tf.minimum(tf.maximum(self.mean, low), high)
+        # TODO: squash the ouput instead of clipping
+        # and take the change of distribution into account
+        return self.mean
+        # low = self.bounds[0]
+        # high = self.bounds[1]
+        #
+        # # clip the output (clip_by_value does not broadcast correctly)
+        # return tf.minimum(tf.maximum(self.mean, low), high)
 
     def neglogp(self, x):
         return 0.5 * tf.reduce_sum(tf.square((x - self.mean) / self.std), axis=-1) \
@@ -412,11 +415,14 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
         return tf.reduce_sum(self.logstd + .5 * np.log(2.0 * np.pi * np.e), axis=-1)
 
     def sample(self):
-        low = self.bounds[0]
-        high = self.bounds[1]
-
-        # clip the output (clip_by_value does not broadcast correctly)
-        return tf.minimum(tf.maximum(self.mean + self.std * tf.random_normal(tf.shape(self.mean)), low), high)
+        # TODO: squash the ouput instead of clipping
+        # and take the change of distribution into account
+        return self.mean + self.std * tf.random_normal(tf.shape(self.mean), dtype=self.mean.dtype)
+        # low = self.bounds[0]
+        # high = self.bounds[1]
+        #
+        # # clip the output (clip_by_value does not broadcast correctly)
+        # return tf.minimum(tf.maximum(self.mean + self.std * tf.random_normal(tf.shape(self.mean)), low), high)
 
     @classmethod
     def fromflat(cls, flat, bounds=(-np.inf, np.inf)):
