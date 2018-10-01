@@ -170,8 +170,9 @@ class ACKTR(ActorCriticRLModel):
                 with tf.variable_scope("kfac", reuse=False, custom_getter=tf_util.outer_scope_getter("kfac")):
                     with tf.device('/gpu:0'):
                         self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=self.kfac_clip,
-                                                                momentum=0.9, kfac_update=1, epsilon=0.01,
-                                                                stats_decay=0.99, async=1, cold_iter=10,
+                                                                momentum=0.9, kfac_update=1,
+                                                                epsilon=0.01, stats_decay=0.99,
+                                                                async_eigen_decomp=True, cold_iter=10,
                                                                 max_grad_norm=self.max_grad_norm, verbose=self.verbose)
 
                         optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
