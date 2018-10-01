@@ -140,7 +140,7 @@ def build_act(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess):
 
     policy = q_func(sess, ob_space, ac_space, 1, 1, None)
     obs_phs = (policy.obs_ph, policy.processed_x)
-    deterministic_actions = policy.proba_distribution.mode()
+    deterministic_actions = tf.argmax(policy.q_values, axis=1)
 
     batch_size = tf.shape(policy.obs_ph)[0]
     n_actions = ac_space.nvec if isinstance(ac_space, MultiDiscrete) else ac_space.n
@@ -235,8 +235,8 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
         adaptive_policy = q_func(sess, ob_space, ac_space, 1, 1, None, obs_phs=obs_phs)
     perturb_for_adaption = perturb_vars(original_scope="model", perturbed_scope="adaptive_model/model")
     kl_loss = tf.reduce_sum(
-        tf.nn.softmax(policy.value_fn) *
-        (tf.log(tf.nn.softmax(policy.value_fn)) - tf.log(tf.nn.softmax(adaptive_policy.value_fn))),
+        tf.nn.softmax(policy.q_values) *
+        (tf.log(tf.nn.softmax(policy.q_values)) - tf.log(tf.nn.softmax(adaptive_policy.q_values))),
         axis=-1)
     mean_kl = tf.reduce_mean(kl_loss)
 
@@ -259,8 +259,8 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
                 lambda: param_noise_threshold))
 
     # Put everything together.
-    perturbed_deterministic_actions = tf.argmax(perturbable_policy.value_fn, axis=1)
-    deterministic_actions = tf.argmax(policy.value_fn, axis=1)
+    perturbed_deterministic_actions = tf.argmax(perturbable_policy.q_values, axis=1)
+    deterministic_actions = tf.argmax(policy.q_values, axis=1)
     batch_size = tf.shape(policy.obs_ph)[0]
     n_actions = ac_space.nvec if isinstance(ac_space, MultiDiscrete) else ac_space.n
     random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=n_actions, dtype=tf.int64)
@@ -349,7 +349,7 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
             optimize the error in Bellman's equation. See the top of the file for details.
         update_target: (function) copy the parameters from optimized Q function to the target Q function.
             See the top of the file for details.
-        debug: ({str: function}) a bunch of functions to print debug data like q_values.
+        step_model: (DQNPolicy) Policy for evaluation
     """
     n_actions = ac_space.nvec if isinstance(ac_space, MultiDiscrete) else ac_space.n
     with tf.variable_scope("input", reuse=reuse):
@@ -364,10 +364,10 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
             act_f, obs_phs = build_act(q_func, ob_space, ac_space, stochastic_ph, update_eps_ph, sess)
 
         # q network evaluation
-        with tf.variable_scope("eval_q_func", reuse=True, custom_getter=tf_util.outer_scope_getter("eval_q_func")):
-            eval_policy = q_func(sess, ob_space, ac_space, 1, 1, None, reuse=True, obs_phs=obs_phs)
+        with tf.variable_scope("step_model", reuse=True, custom_getter=tf_util.outer_scope_getter("step_model")):
+            step_model = q_func(sess, ob_space, ac_space, 1, 1, None, reuse=True, obs_phs=obs_phs)
         q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/model")
-        # target q network evalution
+        # target q network evaluation
 
         with tf.variable_scope("target_q_func", reuse=False):
             target_policy = q_func(sess, ob_space, ac_space, 1, 1, None, reuse=False)
@@ -375,12 +375,12 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
                                                scope=tf.get_variable_scope().name + "/target_q_func")
 
         # compute estimate of best possible value starting from state at t + 1
-        double_value_fn = None
+        double_q_values = None
         double_obs_ph = target_policy.obs_ph
         if double_q:
             with tf.variable_scope("double_q", reuse=True, custom_getter=tf_util.outer_scope_getter("double_q")):
                 double_policy = q_func(sess, ob_space, ac_space, 1, 1, None, reuse=True)
-                double_value_fn = double_policy.value_fn
+                double_q_values = double_policy.q_values
                 double_obs_ph = double_policy.obs_ph
 
     with tf.variable_scope("loss", reuse=reuse):
@@ -391,14 +391,14 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
         importance_weights_ph = tf.placeholder(tf.float32, [None], name="weight")
 
         # q scores for actions which we know were selected in the given state.
-        q_t_selected = tf.reduce_sum(eval_policy.value_fn * tf.one_hot(act_t_ph, n_actions), 1)
+        q_t_selected = tf.reduce_sum(step_model.q_values * tf.one_hot(act_t_ph, n_actions), axis=1)
 
         # compute estimate of best possible value starting from state at t + 1
         if double_q:
-            q_tp1_best_using_online_net = tf.argmax(double_value_fn, 1)
-            q_tp1_best = tf.reduce_sum(target_policy.value_fn * tf.one_hot(q_tp1_best_using_online_net, n_actions), 1)
+            q_tp1_best_using_online_net = tf.argmax(double_q_values, axis=1)
+            q_tp1_best = tf.reduce_sum(target_policy.q_values * tf.one_hot(q_tp1_best_using_online_net, n_actions), axis=1)
         else:
-            q_tp1_best = tf.reduce_max(target_policy.value_fn, 1)
+            q_tp1_best = tf.reduce_max(target_policy.q_values, axis=1)
         q_tp1_best_masked = (1.0 - done_mask_ph) * q_tp1_best
 
         # compute RHS of bellman equation
@@ -457,6 +457,4 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
     )
     update_target = tf_util.function([], [], updates=[update_target_expr])
 
-    q_values = tf_util.function([obs_phs[0]], eval_policy.value_fn)
-
-    return act_f, train, update_target, {'q_values': q_values}
+    return act_f, train, update_target, step_model

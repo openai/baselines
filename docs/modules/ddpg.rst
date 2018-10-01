@@ -13,6 +13,17 @@ DDPG
   The DDPG model does not support ``stable_baselines.common.policies`` because it uses q-value instead
   of value estimation, as a result it must use its own policy models (see :ref:`ddpg_policies`).
 
+
+.. rubric:: Available Policies
+
+.. autosummary::
+    :nosignatures:
+
+    MlpPolicy
+    LnMlpPolicy
+    CnnPolicy
+    LnCnnPolicy
+
 Notes
 -----
 
@@ -47,7 +58,7 @@ Example
   import gym
   import numpy as np
 
-  from stable_baselines.ddpg.policies import MlpPolicy, CnnPolicy
+  from stable_baselines.ddpg.policies import MlpPolicy
   from stable_baselines.common.vec_env import DummyVecEnv
   from stable_baselines.ddpg.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise, AdaptiveParamNoiseSpec
   from stable_baselines import DDPG
