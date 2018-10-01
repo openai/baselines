@@ -113,7 +113,7 @@ def build_env(args):
 
     elif env_type == 'retro':
         import retro
-        gamestate = args.gamestate or 'Level1-1'
+        gamestate = args.gamestate or retro.State.DEFAULT
         env = retro_wrappers.make_retro(game=args.env, state=gamestate, max_episode_steps=10000,
                                         use_restricted_actions=retro.Actions.DISCRETE)
         env.seed(args.seed)
