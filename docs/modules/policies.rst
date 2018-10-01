@@ -5,6 +5,11 @@
 Policy Networks
 ===============
 
+.. warning::
+  For all algorithms (except DDPG), continuous actions are only clipped during training
+  (to avoid out of bound error). However, you have to manually clip the action when using
+  the `predict()` method.
+
 
 Base Classes
 ------------
