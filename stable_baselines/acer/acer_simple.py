@@ -603,7 +603,11 @@ class _Runner(AbstractEnvRunner):
             mb_actions.append(actions)
             mb_mus.append(mus)
             mb_dones.append(self.dones)
-            obs, rewards, dones, _ = self.env.step(actions)
+            clipped_actions = actions
+            # Clip the actions to avoid out of bound error
+            if isinstance(self.env.action_space, Box):
+                clipped_actions = np.clip(actions, self.env.action_space.low, self.env.action_space.high)
+            obs, rewards, dones, _ = self.env.step(clipped_actions)
             # states information for statefull models like LSTM
             self.states = states
             self.dones = dones

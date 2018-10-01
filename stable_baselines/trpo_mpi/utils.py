@@ -1,3 +1,4 @@
+import gym
 import numpy as np
 
 from stable_baselines.common.vec_env import VecEnv
@@ -83,11 +84,16 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
         actions[i] = action[0]
         prev_actions[i] = prevac
 
+        clipped_action = action
+        # Clip the actions to avoid out of bound error
+        if isinstance(env.action_space, Box):
+            clipped_action = np.clip(action, env.action_space.low, env.action_space.high)
+
         if gail:
-            rew = reward_giver.get_reward(observation, action[0])
-            observation, true_rew, done, _info = env.step(action[0])
+            rew = reward_giver.get_reward(observation, clipped_action[0])
+            observation, true_rew, done, _info = env.step(clipped_action[0])
         else:
-            observation, rew, done, _info = env.step(action[0])
+            observation, rew, done, _info = env.step(clipped_action[0])
             true_rew = rew
         rews[i] = rew
         true_rews[i] = true_rew
