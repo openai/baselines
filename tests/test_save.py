@@ -43,6 +43,8 @@ def test_model_manipulation(model_class):
         obs = env.reset()
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
+            # Test action probability method
+            model.action_probability(obs)
             obs, reward, _, _ = env.step(action)
             acc_reward += reward
         acc_reward = sum(acc_reward) / N_TRIALS

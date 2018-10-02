@@ -1,9 +1,8 @@
 import tensorflow as tf
+import tensorflow.contrib.layers as tf_layers
 import numpy as np
-from gym.spaces import Box
+from gym.spaces import Discrete
 
-from stable_baselines.a2c.utils import linear
-from stable_baselines.common.distributions import make_proba_dist_type
 from stable_baselines.common.policies import BasePolicy, nature_cnn, register_policy
 
 
@@ -22,36 +21,37 @@ class DQNPolicy(BasePolicy):
     :param scale: (bool) whether or not to scale the input
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False,
-                 obs_phs=None):
+                 obs_phs=None, dueling=True):
         # DQN policies need an override for the obs placeholder, due to the architecture of the code
         super(DQNPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
                                         scale=scale, obs_phs=obs_phs)
-        assert not isinstance(ac_space, Box), "Error: the action space cannot be of type gym.spaces.Box"
-        self.pdtype = make_proba_dist_type(ac_space)
+        assert isinstance(ac_space, Discrete), "Error: the action space for DQN must be of type gym.spaces.Discrete"
+        self.n_actions = ac_space.n
         self.value_fn = None
-        self.proba_distribution = None
-        self.policy = None
+        self.q_values = None
+        self.dueling = dueling
 
     def _setup_init(self):
         """
-        sets up the distibutions, actions, and value
+        Set up action probability
         """
         with tf.variable_scope("output", reuse=True):
-            assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
-            self.policy_proba = tf.nn.softmax(self.policy)
-            self._value = self.value_fn[:, 0]
+            assert self.q_values is not None
+            self.policy_proba = tf.nn.softmax(self.q_values)
 
-    def step(self, obs, state=None, mask=None):
+    def step(self, obs, state=None, mask=None, deterministic=True):
         """
-        Returns the policy for a single step
+        Returns the q_values for a single step
 
-        :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in recurrent policies)
-        :param mask: ([float]) The last masks (used in recurrent policies)
-        :return: ([float], [float], [float], [float]) actions, values, states, neglogp
+        :param obs: (np.ndarray float or int) The current observation of the environment
+        :param state: (np.ndarray float) The last states (used in recurrent policies)
+        :param mask: (np.ndarray float) The last masks (used in recurrent policies)
+        :param deterministic: (bool) Whether or not to return deterministic actions.
+        :return: (np.ndarray int, np.ndarray float, np.ndarray float) actions, q_values, states
         """
         raise NotImplementedError
 
@@ -59,21 +59,10 @@ class DQNPolicy(BasePolicy):
         """
         Returns the action probability for a single step
 
-        :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in recurrent policies)
-        :param mask: ([float]) The last masks (used in recurrent policies)
-        :return: ([float]) the action probability
-        """
-        raise NotImplementedError
-
-    def value(self, obs, state=None, mask=None):
-        """
-        Returns the value for a single step
-
-        :param obs: ([float] or [int]) The current observation of the environment
-        :param state: ([float]) The last states (used in recurrent policies)
-        :param mask: ([float]) The last masks (used in recurrent policies)
-        :return: ([float]) The associated value of the action
+        :param obs: (np.ndarray float or int) The current observation of the environment
+        :param state: (np.ndarray float) The last states (used in recurrent policies)
+        :param mask: (np.ndarray float) The last masks (used in recurrent policies)
+        :return: (np.ndarray float) the action probability
         """
         raise NotImplementedError
 
@@ -95,47 +84,70 @@ class FeedForwardPolicy(DQNPolicy):
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
     :param layer_norm: (bool) enable layer normalisation
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
-                 cnn_extractor=nature_cnn, feature_extraction="cnn", obs_phs=None, layer_norm=False, **kwargs):
-        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
+                 cnn_extractor=nature_cnn, feature_extraction="cnn",
+                 obs_phs=None, layer_norm=False, dueling=True, **kwargs):
+        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps,
+                                                n_batch, n_lstm=256, dueling=dueling,
                                                 reuse=reuse, scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
         if layers is None:
             layers = [64, 64]
 
         with tf.variable_scope("model", reuse=reuse):
-            if feature_extraction == "cnn":
-                extracted_features = cnn_extractor(self.processed_x, **kwargs)
-                pi_latent = extracted_features
+            with tf.variable_scope("action_value"):
+                if feature_extraction == "cnn":
+                    extracted_features = cnn_extractor(self.processed_x, **kwargs)
+                    action_out = extracted_features
+                else:
+                    activ = tf.nn.relu
+                    extracted_features = tf.layers.flatten(self.processed_x)
+                    action_out = extracted_features
+                    for layer_size in layers:
+                        action_out = tf_layers.fully_connected(action_out, num_outputs=layer_size, activation_fn=None)
+                        if layer_norm:
+                            action_out = tf_layers.layer_norm(action_out, center=True, scale=True)
+                        action_out = activ(action_out)
+
+                action_scores = tf_layers.fully_connected(action_out, num_outputs=self.n_actions, activation_fn=None)
+
+            if self.dueling:
+                with tf.variable_scope("state_value"):
+                    state_out = extracted_features
+                    for layer_size in layers:
+                        state_out = tf_layers.fully_connected(state_out, num_outputs=layer_size, activation_fn=None)
+                        if layer_norm:
+                            state_out = tf_layers.layer_norm(state_out, center=True, scale=True)
+                        state_out = tf.nn.relu(state_out)
+                    state_score = tf_layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
+                action_scores_mean = tf.reduce_mean(action_scores, axis=1)
+                action_scores_centered = action_scores - tf.expand_dims(action_scores_mean, axis=1)
+                q_out = state_score + action_scores_centered
             else:
-                activ = tf.nn.relu
-                processed_x = tf.layers.flatten(self.processed_x)
-                pi_h = processed_x
-                for i, layer_size in enumerate(layers):
-                    pi_h = linear(pi_h, 'pi_fc' + str(i), n_hidden=layer_size, init_scale=np.sqrt(2))
-                    if layer_norm:
-                        pi_h = tf.contrib.layers.layer_norm(pi_h, center=True, scale=True)
-                    pi_h = activ(pi_h)
-                pi_latent = pi_h
+                q_out = action_scores
 
-            self.proba_distribution, self.policy, self.q_value = \
-                self.pdtype.proba_distribution_from_latent(pi_latent, pi_latent, init_scale=0.01)
-
-        self.value_fn = self.policy
+        self.q_values = q_out
         self.initial_state = None
         self._setup_init()
 
-    def step(self, obs, state=None, mask=None):
-        action, value = self.sess.run([self.policy, self._value], {self.obs_ph: obs})
-        return action, value, None
+    def step(self, obs, state=None, mask=None, deterministic=True):
+        q_values, actions_proba = self.sess.run([self.q_values, self.policy_proba], {self.obs_ph: obs})
+        if deterministic:
+            actions = np.argmax(q_values, axis=1)
+        else:
+            # Unefficient sampling
+            # TODO: replace the loop
+            actions = np.zeros((len(obs),), dtype=np.int64)
+            for action_idx in range(len(obs)):
+                actions[action_idx] = np.random.choice(self.n_actions, p=actions_proba[action_idx])
+
+        return actions, q_values, None
 
     def proba_step(self, obs, state=None, mask=None):
-        return self.sess.run(self.policy, {self.obs_ph: obs})
-
-    def value(self, obs, state=None, mask=None):
-        return self.sess.run(self._value, {self.obs_ph: obs})
+        return self.sess.run(self.policy_proba, {self.obs_ph: obs})
 
 
 class CnnPolicy(FeedForwardPolicy):
@@ -151,12 +163,15 @@ class CnnPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(CnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="cnn", obs_phs=obs_phs, layer_norm=False, **_kwargs)
+                                        feature_extraction="cnn", obs_phs=obs_phs, dueling=dueling,
+                                        layer_norm=False, **_kwargs)
 
 
 class LnCnnPolicy(FeedForwardPolicy):
@@ -172,12 +187,15 @@ class LnCnnPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(LnCnnPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                          feature_extraction="cnn", obs_phs=obs_phs, layer_norm=True, **_kwargs)
+                                          feature_extraction="cnn", obs_phs=obs_phs, dueling=dueling,
+                                          layer_norm=True, **_kwargs)
 
 
 class MlpPolicy(FeedForwardPolicy):
@@ -193,12 +211,15 @@ class MlpPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="mlp", obs_phs=obs_phs, layer_norm=False, **_kwargs)
+                                        feature_extraction="mlp", obs_phs=obs_phs, dueling=dueling,
+                                        layer_norm=False, **_kwargs)
 
 
 class LnMlpPolicy(FeedForwardPolicy):
@@ -214,12 +235,15 @@ class LnMlpPolicy(FeedForwardPolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
         and the processed observation placeholder respectivly
+    :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     :param _kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, obs_phs=None, **_kwargs):
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch,
+                 reuse=False, obs_phs=None, dueling=True, **_kwargs):
         super(LnMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                          feature_extraction="mlp", obs_phs=obs_phs, layer_norm=True, **_kwargs)
+                                          feature_extraction="mlp", obs_phs=obs_phs,
+                                          layer_norm=True, dueling=True, **_kwargs)
 
 
 register_policy("CnnPolicy", CnnPolicy)

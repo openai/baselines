@@ -12,8 +12,9 @@ KFAC_DEBUG = False
 
 class KfacOptimizer:
     def __init__(self, learning_rate=0.01, momentum=0.9, clip_kl=0.01, kfac_update=2, stats_accum_iter=60,
-                 full_stats_init=False, cold_iter=100, cold_lr=None, async=False, async_stats=False, epsilon=1e-2,
-                 stats_decay=0.95, blockdiag_bias=False, channel_fac=False, factored_damping=False, approx_t2=False,
+                 full_stats_init=False, cold_iter=100, cold_lr=None, async_eigen_decomp=False,
+                 async_stats=False, epsilon=1e-2, stats_decay=0.95, blockdiag_bias=False,
+                 channel_fac=False, factored_damping=False, approx_t2=False,
                  use_float64=False, weight_decay_dict=None, max_grad_norm=0.5, verbose=1):
         """
         Kfac Optimizer for ACKTR models
@@ -27,7 +28,7 @@ class KfacOptimizer:
         :param full_stats_init: (bool) whether or not to fully initalize stats
         :param cold_iter: (int) Cold start learning rate for how many steps
         :param cold_lr: (float) Cold start learning rate
-        :param async: (bool) Use async eigen decomposition
+        :param async_eigen_decomp: (bool) Use async eigen decomposition
         :param async_stats: (bool) Asynchronous stats update
         :param epsilon: (float) epsilon value for small numbers
         :param stats_decay: (float) the stats decay rate
@@ -46,7 +47,7 @@ class KfacOptimizer:
         self._clip_kl = clip_kl
         self._channel_fac = channel_fac
         self._kfac_update = kfac_update
-        self._async = async
+        self._async_eigen_decomp = async_eigen_decomp
         self._async_stats = async_stats
         self._epsilon = epsilon
         self._stats_decay = stats_decay
@@ -866,7 +867,7 @@ class KfacOptimizer:
 
         queue_runner = None
         # launch eigen-decomp on a queue thread
-        if self._async:
+        if self._async_eigen_decomp:
             if self.verbose >= 1:
                 print('Use async eigen decomp')
             # get a list of factor loading tensors
@@ -895,14 +896,14 @@ class KfacOptimizer:
             assert self._update_stats_op is not None
             update_ops.append(self._update_stats_op)
             dependency_list = []
-            if not self._async:
+            if not self._async_eigen_decomp:
                 dependency_list.append(self._update_stats_op)
 
             with tf.control_dependencies(dependency_list):
                 def no_op_wrapper():
                     return tf.group(*[tf.assign_add(self.cold_step, 1)])
 
-                if not self._async:
+                if not self._async_eigen_decomp:
                     # synchronous eigen-decomp updates
                     update_factor_ops = tf.cond(tf.logical_and(tf.equal(tf.mod(self.stats_step, self._kfac_update),
                                                                         tf.convert_to_tensor(0)),

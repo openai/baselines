@@ -13,6 +13,17 @@ DDPG
   The DDPG model does not support ``stable_baselines.common.policies`` because it uses q-value instead
   of value estimation, as a result it must use its own policy models (see :ref:`ddpg_policies`).
 
+
+.. rubric:: Available Policies
+
+.. autosummary::
+    :nosignatures:
+
+    MlpPolicy
+    LnMlpPolicy
+    CnnPolicy
+    LnCnnPolicy
+
 Notes
 -----
 
@@ -47,7 +58,7 @@ Example
   import gym
   import numpy as np
 
-  from stable_baselines.ddpg.policies import MlpPolicy, CnnPolicy
+  from stable_baselines.ddpg.policies import MlpPolicy
   from stable_baselines.common.vec_env import DummyVecEnv
   from stable_baselines.ddpg.noise import NormalActionNoise, OrnsteinUhlenbeckActionNoise, AdaptiveParamNoiseSpec
   from stable_baselines import DDPG
@@ -58,10 +69,10 @@ Example
   # the noise objects for DDPG
   n_actions = env.action_space.shape[-1]
   param_noise = None
-  action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=float(0.2) * np.ones(n_actions))
+  action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
 
   model = DDPG(MlpPolicy, env, verbose=1, param_noise=param_noise, action_noise=action_noise)
-  model.learn(total_timesteps=25000)
+  model.learn(total_timesteps=400000)
   model.save("ddpg_mountain")
 
   del model # remove to demonstrate saving and loading
