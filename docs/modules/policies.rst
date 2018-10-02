@@ -12,6 +12,11 @@ If you need more control on the policy architecture, You can also create a custo
 
 	CnnPolicies are for images only. MlpPolicies are made for other type of features (e.g. robot joints)
 
+.. warning::
+  For all algorithms (except DDPG), continuous actions are only clipped during training
+  (to avoid out of bound error). However, you have to manually clip the action when using
+  the `predict()` method.
+
 .. rubric:: Available Policies
 
 .. autosummary::

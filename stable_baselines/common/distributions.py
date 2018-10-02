@@ -1,6 +1,6 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import math_ops
-import numpy as np
 from gym import spaces
 
 from stable_baselines.a2c.utils import linear
@@ -210,35 +210,32 @@ class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
 
 
 class DiagGaussianProbabilityDistributionType(ProbabilityDistributionType):
-    def __init__(self, size, bounds=(-np.inf, np.inf)):
+    def __init__(self, size):
         """
         The probability distribution type for multivariate gaussian input
 
         :param size: (int) the number of dimensions of the multivariate gaussian
-        :param bounds: (float, float) the lower and upper bounds limit for the action space
         """
         self.size = size
-        self.bounds = bounds
 
     def probability_distribution_class(self):
         return DiagGaussianProbabilityDistribution
 
-    def proba_distribution_from_flat(self, flat, bounds=(-np.inf, np.inf)):
+    def proba_distribution_from_flat(self, flat):
         """
         returns the probability distribution from flat probabilities
 
         :param flat: ([float]) the flat probabilities
-        :param bounds: (float, float) the lower and upper bounds limit for the action space
         :return: (ProbabilityDistribution) the instance of the ProbabilityDistribution associated
         """
-        return self.probability_distribution_class()(flat, bounds)
+        return self.probability_distribution_class()(flat)
 
     def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector, init_scale=1.0, init_bias=0.0):
         mean = linear(pi_latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
-        logstd = tf.get_variable(name='logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
+        logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         q_values = linear(vf_latent_vector, 'q', self.size, init_scale=init_scale, init_bias=init_bias)
-        return self.proba_distribution_from_flat(pdparam, self.bounds), mean, q_values
+        return self.proba_distribution_from_flat(pdparam), mean, q_values
 
     def param_shape(self):
         return [2 * self.size]
@@ -319,7 +316,7 @@ class CategoricalProbabilityDistribution(ProbabilityDistribution):
         return tf.reduce_sum(p_0 * (tf.log(z_0) - a_0), axis=-1)
 
     def sample(self):
-        uniform = tf.random_uniform(tf.shape(self.logits))
+        uniform = tf.random_uniform(tf.shape(self.logits), dtype=self.logits.dtype)
         return tf.argmax(self.logits - tf.log(-tf.log(uniform)), axis=-1)
 
     @classmethod
@@ -374,29 +371,24 @@ class MultiCategoricalProbabilityDistribution(ProbabilityDistribution):
 
 
 class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
-    def __init__(self, flat, bounds=(-np.inf, np.inf)):
+    def __init__(self, flat):
         """
         Probability distributions from multivariate gaussian input
 
         :param flat: ([float]) the multivariate gaussian input data
-        :param bounds: (float, float) the lower and upper bounds limit for the action space
         """
         self.flat = flat
         mean, logstd = tf.split(axis=len(flat.shape) - 1, num_or_size_splits=2, value=flat)
         self.mean = mean
         self.logstd = logstd
         self.std = tf.exp(logstd)
-        self.bounds = bounds
 
     def flatparam(self):
         return self.flat
 
     def mode(self):
-        low = self.bounds[0]
-        high = self.bounds[1]
-
-        # clip the output (clip_by_value does not broadcast correctly)
-        return tf.minimum(tf.maximum(self.mean, low), high)
+        # Bounds are taken into account outside this class (during training only)
+        return self.mean
 
     def neglogp(self, x):
         return 0.5 * tf.reduce_sum(tf.square((x - self.mean) / self.std), axis=-1) \
@@ -412,22 +404,19 @@ class DiagGaussianProbabilityDistribution(ProbabilityDistribution):
         return tf.reduce_sum(self.logstd + .5 * np.log(2.0 * np.pi * np.e), axis=-1)
 
     def sample(self):
-        low = self.bounds[0]
-        high = self.bounds[1]
-
-        # clip the output (clip_by_value does not broadcast correctly)
-        return tf.minimum(tf.maximum(self.mean + self.std * tf.random_normal(tf.shape(self.mean)), low), high)
+        # Bounds are taken into acount outside this class (during training only)
+        # Otherwise, it changes the distribution and breaks PPO2 for instance
+        return self.mean + self.std * tf.random_normal(tf.shape(self.mean), dtype=self.mean.dtype)
 
     @classmethod
-    def fromflat(cls, flat, bounds=(-np.inf, np.inf)):
+    def fromflat(cls, flat):
         """
         Create an instance of this from new multivariate gaussian input
 
         :param flat: ([float]) the multivariate gaussian input data
-        :param bounds: (float, float) the lower and upper bounds limit for the action space
         :return: (ProbabilityDistribution) the instance from the given multivariate gaussian input data
         """
-        return cls(flat, bounds)
+        return cls(flat)
 
 
 class BernoulliProbabilityDistribution(ProbabilityDistribution):
@@ -484,7 +473,7 @@ def make_proba_dist_type(ac_space):
     """
     if isinstance(ac_space, spaces.Box):
         assert len(ac_space.shape) == 1, "Error: the action space must be a vector"
-        return DiagGaussianProbabilityDistributionType(ac_space.shape[0], (ac_space.low, ac_space.high))
+        return DiagGaussianProbabilityDistributionType(ac_space.shape[0])
     elif isinstance(ac_space, spaces.Discrete):
         return CategoricalProbabilityDistributionType(ac_space.n)
     elif isinstance(ac_space, spaces.MultiDiscrete):

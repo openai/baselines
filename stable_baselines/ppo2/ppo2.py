@@ -1,8 +1,9 @@
 import time
-from collections import deque
 import sys
 import multiprocessing
+from collections import deque
 
+import gym
 import numpy as np
 import tensorflow as tf
 
@@ -399,7 +400,11 @@ class Runner(AbstractEnvRunner):
             mb_values.append(values)
             mb_neglogpacs.append(neglogpacs)
             mb_dones.append(self.dones)
-            self.obs[:], rewards, self.dones, infos = self.env.step(actions)
+            clipped_actions = actions
+            # Clip the actions to avoid out of bound error
+            if isinstance(self.env.action_space, gym.spaces.Box):
+                clipped_actions = np.clip(actions, self.env.action_space.low, self.env.action_space.high)
+            self.obs[:], rewards, self.dones, infos = self.env.step(clipped_actions)
             for info in infos:
                 maybeep_info = info.get('episode')
                 if maybeep_info:
