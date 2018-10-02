@@ -69,10 +69,10 @@ Example
   # the noise objects for DDPG
   n_actions = env.action_space.shape[-1]
   param_noise = None
-  action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=float(0.2) * np.ones(n_actions))
+  action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions))
 
   model = DDPG(MlpPolicy, env, verbose=1, param_noise=param_noise, action_noise=action_noise)
-  model.learn(total_timesteps=25000)
+  model.learn(total_timesteps=400000)
   model.save("ddpg_mountain")
 
   del model # remove to demonstrate saving and loading
