@@ -19,7 +19,7 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_cpu):
                                  'double_linear_con', 'middle_drop' or 'double_middle_drop')
     :param num_cpu: (int) The number of cpu to train on
     """
-    env = VecFrameStack(make_atari_env(env_id, num_env, seed), 4)
+    env = VecFrameStack(make_atari_env(env_id, num_cpu, seed), 4)
     if policy == 'cnn':
         policy_fn = CnnPolicy
     elif policy == 'lstm':
