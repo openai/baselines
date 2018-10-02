@@ -5,15 +5,20 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre Release 2.0.1.a0 (WIP)
----------------------------
+Release 2.1.0 (2018-10-2)
+-------------------------
+
+.. warning::
+
+	This version contains breaking changes for DQN policies, please read the full details
 
 **logging and bug fixes**
+
 
 - added patch fix for equal function using `gym.spaces.MultiDiscrete` and `gym.spaces.MultiBinary`
 - fixes for DQN action_probability
 - re-added double DQN + refactored DQN policies **breaking changes**
-- replaced `async` with `async_eigen_decomp` in ACKTR/KFAC for python 3.7 compat
+- replaced `async` with `async_eigen_decomp` in ACKTR/KFAC for python 3.7 compatibility
 - removed action clipping for prediction of continuous actions (see issue #36)
 - fixed NaN issue due to clipping the continuous action in the wrong place (issue #36)
 
