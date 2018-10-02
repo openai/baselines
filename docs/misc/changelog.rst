@@ -12,7 +12,7 @@ Release 2.1.0 (2018-10-2)
 
 	This version contains breaking changes for DQN policies, please read the full details
 
-**logging and bug fixes**
+**Bug fixes + doc update**
 
 
 - added patch fix for equal function using `gym.spaces.MultiDiscrete` and `gym.spaces.MultiBinary`
@@ -21,6 +21,7 @@ Release 2.1.0 (2018-10-2)
 - replaced `async` with `async_eigen_decomp` in ACKTR/KFAC for python 3.7 compatibility
 - removed action clipping for prediction of continuous actions (see issue #36)
 - fixed NaN issue due to clipping the continuous action in the wrong place (issue #36)
+- documentation was updated (policy + DDPG example hyperparameters)
 
 Release 2.0.0 (2018-09-18)
 --------------------------
