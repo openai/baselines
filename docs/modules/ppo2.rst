@@ -25,12 +25,13 @@ For that, ppo uses clipping to avoid too large update.
 Notes
 -----
 
--  Original paper: https://arxiv.org/abs/1707.06347
--  OpenAI blog post: https://blog.openai.com/openai-baselines-ppo/
--  ``python -m stable_baselines.ppo2.run_atari`` runs the algorithm for 40M
+- Original paper: https://arxiv.org/abs/1707.06347
+- Clear explanation of PPO on Arxiv Insights channel: https://www.youtube.com/watch?v=5P7I-xPq8u8
+- OpenAI blog post: https://blog.openai.com/openai-baselines-ppo/
+- ``python -m stable_baselines.ppo2.run_atari`` runs the algorithm for 40M
    frames = 10M timesteps on an Atari game. See help (``-h``) for more
    options.
--  ``python -m stable_baselines.ppo2.run_mujoco`` runs the algorithm for 1M
+- ``python -m stable_baselines.ppo2.run_mujoco`` runs the algorithm for 1M
    frames on a Mujoco environment.
 
 Can I use?

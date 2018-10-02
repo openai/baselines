@@ -21,6 +21,7 @@ Notes
 -----
 
 -  Original paper:  https://arxiv.org/abs/1502.05477
+- Clear explanation of PPO on Arxiv Insights channel: https://www.youtube.com/watch?v=5P7I-xPq8u8
 -  OpenAI blog post: https://blog.openai.com/openai-baselines-ppo/
 - ``mpirun -np 8 python -m stable_baselines.ppo1.run_atari`` runs the algorithm for 40M frames = 10M timesteps on an Atari game. See help (``-h``) for more options.
 - ``python -m stable_baselines.ppo1.run_mujoco`` runs the algorithm for 1M frames on a Mujoco environment.
