@@ -99,7 +99,7 @@ def build_env(args):
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
             env = bench.Monitor(env, logger.get_dir())
-            env = atari_wrappers.wrap_deepmind(env, frame_stack=True, scale=True)
+            env = atari_wrappers.wrap_deepmind(env, frame_stack=True)
         elif alg == 'trpo_mpi':
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
