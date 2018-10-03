@@ -1,8 +1,6 @@
 from baselines.common.input import observation_input
 from baselines.common.tf_util import adjust_shape
 
-import tensorflow as tf
-
 # ================================================================
 # Placeholders
 # ================================================================
