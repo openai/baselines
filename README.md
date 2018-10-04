@@ -94,10 +94,6 @@ DQN with Atari is at this point a classics of benchmarks. To run the baselines i
 ```
 python -m baselines.run --alg=deepq --env=PongNoFrameskip-v4 --num_timesteps=1e6
 ```
-*NOTE:*
-The DQN-based algorithms currently do not get high scores on the Atari games 
-(see GitHub issue [431](https://github.com/openai/baselines/issues/431))
-We are currently investigating this and recommend users to instead use PPO2.
 
 ## Saving, loading and visualizing models
 The algorithms serialization API is not properly unified yet; however, there is a simple method to save / restore trained models. 
