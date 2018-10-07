@@ -78,8 +78,8 @@ def test_model_manipulation(model_class):
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
-        # assert <10% diff
-        assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.1, \
+        # assert <15% diff
+        assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.15, \
             "Error: the prediction seems to have changed between loading and saving"
 
         # learn post loading
