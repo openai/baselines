@@ -297,7 +297,7 @@ class PPO1(ActorCriticRLModel):
                     logger.record_tabular("EpRewMean", np.mean(rewbuffer))
                     logger.record_tabular("EpThisIter", len(lens))
                     episodes_so_far += len(lens)
-                    timesteps_so_far += seg["total_timestep"]
+                    timesteps_so_far += MPI.COMM_WORLD.allreduce(seg["total_timestep"])
                     iters_so_far += 1
                     logger.record_tabular("EpisodesSoFar", episodes_so_far)
                     logger.record_tabular("TimestepsSoFar", timesteps_so_far)
