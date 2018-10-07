@@ -50,7 +50,7 @@ def test_custom_policy(model_name):
     try:
         model_class, policy = MODEL_DICT[model_name]
         if model_name == 'ddpg':
-            env = 'LunarLanderContinuous-v2'
+            env = 'MountainCarContinuous-v0'
         else:
             env = 'CartPole-v1'
         # create and train
