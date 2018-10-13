@@ -102,7 +102,7 @@ def build_q_func(network, hiddens=[256], dueling=True, layer_norm=False, **netwo
             latent = layers.flatten(latent)
 
             with tf.variable_scope("action_value"):
-                action_out = latent
+                action_out = latentH
                 for hidden in hiddens:
                     action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=None)
                     if layer_norm:
