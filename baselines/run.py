@@ -99,7 +99,7 @@ def build_env(args):
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
             env = bench.Monitor(env, logger.get_dir())
-            env = atari_wrappers.wrap_deepmind(env, frame_stack=True, scale=True)
+            env = atari_wrappers.wrap_deepmind(env, frame_stack=True)
         elif alg == 'trpo_mpi':
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
@@ -113,7 +113,7 @@ def build_env(args):
 
     elif env_type == 'retro':
         import retro
-        gamestate = args.gamestate or 'Level1-1'
+        gamestate = args.gamestate or retro.State.DEFAULT
         env = retro_wrappers.make_retro(game=args.env, state=gamestate, max_episode_steps=10000,
                                         use_restricted_actions=retro.Actions.DISCRETE)
         env.seed(args.seed)
@@ -222,7 +222,7 @@ def main():
         env = build_env(args)
         obs = env.reset()
         def initialize_placeholders(nlstm=128,**kwargs):
-            return np.zeros((args.num_env, 2*nlstm)), np.zeros((1))
+            return np.zeros((args.num_env or 1, 2*nlstm)), np.zeros((1))
         state, dones = initialize_placeholders(**extra_args)
         while True:
             actions, _, state, _ = model.step(obs,S=state, M=dones)
