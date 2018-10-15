@@ -1,6 +1,6 @@
 ---
 name: Issue Template
-about: How to create and issue for this repository
+about: How to create an issue for this repository
 
 ---
 
