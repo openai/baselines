@@ -99,10 +99,10 @@ def learn(network, env,
     obs = env.reset()
     if eval_env is not None:
         eval_obs = eval_env.reset()
-    B = obs.shape[0]
+    nenvs = obs.shape[0]
 
-    episode_reward = np.zeros(B, dtype = np.float32) #vector
-    episode_step = np.zeros(B, dtype = int) # vector
+    episode_reward = np.zeros(nenvs, dtype = np.float32) #vector
+    episode_step = np.zeros(nenvs, dtype = int) # vector
     episodes = 0 #scalar
     t = 0 # scalar
 
@@ -120,7 +120,7 @@ def learn(network, env,
     for epoch in range(nb_epochs):
         for cycle in range(nb_epoch_cycles):
             # Perform rollouts.
-            if B > 1:
+            if nenvs > 1:
                 # if simulating multiple envs in parallel, impossible to reset agent at the end of the episode in each
                 # of the environments, so resetting here instead
                 agent.reset()
@@ -132,7 +132,7 @@ def learn(network, env,
                 if rank == 0 and render:
                     env.render()
 
-                # max_action is of dimension A, whereas action is dimension (B,A) - the multiplication gets broadcasted to the batch
+                # max_action is of dimension A, whereas action is dimension (nenvs, A) - the multiplication gets broadcasted to the batch
                 new_obs, r, done, info = env.step(max_action * action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                 # note these outputs are batched from vecenv
 
@@ -150,7 +150,7 @@ def learn(network, env,
                 obs = new_obs
 
                 for d in range(len(done)):
-                    if done[d] == True:
+                    if done[d]:
                         # Episode done.
                         epoch_episode_rewards.append(episode_reward[d])
                         episode_rewards_history.append(episode_reward[d])
@@ -159,7 +159,7 @@ def learn(network, env,
                         episode_step[d] = 0
                         epoch_episodes += 1
                         episodes += 1
-                        if B == 1:
+                        if nenvs == 1:
                             agent.reset()
 
 
@@ -183,8 +183,8 @@ def learn(network, env,
             eval_episode_rewards = []
             eval_qs = []
             if eval_env is not None:
-                B = eval_obs.shape[0]
-                eval_episode_reward = np.zeros(B, dtype = np.float32)
+                nenvsa_eval = eval_obs.shape[0]
+                eval_episode_reward = np.zeros(nenvs_eval, dtype = np.float32)
                 for t_rollout in range(nb_eval_steps):
                     eval_action, eval_q, _, _ = agent.step(eval_obs, apply_noise=False, compute_Q=True)
                     eval_obs, eval_r, eval_done, eval_info = eval_env.step(max_action * eval_action)  # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
