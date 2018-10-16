@@ -183,7 +183,7 @@ def learn(network, env,
             eval_episode_rewards = []
             eval_qs = []
             if eval_env is not None:
-                nenvsa_eval = eval_obs.shape[0]
+                nenvs_eval = eval_obs.shape[0]
                 eval_episode_reward = np.zeros(nenvs_eval, dtype = np.float32)
                 for t_rollout in range(nb_eval_steps):
                     eval_action, eval_q, _, _ = agent.step(eval_obs, apply_noise=False, compute_Q=True)
