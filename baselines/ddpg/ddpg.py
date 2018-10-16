@@ -194,7 +194,7 @@ def learn(network, env,
 
                     eval_qs.append(eval_q)
                     for d in range(len(eval_done)):
-                        if eval_done[d] == True:
+                        if eval_done[d]:
                             eval_episode_rewards.append(eval_episode_reward[d])
                             eval_episode_rewards_history.append(eval_episode_reward[d])
                             eval_episode_reward[d] = 0.0
