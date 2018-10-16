@@ -265,19 +265,24 @@ class DDPG(object):
         else:
             action = self.sess.run(actor_tf, feed_dict=feed_dict)
             q = None
-        action = action.flatten()
+
         if self.action_noise is not None and apply_noise:
             noise = self.action_noise()
             assert noise.shape == action.shape
             action += noise
         action = np.clip(action, self.action_range[0], self.action_range[1])
+
+
         return action, q, None, None
 
     def store_transition(self, obs0, action, reward, obs1, terminal1):
         reward *= self.reward_scale
-        self.memory.append(obs0, action, reward, obs1, terminal1)
-        if self.normalize_observations:
-            self.obs_rms.update(np.array([obs0]))
+
+        B = obs0.shape[0]
+        for b in range(B):
+            self.memory.append(obs0[b], action[b], reward[b], obs1[b], terminal1[b])
+            if self.normalize_observations:
+                self.obs_rms.update(np.array([obs0[b]]))
 
     def train(self):
         # Get a batch.

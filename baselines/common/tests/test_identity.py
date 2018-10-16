@@ -14,7 +14,7 @@ learn_kwargs = {
     'a2c' : {},
     'acktr': {},
     'deepq': {},
-    'ddpg': dict(nb_epochs=None, layer_norm=True),
+    'ddpg': dict(layer_norm=True),
     'ppo2': dict(lr=1e-3, nsteps=64, ent_coef=0.0),
     'trpo_mpi': dict(timesteps_per_batch=100, cg_iters=10, gamma=0.9, lam=1.0, max_kl=0.01)
 }
