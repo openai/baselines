@@ -86,6 +86,7 @@ def test_coexistence(learn_fn, network_fn):
     if learn_fn == 'deepq':
             # TODO enable multiple DQN models to be useable at the same time
             # github issue https://github.com/openai/baselines/issues/656
+            return
 
     if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
             # TODO make acktr work with recurrent policies
