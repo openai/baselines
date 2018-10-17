@@ -47,6 +47,9 @@ class ActWrapper(object):
         return self._act(*args, **kwargs)
 
     def step(self, observation, **kwargs):
+        # DQN doesn't use RNNs so we ignore states and masks
+        kwargs.pop('S', None)
+        kwargs.pop('M', None)
         return self._act([observation], **kwargs), None, None, None
 
     def save_act(self, path=None):
