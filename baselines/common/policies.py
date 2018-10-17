@@ -53,7 +53,7 @@ class PolicyWithValue(object):
 
         # Calculate the neg log of our probability
         self.neglogp = self.pd.neglogp(self.action)
-        self.sess = sess
+        self.sess = sess or tf.get_default_session()
 
         if estimate_q:
             assert isinstance(env.action_space, gym.spaces.Discrete)
@@ -64,7 +64,7 @@ class PolicyWithValue(object):
             self.vf = self.vf[:,0]
 
     def _evaluate(self, variables, observation, **extra_feed):
-        sess = self.sess or tf.get_default_session()
+        sess = self.sess
         feed_dict = {self.X: adjust_shape(self.X, observation)}
         for inpt_name, data in extra_feed.items():
             if inpt_name in self.__dict__.keys():
