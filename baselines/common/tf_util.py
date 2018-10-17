@@ -1,3 +1,4 @@
+import joblib
 import numpy as np
 import tensorflow as tf  # pylint: ignore-module
 import copy
@@ -48,17 +49,28 @@ def huber_loss(x, delta=1.0):
 # Global session
 # ================================================================
 
-def make_session(num_cpu=None, make_default=False, graph=None):
+def get_session(config=None):
+    """Get default session or create one with a given config"""
+    sess = tf.get_default_session()
+    if sess is None:
+        sess = make_session(config=config, make_default=True)
+    return sess
+
+def make_session(config=None, num_cpu=None, make_default=False, graph=None):
     """Returns a session that will use <num_cpu> CPU's only"""
     if num_cpu is None:
         num_cpu = int(os.getenv('RCALL_NUM_CPU', multiprocessing.cpu_count()))
-    tf_config = tf.ConfigProto(
-        inter_op_parallelism_threads=num_cpu,
-        intra_op_parallelism_threads=num_cpu)
+    if config is None:
+        config = tf.ConfigProto(
+            allow_soft_placement=True,
+            inter_op_parallelism_threads=num_cpu,
+            intra_op_parallelism_threads=num_cpu)
+        config.gpu_options.allow_growth = True
+
     if make_default:
-        return tf.InteractiveSession(config=tf_config, graph=graph)
+        return tf.InteractiveSession(config=config, graph=graph)
     else:
-        return tf.Session(config=tf_config, graph=graph)
+        return tf.Session(config=config, graph=graph)
 
 def single_threaded_session():
     """Returns a session which will only use a single CPU"""
@@ -76,7 +88,7 @@ ALREADY_INITIALIZED = set()
 def initialize():
     """Initialize all the uninitialized variables in the global scope."""
     new_variables = set(tf.global_variables()) - ALREADY_INITIALIZED
-    tf.get_default_session().run(tf.variables_initializer(new_variables))
+    get_session().run(tf.variables_initializer(new_variables))
     ALREADY_INITIALIZED.update(new_variables)
 
 # ================================================================
@@ -85,7 +97,7 @@ def initialize():
 
 def normc_initializer(std=1.0, axis=0):
     def _initializer(shape, dtype=None, partition_info=None):  # pylint: disable=W0613
-        out = np.random.randn(*shape).astype(np.float32)
+        out = np.random.randn(*shape).astype(dtype.as_numpy_dtype)
         out *= std / np.sqrt(np.square(out).sum(axis=axis, keepdims=True))
         return tf.constant(out)
     return _initializer
@@ -179,7 +191,7 @@ class _Function(object):
         if hasattr(inpt, 'make_feed_dict'):
             feed_dict.update(inpt.make_feed_dict(value))
         else:
-            feed_dict[inpt] = value
+            feed_dict[inpt] = adjust_shape(inpt, value)
 
     def __call__(self, *args):
         assert len(args) <= len(self.inputs), "Too many arguments provided"
@@ -189,8 +201,8 @@ class _Function(object):
             self._feed_input(feed_dict, inpt, value)
         # Update feed dict with givens.
         for inpt in self.givens:
-            feed_dict[inpt] = feed_dict.get(inpt, self.givens[inpt])
-        results = tf.get_default_session().run(self.outputs_update, feed_dict=feed_dict)[:-1]
+            feed_dict[inpt] = adjust_shape(inpt, feed_dict.get(inpt, self.givens[inpt]))
+        results = get_session().run(self.outputs_update, feed_dict=feed_dict)[:-1]
         return results
 
 # ================================================================
@@ -243,27 +255,34 @@ class GetFlat(object):
     def __call__(self):
         return tf.get_default_session().run(self.op)
 
+def flattenallbut0(x):
+    return tf.reshape(x, [-1, intprod(x.get_shape().as_list()[1:])])
+
+# =============================================================
+# TF placeholders management
+# ============================================================
+
 _PLACEHOLDER_CACHE = {}  # name -> (placeholder, dtype, shape)
 
 def get_placeholder(name, dtype, shape):
     if name in _PLACEHOLDER_CACHE:
         out, dtype1, shape1 = _PLACEHOLDER_CACHE[name]
-        assert dtype1 == dtype and shape1 == shape
-        return out
-    else:
-        out = tf.placeholder(dtype=dtype, shape=shape, name=name)
-        _PLACEHOLDER_CACHE[name] = (out, dtype, shape)
-        return out
+        if out.graph == tf.get_default_graph():
+            assert dtype1 == dtype and shape1 == shape, \
+                'Placeholder with name {} has already been registered and has shape {}, different from requested {}'.format(name, shape1, shape)
+            return out
+
+    out = tf.placeholder(dtype=dtype, shape=shape, name=name)
+    _PLACEHOLDER_CACHE[name] = (out, dtype, shape)
+    return out
 
 def get_placeholder_cached(name):
     return _PLACEHOLDER_CACHE[name][0]
 
-def flattenallbut0(x):
-    return tf.reshape(x, [-1, intprod(x.get_shape().as_list()[1:])])
 
 
 # ================================================================
-# Diagnostics 
+# Diagnostics
 # ================================================================
 
 def display_var_info(vars):
@@ -274,7 +293,7 @@ def display_var_info(vars):
         if "/Adam" in name or "beta1_power" in name or "beta2_power" in name: continue
         v_params = np.prod(v.shape.as_list())
         count_params += v_params
-        if "/b:" in name or "/biases" in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
+        if "/b:" in name or "/bias" in name: continue    # Wx+b, bias is not interesting to look at => count params, but not print
         logger.info("   %s%s %i params %s" % (name, " "*(55-len(name)), v_params, str(v.shape)))
 
     logger.info("Total model parameters: %0.2f million" % (count_params*1e-6))
@@ -283,7 +302,7 @@ def display_var_info(vars):
 def get_available_gpus():
     # recipe from here:
     # https://stackoverflow.com/questions/38559755/how-to-get-current-available-gpus-in-tensorflow?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
- 
+
     from tensorflow.python.client import device_lib
     local_device_protos = device_lib.list_local_devices()
     return [x.name for x in local_device_protos if x.device_type == 'GPU']
@@ -292,13 +311,120 @@ def get_available_gpus():
 # Saving variables
 # ================================================================
 
-def load_state(fname):
+def load_state(fname, sess=None):
+    from baselines import logger
+    logger.warn('load_state method is deprecated, please use load_variables instead')
+    sess = sess or get_session()
     saver = tf.train.Saver()
     saver.restore(tf.get_default_session(), fname)
 
-def save_state(fname):
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
+def save_state(fname, sess=None):
+    from baselines import logger
+    logger.warn('save_state method is deprecated, please use save_variables instead')
+    sess = sess or get_session()
+    dirname = os.path.dirname(fname)
+    if any(dirname):
+        os.makedirs(dirname, exist_ok=True)
     saver = tf.train.Saver()
     saver.save(tf.get_default_session(), fname)
 
+# The methods above and below are clearly doing the same thing, and in a rather similar way
+# TODO: ensure there is no subtle differences and remove one
 
+def save_variables(save_path, variables=None, sess=None):
+    sess = sess or get_session()
+    variables = variables or tf.trainable_variables()
+
+    ps = sess.run(variables)
+    save_dict = {v.name: value for v, value in zip(variables, ps)}
+    dirname = os.path.dirname(save_path)
+    if any(dirname):
+        os.makedirs(dirname, exist_ok=True)
+    joblib.dump(save_dict, save_path)
+
+def load_variables(load_path, variables=None, sess=None):
+    sess = sess or get_session()
+    variables = variables or tf.trainable_variables()
+
+    loaded_params = joblib.load(os.path.expanduser(load_path))
+    restores = []
+    if isinstance(loaded_params, list):
+        assert len(loaded_params) == len(variables), 'number of variables loaded mismatches len(variables)'
+        for d, v in zip(loaded_params, variables):
+            restores.append(v.assign(d))
+    else:
+        for v in variables:
+            restores.append(v.assign(loaded_params[v.name]))
+
+    sess.run(restores)
+
+# ================================================================
+# Shape adjustment for feeding into tf placeholders
+# ================================================================
+def adjust_shape(placeholder, data):
+    '''
+    adjust shape of the data to the shape of the placeholder if possible.
+    If shape is incompatible, AssertionError is thrown
+
+    Parameters:
+        placeholder     tensorflow input placeholder
+
+        data            input data to be (potentially) reshaped to be fed into placeholder
+
+    Returns:
+        reshaped data
+    '''
+
+    if not isinstance(data, np.ndarray) and not isinstance(data, list):
+        return data
+    if isinstance(data, list):
+        data = np.array(data)
+
+    placeholder_shape = [x or -1 for x in placeholder.shape.as_list()]
+
+    assert _check_shape(placeholder_shape, data.shape), \
+        'Shape of data {} is not compatible with shape of the placeholder {}'.format(data.shape, placeholder_shape)
+
+    return np.reshape(data, placeholder_shape)
+
+
+def _check_shape(placeholder_shape, data_shape):
+    ''' check if two shapes are compatible (i.e. differ only by dimensions of size 1, or by the batch dimension)'''
+
+    return True
+    squeezed_placeholder_shape = _squeeze_shape(placeholder_shape)
+    squeezed_data_shape = _squeeze_shape(data_shape)
+
+    for i, s_data in enumerate(squeezed_data_shape):
+        s_placeholder = squeezed_placeholder_shape[i]
+        if s_placeholder != -1 and s_data != s_placeholder:
+            return False
+
+    return True
+
+
+def _squeeze_shape(shape):
+    return [x for x in shape if x != 1]
+
+# ================================================================
+# Tensorboard interfacing
+# ================================================================
+
+def launch_tensorboard_in_background(log_dir):
+    '''
+    To log the Tensorflow graph when using rl-algs
+    algorithms, you can run the following code
+    in your main script:
+        import threading, time
+        def start_tensorboard(session):
+            time.sleep(10) # Wait until graph is setup
+            tb_path = osp.join(logger.get_dir(), 'tb')
+            summary_writer = tf.summary.FileWriter(tb_path, graph=session.graph)
+            summary_op = tf.summary.merge_all()
+            launch_tensorboard_in_background(tb_path)
+        session = tf.get_default_session()
+        t = threading.Thread(target=start_tensorboard, args=([session]))
+        t.start()
+    '''
+    import subprocess
+    subprocess.Popen(['tensorboard', '--logdir', log_dir])

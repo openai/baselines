@@ -37,12 +37,12 @@ def load_results(file):
 
 def pad(xs, value=np.nan):
     maxlen = np.max([len(x) for x in xs])
-    
+
     padded_xs = []
     for x in xs:
         if x.shape[0] >= maxlen:
             padded_xs.append(x)
-    
+
         padding = np.ones((maxlen - x.shape[0],) + x.shape[1:]) * value
         x_padded = np.concatenate([x, padding], axis=0)
         assert x_padded.shape[1:] == x.shape[1:]
