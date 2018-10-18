@@ -95,7 +95,6 @@ def test_coexistence(learn_fn, network_fn):
             return
 
     env = DummyVecEnv([lambda: gym.make('CartPole-v0')])
-    ob = env.reset().copy()
     learn = get_learn_function(learn_fn)
 
     kwargs = {}
