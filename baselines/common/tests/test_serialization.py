@@ -40,7 +40,7 @@ def test_serialization(learn_fn, network_fn):
     if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
             # TODO make acktr work with recurrent policies
             # and test
-            # github issue: https://github.com/openai/baselines/issues/194
+            # github issue: https://github.com/openai/baselines/issues/660
             return
 
     env = DummyVecEnv([lambda: MnistEnv(10, episode_len=100)])
@@ -91,7 +91,7 @@ def test_coexistence(learn_fn, network_fn):
     if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
             # TODO make acktr work with recurrent policies
             # and test
-            # github issue: https://github.com/openai/baselines/issues/194
+            # github issue: https://github.com/openai/baselines/issues/660
             return
 
     env = DummyVecEnv([lambda: gym.make('CartPole-v0')])
