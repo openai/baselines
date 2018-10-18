@@ -11,7 +11,7 @@ extras = {
     'test': [
         'filelock',
         'pytest',
-        'gym[atari]'
+        'atari-py'
     ],
     'bullet': [
         'pybullet',
