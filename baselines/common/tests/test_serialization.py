@@ -103,15 +103,15 @@ def test_coexistence(learn_fn, network_fn):
     kwargs.update(learn_kwargs[learn_fn])
 
     learn =  partial(learn, env=env, network=network_fn, total_timesteps=0, **kwargs)
-    make_session(make_default=True, graph=tf.Graph()); 
+    make_session(make_default=True, graph=tf.Graph());
     model1 = learn(seed=1)
-    make_session(make_default=True, graph=tf.Graph()); 
+    make_session(make_default=True, graph=tf.Graph());
     model2 = learn(seed=2)
 
     model1.step(env.observation_space.sample())
     model2.step(env.observation_space.sample())
-    
-    
+
+
 
 def _serialize_variables():
     sess = get_session()
