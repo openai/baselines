@@ -6,7 +6,7 @@ from gym import spaces
 
 class Runner(AbstractEnvRunner):
 
-    def __init__(self, env, model, nsteps, nstack):
+    def __init__(self, env, model, nsteps):
         super().__init__(env=env, model=model, nsteps=nsteps)
         assert isinstance(env.action_space, spaces.Discrete), 'This ACER implementation works only with discrete action spaces!'
         assert isinstance(env, VecFrameStack)

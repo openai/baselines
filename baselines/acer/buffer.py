@@ -2,11 +2,12 @@ import numpy as np
 
 class Buffer(object):
     # gets obs, actions, rewards, mu's, (states, masks), dones
-    def __init__(self, env, nsteps, nstack, size=50000):
+    def __init__(self, env, nsteps, size=50000):
         self.nenv = env.num_envs
         self.nsteps = nsteps
         self.nh, self.nw, self.nc = env.observation_space.shape
-        self.nstack = nstack
+        self.nstack = env.nstack
+        self.nc //= self.nstack
         self.nbatch = self.nenv * self.nsteps
         self.size = size // (self.nsteps)  # Each loc contains nenv * nsteps frames, thus total buffer is nenv * size frames
 
@@ -36,19 +37,19 @@ class Buffer(object):
         # dones has shape [nenvs, nsteps, nh, nw, nc]
         # returns stacked obs of shape [nenv, (nsteps + 1), nh, nw, nstack*nc]
         nstack, nenv, nsteps, nh, nw, nc = self.nstack, self.nenv, self.nsteps, self.nh, self.nw, self.nc
-        y = np.empty([nsteps + nstack - 1, nenv, 1, 1, 1], dtype=np.float32)
+        mask = np.empty([nsteps + nstack - 1, nenv, 1, 1, 1], dtype=np.float32)
         obs = np.zeros([nstack, nsteps + nstack, nenv, nh, nw, nc], dtype=np.uint8)
-        x = np.reshape(enc_obs, [nenv, nsteps + nstack, nh, nw, nc]).swapaxes(1,
-                                                                              0)  # [nsteps + nstack, nenv, nh, nw, nc]
-        y[3:] = np.reshape(1.0 - dones, [nenv, nsteps, 1, 1, 1]).swapaxes(1, 0)  # keep
-        y[:3] = 1.0
+        x = np.reshape(enc_obs, [nenv, nsteps + nstack, nh, nw, nc]).swapaxes(1, 0)  # [nsteps + nstack, nenv, nh, nw, nc]
+
+        mask[nstack-1:] = np.reshape(1.0 - dones, [nenv, nsteps, 1, 1, 1]).swapaxes(1, 0)  # keep
+        mask[:nstack-1] = 1.0
         # y = np.reshape(1 - dones, [nenvs, nsteps, 1, 1, 1])
         for i in range(nstack):
             obs[-(i + 1), i:] = x
             # obs[:,i:,:,:,-(i+1),:] = x
-            x = x[:-1] * y
-            y = y[1:]
-        return np.reshape(obs[:, 3:].transpose((2, 1, 3, 4, 0, 5)), [nenv, (nsteps + 1), nh, nw, nstack * nc])
+            x = x[:-1] * mask
+            mask = mask[1:]
+        return np.reshape(obs[:, (nstack-1):].transpose((2, 1, 3, 4, 0, 5)), [nenv, (nsteps + 1), nh, nw, nstack * nc])
 
     def put(self, enc_obs, actions, rewards, mus, dones, masks):
         # enc_obs [nenv, (nsteps + nstack), nh, nw, nc]

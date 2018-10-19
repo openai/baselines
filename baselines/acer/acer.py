@@ -7,6 +7,7 @@ from baselines import logger
 from baselines.common import set_global_seeds
 from baselines.common.policies import build_policy
 from baselines.common.tf_util import get_session, save_variables
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 
 from baselines.a2c.utils import batch_to_seq, seq_to_batch
 from baselines.a2c.utils import cat_entropy_softmax
@@ -55,8 +56,7 @@ def q_retrace(R, D, q_i, v, rho_i, nenvs, nsteps, gamma):
 #     return tf.minimum(1 + eps_clip, tf.maximum(1 - eps_clip, ratio))
 
 class Model(object):
-    def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, nstack, num_procs,
-                 ent_coef, q_coef, gamma, max_grad_norm, lr,
+    def __init__(self, policy, ob_space, ac_space, nenvs, nsteps, ent_coef, q_coef, gamma, max_grad_norm, lr,
                  rprop_alpha, rprop_epsilon, total_timesteps, lrschedule,
                  c, trust_region, alpha, delta):
 
@@ -70,9 +70,6 @@ class Model(object):
         MU = tf.placeholder(tf.float32, [nbatch, nact]) # mu's
         LR = tf.placeholder(tf.float32, [])
         eps = 1e-6
-
-        # step_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs,) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
-        # train_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs*(nsteps+1),) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
 
         step_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs,) + ob_space.shape)
         train_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs*(nsteps+1),) + ob_space.shape)
@@ -274,7 +271,7 @@ class Acer():
             logger.dump_tabular()
 
 
-def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
+def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
           max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,
           trust_region=True, alpha=0.99, delta=1, load_path=None, **network_kwargs):
@@ -346,21 +343,24 @@ def learn(network, env, seed=None, nsteps=20, nstack=4, total_timesteps=int(80e6
     print("Running Acer Simple")
     print(locals())
     set_global_seeds(seed)
-    policy = build_policy(env, network, estimate_q=True, **network_kwargs)
+    if not isinstance(env, VecFrameStack):
+        env = VecFrameStack(env, 1)
 
+    policy = build_policy(env, network, estimate_q=True, **network_kwargs)
     nenvs = env.num_envs
     ob_space = env.observation_space
     ac_space = env.action_space
-    num_procs = len(env.remotes) if hasattr(env, 'remotes') else 1# HACK
-    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps, nstack=nstack,
-                  num_procs=num_procs, ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
+
+    nstack = env.nstack
+    model = Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nenvs=nenvs, nsteps=nsteps,
+                  ent_coef=ent_coef, q_coef=q_coef, gamma=gamma,
                   max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                   total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                   trust_region=trust_region, alpha=alpha, delta=delta)
 
-    runner = Runner(env=env, model=model, nsteps=nsteps, nstack=nstack)
+    runner = Runner(env=env, model=model, nsteps=nsteps)
     if replay_ratio > 0:
-        buffer = Buffer(env=env, nsteps=nsteps, nstack=nstack, size=buffer_size)
+        buffer = Buffer(env=env, nsteps=nsteps, size=buffer_size)
     else:
         buffer = None
     nbatch = nenvs*nsteps
