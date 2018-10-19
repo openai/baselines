@@ -107,7 +107,6 @@ def _stack_obs_ref(enc_obs, dones, nsteps):
 
     mask = np.empty([nsteps + nstack - 1, nenv, 1, 1, 1], dtype=np.float32)
     obs = np.zeros([nstack, nsteps + nstack, nenv, nh, nw, nc], dtype=obs_dtype)
-    obs_ = np.zeros([nenv, nsteps, nh, nw, nc*nstack])
     x = np.reshape(enc_obs, [nenv, nsteps + nstack, nh, nw, nc]).swapaxes(1, 0)  # [nsteps + nstack, nenv, nh, nw, nc]
 
     mask[nstack-1:] = np.reshape(1.0 - dones, [nenv, nsteps, 1, 1, 1]).swapaxes(1, 0)  # keep
@@ -128,7 +127,7 @@ def _stack_obs(enc_obs, dones, nsteps):
     nc = enc_obs.shape[-1]
 
     obs_ = np.zeros((nenv, nsteps + 1) + enc_obs.shape[2:-1] + (enc_obs.shape[-1] * nstack, ), dtype=enc_obs.dtype)
-    mask = np.ones((nenv, nsteps+1))
+    mask = np.ones((nenv, nsteps+1), dtype=enc_obs.dtype)
     mask[:, 1:] = 1.0 - dones
     mask = mask.reshape(mask.shape + tuple(np.ones(len(enc_obs.shape)-2, dtype=np.uint8)))
 
@@ -146,7 +145,6 @@ def test_stack_obs():
     nsteps = 5
 
     obs_shape = (2, 3, nstack)
-    obs_dtype = np.float32
 
     enc_obs_shape = (nenv, nsteps + nstack) + obs_shape[:-1] + (1,)
     enc_obs = np.random.random(enc_obs_shape)

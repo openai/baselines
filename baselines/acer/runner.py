@@ -16,7 +16,7 @@ class Runner(AbstractEnvRunner):
         self.nbatch = nenv * nsteps
         self.batch_ob_shape = (nenv*(nsteps+1),) + env.observation_space.shape
 
-        self.obs = obs = env.reset()
+        self.obs = env.reset()
         self.obs_dtype = env.observation_space.dtype
         self.ac_dtype = env.action_space.dtype
         self.nstack = self.env.nstack

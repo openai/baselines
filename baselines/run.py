@@ -129,7 +129,7 @@ def build_env(args):
 
        if env_type == 'mujoco':
            env = VecNormalize(env)
-     
+
     return env
 
 
