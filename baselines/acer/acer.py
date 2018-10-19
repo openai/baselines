@@ -247,7 +247,7 @@ class Acer():
             # get obs, actions, rewards, mus, dones from buffer.
             obs, actions, rewards, mus, dones, masks = buffer.get()
 
-        
+
         # reshape stuff correctly
         obs = obs.reshape(runner.batch_ob_shape)
         actions = actions.reshape([runner.nbatch])

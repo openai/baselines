@@ -15,7 +15,12 @@ class Runner(AbstractEnvRunner):
         nenv = self.nenv
         self.nbatch = nenv * nsteps
         self.batch_ob_shape = (nenv*(nsteps+1),) + env.observation_space.shape
+
         self.obs = obs = env.reset()
+        self.obs_dtype = env.observation_space.dtype
+        self.ac_dtype = env.action_space.dtype
+        self.nstack = self.env.nstack
+        self.nc = self.batch_ob_shape[-1] // self.nstack
 
 
     def run(self):
@@ -34,13 +39,13 @@ class Runner(AbstractEnvRunner):
             self.dones = dones
             self.obs = obs
             mb_rewards.append(rewards)
-            enc_obs.append(obs[..., -1:])
+            enc_obs.append(obs[..., -self.nc:])
         mb_obs.append(np.copy(self.obs))
         mb_dones.append(self.dones)
 
-        enc_obs = np.asarray(enc_obs, dtype=np.uint8).swapaxes(1, 0)
-        mb_obs = np.asarray(mb_obs, dtype=np.uint8).swapaxes(1, 0)
-        mb_actions = np.asarray(mb_actions, dtype=np.int32).swapaxes(1, 0)
+        enc_obs = np.asarray(enc_obs, dtype=self.obs_dtype).swapaxes(1, 0)
+        mb_obs = np.asarray(mb_obs, dtype=self.obs_dtype).swapaxes(1, 0)
+        mb_actions = np.asarray(mb_actions, dtype=self.ac_dtype).swapaxes(1, 0)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32).swapaxes(1, 0)
         mb_mus = np.asarray(mb_mus, dtype=np.float32).swapaxes(1, 0)
 
