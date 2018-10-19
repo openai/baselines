@@ -19,6 +19,12 @@ Because of that, `actions` passed to the environment are now a vector (of dimens
 
 	When using vectorized environments, the environments are automatically resetted at the end of each episode.
 
+.. warning::
+
+	It seems that Windows users are experiencing issues with SubprocVecEnv.
+	We recommend to use the docker image in that case. (See `Issue #42 <https://github.com/hill-a/stable-baselines/issues/40>`_)
+
+
 DummyVecEnv
 -----------
 
