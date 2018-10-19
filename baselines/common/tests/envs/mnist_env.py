@@ -1,7 +1,6 @@
 import os.path as osp
 import numpy as np
 import tempfile
-import filelock
 from gym import Env
 from gym.spaces import Discrete, Box
 
@@ -14,6 +13,7 @@ class MnistEnv(Env):
             episode_len=None,
             no_images=None
     ):
+        import filelock
         from tensorflow.examples.tutorials.mnist import input_data
         # we could use temporary directory for this with a context manager and
         # TemporaryDirecotry, but then each test that uses mnist would re-download the data
