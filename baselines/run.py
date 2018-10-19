@@ -93,9 +93,7 @@ def build_env(args):
     env_type, env_id = get_env_type(args.env)
 
     if env_type == 'atari':
-        if alg == 'acer':
-            env = make_vec_env(env_id, env_type, nenv, seed)
-        elif alg == 'deepq':
+        if alg == 'deepq':
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
             env = bench.Monitor(env, logger.get_dir())
@@ -129,7 +127,7 @@ def build_env(args):
 
        if env_type == 'mujoco':
            env = VecNormalize(env)
-
+     
     return env
 
 

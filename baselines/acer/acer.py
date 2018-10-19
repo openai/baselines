@@ -71,8 +71,11 @@ class Model(object):
         LR = tf.placeholder(tf.float32, [])
         eps = 1e-6
 
-        step_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs,) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
-        train_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs*(nsteps+1),) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
+        # step_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs,) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
+        # train_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs*(nsteps+1),) + ob_space.shape[:-1] + (ob_space.shape[-1] * nstack,))
+
+        step_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs,) + ob_space.shape)
+        train_ob_placeholder = tf.placeholder(dtype=ob_space.dtype, shape=(nenvs*(nsteps+1),) + ob_space.shape)
         with tf.variable_scope('acer_model', reuse=tf.AUTO_REUSE):
 
             step_model = policy(observ_placeholder=step_ob_placeholder, sess=sess)
@@ -247,6 +250,7 @@ class Acer():
             # get obs, actions, rewards, mus, dones from buffer.
             obs, actions, rewards, mus, dones, masks = buffer.get()
 
+        
         # reshape stuff correctly
         obs = obs.reshape(runner.batch_ob_shape)
         actions = actions.reshape([runner.nbatch])
