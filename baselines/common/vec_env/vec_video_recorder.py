@@ -29,14 +29,14 @@ class VecVideoRecorder(VecEnvWrapper):
             print("Out")
             self.video_recorder.close()
 
-        self.venv.metadata = {'render.modes': ['rgb_array']}
+        if self.venv.metadata is None:
+            self.venv.metadata = {'render.modes': ['rgb_array']}
         self.video_recorder = video_recorder.VideoRecorder(
                 env=self.venv,
                 base_path=os.path.join(self.directory, '{}.video.{}.video{:06}'.format(self.file_prefix, self.file_infix, self.episode_id)),
                 metadata={'episode_id': self.episode_id},
                 enabled=self._video_enabled(),
                 )
-        del self.venv.metadata
         self.video_recorder.capture_frame()
 
     def _video_enabled(self):
