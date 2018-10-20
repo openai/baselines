@@ -31,7 +31,7 @@ RUN \
     pip install matplotlib && \
     pip install seaborn && \
     pip install glob2 && \
-    pip install gym[mujoco,atari,classic_control,robotics]
+    pip install gym[atari,classic_control]==0.10.5
 
 ENV PATH=$VENV/bin:$PATH
 

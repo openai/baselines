@@ -9,6 +9,7 @@ Pre Release 2.1.1.a0 (WIP)
 --------------------------
 
 - fixed MpiAdam synchronization issue in PPO1 (thanks to @brendenpetersen) issue #50
+- fixed dependency issues (new mujoco-py requires a mujoco licence + gym broke MultiDiscrete space shape)
 
 
 Release 2.1.0 (2018-10-2)
