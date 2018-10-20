@@ -21,6 +21,7 @@ class VecVideoRecorder(VecEnvWrapper):
         obs = self.venv.reset()
 
         self.start_video_recorder()
+        self.episode_id += 1
 
         return obs
 
@@ -43,9 +44,6 @@ class VecVideoRecorder(VecEnvWrapper):
     def step_wait(self):
         obs, rews, dones, infos = self.venv.step_wait()
         self.video_recorder.capture_frame()
-        self.episode_id += 1
-        if self.episode_id % 200 == 0:
-            self.start_video_recorder()
 
         return obs, rews, dones, infos
 
