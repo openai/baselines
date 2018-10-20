@@ -102,6 +102,7 @@ def common_arg_parser():
     parser.add_argument('--num_env', help='Number of environment copies being run in parallel. When not specified, set to number of cpus for Atari, and to 1 for Mujoco', default=None, type=int)
     parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
     parser.add_argument('--save_path', help='Path to save trained model to', default=None, type=str)
+    parser.add_argument('--video_monitor', help='Save video every x steps (0 = disabled)', default=0, type=int)
     parser.add_argument('--play', default=False, action='store_true')
     return parser
 
