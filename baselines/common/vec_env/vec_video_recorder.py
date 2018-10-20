@@ -3,6 +3,7 @@ import time
 import os
 import gym
 from gym import Wrapper
+from baselines import logger
 from gym.wrappers.monitoring import stats_recorder, video_recorder
 
 
@@ -35,11 +36,13 @@ class VecVideoRecorder(VecEnvWrapper):
 
         if not hasattr(self.venv, 'metadata'):
             self.venv.metadata = {'render.modes': ['rgb_array']}
+        base_path = os.path.join(self.directory, '{}.video.{}.video{:06}'.format(self.file_prefix, self.file_infix, self.episode_id))
         self.video_recorder = video_recorder.VideoRecorder(
                 env=self.venv,
-                base_path=os.path.join(self.directory, '{}.video.{}.video{:06}'.format(self.file_prefix, self.file_infix, self.episode_id)),
+                base_path=base_path,
                 metadata={'episode_id': self.episode_id}
                 )
+
         self.video_recorder.capture_frame()
         self.recorded_frames = 1
         self.recording = True
@@ -55,6 +58,7 @@ class VecVideoRecorder(VecEnvWrapper):
             self.video_recorder.capture_frame()
             self.recorded_frames += 1
             if self.recorded_frames > self.video_length:
+                logger.info("Saving video to ", self.video_recorder.path)
                 self.close()
         elif self._video_enabled():
                 self.start_video_recorder()
