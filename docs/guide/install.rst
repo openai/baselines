@@ -41,10 +41,12 @@ Stable Release
 Bleeding-edge version
 ---------------------
 
+With support for running tests and building the documentation.
+
 .. code-block:: bash
 
     git clone https://github.com/hill-a/stable-baselines && cd stable-baselines
-    pip install -e .
+    pip install -e .[docs,tests]
 
 
 Using Docker Images

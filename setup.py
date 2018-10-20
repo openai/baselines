@@ -76,7 +76,7 @@ setup(name='stable_baselines',
       packages=[package for package in find_packages()
                 if package.startswith('stable_baselines')],
       install_requires=[
-          'gym[atari,classic_control]',
+          'gym[atari,classic_control]==0.10.5',
           'scipy',
           'tqdm',
           'joblib',
@@ -90,11 +90,21 @@ setup(name='stable_baselines',
           'opencv-python',
           'numpy',
           'pandas',
-          'pytest',
           'matplotlib',
           'seaborn',
           'glob2'
       ],
+      extras_require={
+        'tests': [
+            'pytest==3.5.1',
+            'pytest-cov'
+        ],
+        'docs': [
+            'sphinx',
+            'sphinx-autobuild',
+            'sphinx-rtd-theme'
+        ]
+      },
       description='A fork of OpenAI Baselines, implementations of reinforcement learning algorithms.',
       author='Ashley Hill',
       url='https://github.com/hill-a/stable-baselines',
