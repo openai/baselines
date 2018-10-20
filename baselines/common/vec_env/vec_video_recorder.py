@@ -7,7 +7,7 @@ from gym.wrappers.monitoring import stats_recorder, video_recorder
 
 
 class VecVideoRecorder(VecEnvWrapper):
-    def __init__(self, venv, directory, video_callable=None, video_length=200):
+    def __init__(self, venv, directory, video_callable, video_length=200):
         VecEnvWrapper.__init__(self, venv)
         self.video_callable = video_callable
         self.video_recorder = None
