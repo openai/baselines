@@ -65,7 +65,7 @@ def train(args, extra_args):
 
     env = build_env(args)
     if args.video_monitor != 0:
-        env = VecVideoRecorder(env, osp.join(logger.Logger.CURRENT.dir, "video"), video_callable=lambda x: x % args.video_monitor == 0, video_length=args.video_length)
+        env = VecVideoRecorder(env, osp.join(logger.Logger.CURRENT.dir, "videos"), video_callable=lambda x: x % args.video_monitor == 0, video_length=args.video_length)
 
     if args.network:
         alg_kwargs['network'] = args.network
