@@ -5,7 +5,7 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre Release 2.1.1.a0 (WIP)
+Release 2.1.1 (2018-10-20)
 --------------------------
 
 - fixed MpiAdam synchronization issue in PPO1 (thanks to @brendenpetersen) issue #50
