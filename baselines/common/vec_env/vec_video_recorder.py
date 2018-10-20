@@ -20,6 +20,9 @@ class VecVideoRecorder(VecEnvWrapper):
         self.episode_id = 0
         self.video_length = video_length
 
+        self.recording = False
+        self.recorded_frames = 0
+
     def reset(self):
         obs = self.venv.reset()
 
@@ -35,27 +38,34 @@ class VecVideoRecorder(VecEnvWrapper):
         self.video_recorder = video_recorder.VideoRecorder(
                 env=self.venv,
                 base_path=os.path.join(self.directory, '{}.video.{}.video{:06}'.format(self.file_prefix, self.file_infix, self.episode_id)),
-                metadata={'episode_id': self.episode_id},
-                enabled=self._video_enabled(),
+                metadata={'episode_id': self.episode_id}
                 )
         self.video_recorder.capture_frame()
+        self.recorded_frames = 1
+        self.recording = True
 
     def _video_enabled(self):
-        return self.video_callable(self.episode_id // self.video_length)
+        return self.video_callable(self.episode_id)
 
     def step_wait(self):
         obs, rews, dones, infos = self.venv.step_wait()
-        self.video_recorder.capture_frame()
 
         self.episode_id += 1
-        if self.episode_id % self.video_length == 0:
-            self.start_video_recorder()
+        if self.recording:
+            self.video_recorder.capture_frame()
+            self.recorded_frames += 1
+            if self.recorded_frames > self.video_length:
+                self.close()
+        elif self._video_enabled():
+                self.start_video_recorder()
 
         return obs, rews, dones, infos
 
     def close(self):
-        if self.video_recorder:
+        if self.recording:
             self.video_recorder.close()
+        self.recording = False
+        self.recorded_frames = 0
 
     def __del__(self):
         self.close()
