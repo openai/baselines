@@ -34,8 +34,6 @@ class VecVideoRecorder(VecEnvWrapper):
     def start_video_recorder(self):
         self.close()
 
-        if not hasattr(self.venv, 'metadata'):
-            self.venv.metadata = {'render.modes': ['rgb_array']}
         base_path = os.path.join(self.directory, '{}.video.{}.video{:06}'.format(self.file_prefix, self.file_infix, self.episode_id))
         self.video_recorder = video_recorder.VideoRecorder(
                 env=self.venv,
