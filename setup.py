@@ -15,6 +15,9 @@ extras = {
     ],
     'bullet': [
         'pybullet',
+    ],
+    'mpi': [
+        'mpi4py'
     ]
 }
 
@@ -34,7 +37,6 @@ setup(name='baselines',
           'joblib',
           'dill',
           'progressbar2',
-          'mpi4py',
           'cloudpickle',
           'click',
           'opencv-python'
