@@ -13,6 +13,8 @@ class VecVideoRecorder(VecEnvWrapper):
         self.video_recorder = None
 
         self.directory = os.path.abspath(directory)
+        if not os.path.exists(self.directory): os.mkdir(self.directory)
+
         self.file_prefix = "vecenv"
         self.file_infix = '{}'.format(os.getpid())
         self.episode_id = 0
