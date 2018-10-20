@@ -28,7 +28,7 @@ class VecVideoRecorder(VecEnvWrapper):
     def start_video_recorder(self):
         self.close()
 
-        if self.venv.metadata is None:
+        if not hasattr(self.venv, 'metadata'):
             self.venv.metadata = {'render.modes': ['rgb_array']}
         self.video_recorder = video_recorder.VideoRecorder(
                 env=self.venv,
