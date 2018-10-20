@@ -25,9 +25,7 @@ class VecVideoRecorder(VecEnvWrapper):
         return obs
 
     def start_video_recorder(self):
-        if self.video_recorder:
-            print("Out")
-            self.video_recorder.close()
+        self.close()
 
         if self.venv.metadata is None:
             self.venv.metadata = {'render.modes': ['rgb_array']}
@@ -50,3 +48,10 @@ class VecVideoRecorder(VecEnvWrapper):
             self.start_video_recorder()
 
         return obs, rews, dones, infos
+
+    def close(self):
+        if self.video_recorder:
+            self.video_recorder.close()
+
+    def __del__(self):
+        self.close()
