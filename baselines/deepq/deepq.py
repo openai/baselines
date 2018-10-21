@@ -15,10 +15,10 @@ from baselines.common import set_global_seeds
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
+from baselines.contract.deepq.utils import ContractAugmentedInput
 
 from baselines.common.tf_util import get_session
 from baselines.deepq.models import build_q_func
-
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
@@ -192,13 +192,16 @@ def learn(env,
     sess = get_session()
     set_global_seeds(seed)
 
-    q_func = build_q_func(network, **network_kwargs)
+    contracts = env.contracts if hasattr(env, 'contracts') else None
+    q_func = build_q_func(network, bool(contracts), **network_kwargs)
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
 
     observation_space = env.observation_space
     def make_obs_ph(name):
+        if contracts:
+            return ContractAugmentedInput(observation_space, contracts, name=name)
         return ObservationInput(observation_space, name=name)
 
     act, train, update_target, debug = deepq.build_train(

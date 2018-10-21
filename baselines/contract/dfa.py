@@ -27,6 +27,7 @@ class DFA:
         self.dfa = regex2dfa(reg_ex)
         self.current_state = 'q0'
         self.num_states = len(self.dfa.nodes())
+        self.state_ids = dict(zip(self.dfa.nodes(), range(self.num_states)))
 
     def step(self, action):
         is_accept, self.current_state = self._traverse_dfa(
@@ -63,3 +64,6 @@ class DFA:
                     return False, next_state
 
         return False, 'q0'
+
+    def state_id(self):
+        return self.state_ids[self.current_state]

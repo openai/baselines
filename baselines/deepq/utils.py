@@ -1,5 +1,6 @@
 from baselines.common.input import observation_input
 from baselines.common.tf_util import adjust_shape
+import tensorflow as tf
 
 # ================================================================
 # Placeholders
@@ -34,6 +35,9 @@ class PlaceholderTfInput(TfInput):
     def get(self):
         return self._placeholder
 
+    def batch_size(self):
+        return tf.shape(self._placeholder)[0]
+
     def make_feed_dict(self, data):
         return {self._placeholder: adjust_shape(self._placeholder, data)}
 
@@ -55,5 +59,3 @@ class ObservationInput(PlaceholderTfInput):
 
     def get(self):
         return self.processed_inpt
-
-
