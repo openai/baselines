@@ -7,7 +7,7 @@ import tensorflow as tf
 import numpy as np
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env
+from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, env_thunk
 from baselines.common.tf_util import get_session
 from baselines import bench, logger
 from importlib import import_module
@@ -92,33 +92,17 @@ def build_env(args):
 
     env_type, env_id = get_env_type(args.env)
 
-    if env_type == 'atari':
+    if env_type in {'atari', 'retro'}:
         if alg == 'acer':
             env = make_vec_env(env_id, env_type, nenv, seed)
         elif alg == 'deepq':
-            env = atari_wrappers.make_atari(env_id)
-            env.seed(seed)
-            env = bench.Monitor(env, logger.get_dir())
-            env = atari_wrappers.wrap_deepmind(env, frame_stack=True)
+            env = env_thunk(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True})
         elif alg == 'trpo_mpi':
-            env = atari_wrappers.make_atari(env_id)
-            env.seed(seed)
-            env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
-            env = atari_wrappers.wrap_deepmind(env)
-            # TODO check if the second seeding is necessary, and eventually remove
-            env.seed(seed)
+            env = env_thunk(env_id, env_type, seed=seed)
         else:
             frame_stack_size = 4
-            env = VecFrameStack(make_vec_env(env_id, env_type, nenv, seed), frame_stack_size)
-
-    elif env_type == 'retro':
-        import retro
-        gamestate = args.gamestate or retro.State.DEFAULT
-        env = retro_wrappers.make_retro(game=args.env, state=gamestate, max_episode_steps=10000,
-                                        use_restricted_actions=retro.Actions.DISCRETE)
-        env.seed(args.seed)
-        env = bench.Monitor(env, logger.get_dir())
-        env = retro_wrappers.wrap_deepmind_retro(env)
+            env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
+            env = VecFrameStack(env, frame_stack_size)
 
     else:
        config = tf.ConfigProto(allow_soft_placement=True,
