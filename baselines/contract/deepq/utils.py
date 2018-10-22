@@ -4,7 +4,7 @@ from baselines.deepq.utils import ObservationInput
 import tensorflow as tf
 import numpy as np
 
-class ContractAugmentedInput(ObservationInput):
+class ContractStateAugmentedInput(ObservationInput):
     def __init__(self, observation_space, contracts, name=None):
         super().__init__(observation_space)
         self.contract_num_states = [c.num_states for c in contracts]

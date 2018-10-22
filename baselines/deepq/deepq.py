@@ -15,7 +15,7 @@ from baselines.common import set_global_seeds
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import ObservationInput
-from baselines.contract.deepq.utils import ContractAugmentedInput
+from baselines.contract.deepq.utils import ContractStateAugmentedInput
 
 from baselines.common.tf_util import get_session
 from baselines.deepq.models import build_q_func
@@ -192,16 +192,16 @@ def learn(env,
     sess = get_session()
     set_global_seeds(seed)
 
-    contracts = env.contracts if hasattr(env, 'contracts') else None
-    q_func = build_q_func(network, bool(contracts), **network_kwargs)
+    contracts, aug_type = find_contracts(env)
+    q_func = build_q_func(network, aug_type, **network_kwargs)
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
 
     observation_space = env.observation_space
     def make_obs_ph(name):
-        if contracts:
-            return ContractAugmentedInput(observation_space, contracts, name=name)
+        if aug_type == 'contract_state':
+            return ContractStateAugmentedInput(observation_space, contracts, name=name)
         return ObservationInput(observation_space, name=name)
 
     act, train, update_target, debug = deepq.build_train(
@@ -336,3 +336,11 @@ def learn(env,
             load_variables(model_file)
 
     return act
+
+def find_contracts(env):
+    if hasattr(env, 'contracts'):
+        if env.augmentation_type != None:
+            return env.contracts, env.augmentation_type
+    elif hasattr(env, 'env'):
+        return find_contracts(env.env)
+    return None, None

@@ -101,9 +101,11 @@ def build_env(args):
         elif alg == 'deepq':
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
+            contracts = [contract.Contract('2d_dithering', DITHERING2D_REGEX_4, -100.)]
             env = bench.Monitor(env, logger.get_dir())
             env = atari_wrappers.wrap_deepmind(env, frame_stack=True)
-            env = contract.contract_wrapper.ContractEnv(env, [contract.Contract('2d_dithering', DITHERING2D_REGEX_4, -100.)])
+            env = contract.ContractEnv(env, contracts, augmentation_type='contract_state')
+            env = contract.StepMonitor(env, logger.get_dir())
         elif alg == 'trpo_mpi':
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
