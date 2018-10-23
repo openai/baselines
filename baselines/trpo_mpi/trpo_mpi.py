@@ -84,7 +84,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
-@registry.register('trpo_mpi', supports_vecenvs=False, defaults=defaults)
+@registry.register('trpo_mpi', supports_vecenv=False, defaults=defaults)
 def learn(*,
         network,
         env,

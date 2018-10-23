@@ -93,7 +93,7 @@ def load_act(path):
     return ActWrapper.load_act(path)
 
 
-@registry.register('deepq', supports_vecenvs=False, defaults=defaults)
+@registry.register('deepq', supports_vecenv=False, defaults=defaults)
 def learn(env,
           network,
           seed=None,
