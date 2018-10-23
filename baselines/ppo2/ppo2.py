@@ -4,7 +4,7 @@ import functools
 import numpy as np
 import os.path as osp
 import tensorflow as tf
-from baselines import logger
+from baselines import logger, registry
 from collections import deque
 from baselines.common import explained_variance, set_global_seeds
 from baselines.common.policies import build_policy
@@ -218,6 +218,7 @@ def constfn(val):
         return val
     return f
 
+@registry.register('ppo2')
 def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,

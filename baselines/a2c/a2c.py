@@ -2,12 +2,11 @@ import time
 import functools
 import tensorflow as tf
 
-from baselines import logger
+from baselines import logger, registry
 
 from baselines.common import set_global_seeds, explained_variance
 from baselines.common import tf_util
 from baselines.common.policies import build_policy
-
 
 from baselines.a2c.utils import Scheduler, find_trainable_variables
 from baselines.a2c.runner import Runner
@@ -114,6 +113,7 @@ class Model(object):
         tf.global_variables_initializer().run(session=sess)
 
 
+@registry.register('a2c')
 def learn(
     network,
     env,

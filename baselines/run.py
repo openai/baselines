@@ -3,17 +3,23 @@ import multiprocessing
 import os.path as osp
 import gym
 from collections import defaultdict
-import tensorflow as tf
 import numpy as np
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, env_thunk
-from baselines.common.tf_util import get_session
-from baselines import bench, logger
-from importlib import import_module
+from baselines import logger
+from baselines.registry import registry
 
 from baselines.common.vec_env.vec_normalize import VecNormalize
-from baselines.common import atari_wrappers, retro_wrappers
+
+import baselines.a2c.a2c
+import baselines.acer.acer
+import baselines.acktr.acktr
+import baselines.deepq.deepq
+import baselines.ddpg.ddpg
+import baselines.ppo2.ppo2
+import baselines.trpo_mpi.trpo_mpi # noqa: F401
+
 
 try:
     from mpi4py import MPI
@@ -87,34 +93,25 @@ def build_env(args):
     if sys.platform == 'darwin': ncpu //= 2
     nenv = args.num_env or ncpu
     alg = args.alg
-    rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = args.seed
 
     env_type, env_id = get_env_type(args.env)
 
+    assert alg in registry, 'Unknown algorithm {}'.format(alg)
     if env_type in {'atari', 'retro'}:
-        if alg == 'acer':
-            env = make_vec_env(env_id, env_type, nenv, seed)
-        elif alg == 'deepq':
-            env = env_thunk(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True})
-        elif alg == 'trpo_mpi':
-            env = env_thunk(env_id, env_type, seed=seed)
-        else:
-            frame_stack_size = 4
-            env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
-            env = VecFrameStack(env, frame_stack_size)
-
+        frame_stack_size = 4
     else:
-       config = tf.ConfigProto(allow_soft_placement=True,
-                               intra_op_parallelism_threads=1,
-                               inter_op_parallelism_threads=1)
-       config.gpu_options.allow_growth = True
-       get_session(config=config)
+        frame_stack_size = 1
 
-       env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale)
+    if registry[alg]['supports_vecenv']:
+        env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
+        if frame_stack_size > 1:
+            env = VecFrameStack(env, frame_stack_size)
+    else:
+        env = env_thunk(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': frame_stack_size > 1})
 
-       if env_type == 'mujoco':
-           env = VecNormalize(env)
+    if env_type == 'mujoco' and registry[alg]['supports_vecenv']:
+        env = VecNormalize(env)
 
     return env
 
@@ -141,19 +138,20 @@ def get_default_network(env_type):
         return 'mlp'
 
 def get_alg_module(alg, submodule=None):
-    submodule = submodule or alg
-    try:
-        # first try to import the alg module from baselines
-        alg_module = import_module('.'.join(['baselines', alg, submodule]))
-    except ImportError:
-        # then from rl_algs
-        alg_module = import_module('.'.join(['rl_' + 'algs', alg, submodule]))
+    import inspect
+    entry = registry.get(alg)
+    assert entry is not None, 'Unregistered algorithm {}'.format(alg)
+    module = inspect.getmodule(entry['fn']).__name__
+    if submodule is not None:
+        module = '.'.join([module, submodule])
+    return module
 
-    return alg_module
 
 
 def get_learn_function(alg):
-    return get_alg_module(alg).learn
+    entry = registry.get(alg)
+    assert entry is not None, 'Unregistered algorithm {}'.format(alg)
+    return entry['fn']
 
 
 def get_learn_function_defaults(alg, env_type):
@@ -197,6 +195,7 @@ def main():
         rank = MPI.COMM_WORLD.Get_rank()
 
     model, env = train(args, extra_args)
+
     env.close()
 
     if args.save_path is not None and rank == 0:

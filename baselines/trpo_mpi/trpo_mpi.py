@@ -1,5 +1,5 @@
 from baselines.common import explained_variance, zipsame, dataset
-from baselines import logger
+from baselines import logger, registry
 import baselines.common.tf_util as U
 import tensorflow as tf, numpy as np
 import time
@@ -82,6 +82,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
+@registry.register('trpo_mpi', supports_vecenvs=False)
 def learn(*,
         network,
         env,

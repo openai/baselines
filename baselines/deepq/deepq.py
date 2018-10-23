@@ -8,7 +8,7 @@ import numpy as np
 
 import baselines.common.tf_util as U
 from baselines.common.tf_util import load_variables, save_variables
-from baselines import logger
+from baselines import logger, register
 from baselines.common.schedules import LinearSchedule
 from baselines.common import set_global_seeds
 
@@ -92,6 +92,7 @@ def load_act(path):
     return ActWrapper.load_act(path)
 
 
+@register('deepq', supports_vecenvs=False)
 def learn(env,
           network,
           seed=None,
