@@ -6,7 +6,7 @@ from collections import defaultdict
 import numpy as np
 
 from baselines.common.vec_env.vec_normalize import VecNormalize
-from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, env_thunk
+from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, make_env
 from baselines import logger
 from baselines.registry import registry
 
