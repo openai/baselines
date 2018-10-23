@@ -30,7 +30,7 @@ def mujoco():
     )
 
 defaults = {
-    'atari': atari(), 
+    'atari': atari(),
     'mujoco': mujoco(),
 }
-    
+

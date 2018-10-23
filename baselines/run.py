@@ -145,7 +145,7 @@ def get_learn_function_defaults(alg, env_type):
     entry = registry.get(alg)
     assert entry is not None, 'Unregistered algorithm {}'.format(alg)
     return entry['defaults'].get(env_type, {})
-    
+
 
 
 def parse_cmdline_kwargs(args):
