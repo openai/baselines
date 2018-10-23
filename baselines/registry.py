@@ -1,7 +1,7 @@
 from baselines import logger
 registry = {}
 
-def register(name, supports_vecenv=True, **kwargs):
+def register(name, supports_vecenv=True, defaults={}, **kwargs):
     def get_fn_entrypoint(fn):
         import inspect
         return '.'.join([inspect.getmodule(fn).__name__, fn.__name__])
@@ -15,6 +15,7 @@ def register(name, supports_vecenv=True, **kwargs):
         registry[name] = dict(
             fn = learn_fn,
             supports_vecenv=supports_vecenv,
+            defaults=defaults,
             **kwargs
         )
         return learn_fn

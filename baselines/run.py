@@ -5,7 +5,7 @@ import gym
 from collections import defaultdict
 import numpy as np
 
-from baselines.common.vec_env.vec_frame_stack import VecFrameStack
+from baselines.common.vec_env.vec_normalize import VecNormalize
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, env_thunk
 from baselines import logger
 from baselines.registry import registry
@@ -86,6 +86,7 @@ def build_env(args):
 
     env_type, env_id = get_env_type(args.env)
     assert alg in registry, 'Unknown algorithm {}'.format(alg)
+
     if env_type in {'atari', 'retro'}:
         frame_stack_size = 4
     else:
@@ -141,13 +142,10 @@ def get_learn_function(alg):
 
 
 def get_learn_function_defaults(alg, env_type):
-    try:
-        alg_defaults = get_alg_module(alg, 'defaults')
-        kwargs = getattr(alg_defaults, env_type)()
-    except (ImportError, AttributeError):
-        kwargs = {}
-    return kwargs
-
+    entry = registry.get(alg)
+    assert entry is not None, 'Unregistered algorithm {}'.format(alg)
+    return entry['defaults'].get(env_type, {})
+    
 
 
 def parse_cmdline_kwargs(args):

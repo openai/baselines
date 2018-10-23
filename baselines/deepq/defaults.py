@@ -16,6 +16,8 @@ def atari():
         dueling=True
     )
 
-def retro():
-    return atari()
 
+defaults = {
+    'atari': atari()
+    'retro': atari()
+}

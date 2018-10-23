@@ -16,6 +16,7 @@ from baselines.a2c.utils import EpisodeStats
 from baselines.a2c.utils import get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance
 from baselines.acer.buffer import Buffer
 from baselines.acer.runner import Runner
+from baselines.acer.defaults import defaults
 
 # remove last step
 def strip(var, nenvs, nsteps, flat = False):
@@ -270,7 +271,7 @@ class Acer():
                 logger.record_tabular(name, float(val))
             logger.dump_tabular()
 
-@registry.register('acer')
+@registry.register('acer', defaults=defaults)
 def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=0.5, ent_coef=0.01,
           max_grad_norm=10, lr=7e-4, lrschedule='linear', rprop_epsilon=1e-5, rprop_alpha=0.99, gamma=0.99,
           log_interval=100, buffer_size=50000, replay_ratio=4, replay_start=10000, c=10.0,

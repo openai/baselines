@@ -15,6 +15,7 @@ from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
 from mpi4py import MPI
 from baselines.common.tf_util import initialize
 from baselines.common.mpi_util import sync_from_root
+from baselines.ppo2.defaults import defaults
 
 class Model(object):
     """
@@ -218,7 +219,7 @@ def constfn(val):
         return val
     return f
 
-@registry.register('ppo2')
+@registry.register('ppo2', defaults=defaults)
 def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,

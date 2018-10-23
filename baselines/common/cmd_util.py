@@ -16,7 +16,7 @@ from baselines.common import set_global_seeds
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.common.vec_env.vec_normalize import VecNormalize
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 
 from baselines.common import retro_wrappers
 
@@ -45,6 +45,8 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
 
     if frame_stack_size > 1:
         venv = VecFrameStack(venv, frame_stack_size)
+
+    return venv
 
 
 def env_thunk(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate=None, wrapper_kwargs={}):

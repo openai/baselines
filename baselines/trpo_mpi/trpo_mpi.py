@@ -13,6 +13,8 @@ from baselines.common.input import observation_placeholder
 from baselines.common.policies import build_policy
 from contextlib import contextmanager
 
+from baselines.trpo_mpi.defaults import defaults
+
 def traj_segment_generator(pi, env, horizon, stochastic):
     # Initialize state variables
     t = 0
@@ -82,7 +84,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
-@registry.register('trpo_mpi', supports_vecenvs=False)
+@registry.register('trpo_mpi', supports_vecenvs=False, defaults=defaults)
 def learn(*,
         network,
         env,

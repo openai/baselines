@@ -18,6 +18,7 @@ from baselines.deepq.utils import ObservationInput
 
 from baselines.common.tf_util import get_session
 from baselines.deepq.models import build_q_func
+from baselines.deepq.defaults import defaults
 
 
 class ActWrapper(object):
@@ -92,7 +93,7 @@ def load_act(path):
     return ActWrapper.load_act(path)
 
 
-@registry.register('deepq', supports_vecenvs=False)
+@registry.register('deepq', supports_vecenvs=False, defaults=defaults)
 def learn(env,
           network,
           seed=None,
