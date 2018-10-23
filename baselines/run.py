@@ -95,7 +95,7 @@ def build_env(args):
     if registry[alg]['supports_vecenv']:
         env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale, frame_stack_size=frame_stack_size)
     else:
-        env = env_thunk(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': frame_stack_size > 1})
+        env = make_env(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': frame_stack_size > 1})
 
     if env_type == 'mujoco' and registry[alg]['supports_vecenv']:
         env = VecNormalize(env)

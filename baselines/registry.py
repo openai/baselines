@@ -1,8 +1,8 @@
-# Registry of algorithms that keeps track of algorithms supported environments and 
+# Registry of algorithms that keeps track of algorithms supported environments and
 # and fine-grained defaults for different kinds of environments (atari, retro, mujoco etc)
 #
 # Example usage:
-# 
+#
 #   from baselines import registry
 #
 #   @registry.register('fancy_algorithm', supports_vecenv=False)
