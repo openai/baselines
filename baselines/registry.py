@@ -12,9 +12,10 @@
 #   for algo_name, algo_entry in registry.registry.items():
 #       if not algo_entry['supports_vecenv']:
 #           print(f'{algo_name} does not support vecenvs')
-#           # should print "fancy_algorithm does not support vecenvs" (among other ones)"from baselines import logger
+#           # should print "fancy_algorithm does not support vecenvs" (among other ones)"f
 
 
+from baselines import logger
 
 registry = {}
 
