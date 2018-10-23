@@ -1,5 +1,5 @@
 from baselines.common import explained_variance, zipsame, dataset
-from baselines import logger
+from baselines import logger, registry
 import baselines.common.tf_util as U
 import tensorflow as tf, numpy as np
 import time
@@ -12,6 +12,8 @@ from baselines.common.cg import cg
 from baselines.common.input import observation_placeholder
 from baselines.common.policies import build_policy
 from contextlib import contextmanager
+
+from baselines.trpo_mpi.defaults import defaults
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     # Initialize state variables
@@ -82,6 +84,7 @@ def add_vtarg_and_adv(seg, gamma, lam):
         gaelam[t] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
+@registry.register('trpo_mpi', supports_vecenvs=False, defaults=defaults)
 def learn(*,
         network,
         env,

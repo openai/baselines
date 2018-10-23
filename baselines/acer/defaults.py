@@ -1,4 +1,3 @@
-def atari():
-    return dict(
-        lrschedule='constant'
-    )
+defaults = {
+    'atari': dict(lrschedule='constant')
+}

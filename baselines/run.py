@@ -3,17 +3,12 @@ import multiprocessing
 import os.path as osp
 import gym
 from collections import defaultdict
-import tensorflow as tf
 import numpy as np
 
-from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env
-from baselines.common.tf_util import get_session
-from baselines import bench, logger
-from importlib import import_module
-
 from baselines.common.vec_env.vec_normalize import VecNormalize
-from baselines.common import atari_wrappers, retro_wrappers
+from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, env_thunk
+from baselines import logger
+from baselines.registry import registry
 
 try:
     from mpi4py import MPI
@@ -87,50 +82,23 @@ def build_env(args):
     if sys.platform == 'darwin': ncpu //= 2
     nenv = args.num_env or ncpu
     alg = args.alg
-    rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = args.seed
 
     env_type, env_id = get_env_type(args.env)
+    assert alg in registry, 'Unknown algorithm {}'.format(alg)
 
-    if env_type == 'atari':
-        if alg == 'acer':
-            env = make_vec_env(env_id, env_type, nenv, seed)
-        elif alg == 'deepq':
-            env = atari_wrappers.make_atari(env_id)
-            env.seed(seed)
-            env = bench.Monitor(env, logger.get_dir())
-            env = atari_wrappers.wrap_deepmind(env, frame_stack=True)
-        elif alg == 'trpo_mpi':
-            env = atari_wrappers.make_atari(env_id)
-            env.seed(seed)
-            env = bench.Monitor(env, logger.get_dir() and osp.join(logger.get_dir(), str(rank)))
-            env = atari_wrappers.wrap_deepmind(env)
-            # TODO check if the second seeding is necessary, and eventually remove
-            env.seed(seed)
-        else:
-            frame_stack_size = 4
-            env = VecFrameStack(make_vec_env(env_id, env_type, nenv, seed), frame_stack_size)
-
-    elif env_type == 'retro':
-        import retro
-        gamestate = args.gamestate or retro.State.DEFAULT
-        env = retro_wrappers.make_retro(game=args.env, state=gamestate, max_episode_steps=10000,
-                                        use_restricted_actions=retro.Actions.DISCRETE)
-        env.seed(args.seed)
-        env = bench.Monitor(env, logger.get_dir())
-        env = retro_wrappers.wrap_deepmind_retro(env)
-
+    if env_type in {'atari', 'retro'}:
+        frame_stack_size = 4
     else:
-       config = tf.ConfigProto(allow_soft_placement=True,
-                               intra_op_parallelism_threads=1,
-                               inter_op_parallelism_threads=1)
-       config.gpu_options.allow_growth = True
-       get_session(config=config)
+        frame_stack_size = 1
 
-       env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale)
+    if registry[alg]['supports_vecenv']:
+        env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale, frame_stack_size=frame_stack_size)
+    else:
+        env = env_thunk(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': frame_stack_size > 1})
 
-       if env_type == 'mujoco':
-           env = VecNormalize(env)
+    if env_type == 'mujoco' and registry[alg]['supports_vecenv']:
+        env = VecNormalize(env)
 
     return env
 
@@ -157,29 +125,27 @@ def get_default_network(env_type):
         return 'mlp'
 
 def get_alg_module(alg, submodule=None):
-    submodule = submodule or alg
-    try:
-        # first try to import the alg module from baselines
-        alg_module = import_module('.'.join(['baselines', alg, submodule]))
-    except ImportError:
-        # then from rl_algs
-        alg_module = import_module('.'.join(['rl_' + 'algs', alg, submodule]))
+    import inspect
+    entry = registry.get(alg)
+    assert entry is not None, 'Unregistered algorithm {}'.format(alg)
+    module = inspect.getmodule(entry['fn']).__name__
+    if submodule is not None:
+        module = '.'.join([module, submodule])
+    return module
 
-    return alg_module
 
 
 def get_learn_function(alg):
-    return get_alg_module(alg).learn
+    entry = registry.get(alg)
+    assert entry is not None, 'Unregistered algorithm {}'.format(alg)
+    return entry['fn']
 
 
 def get_learn_function_defaults(alg, env_type):
-    try:
-        alg_defaults = get_alg_module(alg, 'defaults')
-        kwargs = getattr(alg_defaults, env_type)()
-    except (ImportError, AttributeError):
-        kwargs = {}
-    return kwargs
-
+    entry = registry.get(alg)
+    assert entry is not None, 'Unregistered algorithm {}'.format(alg)
+    return entry['defaults'].get(env_type, {})
+    
 
 
 def parse_cmdline_kwargs(args):
@@ -213,6 +179,7 @@ def main():
         rank = MPI.COMM_WORLD.Get_rank()
 
     model, env = train(args, extra_args)
+
     env.close()
 
     if args.save_path is not None and rank == 0:

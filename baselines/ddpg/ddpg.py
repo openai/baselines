@@ -10,11 +10,11 @@ from baselines.ddpg.noise import AdaptiveParamNoiseSpec, NormalActionNoise, Orns
 
 import baselines.common.tf_util as U
 
-from baselines import logger
+from baselines import logger, registry
 import numpy as np
 from mpi4py import MPI
 
-
+@registry.register('ddpg')
 def learn(network, env,
           seed=None,
           total_timesteps=None,

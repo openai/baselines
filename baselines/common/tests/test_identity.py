@@ -20,8 +20,8 @@ learn_kwargs = {
 }
 
 
-algos_disc = ['a2c', 'deepq', 'ppo2', 'trpo_mpi']
-algos_cont = ['a2c', 'ddpg',  'ppo2', 'trpo_mpi']
+algos_disc = ['a2c', 'acktr', 'deepq', 'ppo2', 'trpo_mpi']
+algos_cont = ['a2c', 'acktr', 'ddpg',  'ppo2', 'trpo_mpi']
 
 @pytest.mark.slow
 @pytest.mark.parametrize("alg", algos_disc)

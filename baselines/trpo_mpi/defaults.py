@@ -28,3 +28,9 @@ def mujoco():
         vf_stepsize=1e-3,
         normalize_observations=True,
     )
+
+defaults = {
+    'atari': atari(), 
+    'mujoco': mujoco(),
+}
+    
