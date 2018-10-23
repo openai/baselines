@@ -34,7 +34,8 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
             subrank = rank,
             seed=seed,
             reward_scale=reward_scale,
-            gamestate=gamestate
+            gamestate=gamestate,
+            wrapper_kwargs=wrapper_kwargs
         )
 
     set_global_seeds(seed)
