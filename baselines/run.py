@@ -9,11 +9,10 @@ import numpy as np
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, env_thunk
 from baselines.common.tf_util import get_session
-from baselines import bench, logger
+from baselines import logger
 from importlib import import_module
 
 from baselines.common.vec_env.vec_normalize import VecNormalize
-from baselines.common import atari_wrappers, retro_wrappers
 
 try:
     from mpi4py import MPI
@@ -96,9 +95,9 @@ def build_env(args):
         if alg == 'acer':
             env = make_vec_env(env_id, env_type, nenv, seed)
         elif alg == 'deepq':
-            env = env_thunk(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True})
+            env = make_env(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True})
         elif alg == 'trpo_mpi':
-            env = env_thunk(env_id, env_type, seed=seed)
+            env = make_env(env_id, env_type, seed=seed)
         else:
             frame_stack_size = 4
             env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
