@@ -18,6 +18,6 @@ def atari():
 
 
 defaults = {
-    'atari': atari()
+    'atari': atari(),
     'retro': atari()
 }
