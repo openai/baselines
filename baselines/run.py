@@ -10,19 +10,6 @@ from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, mak
 from baselines import logger
 from baselines.registry import registry
 
-from baselines.common.vec_env.vec_normalize import VecNormalize
-
-import baselines.a2c.a2c
-import baselines.acer.acer
-import baselines.acktr.acktr
-import baselines.deepq.deepq
-import baselines.ddpg.ddpg
-import baselines.ppo2.ppo2
-
-# not really sure why flake8 complains only about trpo_mpi here...
-import baselines.trpo_mpi.trpo_mpi # noqa: F401
-
-
 try:
     from mpi4py import MPI
 except ImportError:
@@ -98,7 +85,6 @@ def build_env(args):
     seed = args.seed
 
     env_type, env_id = get_env_type(args.env)
-
     assert alg in registry, 'Unknown algorithm {}'.format(alg)
     if env_type in {'atari', 'retro'}:
         frame_stack_size = 4
@@ -106,9 +92,7 @@ def build_env(args):
         frame_stack_size = 1
 
     if registry[alg]['supports_vecenv']:
-        env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
-        if frame_stack_size > 1:
-            env = VecFrameStack(env, frame_stack_size)
+        env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale, frame_stack_size=frame_stack_size)
     else:
         env = env_thunk(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': frame_stack_size > 1})
 

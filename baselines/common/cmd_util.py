@@ -16,11 +16,13 @@ from baselines.common import set_global_seeds
 from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.common.vec_env.vec_normalize import VecNormalize
+
 from baselines.common import retro_wrappers
 
-def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_index=0, reward_scale=1.0, gamestate=None):
+def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_index=0, reward_scale=1.0, gamestate=None, frame_stack_size=1):
     """
-    Create a wrapped, monitored SubprocVecEnv for Atari and MuJoCo.
+    Create a wrapped, monitored SubprocVecEnv
     """
     if wrapper_kwargs is None: wrapper_kwargs = {}
     mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
@@ -37,9 +39,12 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
 
     set_global_seeds(seed)
     if num_env > 1:
-        return SubprocVecEnv([make_thunk(i + start_index) for i in range(num_env)])
+        venv = SubprocVecEnv([make_thunk(i + start_index) for i in range(num_env)])
     else:
-        return DummyVecEnv([make_thunk(start_index)])
+        venv = DummyVecEnv([make_thunk(start_index)])
+
+    if frame_stack_size > 1:
+        venv = VecFrameStack(venv, frame_stack_size)
 
 
 def env_thunk(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate=None, wrapper_kwargs={}):
