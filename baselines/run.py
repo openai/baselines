@@ -7,7 +7,7 @@ import tensorflow as tf
 import numpy as np
 
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, env_thunk
+from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, make_env
 from baselines.common.tf_util import get_session
 from baselines import logger
 from importlib import import_module
@@ -86,7 +86,6 @@ def build_env(args):
     if sys.platform == 'darwin': ncpu //= 2
     nenv = args.num_env or ncpu
     alg = args.alg
-    rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = args.seed
 
     env_type, env_id = get_env_type(args.env)
