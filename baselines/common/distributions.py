@@ -39,7 +39,7 @@ class PdType(object):
         raise NotImplementedError
     def pdfromflat(self, flat):
         return self.pdclass()(flat)
-    def pdfromlatent(self, latent_vector):
+    def pdfromlatent(self, latent_vector, init_scale, init_bias):
         raise NotImplementedError
     def param_shape(self):
         raise NotImplementedError
@@ -80,6 +80,9 @@ class MultiCategoricalPdType(PdType):
         return MultiCategoricalPd
     def pdfromflat(self, flat):
         return MultiCategoricalPd(self.ncats, flat)
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        pdparam = fc(latent_vector, 'pi', self.ncats.sum(), init_scale=init_scale, init_bias=init_bias)
+        return self.pdfromflat(pdparam), pdparam
     def param_shape(self):
         return [sum(self.ncats)]
     def sample_shape(self):
@@ -159,22 +162,11 @@ class CategoricalPd(Pd):
         # return tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=x)
         # Note: we can't use sparse_softmax_cross_entropy_with_logits because
         #       the implementation does not allow second-order derivatives...
-        if x.dtype in {tf.uint8, tf.int32, tf.int64}:
-            # one-hot encoding
-            x_shape_list = x.shape.as_list()
-            logits_shape_list = self.logits.get_shape().as_list()[:-1]
-            for xs, ls in zip(x_shape_list, logits_shape_list):
-                if xs is not None and ls is not None:
-                    assert xs == ls, 'shape mismatch: {} in x vs {} in logits'.format(xs, ls)
-
-            x = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
-        else:
-            # already encoded
-            assert x.shape.as_list() == self.logits.shape.as_list()
-
+        one_hot_actions = tf.one_hot(x, self.logits.get_shape().as_list()[-1])
         return tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=self.logits,
-            labels=x)
+            labels=tf.stop_gradient(one_hot_actions))
+
     def kl(self, other):
         a0 = self.logits - tf.reduce_max(self.logits, axis=-1, keepdims=True)
         a1 = other.logits - tf.reduce_max(other.logits, axis=-1, keepdims=True)
@@ -339,4 +331,3 @@ def validate_probtype(probtype, pdparam):
     klval_ll_stderr = logliks.std() / np.sqrt(N) #pylint: disable=E1101
     assert np.abs(klval - klval_ll) < 3 * klval_ll_stderr # within 3 sigmas
     print('ok on', probtype, pdparam)
-

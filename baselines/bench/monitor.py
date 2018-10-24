@@ -6,6 +6,7 @@ import time
 from glob import glob
 import csv
 import os.path as osp
+import os
 import json
 import numpy as np
 
@@ -62,8 +63,8 @@ class Monitor(Wrapper):
             eprew = sum(self.rewards)
             eplen = len(self.rewards)
             epinfo = {"r": round(eprew, 6), "l": eplen, "t": round(time.time() - self.tstart, 6)}
-            for k in self.info_keywords:
-                epinfo[k] = info[k]
+            for k in info:#self.info_keywords:
+                epinfo[k] = info.get(k,0)
             self.episode_rewards.append(eprew)
             self.episode_lengths.append(eplen)
             self.episode_times.append(time.time() - self.tstart)
@@ -78,6 +79,7 @@ class Monitor(Wrapper):
     def close(self):
         if self.f is not None:
             self.f.close()
+        self.env.close()
 
     def get_total_steps(self):
         return self.total_steps
@@ -107,6 +109,7 @@ class ResultsWriter(object):
                     filename = osp.join(filename, Monitor.EXT)
                 else:
                     filename = filename + "." + Monitor.EXT
+            os.makedirs(osp.dirname(filename), exist_ok=True)
             self.f = open(filename, "wt")
             if isinstance(header, dict):
                 header = '# {} \n'.format(json.dumps(header))

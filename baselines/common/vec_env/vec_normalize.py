@@ -38,6 +38,9 @@ class VecNormalize(VecEnvWrapper):
             return obs
 
     def reset(self):
+        """
+        Reset all environments
+        """
         self.ret = np.zeros(self.num_envs)
         obs = self.venv.reset()
         return self._obfilt(obs)
