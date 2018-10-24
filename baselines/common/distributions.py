@@ -84,7 +84,7 @@ class MultiCategoricalPdType(PdType):
     def pdfromlatent(self, latent, init_scale=1.0, init_bias=0.0):
         pdparam = fc(latent, 'pi', self.ncats.sum(), init_scale=init_scale, init_bias=init_bias)
         return self.pdfromflat(pdparam), pdparam
-        
+
     def param_shape(self):
         return [sum(self.ncats)]
     def sample_shape(self):

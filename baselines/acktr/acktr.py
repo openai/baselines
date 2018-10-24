@@ -2,7 +2,6 @@ import os.path as osp
 import time
 import functools
 import tensorflow as tf
-import numpy as np
 from baselines import logger
 
 from baselines.common import set_global_seeds, explained_variance
@@ -22,7 +21,7 @@ class Model(object):
 
         self.sess = sess = get_session()
         nbatch = nenvs * nsteps
-                with tf.variable_scope('acktr_model', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope('acktr_model', reuse=tf.AUTO_REUSE):
             self.model = step_model = policy(nenvs, 1, sess=sess)
             self.model2 = train_model = policy(nenvs*nsteps, nsteps, sess=sess)
 
