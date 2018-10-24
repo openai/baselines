@@ -1,5 +1,6 @@
+import numpy as np
 import tensorflow as tf
-from gym.spaces import Discrete, Box
+from gym.spaces import Discrete, Box, MultiDiscrete
 
 def observation_placeholder(ob_space, batch_size=None, name='Ob'):
     '''
@@ -20,10 +21,14 @@ def observation_placeholder(ob_space, batch_size=None, name='Ob'):
     tensorflow placeholder tensor
     '''
 
-    assert isinstance(ob_space, Discrete) or isinstance(ob_space, Box), \
+    assert isinstance(ob_space, Discrete) or isinstance(ob_space, Box) or isinstance(ob_space, MultiDiscrete), \
         'Can only deal with Discrete and Box observation spaces for now'
 
-    return tf.placeholder(shape=(batch_size,) + ob_space.shape, dtype=ob_space.dtype, name=name)
+    dtype = ob_space.dtype
+    if dtype == np.int8:
+        dtype = np.uint8
+
+    return tf.placeholder(shape=(batch_size,) + ob_space.shape, dtype=dtype, name=name)
 
 
 def observation_input(ob_space, batch_size=None, name='Ob'):
@@ -48,9 +53,12 @@ def encode_observation(ob_space, placeholder):
     '''
     if isinstance(ob_space, Discrete):
         return tf.to_float(tf.one_hot(placeholder, ob_space.n))
-
     elif isinstance(ob_space, Box):
         return tf.to_float(placeholder)
+    elif isinstance(ob_space, MultiDiscrete):
+        placeholder = tf.cast(placeholder, tf.int32)
+        one_hots = [tf.to_float(tf.one_hot(placeholder[..., i], ob_space.nvec[i])) for i in range(placeholder.shape[-1])]
+        return tf.concat(one_hots, axis=-1)
     else:
         raise NotImplementedError
 
