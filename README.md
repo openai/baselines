@@ -1,155 +1,151 @@
 <img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/openai/baselines.svg?branch=master)](https://travis-ci.org/openai/baselines)
+# Lignes de base
 
-# Baselines
+OpenAI Baselines est un ensemble d'implémentations de haute qualité d'algorithmes d'apprentissage par renforcement.
 
-OpenAI Baselines is a set of high-quality implementations of reinforcement learning algorithms.
+Ces algorithmes permettront aux chercheurs de reproduire, d’affiner et d’identifier de nouvelles idées plus facilement, et de créer de bonnes bases pour la recherche. Notre implémentation DQN et ses variantes sont à peu près à égalité avec les scores des articles publiés. Nous espérons qu’elles serviront de base pour l’ajout de nouvelles idées et d’outil permettant de comparer une nouvelle approche à celles existantes.
 
-These algorithms will make it easier for the research community to replicate, refine, and identify new ideas, and will create good baselines to build research on top of. Our DQN implementation and its variants are roughly on par with the scores in published papers. We expect they will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. 
-
-## Prerequisites 
-Baselines requires python3 (>=3.5) with the development headers. You'll also need system packages CMake, OpenMPI and zlib. Those can be installed as follows
-### Ubuntu 
-    
-```bash
+## Conditions préalables
+Les lignes de base nécessitent python3 (> = 3.5) avec les en-têtes de développement. Vous aurez également besoin des packages système CMake, OpenMPI et zlib. Ceux-ci peuvent être installés comme suit
+### Ubuntu
+    
+`` `bash
 sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev
-```
-    
+`` `
+    
 ### Mac OS X
-Installation of system packages on Mac requires [Homebrew](https://brew.sh). With Homebrew installed, run the following:
-```bash
-brew install cmake openmpi
-```
-    
-## Virtual environment
-From the general python package sanity perspective, it is a good idea to use virtual environments (virtualenvs) to make sure packages from different projects do not interfere with each other. You can install virtualenv (which is itself a pip package) via
-```bash
-pip install virtualenv
-```
-Virtualenvs are essentially folders that have copies of python executable and all python packages.
-To create a virtualenv called venv with python3, one runs 
-```bash
-virtualenv /path/to/venv --python=python3
-```
-To activate a virtualenv: 
-```
-. /path/to/venv/bin/activate
-```
-More thorough tutorial on virtualenvs and options can be found [here](https://virtualenv.pypa.io/en/stable/) 
+L'installation des packages système sur Mac nécessite [Homebrew] (https://brew.sh). Avec Homebrew installé, exécutez ce qui suit:
+`` `bash
+brasseur installer cmake openmpi
+`` `
+    
+## Environnement virtuel
+Du point de vue général de l'intégrité des paquets python, il est judicieux d'utiliser des environnements virtuels (virtualenvs) pour s'assurer que les packages de différents projets n'interfèrent pas les uns avec les autres. Vous pouvez installer virtualenv (qui est lui-même un paquet pip) via
+`` `bash
+pip installer virtualenv
+`` `
+Les virtualenv sont essentiellement des dossiers contenant des copies de l'exécutable python et de tous les packages python.
+Pour créer un virtualenv appelé venv avec python3, on lance
+`` `bash
+virtualenv / chemin / vers / venv --python = python3
+`` `
+Pour activer un virtualenv:
+`` `
+. / chemin / vers / venv / bin / activate
+`` `
+Un tutoriel plus complet sur virtualenvs et les options peut être trouvé [ici] (https://virtualenv.pypa.io/en/stable/)
 
 
 ## Installation
-- Clone the repo and cd into it:
-    ```bash
-    git clone https://github.com/openai/baselines.git
-    cd baselines
-    ```
-- If you don't have TensorFlow installed already, install your favourite flavor of TensorFlow. In most cases, 
-    ```bash 
-    pip install tensorflow-gpu # if you have a CUDA-compatible gpu and proper drivers
-    ```
-    or 
-    ```bash
-    pip install tensorflow
-    ```
-    should be sufficient. Refer to [TensorFlow installation guide](https://www.tensorflow.org/install/)
-    for more details. 
+- Cloner le repo et le cd dans celui-ci:
+    `` `bash
+    clone de git https://github.com/openai/baselines.git
+    cd baselines
+    `` `
+- Si TensorFlow n'est pas déjà installé, installez votre version préférée de TensorFlow. Dans la plupart des cas,
+    `` `bash
+    pip installez tensorflow-gpu # si vous avez un gpu compatible CUDA et des pilotes appropriés
+    `` `
+    ou
+    `` `bash
+    pip installer tensorflow
+    `` `
+    devrait être suffisant. Reportez-vous au [Guide d'installation de TensorFlow] (https://www.tensorflow.org/install/).
+    pour plus de détails.
 
-- Install baselines package
-    ```bash
-    pip install -e .
-    ```
-
+- Installer le paquet de lignes de base
+    `` `bash
+    pip installer -e.
+    `` `
 ### MuJoCo
-Some of the baselines examples use [MuJoCo](http://www.mujoco.org) (multi-joint dynamics in contact) physics simulator, which is proprietary and requires binaries and a license (temporary 30-day license can be obtained from [www.mujoco.org](http://www.mujoco.org)). Instructions on setting up MuJoCo can be found [here](https://github.com/openai/mujoco-py)
+Certains exemples de références utilisent un simulateur de physique [MuJoCo] (http://www.mujoco.org) (dynamique multi-articulation en contact), qui est propriétaire et qui nécessite des binaires et une licence (une licence temporaire de 30 jours peut être obtenue auprès de [www.mujoco.org] (http://www.mujoco.org)). Des instructions sur la configuration de MuJoCo sont disponibles [ici] (https://github.com/openai/mujoco-py).
 
-## Testing the installation
-All unit tests in baselines can be run using pytest runner:
-```
-pip install pytest
+## Test de l'installation
+Tous les tests unitaires des lignes de base peuvent être exécutés à l'aide de pytest runner:
+`` `
+pip installer pytest
 pytest
-```
+`` `
 
-## Training models
-Most of the algorithms in baselines repo are used as follows:
-```bash
-python -m baselines.run --alg=<name of the algorithm> --env=<environment_id> [additional arguments]
-```
-### Example 1. PPO with MuJoCo Humanoid
-For instance, to train a fully-connected network controlling MuJoCo humanoid using PPO2 for 20M timesteps
-```bash
-python -m baselines.run --alg=ppo2 --env=Humanoid-v2 --network=mlp --num_timesteps=2e7
-```
-Note that for mujoco environments fully-connected network is default, so we can omit `--network=mlp`
-The hyperparameters for both network and the learning algorithm can be controlled via the command line, for instance:
-```bash
-python -m baselines.run --alg=ppo2 --env=Humanoid-v2 --network=mlp --num_timesteps=2e7 --ent_coef=0.1 --num_hidden=32 --num_layers=3 --value_network=copy
-```
-will set entropy coefficient to 0.1, and construct fully connected network with 3 layers with 32 hidden units in each, and create a separate network for value function estimation (so that its parameters are not shared with the policy network, but the structure is the same)
+## Modèles de formation
+La plupart des algorithmes du référentiel de lignes de base sont utilisés comme suit:
+`` `bash
+python -m baselines.run --alg = <nom de l'algorithme> --env = <id_environnement> [arguments supplémentaires]
+`` `
+### Exemple 1. PPO avec MuJoCo Humanoid
+Par exemple, pour former un réseau entièrement connecté contrôlant l'humanoïde MuJoCo à l'aide de PPO2 pendant 20 millions de secondes
+`` `bash
+python -m baselines.run --alg = ppo2 --env = humanoïde-v2 --network = mlp --num_timesteps = 2e7
+`` `
+Notez que pour les environnements mujoco un réseau entièrement connecté est la valeur par défaut, nous pouvons donc omettre `--network = mlp`
+Les hyperparamètres pour le réseau et l'algorithme d'apprentissage peuvent être contrôlés via la ligne de commande, par exemple:
+`` `bash
+python -m baselines.run --alg = ppo2 --env = Humanoid-v2 --network = mlp --num_timesteps = 2e7 --ent_coef = 0.1 --num_hidden = 32 --num_layers = 3 --value_network = copie
+`` `
+définira le coefficient d'entropie sur 0,1 et construira un réseau entièrement connecté avec 3 couches de 32 unités cachées et créera un réseau séparé pour l'estimation de la fonction de valeur (afin que ses paramètres ne soient pas partagés avec le réseau de règles, mais que la structure reste la même )
 
-See docstrings in [common/models.py](baselines/common/models.py) for description of network parameters for each type of model, and 
-docstring for [baselines/ppo2/ppo2.py/learn()](baselines/ppo2/ppo2.py#L152) for the description of the ppo2 hyperparamters. 
+Voir la documentation dans [common / models.py] (lignes de base / common / models.py) pour obtenir une description des paramètres réseau pour chaque type de modèle.
+docstring pour [lignes de base / ppo2 / ppo2.py / learn ()] (lignes de base / ppo2 / ppo2.py # L152) pour la description des hyperparamères de ppo2.
 
-### Example 2. DQN on Atari 
-DQN with Atari is at this point a classics of benchmarks. To run the baselines implementation of DQN on Atari Pong:
-```
-python -m baselines.run --alg=deepq --env=PongNoFrameskip-v4 --num_timesteps=1e6
-```
+### Exemple 2. DQN sur Atari
+DQN avec Atari est à ce stade un classique des points de repère. Pour exécuter l'implémentation de base de DQN sur Atari Pong:
+`` `
+python -m baselines.run --alg = deepq --env = PongNoFrameskip-v4 --num_timesteps = 1e6
+`` `
 
-## Saving, loading and visualizing models
-The algorithms serialization API is not properly unified yet; however, there is a simple method to save / restore trained models. 
-`--save_path` and `--load_path` command-line option loads the tensorflow state from a given path before training, and saves it after the training, respectively. 
-Let's imagine you'd like to train ppo2 on Atari Pong,  save the model and then later visualize what has it learnt.
-```bash
-python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=2e7 --save_path=~/models/pong_20M_ppo2
-```
-This should get to the mean reward per episode about 20. To load and visualize the model, we'll do the following - load the model, train it for 0 steps, and then visualize: 
-```bash
-python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=0 --load_path=~/models/pong_20M_ppo2 --play
-```
+## Enregistrement, chargement et visualisation de modèles
+L'API de sérialisation des algorithmes n'est pas encore unifiée correctement; Cependant, il existe une méthode simple pour enregistrer / restaurer les modèles formés.
+L'option de ligne de commande `--save_path` et` --load_path` charge l'état de tensorflow à partir d'un chemin donné avant l'entraînement et l'enregistre après l'entraînement, respectivement.
+Imaginons que vous souhaitiez former ppo2 sur Atari Pong, enregistrer le modèle et ensuite visualiser ce qu'il a appris.
+`` `bash
+python -m baselines.run --alg = ppo2 --env = PongNoFrameskip-v4 --num_timesteps = 2e7 --save_path = ~ / models / pong_20M_ppo2
+`` `
+Cela devrait donner la récompense moyenne par épisode d'environ 20. Pour charger et visualiser le modèle, nous allons procéder comme suit: chargez le modèle, entraînez-le pendant 0 étapes, puis visualisez:
+`` `bash
+python -m baselines.run --alg = ppo2 --env = PongNoFrameskip-v4 --num_timesteps = 0 --load_path = ~ / models / pong_20M_ppo2 --play
+`` `
 
-*NOTE:* At the moment Mujoco training uses VecNormalize wrapper for the environment which is not being saved correctly; so loading the models trained on Mujoco will not work well if the environment is recreated. If necessary, you can work around that by replacing RunningMeanStd by TfRunningMeanStd in [baselines/common/vec_env/vec_normalize.py](baselines/common/vec_env/vec_normalize.py#L12). This way, mean and std of environment normalizing wrapper will be saved in tensorflow variables and included in the model file; however, training is slower that way - hence not including it by default
+* REMARQUE: * Pour le moment, la formation Mujoco utilise le wrapper VecNormalize pour l'environnement qui n'est pas correctement enregistré. le chargement des modèles formés sur Mujoco ne fonctionnera donc pas correctement si l'environnement est recréé. Si nécessaire, vous pouvez contourner ce problème en remplaçant RunningMeanStd par TfRunningMeanStd dans [baselines / common / vec_env / vec_normalize.py] (baselines / common / vec_env / vec_normalize.py # L12). De cette façon, les enveloppes de normalisation de la moyenne et de l’environnement seront enregistrées dans des variables tensorflow et incluses dans le fichier de modèle; cependant, la formation est plus lente de cette façon - donc ne l'incluez pas par défaut
 
 
-## Using baselines with TensorBoard
-Baselines logger can save data in the TensorBoard format. To do so, set environment variables `OPENAI_LOG_FORMAT` and `OPENAI_LOGDIR`:
-```bash
-export OPENAI_LOG_FORMAT='stdout,log,csv,tensorboard' # formats are comma-separated, but for tensorboard you only really need the last one
-export OPENAI_LOGDIR=path/to/tensorboard/data
-```
-And you can now start TensorBoard with:
-```bash
-tensorboard --logdir=$OPENAI_LOGDIR
-```
-## Subpackages
+## Utilisation des lignes de base avec TensorBoard
+L'enregistreur de lignes de base peut enregistrer des données au format TensorBoard. Pour ce faire, définissez les variables d'environnement `OPENAI_LOG_FORMAT` et` OPENAI_LOGDIR`:
+`` `bash
+export OPENAI_LOG_FORMAT = 'Les formats # sont séparés par des virgules, journal, csv, tensorboard', mais pour le tensorboard, vous n'avez vraiment besoin que du dernier
+export OPENAI_LOGDIR = chemin / vers / tensorboard / data
+`` `
+Et vous pouvez maintenant démarrer TensorBoard avec:
+`` `bash
+tensorboard --logdir = $ OPENAI_LOGDIR
+`` `## Sous-paquets
 
-- [A2C](baselines/a2c)
-- [ACER](baselines/acer)
-- [ACKTR](baselines/acktr)
-- [DDPG](baselines/ddpg)
-- [DQN](baselines/deepq)
-- [GAIL](baselines/gail)
-- [HER](baselines/her)
-- [PPO1](baselines/ppo1) (obsolete version, left here temporarily)
-- [PPO2](baselines/ppo2) 
-- [TRPO](baselines/trpo_mpi)
+- [A2C] (lignes de base / a2c)
+- [ACER] (lignes de base / acer)
+- [ACKTR] (lignes de base / acktr)
+- [DDPG] (baselines / ddpg)
+- [DQN] (lignes de base / deepq)
+- [GAIL] (lignes de base / gail)
+- [HER] (lignes de base / elle)
+- [PPO1] (lignes de base / ppo1) (version obsolète, laissée ici temporairement)
+- [PPO2] (lignes de base / ppo2)
+- [TRPO] (baselines / trpo_mpi)
 
 
 
 ## Benchmarks
-Results of benchmarks on Mujoco (1M timesteps) and Atari (10M timesteps) are available 
-[here for Mujoco](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_mujoco1M.htm) 
-and
-[here for Atari](https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_atari10M.htm) 
-respectively. Note that these results may be not on the latest version of the code, particular commit hash with which results were obtained is specified on the benchmarks page. 
+Les résultats des tests sur Mujoco (1 M timesteps) et Atari (10 M timesteps) sont disponibles
+[ici pour Mujoco] (https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_mujoco1M.htm)
+et
+[ici pour Atari] (https://htmlpreview.github.com/?https://github.com/openai/baselines/blob/master/benchmarks_atari10M.htm)
+respectivement. Notez que ces résultats peuvent ne pas figurer sur la dernière version du code, un hachage de validation particulier avec lequel les résultats ont été obtenus est spécifié sur la page des tests.
 
-To cite this repository in publications:
+Pour citer ce référentiel dans des publications:
 
-    @misc{baselines,
-      author = {Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai and Zhokhov, Peter},
-      title = {OpenAI Baselines},
-      year = {2017},
-      publisher = {GitHub},
-      journal = {GitHub repository},
-      howpublished = {\url{https://github.com/openai/baselines}},
-    }
-
+    @misc {lignes de base,
+      auteur = {Dhariwal, Prafulla et Hesse, Christopher et Klimov, Oleg et Nichol, Alex et Plappert, Matthias et Radford, Alec et Schulman, John et Sidor, Szymon et Wu, Yuhuai et Zhokhov, Peter},
+      titre = {OpenAI Baselines},
+      année = {2017},
+      éditeur = {GitHub},
+      journal = {référentiel GitHub},
+      howpublished = {\ url {https://github.com/openai/baselines}},
+    }
