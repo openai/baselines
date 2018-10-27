@@ -272,7 +272,7 @@ def learn(env,
                 update_eps = exploration.value(t)
                 update_param_noise_threshold = 0.
             else:
-                update_eps = 0.
+                update_eps = 0.01
                 # Compute the threshold such that the KL divergence between perturbed and non-perturbed
                 # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
                 # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
