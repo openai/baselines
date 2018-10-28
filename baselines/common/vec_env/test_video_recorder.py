@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import os
 import glob
+import tempfile
 
 from .dummy_vec_env import DummyVecEnv
 from .shmem_vec_env import ShmemVecEnv
@@ -25,12 +26,10 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
     shape = (3, 8)
     dtype = 'float32'
 
-    def make_fn(seed):
-        """
-        Get an environment constructor with a seed.
-        """
-        return lambda: SimpleEnv(seed, shape, dtype)
-    fns = [make_fn(i) for i in range(num_envs)]
+    def make_fn():
+        env = gym.make('PongNoFrameskip-v4')
+        return env
+    fns = [make_fn for _ in range(num_envs)]
     env = klass(fns)
 
     video_path = os.path.join(os.getcwd(), "video")
@@ -41,7 +40,7 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
 
         env.reset()
         for _ in range(video_interval + video_length + 1):
-            _ = env.step(np.array(np.random.randint(0, 0x100, size=shape),
+            _ = env.step(np.array(np.random.randint(0, 0x100, size=env.action_space),
                                        dtype=dtype))
         env.close()
 
