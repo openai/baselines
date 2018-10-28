@@ -32,10 +32,7 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
     fns = [make_fn for _ in range(num_envs)]
     env = klass(fns)
 
-    video_path = os.path.join(os.getcwd(), "video")
-    os.mkdir(video_path)
-
-    try:
+    with tempfile.TemporaryDirectory() as video_path:
         env = VecVideoRecorder(env, video_path, video_callable=lambda x: x % video_interval == 0, video_length=video_length)
 
         env.reset()
@@ -45,10 +42,7 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
         env.close()
 
 
-        recorded_video = glob.glob("video/*.mp4")
+        recorded_video = glob.glob(os.path.join(video_path, "*.mp4"))
         assert len(recorded_video) == 2
-    finally:
-        list(map(os.remove, glob.glob("video/*")))
-        os.rmdir(video_path)
 
 
