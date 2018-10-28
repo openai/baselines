@@ -3,7 +3,6 @@ Tests for asynchronous vectorized environments.
 """
 
 import gym
-import numpy as np
 import pytest
 import os
 import glob
@@ -12,7 +11,6 @@ import tempfile
 from .dummy_vec_env import DummyVecEnv
 from .shmem_vec_env import ShmemVecEnv
 from .subproc_vec_env import SubprocVecEnv
-from .test_vec_env import SimpleEnv
 from .vec_video_recorder import VecVideoRecorder
 
 @pytest.mark.parametrize('klass', (DummyVecEnv, ShmemVecEnv, SubprocVecEnv))
@@ -25,7 +23,6 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
     Make (video_interval + video_length + 1) steps,
     then check that the file is present
     """
-    dtype = 'float32'
 
     def make_fn():
         env = gym.make('PongNoFrameskip-v4')
