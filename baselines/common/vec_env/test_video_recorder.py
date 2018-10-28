@@ -16,7 +16,7 @@ from .test_vec_env import SimpleEnv
 from .vec_video_recorder import VecVideoRecorder
 
 @pytest.mark.parametrize('klass', (DummyVecEnv,))
-@pytest.mark.parametrize('num_envs', (1,))
+@pytest.mark.parametrize('num_envs', (1, 4, 16))
 @pytest.mark.parametrize('video_length', (10,))
 @pytest.mark.parametrize('video_interval', (1,))
 def test_video_recorder(klass, num_envs, video_length, video_interval):
@@ -35,7 +35,7 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
 
         env.reset()
         for _ in range(video_interval + video_length + 1):
-            env.step(0)
+            env.step([0] * num_envs)
         env.close()
 
 
