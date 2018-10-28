@@ -21,6 +21,9 @@ from .vec_video_recorder import VecVideoRecorder
 @pytest.mark.parametrize('video_interval', (1, 50))
 def test_video_recorder(klass, num_envs, video_length, video_interval):
     """
+    Wrap an existing VecEnv with VevVideoRecorder,
+    Make (video_interval + video_length + 1) steps,
+    then check that the file is present
     """
     dtype = 'float32'
 
@@ -41,7 +44,9 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
 
         recorded_video = glob.glob(os.path.join(video_path, "*.mp4"))
 
+        # first and second step
         assert len(recorded_video) == 2
+        # Files are not empty
         assert all(os.stat(p).st_size != 0 for p in recorded_video)
 
 
