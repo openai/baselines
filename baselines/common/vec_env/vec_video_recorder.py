@@ -5,7 +5,19 @@ from gym.wrappers.monitoring import video_recorder
 
 
 class VecVideoRecorder(VecEnvWrapper):
+    """
+    Wrap VecEnv to record rendered image as mp4 video.
+    """
+
     def __init__(self, venv, directory, video_callable, video_length=200):
+        """
+        # Arguments
+            venv: VecEnv to wrap
+            directory: Where to save videos
+            video_callable: Function that defines when to start recording. The current step is passed to the function.
+            video_length: Length of recorded video
+        """
+
         VecEnvWrapper.__init__(self, venv)
         self.video_callable = video_callable
         self.video_recorder = None
