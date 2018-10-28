@@ -15,15 +15,13 @@ from .subproc_vec_env import SubprocVecEnv
 from .test_vec_env import SimpleEnv
 from .vec_video_recorder import VecVideoRecorder
 
-@pytest.mark.parametrize('klass', (DummyVecEnv, ShmemVecEnv, SubprocVecEnv))
-@pytest.mark.parametrize('num_envs', (1, 3, 16))
-@pytest.mark.parametrize('video_length', (10, 50, 200))
-@pytest.mark.parametrize('video_interval', (1, 10, 100))
+@pytest.mark.parametrize('klass', (DummyVecEnv,))
+@pytest.mark.parametrize('num_envs', (1,))
+@pytest.mark.parametrize('video_length', (10,))
+@pytest.mark.parametrize('video_interval', (1,))
 def test_video_recorder(klass, num_envs, video_length, video_interval):
     """
     """
-    num_steps = 100
-    shape = (3, 8)
     dtype = 'float32'
 
     def make_fn():
@@ -37,8 +35,7 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
 
         env.reset()
         for _ in range(video_interval + video_length + 1):
-            _ = env.step(np.array(np.random.randint(0, 0x100, size=env.action_space),
-                                       dtype=dtype))
+            env.step(0)
         env.close()
 
 
