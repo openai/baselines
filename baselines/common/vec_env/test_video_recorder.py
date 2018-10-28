@@ -40,6 +40,8 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
 
 
         recorded_video = glob.glob(os.path.join(video_path, "*.mp4"))
+
         assert len(recorded_video) == 2
+        assert all(os.stat(p).st_size != 0 for p in recorded_video)
 
 
