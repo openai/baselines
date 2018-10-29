@@ -17,6 +17,7 @@ learn_kwargs = {
     'deepq': {},
     'a2c': {},
     'acktr': {},
+    'acer': {},
     'ppo2': {'nminibatches': 1, 'nsteps': 10},
     'trpo_mpi': {},
 }
@@ -37,7 +38,7 @@ def test_serialization(learn_fn, network_fn):
     '''
 
 
-    if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
+    if network_fn.endswith('lstm') and learn_fn in ['acer', 'acktr', 'trpo_mpi', 'deepq']:
             # TODO make acktr work with recurrent policies
             # and test
             # github issue: https://github.com/openai/baselines/issues/660
