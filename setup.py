@@ -57,4 +57,4 @@ for tf_pkg_name in ['tensorflow', 'tensorflow-gpu']:
         pass
 assert tf_pkg is not None, 'TensorFlow needed, of version above 1.4'
 from distutils.version import StrictVersion
-assert StrictVersion(re.sub(r'-rc\d+$', '', tf_pkg.version)) >= StrictVersion('1.4.0')
+assert StrictVersion(re.sub(r'-?rc\d+$', '', tf_pkg.version)) >= StrictVersion('1.4.0')
