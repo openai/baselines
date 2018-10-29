@@ -10,9 +10,9 @@ from baselines.common import explained_variance, set_global_seeds
 from baselines.common.policies import build_policy
 from baselines.common.runners import AbstractEnvRunner
 from baselines.common.tf_util import get_session, save_variables, load_variables
-from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
 
 try:
+    from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
     from mpi4py import MPI
 except ImportError:
     MPI = None
