@@ -14,11 +14,11 @@ from baselines.common.tf_util import get_session, save_variables, load_variables
 try:
     from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
     from mpi4py import MPI
+    from baselines.common.mpi_util import sync_from_root
 except ImportError:
     MPI = None
 
 from baselines.common.tf_util import initialize
-from baselines.common.mpi_util import sync_from_root
 
 class Model(object):
     """
@@ -146,7 +146,9 @@ class Model(object):
         if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
             initialize()
         global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
-        sync_from_root(sess, global_variables) #pylint: disable=E1101
+
+        if MPI is not None:
+            sync_from_root(sess, global_variables) #pylint: disable=E1101
 
 class Runner(AbstractEnvRunner):
     """
