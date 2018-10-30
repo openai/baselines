@@ -5,19 +5,11 @@ class Contract(DFA):
         super(Contract, self).__init__(reg_ex)
         self.name = name
         self.violation_reward = violation_reward
-        self.epviols = 0
-        self.eprmod = 0.
 
     def step(self, action):
-        is_v = super().step(action)
-        if is_v:
-            self.epviols += 1
-            self.eprmod += self.violation_reward
-        return is_v
+        return super().step(action)
 
     def reset(self):
-        self.epviols = 0
-        self.eprmod = 0.
         return super().reset()
 
 ACTUATION1D_REGEX_k = lambda k: '2{k}|3{k}'.format(k=k)

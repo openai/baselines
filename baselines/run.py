@@ -102,7 +102,7 @@ def build_env(args):
             env = bench.Monitor(env, logger.get_dir())
             env = atari_wrappers.wrap_deepmind(env, frame_stack=True)
             if args.contracts is not None:
-                env = contract.ContractEnv(env, contracts, augmentation_type=args.augmentation)
+                env = contract.ContractEnv(env, contracts, augmentation_type=args.augmentation, log_dir=logger.get_dir())
             env = contract.StepMonitor(env, logger.get_dir())
         elif alg == 'trpo_mpi':
             env = atari_wrappers.make_atari(env_id)
