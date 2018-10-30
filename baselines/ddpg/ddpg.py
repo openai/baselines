@@ -59,7 +59,6 @@ def learn(network, env,
 
     action_noise = None
     param_noise = None
-    nb_actions = env.action_space.shape[-1]
     if noise_type is not None:
         for current_noise_type in noise_type.split(','):
             current_noise_type = current_noise_type.strip()
