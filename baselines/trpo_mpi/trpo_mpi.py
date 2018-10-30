@@ -365,7 +365,7 @@ def learn(*,
         lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
         if MPI is not None:
             listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
-        else
+        else:
             listoflrpairs = [lrlocal]
 
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
