@@ -51,7 +51,6 @@ def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate
         import retro
         gamestate = gamestate or retro.State.DEFAULT
         env = retro_wrappers.make_retro(game=env_id, max_episode_steps=10000, use_restricted_actions=retro.Actions.DISCRETE, state=gamestate)
-        env = retro_wrappers.wrap_deepmind_retro(env)
     else:
         env = gym.make(env_id)
 
@@ -61,12 +60,14 @@ def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate
                   allow_early_resets=True)
 
     if env_type == 'atari':
-         return wrap_deepmind(env, **wrapper_kwargs)
-    elif reward_scale != 1:
-         return retro_wrappers.RewardScaler(env, reward_scale)
-    else:
-        return env
+        env = wrap_deepmind(env, **wrapper_kwargs)
+    elif env_type == 'retro':
+        env = retro_wrappers.wrap_deepmind_retro(env, **wrapper_kwargs)
 
+    if reward_scale != 1:
+        env = retro_wrappers.RewardScaler(env, reward_scale)
+
+    return env
 
 
 def make_mujoco_env(env_id, seed, reward_scale=1.0):
