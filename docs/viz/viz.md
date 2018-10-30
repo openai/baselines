@@ -11,10 +11,10 @@ Logging to /var/folders/mq/tgrn7bs17s1fnhlwt314b2fm0000gn/T/openai-2018-10-29-15
 ```
 The location can be changed by changing `OPENAI_LOGDIR` environment variable; for instance:
 ```bash
-export OPENAI_LOGDIR=$HOME/models/mujoco-ppo-humanoid
-python -m baselines.run --alg=ppo2 --env=Humanoid-v2
+export OPENAI_LOGDIR=$HOME/logs/cartpole-ppo
+python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_timesteps=30000 --nsteps=128
 ```
-will log data to `~/models/mujoco-ppo-humanoid`. 
+will log data to `~/logs/cartpole-ppo`. 
 
 ## Using TensorBoard
 One of the most straightforward ways to visualize data is to use [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard). Baselines logger can dump data in tensorboard-compatible format; to 
@@ -31,10 +31,10 @@ tensorboard --logdir=$OPENAI_LOGDIR
 If the summary overview provided by tensorboard is not sufficient, and you would like to either access to raw environment episode data, or use complex post-processing notavailable in tensorboard, you can load results into python as [pandas](https://pandas.pydata.org/) dataframes. 
 For instance, the following snippet:
 ```python
-from baselines.common import plot_util
-results = plot_util.load_results('<path_to_logdir>') 
+from baselines.common import plot_util as pu
+results = pu.load_results('~/logs/cartpole-ppo') 
 ```
-will search for all folders with baselines-compatible results in `<path_to_logdir>` and subfolders and 
+will search for all folders with baselines-compatible results in `~/logs/cartpole-ppo` and subfolders and 
 return a list of Result objects. Each Result object is a named tuple with the following fields:
 
 - dirname: str - name of the folder from which data was loaded
@@ -43,10 +43,71 @@ return a list of Result objects. Each Result object is a named tuple with the fo
 
 - progress: pandas.DataFrame - tabular data saved by logger as a pandas dataframe. Available if csv is in logger formats. 
 
-- monitor: pandas.DataFrame - raw episode data (length, episode reward, timestamp). Available if environment wrapped with [Monitor](baselines/bench/monitor.py) wrapper
+- monitor: pandas.DataFrame - raw episode data (length, episode reward, timestamp). Available if environment wrapped with [Monitor](../../baselines/bench/monitor.py) wrapper
 
+## Plotting: single- and few curve plots
+Once results are loaded, they can be plotted in all conventional means. For example:
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+r = results[0]
+plt.plot(np.cumsum(r.monitor.l), r.monitor.r)
+```
+will print a (very noisy learing curve) for CartPole (assuming we ran the training command for CartPole above). Note the cumulative sum trick to get convert length of the episode into number of timsteps taken so far. 
+
+<img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-10-29%20at%204.44.46%20PM.png" width="500">
+
+We can get a smoothened version of the same curve by using `plot_util.smooth()` function:
+```python
+plt.plot(np.cumsum(r.monitor.l), pu.smooth(r.monitor.r, radius=10))
+```
+
+<img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-10-29%20at%204.49.13%20PM.png" width="730">
+
+We can also get a similar curve by using logger summaries (instead of raw episode data in monitor.csv): 
+```python
+plt.plot(r.progress.total_timesteps, r.progres.eprewmean)
+```
+
+<img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-10-29%20at%205.04.31%20PM.png" width="730">
+
+Note, however, that raw episode data is stored by the Monitor wrapper, and hence looks similar for all algorithms, whereas progress data
+is handled by the algorithm itself, and hence can vary (column names, type of data available) between algorithms. 
+
+## Plotting: many curves 
+While the loading and the plotting functions described above in principle give you access to any slice of the training summaries,
+sometimes it is necessary to plot and compare many training runs (multiple algorithms, multiple seeds for random number generator),
+and usage of the functions above can get tedious and messy. For that case, `baselines.common.plot_util` provides convenience function
+`plot_results` that handles multiple Result objects that need to be routed in multiple plots. Consider the following bash snippet that
+runs ppo2 with cartpole with 6 different seeds for 30k timesteps, first with batch size 32, and then with batch size 128:
+
+```bash
+for seed in $(seq 0 5); do
+OPENAI_LOGDIR=$HOME/logs/cartpole-ppo/b32-$seed python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_timesteps=3e4 --seed=$seed --nsteps=32
+done
+for seed in $(seq 0 5); do
+OPENAI_LOGDIR=$HOME/logs/cartpole-ppo/b128-$seed python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_timesteps=3e4 --seed=$seed --nsteps=128
+done
+```
+These 12 runs can be loaded just as before:
+```python
+results = pu.load_results('~/logs/cartpole-ppo')
+```
+But how do we plot all 12 of them in a sensible manner? `baselines.common.plot_util` module provides `plot_results` function to do just that:
+```
+results = results[1:]
+pu.plot_results(results)
+```
+(note that now the length of the results list is 13, due to the data from the previous run stored directly in `~/logs/cartpole-ppo`; we discard first element for the same reason)
+The results are split into two groups based on batch size and are plotted on a separate graph. More specifically, by default `plot_results` considers digits after dash at the end of the directory name to be seed id and groups the runs that differ only by those together. 
+
+<img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-10-29%20at%205.53.45%20PM.png" width="700">
+
+
+
+
+
+## Advanced preprocessing and smoothing 
 
 ## Plotting: standalone 
-
-## Plotting: jupyter notebook
 
