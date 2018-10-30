@@ -244,10 +244,13 @@ def learn(*,
 
     def allmean(x):
         assert isinstance(x, np.ndarray)
-        out = np.empty_like(x)
         if MPI is not None:
+            out = np.empty_like(x)
             MPI.COMM_WORLD.Allreduce(x, out, op=MPI.SUM)
             out /= nworkers
+        else:
+            out = np.copy(x)
+
         return out
 
     U.initialize()
