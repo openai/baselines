@@ -10,7 +10,7 @@ WORKDIR $CODE_DIR/baselines
 RUN rm -rf __pycache__ && \
     find . -name "*.pyc" -delete && \
     pip install tensorflow && \
-    pip install -e .[test]
+    pip install -e .[test,mpi]
 
 
 CMD /bin/bash
