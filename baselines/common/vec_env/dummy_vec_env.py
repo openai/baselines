@@ -20,8 +20,6 @@ class DummyVecEnv(VecEnv):
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
         obs_space = env.observation_space
-        if isinstance(obs_space, spaces.MultiDiscrete):
-            obs_space.shape = obs_space.shape[0]
 
         self.keys, shapes, dtypes = obs_space_info(obs_space)
 
