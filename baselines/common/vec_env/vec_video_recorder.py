@@ -14,7 +14,10 @@ class VecVideoRecorder(VecEnvWrapper):
         # Arguments
             venv: VecEnv to wrap
             directory: Where to save videos
-            record_video_trigger: Function that defines when to start recording. The current step is passed to the function.
+            record_video_trigger:
+                Function that defines when to start recording.
+                The function takes the current number of step,
+                and returns whether we should start recording or not.
             video_length: Length of recorded video
         """
 

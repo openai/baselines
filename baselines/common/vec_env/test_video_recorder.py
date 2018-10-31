@@ -31,7 +31,7 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
     env = klass(fns)
 
     with tempfile.TemporaryDirectory() as video_path:
-        env = VecVideoRecorder(env, video_path, video_callable=lambda x: x % video_interval == 0, video_length=video_length)
+        env = VecVideoRecorder(env, video_path, record_video_trigger=lambda x: x % video_interval == 0, video_length=video_length)
 
         env.reset()
         for _ in range(video_interval + video_length + 1):
