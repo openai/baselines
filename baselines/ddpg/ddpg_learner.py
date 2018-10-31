@@ -9,6 +9,10 @@ from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 import baselines.common.tf_util as U
 from baselines.common.mpi_running_mean_std import RunningMeanStd
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
 
 def normalize(x, stats):
     if stats is None:
@@ -374,6 +378,11 @@ class DDPG(object):
             self.obs0: batch['obs0'],
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
+
+        if MPI is not None:
+            mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        else:
+            mean_distance = distance
 
         if MPI is not None:
             mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
