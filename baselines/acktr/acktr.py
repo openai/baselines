@@ -21,15 +21,15 @@ class Model(object):
 
         self.sess = sess = get_session()
         nbatch = nenvs * nsteps
-        A = tf.placeholder(ac_space.dtype, [nbatch,] + list(ac_space.shape))
+        with tf.variable_scope('acktr_model', reuse=tf.AUTO_REUSE):
+            self.model = step_model = policy(nenvs, 1, sess=sess)
+            self.model2 = train_model = policy(nenvs*nsteps, nsteps, sess=sess)
+
+        A = train_model.pdtype.sample_placeholder([None])
         ADV = tf.placeholder(tf.float32, [nbatch])
         R = tf.placeholder(tf.float32, [nbatch])
         PG_LR = tf.placeholder(tf.float32, [])
         VF_LR = tf.placeholder(tf.float32, [])
-
-        with tf.variable_scope('acktr_model', reuse=tf.AUTO_REUSE):
-            self.model = step_model = policy(nenvs, 1, sess=sess)
-            self.model2 = train_model = policy(nenvs*nsteps, nsteps, sess=sess)
 
         neglogpac = train_model.pd.neglogp(A)
         self.logits = train_model.pi
