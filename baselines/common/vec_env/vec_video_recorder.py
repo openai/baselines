@@ -9,17 +9,17 @@ class VecVideoRecorder(VecEnvWrapper):
     Wrap VecEnv to record rendered image as mp4 video.
     """
 
-    def __init__(self, venv, directory, video_callable, video_length=200):
+    def __init__(self, venv, directory, record_video_trigger, video_length=200):
         """
         # Arguments
             venv: VecEnv to wrap
             directory: Where to save videos
-            video_callable: Function that defines when to start recording. The current step is passed to the function.
+            record_video_trigger: Function that defines when to start recording. The current step is passed to the function.
             video_length: Length of recorded video
         """
 
         VecEnvWrapper.__init__(self, venv)
-        self.video_callable = video_callable
+        self.record_video_trigger = record_video_trigger
         self.video_recorder = None
 
         self.directory = os.path.abspath(directory)
@@ -55,7 +55,7 @@ class VecVideoRecorder(VecEnvWrapper):
         self.recording = True
 
     def _video_enabled(self):
-        return self.video_callable(self.step_id)
+        return self.record_video_trigger(self.step_id)
 
     def step_wait(self):
         obs, rews, dones, infos = self.venv.step_wait()
