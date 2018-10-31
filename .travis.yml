@@ -9,7 +9,10 @@ env:
   - DOCKER_SUFFIX=py36-nompi
   - DOCKER_SUFFIX=py36-mpi
 
-install: "" # so travis doesn't do pip install requirements.txt
+install:
+  - pip install flake8
+  - docker build -f test.dockerfile.${DOCKER_SUFFIX} -t baselines-test .
+
 script:
   - flake8 . --show-source --statistics
-  - docker build -f test.dockerfile.${DOCKER_SUFFIX} -t baselines-test .
+  - docker run baselines-test pytest -v .
