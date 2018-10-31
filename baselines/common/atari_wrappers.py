@@ -129,11 +129,11 @@ class ClipRewardEnv(gym.RewardWrapper):
         return np.sign(reward)
 
 class WarpFrame(gym.ObservationWrapper):
-    def __init__(self, env):
+    def __init__(self, env, width=84, height=84):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
         gym.ObservationWrapper.__init__(self, env)
-        self.width = 84
-        self.height = 84
+        self.width = width
+        self.height = height
         self.observation_space = spaces.Box(low=0, high=255,
             shape=(self.height, self.width, 1), dtype=np.uint8)
 
