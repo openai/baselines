@@ -131,27 +131,39 @@ class Model(object):
 
             # Normalize the advantages
             advs = (advs - advs.mean()) / (advs.std() + 1e-8)
-            td_map = {train_model.X:obs, A:actions, ADV:advs, R:returns, LR:lr,
-                    CLIPRANGE:cliprange, OLDNEGLOGPAC:neglogpacs, OLDVPRED:values}
-            if states is not None:
-                td_map[train_model.S] = states
-                td_map[train_model.M] = masks
 
             if microbatch_size == None or microbatch_size == obs.shape[0]:
+                td_map = {train_model.X:obs, A:actions, ADV:advs, R:returns, LR:lr,
+                    CLIPRANGE:cliprange, OLDNEGLOGPAC:neglogpacs, OLDVPRED:values}
+                if states is not None:
+                    td_map[train_model.S] = states
+                    td_map[train_model.M] = masks
+
                 return sess.run(
                     [pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
                     td_map
                 )[:-1]
             else:
-                sum_grad_v = []
+                assert states is None, "microbatches with recurrent models are not supported yet"
                 pg_losses = []
                 vf_losses = []
                 entropies = []
                 approx_kls = []
                 clipfracs = []
-                for _ in range(nmicrobatches):
+                for microbatch_idx in range(nmicrobatches):
+                    _sli = range(microbatch_idx * microbatch_size, (microbatch_idx+1) * microbatch_size)
+                    td_map = {
+                        train_model.X: obs[_sli],
+                        A:actions[_sli],
+                        ADV:advs[_sli],
+                        R:returns[_sli],
+                        CLIPRANGE:cliprange,
+                        OLDNEGLOGPAC:neglogpacs[_sli],
+                        OLDVPRED:values[_sli]
+                    }
+
                     grad_v, pg_loss_v, vf_loss_v, entropy_v, approx_kl_v, clipfrac_v  = sess.run([grads, pg_loss, vf_loss, entropy, approxkl, clipfrac], td_map)
-                    if len(sum_grad_v) == 0:
+                    if microbatch_idx == 0:
                         sum_grad_v = grad_v
                     else:
                         for i, g in enumerate(grad_v):
