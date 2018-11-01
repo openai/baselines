@@ -34,7 +34,7 @@ class Model(object):
     - Save load the model
     """
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                nsteps, ent_coef, vf_coef, max_grad_norm):
+                nsteps, ent_coef, vf_coef, max_grad_norm, microbatch_size=None):
         sess = get_session()
 
         with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
@@ -113,6 +113,13 @@ class Model(object):
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
         _train = trainer.apply_gradients(grads_and_var)
+        if microbatch_size is not None:
+            grads_ph = [tf.placeholder(dtype=g.dtype, shape=g.shape) for g in grads]
+            grads_ph_and_vars = list(zip(grads_ph, var))
+            nmicrobatches = nbatch_train // microbatch_size
+            assert nbatch_train % microbatch_size == 0, 'Microbatch_size ({}) is not a divisor of nbatch_train ({})'.format(microbatch_size, nbatch_train)
+            _apply_gradients = trainer.apply_gradients(grads_ph_and_vars)
+
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
@@ -126,10 +133,40 @@ class Model(object):
             if states is not None:
                 td_map[train_model.S] = states
                 td_map[train_model.M] = masks
-            return sess.run(
-                [pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
-                td_map
-            )[:-1]
+
+            if microbatch_size == None or microbatch_size == obs.shape[0]:
+                return sess.run(
+                    [pg_loss, vf_loss, entropy, approxkl, clipfrac, _train],
+                    td_map
+                )[:-1]
+            else:
+                sum_grad_v = []
+                pg_losses = []
+                vf_losses = []
+                entropies = []
+                approx_kls = []
+                clipfracs = []
+                for _ in range(nmicrobatches):
+                    grad_v, pg_loss_v, vf_loss_v, entropy_v, approx_kl_v, clipfrac_v  = sess.run([grads, pg_loss, vf_loss, entropy, approxkl, clipfrac], td_map)
+                    if len(sum_grad_v) == 0:
+                        sum_grad_v = grad_v
+                    else:
+                        for i, g in enumerate(grad_v):
+                            sum_grad_v[i] += g
+
+                    vf_losses.append(vf_loss_v)
+                    pg_losses.append(pg_loss_v)
+                    entropies.append(entropy_v)
+                    approx_kls.append(approx_kl_v)
+                    clipfracs.append(clipfrac_v)
+
+                feed_dict = {ph: sum_g / nmicrobatches for ph, sum_g in zip(grads_ph, sum_grad_v)}
+                feed_dict[LR] = lr
+                sess.run(_apply_gradients, feed_dict)
+                return np.mean(pg_losses), np.mean(vf_losses), np.mean(entropies), np.mean(approx_kls), np.mean(clipfracs)
+
+
+
         self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
 
 
@@ -229,7 +266,7 @@ def constfn(val):
 
 def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
-            log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
+            log_interval=10, nminibatches=4, noptepochs=4, microbatch_size=None, cliprange=0.2,
             save_interval=0, load_path=None, **network_kwargs):
     '''
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
@@ -310,7 +347,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     # Instantiate the model object (that creates act_model and train_model)
     make_model = lambda : Model(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
-                    max_grad_norm=max_grad_norm)
+                    max_grad_norm=max_grad_norm, microbatch_size=microbatch_size)
     model = make_model()
     if load_path is not None:
         model.load(load_path)
