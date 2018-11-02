@@ -115,7 +115,7 @@ class KfacOptimizer:
                 for grad in gradient.op.inputs:
                     factors.append(_search_factors(grad, graph))
                 op_names = [_item['opName'] for _item in factors]
-                if self.verbose >= 1:
+                if self.verbose > 1:
                     # TODO: need to check all the attribute of the ops as well
                     print(gradient.name)
                     print(op_names)
@@ -643,7 +643,7 @@ class KfacOptimizer:
         :return: ([TensorFlow Tensor]) update operations
         """
         update_ops = []
-        if self.verbose >= 1:
+        if self.verbose > 1:
             print(('updating %d eigenvalue/vectors' % len(eigen_list)))
         for _, (tensor, mark) in enumerate(zip(eigen_list, self.eigen_update_list)):
             stats_eigen_var = self.eigen_reverse_lookup[mark]
@@ -810,7 +810,7 @@ class KfacOptimizer:
 
                 grad_dict[var] = grad
 
-        if self.verbose >= 1:
+        if self.verbose > 1:
             print(('projecting %d gradient matrices' % counter))
 
         for grad_1, var in zip(gradlist, varlist):
@@ -818,7 +818,7 @@ class KfacOptimizer:
             # clipping
             if KFAC_DEBUG:
                 print(('apply clipping to %s' % var.name))
-            tf.Print(grad, [tf.sqrt(tf.reduce_sum(tf.pow(grad, 2)))], "Euclidean norm of new grad")
+                tf.Print(grad, [tf.sqrt(tf.reduce_sum(tf.pow(grad, 2)))], "Euclidean norm of new grad")
             local_vg = tf.reduce_sum(grad * grad_1 * (self._lr * self._lr))
             v_g += local_vg
 
@@ -868,8 +868,8 @@ class KfacOptimizer:
         queue_runner = None
         # launch eigen-decomp on a queue thread
         if self._async_eigen_decomp:
-            if self.verbose >= 1:
-                print('Use async eigen decomp')
+            if self.verbose > 1:
+                print('Using async eigen decomposition')
             # get a list of factor loading tensors
             factor_ops_dummy = self.compute_stats_eigen()
 

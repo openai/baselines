@@ -37,11 +37,12 @@ class ACKTR(ActorCriticRLModel):
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    :param async_eigen_decomp: (bool) Use async eigen decomposition
     """
 
     def __init__(self, policy, env, gamma=0.99, nprocs=1, n_steps=20, ent_coef=0.01, vf_coef=0.25, vf_fisher_coef=1.0,
                  learning_rate=0.25, max_grad_norm=0.5, kfac_clip=0.001, lr_schedule='linear', verbose=0,
-                 tensorboard_log=None, _init_setup_model=True):
+                 tensorboard_log=None, _init_setup_model=True, async_eigen_decomp=False):
 
         super(ACKTR, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
                                     _init_setup_model=_init_setup_model)
@@ -57,6 +58,7 @@ class ACKTR(ActorCriticRLModel):
         self.lr_schedule = lr_schedule
         self.nprocs = nprocs
         self.tensorboard_log = tensorboard_log
+        self.async_eigen_decomp = async_eigen_decomp
 
         self.graph = None
         self.sess = None
@@ -172,7 +174,8 @@ class ACKTR(ActorCriticRLModel):
                         self.optim = optim = kfac.KfacOptimizer(learning_rate=pg_lr_ph, clip_kl=self.kfac_clip,
                                                                 momentum=0.9, kfac_update=1,
                                                                 epsilon=0.01, stats_decay=0.99,
-                                                                async_eigen_decomp=True, cold_iter=10,
+                                                                async_eigen_decomp=self.async_eigen_decomp,
+                                                                cold_iter=10,
                                                                 max_grad_norm=self.max_grad_norm, verbose=self.verbose)
 
                         optim.compute_and_apply_stats(self.joint_fisher, var_list=params)
@@ -269,7 +272,11 @@ class ACKTR(ActorCriticRLModel):
 
             t_start = time.time()
             coord = tf.train.Coordinator()
-            enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
+            if self.q_runner is not None:
+                enqueue_threads = self.q_runner.create_threads(self.sess, coord=coord, start=True)
+            else:
+                enqueue_threads = []
+
             for update in range(1, total_timesteps // self.n_batch + 1):
                 # true_reward is the reward without discount
                 obs, states, rewards, masks, actions, values, true_reward = runner.run()
