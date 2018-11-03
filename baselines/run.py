@@ -215,6 +215,8 @@ def main():
     with open(os.path.join(logger.get_dir(), 'args.json'), 'w') as arg_file:
         args_copy = vars(args).copy()   # start with x's keys and values
         args_copy.update(extra_args)
+        import subprocess
+        args_copy['git_commit'] = subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
         json.dump(args_copy, arg_file)
 
 
