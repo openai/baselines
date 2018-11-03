@@ -1,19 +1,22 @@
-import sys
+import json
 import multiprocessing
+import os
 import os.path as osp
-import gym
+import sys
 from collections import defaultdict
-import tensorflow as tf
-import numpy as np
-
-from baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env
-from baselines.common.tf_util import get_session
-from baselines import bench, logger, contract
 from importlib import import_module
 
-from baselines.common.vec_env.vec_normalize import VecNormalize
+import numpy as np
+import tensorflow as tf
+
+import gym
+from baselines import bench, contract, logger
 from baselines.common import atari_wrappers, retro_wrappers
+from baselines.common.cmd_util import (common_arg_parser, make_vec_env,
+                                       parse_unknown_args)
+from baselines.common.tf_util import get_session
+from baselines.common.vec_env.vec_frame_stack import VecFrameStack
+from baselines.common.vec_env.vec_normalize import VecNormalize
 
 try:
     from mpi4py import MPI
@@ -208,6 +211,12 @@ def main():
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args()
     extra_args = parse_cmdline_kwargs(unknown_args)
+
+    with open(os.path.join(logger.get_dir(), 'args.json'), 'w') as arg_file:
+        args_copy = vars(args).copy()   # start with x's keys and values
+        args_copy.update(extra_args)
+        json.dump(args_copy, arg_file)
+
 
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
         rank = 0
