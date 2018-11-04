@@ -8,7 +8,8 @@ For download links, please look at `Github release page <https://github.com/hill
 Pre-Release 2.1.2a (WIP)
 -----------------------
 
-- Add ``async_eigen_decomp`` parameter for ACKTR and set it to ``False`` by default (remove deprecation warnings)
+- added ``async_eigen_decomp`` parameter for ACKTR and set it to ``False`` by default (remove deprecation warnings)
+- added methods for calling env methods/setting attributes inside a VecEnv (thanks to @bjmuld)
 
 
 Release 2.1.1 (2018-10-20)

@@ -86,7 +86,9 @@ def test_ppo2(policy):
 
     :param policy: (str) the policy to test for PPO2
     """
-    ppo2_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS, seed=SEED, policy=policy)
+    ppo2_atari.train(env_id=ENV_ID, num_timesteps=NUM_TIMESTEPS,
+                     seed=SEED, policy=policy, n_envs=NUM_CPU,
+                     nminibatches=NUM_CPU, n_steps=16)
 
 
 @pytest.mark.slow
