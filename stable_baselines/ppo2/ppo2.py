@@ -254,7 +254,7 @@ class PPO2(ActorCriticRLModel):
 
         return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="PPO2"):
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=1, tb_log_name="PPO2"):
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
 
@@ -319,7 +319,7 @@ class PPO2(ActorCriticRLModel):
                 if callback is not None:
                     callback(locals(), globals())
 
-                if self.verbose >= 1 and ((update + 1) % log_interval//100 == 0 or update == 0):
+                if self.verbose >= 1 and ((update + 1) % log_interval == 0 or update == 0):
                     explained_var = explained_variance(values, returns)
                     logger.logkv("serial_timesteps", (update + 1) * self.n_steps)
                     logger.logkv("nupdates", (update + 1))
