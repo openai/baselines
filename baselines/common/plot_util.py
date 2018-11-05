@@ -156,7 +156,7 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
 
     enable_progress: bool - if True, will attempt to load data from progress.csv files (data saved by logger). Default: True
 
-    enable_monitor: bool - if True, will attepmt to load data from monitor.csv files (data saved by Monitor environment wrapper). Default: True
+    enable_monitor: bool - if True, will attempt to load data from monitor.csv files (data saved by Monitor environment wrapper). Default: True
 
     verbose: bool - if True, will print out list of directories from which the data is loaded. Default: False
 
@@ -251,9 +251,9 @@ def plot_results(
     xy_fn: function Result -> x,y           - function that converts results objects into tuple of x and y values.
                                               By default, x is cumsum of episode lengths, and y is episode rewards
 
-    split_fn: function Result -> hashable   - function that converts results objects into keys to split curves into subpanels by.
-                                              That is, the results r for which split_fn(r) is different will be put on different subpanels.
-                                              By default, the portion of r.dirname between last / and -<digits> is returned. The subpanels are
+    split_fn: function Result -> hashable   - function that converts results objects into keys to split curves into sub-panels by.
+                                              That is, the results r for which split_fn(r) is different will be put on different sub-panels.
+                                              By default, the portion of r.dirname between last / and -<digits> is returned. The sub-panels are
                                               stacked vertically in the figure.
 
     group_fn: function Result -> hashable   - function that converts results objects into keys to group curves by.
@@ -265,11 +265,11 @@ def plot_results(
                                               shaded region around corresponding to the standard deviation, and darker shaded region corresponding to
                                               the error of mean estimate (that is, standard deviation over square root of number of samples)
 
-    figsize: tuple or None                  - size of the resulting figure (including subpanels). By default, width is 6 and height is 6 times number of
-                                              subpanels.
+    figsize: tuple or None                  - size of the resulting figure (including sub-panels). By default, width is 6 and height is 6 times number of
+                                              sub-panels.
 
 
-    legend_outside: bool                    - if True, will place the legend outside of the subpanels.
+    legend_outside: bool                    - if True, will place the legend outside of the sub-panels.
 
     resample: int                           - if not zero, size of the uniform grid in x direction to resample onto. Resampling is performed via symmetric
                                               EMA smoothing (see the docstring for symmetric_ema).
