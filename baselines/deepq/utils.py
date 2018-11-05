@@ -18,11 +18,11 @@ class TfInput(object):
         """Return the tf variable(s) representing the possibly postprocessed value
         of placeholder(s).
         """
-        raise NotImplemented()
+        raise NotImplementedError
 
     def make_feed_dict(data):
         """Given data input it to the placeholder(s)."""
-        raise NotImplemented()
+        raise NotImplementedError
 
 
 class PlaceholderTfInput(TfInput):

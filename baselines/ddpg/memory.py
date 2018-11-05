@@ -51,7 +51,7 @@ class Memory(object):
 
     def sample(self, batch_size):
         # Draw such that we always have a proceeding element.
-        batch_idxs = np.random.random_integers(self.nb_entries - 2, size=batch_size)
+        batch_idxs = np.random.randint(self.nb_entries - 2, size=batch_size)
 
         obs0_batch = self.observations0.get_batch(batch_idxs)
         obs1_batch = self.observations1.get_batch(batch_idxs)

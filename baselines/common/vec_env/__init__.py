@@ -104,6 +104,7 @@ class VecEnv(ABC):
         bigimg = tile_images(imgs)
         if mode == 'human':
             self.get_viewer().imshow(bigimg)
+            return self.get_viewer().isopen
         elif mode == 'rgb_array':
             return bigimg
         else:

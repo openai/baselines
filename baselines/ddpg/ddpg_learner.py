@@ -9,7 +9,10 @@ from baselines import logger
 from baselines.common.mpi_adam import MpiAdam
 import baselines.common.tf_util as U
 from baselines.common.mpi_running_mean_std import RunningMeanStd
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
 
 def normalize(x, stats):
     if stats is None:
@@ -265,19 +268,24 @@ class DDPG(object):
         else:
             action = self.sess.run(actor_tf, feed_dict=feed_dict)
             q = None
-        action = action.flatten()
+
         if self.action_noise is not None and apply_noise:
             noise = self.action_noise()
-            assert noise.shape == action.shape
+            assert noise.shape == action[0].shape
             action += noise
         action = np.clip(action, self.action_range[0], self.action_range[1])
+
+
         return action, q, None, None
 
     def store_transition(self, obs0, action, reward, obs1, terminal1):
         reward *= self.reward_scale
-        self.memory.append(obs0, action, reward, obs1, terminal1)
-        if self.normalize_observations:
-            self.obs_rms.update(np.array([obs0]))
+
+        B = obs0.shape[0]
+        for b in range(B):
+            self.memory.append(obs0[b], action[b], reward[b], obs1[b], terminal1[b])
+            if self.normalize_observations:
+                self.obs_rms.update(np.array([obs0[b]]))
 
     def train(self):
         # Get a batch.
@@ -353,6 +361,11 @@ class DDPG(object):
         return stats
 
     def adapt_param_noise(self):
+        try:
+            from mpi4py import MPI
+        except ImportError:
+            MPI = None
+
         if self.param_noise is None:
             return 0.
 
@@ -366,7 +379,16 @@ class DDPG(object):
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
 
-        mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        if MPI is not None:
+            mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        else:
+            mean_distance = distance
+
+        if MPI is not None:
+            mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        else:
+            mean_distance = distance
+
         self.param_noise.adapt(mean_distance)
         return mean_distance
 

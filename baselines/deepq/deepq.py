@@ -47,6 +47,9 @@ class ActWrapper(object):
         return self._act(*args, **kwargs)
 
     def step(self, observation, **kwargs):
+        # DQN doesn't use RNNs so we ignore states and masks
+        kwargs.pop('S', None)
+        kwargs.pop('M', None)
         return self._act([observation], **kwargs), None, None, None
 
     def save_act(self, path=None):
@@ -121,16 +124,12 @@ def learn(env,
     -------
     env: gym.Env
         environment to train on
-    q_func: (tf.Variable, int, str, bool) -> tf.Variable
-        the model that takes the following inputs:
-            observation_in: object
-                the output of observation placeholder
-            num_actions: int
-                number of actions
-            scope: str
-            reuse: bool
-                should be passed to outer variable scope
-        and returns a tensor of shape (batch_size, num_actions) with values of every action.
+    network: string or a function
+        neural network to use as a q function approximator. If string, has to be one of the names of registered models in baselines.common.models
+        (mlp, cnn, conv_only). If a function, should take an observation tensor and return a latent variable tensor, which
+        will be mapped to the Q function heads (see build_q_func in baselines.deepq.models for details on that)
+    seed: int or None
+        prng seed. The runs with the same seed "should" give the same results. If None, no seeding is used.
     lr: float
         learning rate for adam optimizer
     total_timesteps: int
@@ -170,6 +169,8 @@ def learn(env,
         to 1.0. If set to None equals to total_timesteps.
     prioritized_replay_eps: float
         epsilon to add to the TD errors when updating priorities.
+    param_noise: bool
+        whether or not to use parameter space noise (https://arxiv.org/abs/1706.01905)
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
