@@ -101,7 +101,8 @@ def build_env(args):
             env = atari_wrappers.make_atari(env_id)
             env.seed(seed)
             if args.contracts is not None:
-                contracts = [contract.CONTRACT_DICT[s] for s in args.contracts]
+                assert len(args.contracts) == len(args.rewards)
+                contracts = [contract.CONTRACT_DICT[s](r) for (s, r) in zip(args.contracts, args.rewards)]
             env = bench.Monitor(env, logger.get_dir())
             env = atari_wrappers.wrap_deepmind(env, frame_stack=True)
             if args.contracts is not None:

@@ -1,5 +1,6 @@
 from baselines.contract.dfa import DFA
 
+
 class Contract(DFA):
     def __init__(self, name, reg_ex, violation_reward):
         super(Contract, self).__init__(reg_ex)
@@ -18,8 +19,8 @@ DITHERING2D_REGEX_4 = '((2|A)(2|A)(5|D)(5|D))|((2|A)(5|D)(2|A)(5|D))|((2|A)(5|D)
 DITHERINGANY_9 = "{9}|".join(list(map(str, range(10)))+['A','B','C','D','E','F']) + "{9}"
 ENDURO_DITHERING = '(2|5|7){7}|(3|6|8){7}'
 
-CONTRACT_DICT = {'2d_dithering': Contract('2d_dithering', DITHERING2D_REGEX_4, -100.),
-                 '1d_dithering': Contract('1d_dithering', DITHERING1D_REGEX_k(2), -100.),
-                 '1d_actuation': Contract('1d_actuation', ACTUATION1D_REGEX_k(4), -100.),
-                 'any_dithering_9': Contract('any_dithering_9', DITHERINGANY_9, -10),
-                 'enduro_dithering': Contract('enduro_dithering', ENDURO_DITHERING, -100)}
+CONTRACT_DICT = {'2d_dithering': lambda r: Contract('2d_dithering', DITHERING2D_REGEX_4, r),
+                 '1d_dithering': lambda r: Contract('1d_dithering', DITHERING1D_REGEX_k(2), r),
+                 '1d_actuation': lambda r: Contract('1d_actuation', ACTUATION1D_REGEX_k(4), r),
+                 'any_dithering_9': lambda r: Contract('any_dithering_9', DITHERINGANY_9, r),
+                 'enduro_dithering': lambda r: Contract('enduro_dithering', ENDURO_DITHERING, r)}
