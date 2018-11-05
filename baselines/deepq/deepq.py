@@ -169,6 +169,8 @@ def learn(env,
         to 1.0. If set to None equals to total_timesteps.
     prioritized_replay_eps: float
         epsilon to add to the TD errors when updating priorities.
+    param_noise: bool
+        whether or not to use parameter space noise (https://arxiv.org/abs/1706.01905)
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
