@@ -3,7 +3,7 @@ In order to compare performance of algorithms, we often would like to visualize 
 aggregated into a plot. Baselines repo provides tools for doing so in several different ways, depending on the goal. 
 
 ## Preliminaries
-For all algorithms in baselines directory in which summary data is saved is defined by logger. By default, a folder  `$TMPDIR/openai-<date>-<time>` is used; 
+For all algorithms in baselines summary data is saved into a folder defined by logger. By default, a folder `$TMPDIR/openai-<date>-<time>` is used;
 you can see the location of logger directory at the beginning of the training in the message like this:
 
 ```
