@@ -413,8 +413,8 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         weighted_error = tf.reduce_mean(importance_weights_ph * errors)
 
         # compute optimization op (potentially with gradient clipping)
+        gradients = optimizer.compute_gradients(weighted_error, var_list=q_func_vars)
         if grad_norm_clipping is not None:
-            gradients = optimizer.compute_gradients(weighted_error, var_list=q_func_vars)
             for i, (grad, var) in enumerate(gradients):
                 if grad is not None:
                     gradients[i] = (tf.clip_by_norm(grad, grad_norm_clipping), var)
@@ -429,6 +429,19 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
             update_target_expr.append(var_target.assign(var))
         update_target_expr = tf.group(*update_target_expr)
 
+        sum_of_gradient = 0
+        for gradient in gradients:
+            sum_of_gradient += tf.norm(gradient) ** 2
+
+        sum_of_gradient = tf.add_n([tf.norm(gradient) ** 2 for gradient in gradients])
+        sum_of_gradient = tf.sqrt(sum_of_gradient)
+
+        tf.summary.histogram('q_values', q_t)
+        tf.summary.scalar('norm_gradients', sum_of_gradient)
+        tf.summary.scalar('loss', weighted_error)
+
+        merged = tf.summary.merge_all() 
+
         # Create callable functions
         train = U.function(
             inputs=[
@@ -439,11 +452,13 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=td_error,
+            outputs=[
+                td_error,
+                merged
+            ],
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
 
         q_values = U.function([obs_t_input], q_t)
-
         return act_f, train, update_target, {'q_values': q_values}
