@@ -172,7 +172,7 @@ To cite this repository in publications:
 
 ## Maintainers
 
-Stable-Baselines is currently maintained by [Ashley Hill](https://github.com/hill-a) (aka @hill-a) and [Antonin Raffin](https://github.com/araffin) (aka @araffin).
+Stable-Baselines is currently maintained by [Ashley Hill](https://github.com/hill-a) (aka @hill-a) and [Antonin Raffin](https://araffin.github.io/) (aka [@araffin](https://github.com/araffin)).
 
 ## How To Contribute
 
