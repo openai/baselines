@@ -11,6 +11,7 @@ extras = {
     'test': [
         'filelock',
         'pytest',
+        'pytest-forked',
         'atari-py'
     ],
     'bullet': [

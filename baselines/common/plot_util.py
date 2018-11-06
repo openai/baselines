@@ -240,6 +240,8 @@ def plot_results(
     split_fn=default_split_fn,
     group_fn=default_split_fn,
     average_group=False,
+    shaded_std=True,
+    shaded_err=True,
     figsize=None,
     legend_outside=False,
     resample=0,
@@ -346,8 +348,10 @@ def plot_results(
                 ystderr = ystd / np.sqrt(len(ys))
                 l, = axarr[isplit][0].plot(usex, ymean, color=color)
                 g2l[group] = l
-                ax.fill_between(usex, ymean - ystderr, ymean + ystderr, color=color, alpha=.4)
-                ax.fill_between(usex, ymean - ystd,    ymean + ystd,    color=color, alpha=.2)
+                if shaded_err:
+                    ax.fill_between(usex, ymean - ystderr, ymean + ystderr, color=color, alpha=.4)
+                if shaded_std:
+                    ax.fill_between(usex, ymean - ystd,    ymean + ystd,    color=color, alpha=.2)
 
 
         # https://matplotlib.org/users/legend_guide.html
