@@ -10,6 +10,7 @@ Pre-Release 2.1.2a (WIP)
 
 - added ``async_eigen_decomp`` parameter for ACKTR and set it to ``False`` by default (remove deprecation warnings)
 - added methods for calling env methods/setting attributes inside a VecEnv (thanks to @bjmuld)
+- updated gym minimum version
 
 
 Release 2.1.1 (2018-10-20)

@@ -11,8 +11,6 @@ RUN \
     mkdir $CODE_DIR && \
     cd $CODE_DIR && \
     pip install --upgrade pip && \
-    pip install pytest && \
-    pip install pytest-cov && \
     pip install codacy-coverage && \
     pip install scipy && \
     pip install tqdm && \
@@ -28,10 +26,11 @@ RUN \
     pip install numpy && \
     pip install pandas && \
     pip install pytest==3.5.1 && \
+    pip install pytest-cov && \
     pip install matplotlib && \
     pip install seaborn && \
     pip install glob2 && \
-    pip install gym[atari,classic_control]==0.10.5
+    pip install gym[atari,classic_control]>=0.10.9
 
 ENV PATH=$VENV/bin:$PATH
 
