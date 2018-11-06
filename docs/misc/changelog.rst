@@ -5,8 +5,8 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre-Release 2.1.2a (WIP)
------------------------
+Release 2.1.2 (2018-11-06)
+--------------------------
 
 - added ``async_eigen_decomp`` parameter for ACKTR and set it to ``False`` by default (remove deprecation warnings)
 - added methods for calling env methods/setting attributes inside a VecEnv (thanks to @bjmuld)
