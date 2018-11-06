@@ -12,7 +12,7 @@ Logging to /var/folders/mq/tgrn7bs17s1fnhlwt314b2fm0000gn/T/openai-2018-10-29-15
 The location can be changed by changing `OPENAI_LOGDIR` environment variable; for instance:
 ```bash
 export OPENAI_LOGDIR=$HOME/logs/cartpole-ppo
-python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_time steps=30000 --nsteps=128
+python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_timesteps=30000 --nsteps=128
 ```
 will log data to `~/logs/cartpole-ppo`. 
 
@@ -68,7 +68,7 @@ plt.plot(np.cumsum(r.monitor.l), pu.smooth(r.monitor.r, radius=10))
 
 We can also get a similar curve by using logger summaries (instead of raw episode data in monitor.csv): 
 ```python
-plt.plot(r.progress.total_time steps, r.progress.eprewmean)
+plt.plot(r.progress.total_timesteps, r.progress.eprewmean)
 ```
 
 <img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-10-29%20at%205.04.31%20PM.png" width="730">
@@ -85,10 +85,10 @@ runs ppo2 with cartpole with 6 different seeds for 30k time steps, first with ba
 
 ```bash
 for seed in $(seq 0 5); do
-OPENAI_LOGDIR=$HOME/logs/cartpole-ppo/b32-$seed python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_time steps=3e4 --seed=$seed --nsteps=32
+OPENAI_LOGDIR=$HOME/logs/cartpole-ppo/b32-$seed python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_timesteps=3e4 --seed=$seed --nsteps=32
 done
 for seed in $(seq 0 5); do
-OPENAI_LOGDIR=$HOME/logs/cartpole-ppo/b128-$seed python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_time steps=3e4 --seed=$seed --nsteps=128
+OPENAI_LOGDIR=$HOME/logs/cartpole-ppo/b128-$seed python -m baselines.run --alg=ppo2 --env=CartPole-v0 --num_timesteps=3e4 --seed=$seed --nsteps=128
 done
 ```
 These 12 runs can be loaded just as before:
