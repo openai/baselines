@@ -14,8 +14,8 @@ from .subproc_vec_env import SubprocVecEnv
 from .vec_video_recorder import VecVideoRecorder
 
 @pytest.mark.parametrize('klass', (DummyVecEnv, ShmemVecEnv, SubprocVecEnv))
-@pytest.mark.parametrize('num_envs', (1, 16))
-@pytest.mark.parametrize('video_length', (10, 500))
+@pytest.mark.parametrize('num_envs', (1, 4))
+@pytest.mark.parametrize('video_length', (10, 100))
 @pytest.mark.parametrize('video_interval', (1, 50))
 def test_video_recorder(klass, num_envs, video_length, video_interval):
     """
