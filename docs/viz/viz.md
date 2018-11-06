@@ -27,9 +27,8 @@ And you can now start TensorBoard with:
 tensorboard --logdir=$OPENAI_LOGDIR
 ```
 
-## Loading summaries of the results
+## Loading summaries of the results ([notebook](https://colab.research.google.com/drive/1Wez1SA9PmNkCoYc8Fvl53bhU3F8OffGm))
 If the summary overview provided by tensorboard is not sufficient, and you would like to either access to raw environment episode data, or use complex post-processing notavailable in tensorboard, you can load results into python as [pandas](https://pandas.pydata.org/) dataframes. 
-The colab notebook with the full version of the code is available [here](https://colab.research.google.com/drive/1Wez1SA9PmNkCoYc8Fvl53bhU3F8OffGm) (use "Open in playground" button to get a runnable version) 
 
 For instance, the following snippet:
 ```python
@@ -106,12 +105,32 @@ The results are split into two groups based on batch size and are plotted on a s
 <img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-10-29%20at%205.53.45%20PM.png" width="700">
 
 Showing all seeds on the same plot may be somewhat hard to comprehend and analyse. We can instead average over all seeds via the following command:
+
 <img  src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-11-02%20at%204.42.52%20PM.png" width="720">
 
 The lighter shade shows the standard deviation of data, and darker shade - 
-error in estimate of the mean (that is, standard deviation divided by square root of number of seeds)
+error in estimate of the mean (that is, standard deviation divided by square root of number of seeds).
 Note that averaging over seeds requires resampling to a common grid, which, in turn, requires smoothing
 (using language of signal processing, we need to do low-pass filtering before resampling to avoid aliasing effects). 
 You can change the amount of smoothing by adjusting `resample` and `smooth_step` arguments to achieve desired smoothing effect
 See the docstring of `plot_util` function for more info. 
 
+To plot both groups on the same graph, we can use the following:
+```python
+pu.plot_results(results, average_group=True, split_fn=lambda _: '')
+```
+Option `split_fn=labmda _:'' ` effectively disables splitting, so that all curves end up on the same panel.
+
+<img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-11-06%20at%203.11.51%20PM.png" width=720>
+
+Now, with many groups the overlapping shaded regions may start looking messy. We can disable either
+light shaded region (corresponding to standard deviation of the curves in the group) or darker shaded region
+(corresponding to the error in mean estimate) by using `shaded_std=False` or `shaded_err=False` options respectively.
+For instance,
+
+```python
+pu.plot_results(results, average_group=True, split_fn=lambda _: '', shaded_std=False)
+```
+produces the following plot:
+
+<img src="https://storage.googleapis.com/baselines/assets/viz/Screen%20Shot%202018-11-06%20at%203.12.02%20PM.png" width=820>

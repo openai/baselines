@@ -263,9 +263,15 @@ def plot_results(
                                               Curves in the same group have the same color (if average_group is False), or averaged over
                                               (if average_group is True). The default value is the same as default value for split_fn
 
-    average_group: bool                     - if True, will average the curves in the same group. The mean of the result is plotted, with lighter
-                                              shaded region around corresponding to the standard deviation, and darker shaded region corresponding to
-                                              the error of mean estimate (that is, standard deviation over square root of number of samples)
+    average_group: bool                     - if True, will average the curves in the same group and plot the mean. Enables resampling
+                                              (if resample = 0, will use 512 steps)
+
+    shaded_std: bool                        - if True (default), the shaded region corresponding to standard deviation of the group of curves will be
+                                              shown (only applicable if average_group = True)
+
+    shaded_err: bool                        - if True (default), the shaded region corresponding to error in mean estimate of the group of curves
+                                              (that is, standard deviation divided by square root of number of curves) will be
+                                              shown (only applicable if average_group = True)
 
     figsize: tuple or None                  - size of the resulting figure (including sub-panels). By default, width is 6 and height is 6 times number of
                                               sub-panels.
