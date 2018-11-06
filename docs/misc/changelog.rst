@@ -159,3 +159,19 @@ Release 0.1.6 (2018-07-27)
 
 Missing: tests for acktr continuous (+ HER, gail but they rely on
 mujoco...)
+
+Maintainers
+-----------
+
+Stable-Baselines is currently maintained by `Ashley Hill`_ (aka @hill-a)
+and `Antonin Raffin`_ (aka `@araffin`_).
+
+.. _Ashley Hill: https://github.com/hill-a
+.. _Antonin Raffin: https://araffin.github.io/
+.. _@araffin: https://github.com/araffin
+
+Contributors (since v2.0.0):
+----------------------------
+In random order...
+
+Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar
