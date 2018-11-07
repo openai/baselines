@@ -1,4 +1,4 @@
-# Loading and visualizing results 
+# Loading and visualizing results ([colab notebook](https://colab.research.google.com/drive/1Wez1SA9PmNkCoYc8Fvl53bhU3F8OffGm))
 In order to compare performance of algorithms, we often would like to visualize learning curves (reward as a function of time steps), or some other auxiliary information about learning
 aggregated into a plot. Baselines repo provides tools for doing so in several different ways, depending on the goal. 
 
@@ -27,7 +27,7 @@ And you can now start TensorBoard with:
 tensorboard --logdir=$OPENAI_LOGDIR
 ```
 
-## Loading summaries of the results ([notebook](https://colab.research.google.com/drive/1Wez1SA9PmNkCoYc8Fvl53bhU3F8OffGm))
+## Loading summaries of the results
 If the summary overview provided by tensorboard is not sufficient, and you would like to either access to raw environment episode data, or use complex post-processing notavailable in tensorboard, you can load results into python as [pandas](https://pandas.pydata.org/) dataframes. 
 
 For instance, the following snippet:
