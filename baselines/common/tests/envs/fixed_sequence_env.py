@@ -40,5 +40,5 @@ class FixedSequenceEnv(Env):
 
     def _get_reward(self, actions):
         return 1 if actions == self.sequence[self.time] else 0
-        
+
 

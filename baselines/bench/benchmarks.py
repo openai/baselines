@@ -97,6 +97,19 @@ register_benchmark({
     ]
 })
 
+# Bullet
+_bulletsmall = [
+    'InvertedDoublePendulum', 'InvertedPendulum', 'HalfCheetah', 'Reacher', 'Walker2D', 'Hopper', 'Ant'
+]
+_bulletsmall = [e + 'BulletEnv-v0' for e in _bulletsmall]
+
+register_benchmark({
+    'name': 'Bullet1M',
+    'description': '6 mujoco-like tasks from bullet, 1M steps',
+    'tasks': [{'env_id': e, 'trials': 6, 'num_timesteps': int(1e6)} for e in _bulletsmall]
+})
+
+
 # Roboschool
 
 register_benchmark({

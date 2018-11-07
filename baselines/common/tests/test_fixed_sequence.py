@@ -8,7 +8,7 @@ common_kwargs = dict(
     seed=0,
     total_timesteps=50000,
 )
-    
+
 learn_kwargs = {
     'a2c': {},
     'ppo2': dict(nsteps=10, ent_coef=0.0, nminibatches=1),
@@ -36,7 +36,7 @@ def test_fixed_sequence(alg, rnn):
     episode_len = 5
     env_fn = lambda: FixedSequenceEnv(10, episode_len=episode_len)
     learn = lambda e: get_learn_function(alg)(
-        env=e, 
+        env=e,
         network=rnn,
         **kwargs
     )
@@ -47,5 +47,5 @@ def test_fixed_sequence(alg, rnn):
 if __name__ == '__main__':
     test_fixed_sequence('ppo2', 'lstm')
 
-    
+
 

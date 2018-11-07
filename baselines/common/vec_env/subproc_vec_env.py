@@ -1,8 +1,6 @@
 import numpy as np
 from multiprocessing import Process, Pipe
 from . import VecEnv, CloudpickleWrapper
-from baselines.common.tile_images import tile_images
-
 
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
@@ -34,9 +32,15 @@ def worker(remote, parent_remote, env_fn_wrapper):
 
 
 class SubprocVecEnv(VecEnv):
+    """
+    VecEnv that runs multiple environments in parallel in subproceses and communicates with them via pipes.
+    Recommended to use when num_envs > 1 and step() can be a bottleneck.
+    """
     def __init__(self, env_fns, spaces=None):
         """
-        envs: list of gym environments to run in subprocesses
+        Arguments:
+
+        env_fns: iterable of callables -  functions that create environments to run in subprocesses. Need to be cloud-pickleable
         """
         self.waiting = False
         self.closed = False
@@ -56,29 +60,26 @@ class SubprocVecEnv(VecEnv):
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
     def step_async(self, actions):
+        self._assert_not_closed()
         for remote, action in zip(self.remotes, actions):
             remote.send(('step', action))
         self.waiting = True
 
     def step_wait(self):
+        self._assert_not_closed()
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
         return np.stack(obs), np.stack(rews), np.stack(dones), infos
 
     def reset(self):
+        self._assert_not_closed()
         for remote in self.remotes:
             remote.send(('reset', None))
         return np.stack([remote.recv() for remote in self.remotes])
 
-    def reset_task(self):
-        for remote in self.remotes:
-            remote.send(('reset_task', None))
-        return np.stack([remote.recv() for remote in self.remotes])
-
-    def close(self):
-        if self.closed:
-            return
+    def close_extras(self):
+        self.closed = True
         if self.waiting:
             for remote in self.remotes:
                 remote.recv()
@@ -86,23 +87,13 @@ class SubprocVecEnv(VecEnv):
             remote.send(('close', None))
         for p in self.ps:
             p.join()
-        if self.viewer is not None:
-            self.viewer.close()
-        self.closed = True
 
-    def render(self, mode='human'):
+    def get_images(self):
+        self._assert_not_closed()
         for pipe in self.remotes:
             pipe.send(('render', None))
         imgs = [pipe.recv() for pipe in self.remotes]
-        bigimg = tile_images(imgs)
-        if mode == 'human':
-            if self.viewer is None:
-                from gym.envs.classic_control import rendering
-                self.viewer = rendering.SimpleImageViewer()
+        return imgs
 
-            self.viewer.imshow(bigimg[:, :, ::-1])
-
-        elif mode == 'rgb_array':
-            return bigimg
-        else:
-            raise NotImplementedError
+    def _assert_not_closed(self):
+        assert not self.closed, "Trying to operate on a SubprocVecEnv after calling close()"

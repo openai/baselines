@@ -4,7 +4,6 @@ import baselines.common.tf_util as U
 import tensorflow as tf, numpy as np
 import time
 from baselines.common import colorize
-from mpi4py import MPI
 from collections import deque
 from baselines.common import set_global_seeds
 from baselines.common.mpi_adam import MpiAdam
@@ -12,6 +11,11 @@ from baselines.common.cg import cg
 from baselines.common.input import observation_placeholder
 from baselines.common.policies import build_policy
 from contextlib import contextmanager
+
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
 
 def traj_segment_generator(pi, env, horizon, stochastic):
     # Initialize state variables
@@ -83,16 +87,16 @@ def add_vtarg_and_adv(seg, gamma, lam):
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 def learn(*,
-        network, 
+        network,
         env,
-        total_timesteps, 
+        total_timesteps,
         timesteps_per_batch=1024, # what to train on
-        max_kl=0.001, 
-        cg_iters=10,   
-        gamma=0.99, 
+        max_kl=0.001,
+        cg_iters=10,
+        gamma=0.99,
         lam=1.0, # advantage estimation
         seed=None,
-        entcoeff=0.0,
+        ent_coef=0.0,
         cg_damping=1e-2,
         vf_stepsize=3e-4,
         vf_iters =3,
@@ -103,7 +107,7 @@ def learn(*,
         ):
     '''
     learn a policy function with TRPO algorithm
-    
+
     Parameters:
     ----------
 
@@ -117,11 +121,11 @@ def learn(*,
 
     max_kl                  max KL divergence between old policy and new policy ( KL(pi_old || pi) )
 
-    entcoeff                coefficient of policy entropy term in the optimization objective
+    ent_coef                coefficient of policy entropy term in the optimization objective
 
     cg_iters                number of iterations of conjugate gradient algorithm
 
-    cg_damping              conjugate gradient damping 
+    cg_damping              conjugate gradient damping
 
     vf_stepsize             learning rate for adam optimizer used to optimie value function loss
 
@@ -130,11 +134,11 @@ def learn(*,
     total_timesteps           max number of timesteps
 
     max_episodes            max number of episodes
-    
+
     max_iters               maximum number of policy optimization iterations
 
     callback                function to be called with (locals(), globals()) each policy optimization step
-    
+
     load_path               str, path to load the model from (default: None, i.e. no model is loaded)
 
     **network_kwargs        keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
@@ -145,18 +149,21 @@ def learn(*,
     learnt model
 
     '''
-    
-    
-    nworkers = MPI.COMM_WORLD.Get_size()
-    rank = MPI.COMM_WORLD.Get_rank()
+
+    if MPI is not None:
+        nworkers = MPI.COMM_WORLD.Get_size()
+        rank = MPI.COMM_WORLD.Get_rank()
+    else:
+        nworkers = 1
+        rank = 0
 
     cpus_per_worker = 1
     U.get_session(config=tf.ConfigProto(
-            allow_soft_placement=True, 
+            allow_soft_placement=True,
             inter_op_parallelism_threads=cpus_per_worker,
             intra_op_parallelism_threads=cpus_per_worker
     ))
-    
+
 
     policy = build_policy(env.observation_space, env.action_space, network, value_network='copy', **network_kwargs)
     set_global_seeds(seed)
@@ -182,7 +189,7 @@ def learn(*,
     ent = pi.pd.entropy()
     meankl = tf.reduce_mean(kloldnew)
     meanent = tf.reduce_mean(ent)
-    entbonus = entcoeff * meanent
+    entbonus = ent_coef * meanent
 
     vferr = tf.reduce_mean(tf.square(pi.vf - ret))
 
@@ -237,17 +244,23 @@ def learn(*,
 
     def allmean(x):
         assert isinstance(x, np.ndarray)
-        out = np.empty_like(x)
-        MPI.COMM_WORLD.Allreduce(x, out, op=MPI.SUM)
-        out /= nworkers
+        if MPI is not None:
+            out = np.empty_like(x)
+            MPI.COMM_WORLD.Allreduce(x, out, op=MPI.SUM)
+            out /= nworkers
+        else:
+            out = np.copy(x)
+
         return out
 
     U.initialize()
     if load_path is not None:
         pi.load(load_path)
-    
+
     th_init = get_flat()
-    MPI.COMM_WORLD.Bcast(th_init, root=0)
+    if MPI is not None:
+        MPI.COMM_WORLD.Bcast(th_init, root=0)
+
     set_from_flat(th_init)
     vfadam.sync()
     print("Init param sum", th_init.sum(), flush=True)
@@ -353,7 +366,11 @@ def learn(*,
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
 
         lrlocal = (seg["ep_lens"], seg["ep_rets"]) # local values
-        listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+        if MPI is not None:
+            listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal) # list of tuples
+        else:
+            listoflrpairs = [lrlocal]
+
         lens, rews = map(flatten_lists, zip(*listoflrpairs))
         lenbuffer.extend(lens)
         rewbuffer.extend(rews)
@@ -384,8 +401,8 @@ def get_trainable_variables(scope):
     return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
 
 def get_vf_trainable_variables(scope):
-    return [v for v in get_trainable_variables(scope) if 'vf' in v.name[len(scope):].split('/')]    
+    return [v for v in get_trainable_variables(scope) if 'vf' in v.name[len(scope):].split('/')]
 
 def get_pi_trainable_variables(scope):
-    return [v for v in get_trainable_variables(scope) if 'pi' in v.name[len(scope):].split('/')]    
+    return [v for v in get_trainable_variables(scope) if 'pi' in v.name[len(scope):].split('/')]
 

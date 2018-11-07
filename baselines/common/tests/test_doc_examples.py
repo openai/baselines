@@ -8,7 +8,7 @@ except BaseException:
 
 
 @pytest.mark.skipif(
-    not _mujoco_present, 
+    not _mujoco_present,
     reason='error loading mujoco - either mujoco / mujoco key not present, or LD_LIBRARY_PATH is not pointing to mujoco library'
 )
 def test_lstm_example():
@@ -37,12 +37,12 @@ def test_lstm_example():
             action, _, state, _ = policy.step(ob, S=state, M=done)
             ob, reward, done, _ = venv.step(action)
             step_counter += 1
-            if done:    
+            if done:
                 break
 
-        
+
         assert step_counter > 5
-            
+
 
 
 

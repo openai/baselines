@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from baselines import logger
-
+from baselines.common.tile_images import tile_images
 
 class AlreadySteppingError(Exception):
     """
@@ -27,7 +26,16 @@ class NotSteppingError(Exception):
 class VecEnv(ABC):
     """
     An abstract asynchronous, vectorized environment.
+    Used to batch data from multiple copies of an environment, so that
+    each observation becomes an batch of observations, and expected action is a batch of actions to
+    be applied per-environment.
     """
+    closed = False
+    viewer = None
+
+    metadata = {
+        'render.modes': ['human', 'rgb_array']
+    }
 
     def __init__(self, num_envs, observation_space, action_space):
         self.num_envs = num_envs
@@ -72,12 +80,20 @@ class VecEnv(ABC):
         """
         pass
 
-    @abstractmethod
-    def close(self):
+    def close_extras(self):
         """
-        Clean up the environments' resources.
+        Clean up the  extra resources, beyond what's in this base class.
+        Only runs when not self.closed.
         """
         pass
+
+    def close(self):
+        if self.closed:
+            return
+        if self.viewer is not None:
+            self.viewer.close()
+        self.close_extras()
+        self.closed = True
 
     def step(self, actions):
         """
@@ -89,7 +105,21 @@ class VecEnv(ABC):
         return self.step_wait()
 
     def render(self, mode='human'):
-        logger.warn('Render not defined for %s' % self)
+        imgs = self.get_images()
+        bigimg = tile_images(imgs)
+        if mode == 'human':
+            self.get_viewer().imshow(bigimg)
+            return self.get_viewer().isopen
+        elif mode == 'rgb_array':
+            return bigimg
+        else:
+            raise NotImplementedError
+
+    def get_images(self):
+        """
+        Return RGB images from each environment
+        """
+        raise NotImplementedError
 
     @property
     def unwrapped(self):
@@ -97,6 +127,12 @@ class VecEnv(ABC):
             return self.venv.unwrapped
         else:
             return self
+
+    def get_viewer(self):
+        if self.viewer is None:
+            from gym.envs.classic_control import rendering
+            self.viewer = rendering.SimpleImageViewer()
+        return self.viewer
 
 
 class VecEnvWrapper(VecEnv):
@@ -126,9 +162,11 @@ class VecEnvWrapper(VecEnv):
     def close(self):
         return self.venv.close()
 
-    def render(self):
-        self.venv.render()
+    def render(self, mode='human'):
+        return self.venv.render(mode=mode)
 
+    def get_images(self):
+        return self.venv.get_images()
 
 class CloudpickleWrapper(object):
     """
