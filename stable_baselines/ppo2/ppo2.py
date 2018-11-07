@@ -140,9 +140,9 @@ class PPO2(ActorCriticRLModel):
                     neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
                     self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
-                    vpred = train_model.value_fn
+                    vpred = train_model._value
                     vpredclipped = self.old_vpred_ph + tf.clip_by_value(
-                        train_model.value_fn - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
+                        train_model._value - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
                     vf_losses1 = tf.square(vpred - self.rewards_ph)
                     vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
                     self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
@@ -265,11 +265,11 @@ class PPO2(ActorCriticRLModel):
             t_first_start = time.time()
 
             nupdates = total_timesteps // self.n_batch
-            for update in range(nupdates + 1):
+            for update in range(1, nupdates + 1):
                 assert self.n_batch % self.nminibatches == 0
                 n_batch_train = self.n_batch // self.nminibatches
                 t_start = time.time()
-                frac = 1.0 - (update / (nupdates + 1))
+                frac = 1.0 - (update - 1.0) / nupdates
                 lr_now = self.learning_rate(frac)
                 cliprangenow = self.cliprange(frac)
                 # true_reward is the reward without discount
@@ -319,7 +319,7 @@ class PPO2(ActorCriticRLModel):
                 if callback is not None:
                     callback(locals(), globals())
 
-                if self.verbose >= 1 and ((update + 1) % log_interval == 0 or update == 0):
+                if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
                     explained_var = explained_variance(values, returns)
                     logger.logkv("serial_timesteps", (update + 1) * self.n_steps)
                     logger.logkv("nupdates", (update + 1))

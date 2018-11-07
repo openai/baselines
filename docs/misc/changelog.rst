@@ -5,6 +5,12 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
+Release 2.2.0 (2018-11-07)
+--------------------------
+
+- Hotfix for ppo2, the wrong placeholder was used for the value function
+
+
 Release 2.1.2 (2018-11-06)
 --------------------------
 
