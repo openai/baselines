@@ -132,10 +132,8 @@ class MovieRecord(gym.Wrapper):
         self.epcount = 0
     def reset(self):
         if self.epcount % self.k == 0:
-            print('saving movie this episode', self.savedir)
             self.env.unwrapped.movie_path = self.savedir
         else:
-            print('not saving this episode')
             self.env.unwrapped.movie_path = None
             self.env.unwrapped.movie = None
         self.epcount += 1
