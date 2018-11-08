@@ -332,7 +332,7 @@ def plot_results(
                 xys = gresults[group]
                 if not any(xys):
                     continue
-                color = COLORS[groups.index(group)]
+                color = COLORS[groups.index(group) % len(COLORS)]
                 origxs = [xy[0] for xy in xys]
                 minxlen = min(map(len, origxs))
                 def allequal(qs):
