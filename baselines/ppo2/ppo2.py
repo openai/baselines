@@ -112,7 +112,8 @@ class Model(object):
         # zip aggregate each gradient with parameters associated
         # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
 
-        _train = trainer.apply_gradients(grads_and_var)
+        with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
+            _train = trainer.apply_gradients(grads_and_var)
 
         def train(lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
             # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
@@ -413,6 +414,3 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 # Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
-
-
-
