@@ -54,7 +54,7 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         # Write out the data
         dashes = '-' * (keywidth + valwidth + 7)
         lines = [dashes]
-        for (key, val) in sorted(key2str.items()):
+        for (key, val) in sorted(key2str.items(), key=lambda kv: kv[0].lower()):
             lines.append('| %s%s | %s%s |' % (
                 key,
                 ' ' * (keywidth - len(key)),
