@@ -168,7 +168,7 @@ def function(inputs, outputs, updates=None, givens=None):
     updates: [tf.Operation] or tf.Operation
         list of update functions or single update function that will be run whenever
         the function is called. The return is ignored.
-        
+
     """
     if isinstance(outputs, list):
         return _Function(inputs, outputs, updates, givens=givens)
