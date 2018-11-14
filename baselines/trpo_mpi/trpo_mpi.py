@@ -273,8 +273,8 @@ def learn(*,
     timesteps_so_far = 0
     iters_so_far = 0
     tstart = time.time()
-    lenbuffer = deque(maxlen=40) # rolling buffer for episode lengths
-    rewbuffer = deque(maxlen=40) # rolling buffer for episode rewards
+    lenbuffer = deque(maxlen=100) # rolling buffer for episode lengths
+    rewbuffer = deque(maxlen=100) # rolling buffer for episode rewards
 
     if sum([max_iters>0, total_timesteps>0, max_episodes>0])==0:
         # noththing to be done
