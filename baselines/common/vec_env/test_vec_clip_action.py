@@ -10,7 +10,7 @@ from .vec_clip_action import VecClipAction
 @pytest.mark.parametrize('klass', (DummyVecEnv, ShmemVecEnv, SubprocVecEnv))
 def test_vec_clip_action(klass):
     def make_fn():
-        env = gym.make('MountainCarContinuous-v2')
+        env = gym.make('MountainCarContinuous-v0')
         return env
     fns = [make_fn for _ in range(2)]
     env = klass(fns)
