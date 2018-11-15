@@ -2,7 +2,7 @@ from . import VecEnvWrapper
 import numpy as np
 
 
-class VecActionClip(VecEnvWrapper):
+class VecClipAction(VecEnvWrapper):
     def step_async(self, actions):
         low = self.action_space.low
         high = self.action_space.high
