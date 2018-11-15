@@ -8,7 +8,7 @@ from .vec_clip_action import VecClipAction
 
 
 @pytest.mark.parametrize('klass', (DummyVecEnv, ShmemVecEnv, SubprocVecEnv))
-def test_vec_clip_action(klass, num_envs, video_length, video_interval):
+def test_vec_clip_action(klass):
     def make_fn():
         env = gym.make('MountainCarContinuous-v2')
         return env
