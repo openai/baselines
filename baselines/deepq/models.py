@@ -97,8 +97,6 @@ def build_q_func(network, obs_augmentation, hiddens=[256], dueling=True, layer_n
         from baselines.common.models import get_network_builder
         network = get_network_builder(network)(**network_kwargs)
 
-    # if obs_augmentation == 'contract_state': network = augment_network_with_contract_state(network)
-
     def q_func_builder(input_placeholder, num_actions, scope, reuse=False):
         if obs_augmentation is not None:
             contract_placeholders = input_placeholder[1:]

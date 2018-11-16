@@ -65,5 +65,11 @@ class DFA:
 
         return False, 'q0'
 
+    def accepting_states(self):
+        return [
+            n for n in self.dfa.nodes()
+            if self.dfa.nodes.data('shape')[n] == 'doublecircle'
+        ]
+
     def state_id(self):
         return self.state_ids[self.current_state]
