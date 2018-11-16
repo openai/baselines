@@ -18,28 +18,34 @@ class Contract(DFA):
 class CountingPotentialContract(Contract):
     def __init__(self, name, reg_ex, violation_reward, gamma):
         super(CountingPotentialContract, self).__init__(name, reg_ex, violation_reward)
-        self.trace = Counter()
-        self.visit_count = Counter()
-        self.violation_count = Counter()
+        self.episode_visit_count = Counter()
+        self.visit_count = Counter(self.states())
+        self.violation_count = Counter(self.accepting_states())
         self.gamma = gamma
         self.prev_state = self.current_state
+
+    def get_state_potentials(self):
+        potential = lambda s: self.violation_count[s] / self.visit_count[s]
+        return {s: potential(s) for s in self.states()}
 
     def step(self, action, done):
         is_viol, _ = super().step(action, done)
         dfa_state = self.current_state
-        self.trace[dfa_state] += 1
-        self.visit_count[dfa_state] += 1
+        self.episode_visit_count[dfa_state] += 1
 
-        if is_viol:
-            self.violation_count += self.trace
-            self.trace = Counter()
-        if done:
-            self.trace = Counter()
         current_viol_propn = (self.violation_count[dfa_state] / self.visit_count[dfa_state])
         prev_viol_propn = (self.violation_count[self.prev_state] / self.visit_count[self.prev_state]) 
         rew_mod = (self.gamma * current_viol_propn - prev_viol_propn) * self.violation_reward
-        
         if self.prev_state in self.accepting_states(): rew_mod = 0
+        
+        if is_viol:
+            self.violation_count += self.episode_visit_count
+            self.visit_count += self.episode_visit_count
+            self.episode_visit_count = Counter()
+        if done:
+            self.visit_count += self.episode_visit_count
+            self.episode_visit_count = Counter()
+
         self.prev_state = dfa_state
         return is_viol, rew_mod
 
