@@ -7,21 +7,21 @@ from stable_baselines.common.vec_env import VecEnvWrapper, DummyVecEnv, VecNorma
 
 
 class VecVideoRecorder(VecEnvWrapper):
+    """
+    Wraps a VecEnv or VecEnvWrapper object to record rendered image as mp4 video.
+    It requires ffmpeg or avconv to be installed on the machine.
+
+    :param venv: (VecEnv or VecEnvWrapper)
+    :param video_folder: (str) Where to save videos
+    :param record_video_trigger: (func) Function that defines when to start recording.
+    The function takes the current number of step,
+    and returns whether we should start recording or not.
+    :param video_length: (int)  Length of recorded videos
+    :param name_prefix: (str) Prefix to the video name
+    """
 
     def __init__(self, venv, video_folder, record_video_trigger,
                  video_length=200, name_prefix='rl-video'):
-        """
-        Wraps a VecEnv or VecEnvWrapper object to record rendered image as mp4 video.
-        It requires ffmpeg or avconv to be installed on the machine.
-
-        :param venv: (VecEnv or VecEnvWrapper)
-        :param video_folder: (str) Where to save videos
-        :param record_video_trigger: (func) Function that defines when to start recording.
-                                            The function takes the current number of step,
-                                            and returns whether we should start recording or not.
-        :param video_length: (int)  Length of recorded videos
-        :param name_prefix: (str) Prefix to the video name
-        """
 
         VecEnvWrapper.__init__(self, venv)
 
