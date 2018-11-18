@@ -14,8 +14,8 @@ class VecVideoRecorder(VecEnvWrapper):
     :param venv: (VecEnv or VecEnvWrapper)
     :param video_folder: (str) Where to save videos
     :param record_video_trigger: (func) Function that defines when to start recording.
-    The function takes the current number of step,
-    and returns whether we should start recording or not.
+                                        The function takes the current number of step,
+                                        and returns whether we should start recording or not.
     :param video_length: (int)  Length of recorded videos
     :param name_prefix: (str) Prefix to the video name
     """
