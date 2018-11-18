@@ -57,5 +57,5 @@ VecNormalize
 VecVideoRecorder
 ~~~~~~~~~~~~
 
-	.. autoclass:: VecVideoRecorder
-	  :members:
+.. autoclass:: VecVideoRecorder
+  :members:

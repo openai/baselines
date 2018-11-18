@@ -11,7 +11,7 @@ from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 
-__version__ = "2.2.1a"
+__version__ = "2.2.1"
 
 
 # patch Gym spaces to add equality functions, if not implemented
