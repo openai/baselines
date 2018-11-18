@@ -5,6 +5,12 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
+Pre-Release 2.2.1a (WIP)
+--------------------------
+
+- added VecVideoRecorder to record mp4 videos from environment.
+
+
 Release 2.2.0 (2018-11-07)
 --------------------------
 

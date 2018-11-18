@@ -52,3 +52,10 @@ VecNormalize
 
 .. autoclass:: VecNormalize
   :members:
+
+
+VecVideoRecorder
+~~~~~~~~~~~~
+
+	.. autoclass:: VecVideoRecorder
+	  :members:
