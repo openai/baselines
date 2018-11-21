@@ -10,6 +10,7 @@ Welcome to Stable Baselines docs! - RL Baselines Made Easy
 of Reinforcement Learning (RL) algorithms based on OpenAI `Baselines <https://github.com/openai/baselines>`_.
 
 Github repository: https://github.com/hill-a/stable-baselines
+RL Baselines Zoo (collection pre-trained agents): https://github.com/araffin/rl-baselines-zoo
 
 You can read a detailed presentation of Stable Baselines in the
 Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-openai-baselines-reinforcement-learning-made-easy-df87c4b2fc82>`_
@@ -40,6 +41,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
    guide/custom_env
    guide/custom_policy
    guide/tensorboard
+   guide/rl_zoo
 
 
 .. toctree::

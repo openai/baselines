@@ -52,6 +52,12 @@ With support for running tests and building the documentation.
 Using Docker Images
 -------------------
 
+If you are looking for docker images with stable-baselines already installed in it,
+we recommend using images from `RL Baselines Zoo <https://github.com/araffin/rl-baselines-zoo>`_.
+
+Otherwise, the following images contained all the dependencies for stable-baselines but not the stable-baselines package itself.
+They are made for development.
+
 Use Built Images
 ~~~~~~~~~~~~~~~~
 
