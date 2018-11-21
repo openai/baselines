@@ -1,3 +1,5 @@
+**Status:** Active (under active development, breaking changes may occur)
+
 <img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/openai/baselines.svg?branch=master)](https://travis-ci.org/openai/baselines)
 
 # Baselines
