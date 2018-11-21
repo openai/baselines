@@ -27,6 +27,7 @@ Installation
 2. Clone the repository:
 
 ::
+  
   git clone https://github.com/araffin/rl-baselines-zoo
 
 
