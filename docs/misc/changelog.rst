@@ -5,6 +5,12 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
+Pre-Release 2.2.2a (WIP)
+--------------------------
+
+- added support for storing model in file like object. (thanks to @erniejunior)
+
+
 Release 2.2.1 (2018-11-18)
 --------------------------
 
@@ -186,4 +192,4 @@ Contributors (since v2.0.0):
 ----------------------------
 In random order...
 
-Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar
+Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @erniejunior
