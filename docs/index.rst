@@ -10,6 +10,7 @@ Welcome to Stable Baselines docs! - RL Baselines Made Easy
 of Reinforcement Learning (RL) algorithms based on OpenAI `Baselines <https://github.com/openai/baselines>`_.
 
 Github repository: https://github.com/hill-a/stable-baselines
+
 RL Baselines Zoo (collection pre-trained agents): https://github.com/araffin/rl-baselines-zoo
 
 You can read a detailed presentation of Stable Baselines in the
