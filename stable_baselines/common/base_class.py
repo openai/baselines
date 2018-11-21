@@ -177,7 +177,7 @@ class BaseRLModel(ABC):
         """
         Save the current parameters to file
 
-        :param save_path: (str) the save location
+        :param save_path: (str or file-like object) the save location
         """
         # self._save_to_file(save_path, data={}, params=None)
         raise NotImplementedError()
@@ -188,7 +188,7 @@ class BaseRLModel(ABC):
         """
         Load the model from file
 
-        :param load_path: (str) the saved parameter location
+        :param load_path: (str or file-like) the saved parameter location
         :param env: (Gym Envrionment) the new environment to run the loaded model on
             (can be None if you only need prediction from a trained model)
         :param kwargs: extra arguments to change the model when loading
@@ -198,23 +198,31 @@ class BaseRLModel(ABC):
 
     @staticmethod
     def _save_to_file(save_path, data=None, params=None):
-        _, ext = os.path.splitext(save_path)
-        if ext == "":
-            save_path += ".pkl"
+        if isinstance(save_path, str):
+            _, ext = os.path.splitext(save_path)
+            if ext == "":
+                save_path += ".pkl"
 
-        with open(save_path, "wb") as file:
-            cloudpickle.dump((data, params), file)
+            with open(save_path, "wb") as file_:
+                cloudpickle.dump((data, params), file_)
+        else:
+            # Here save_path is a file-like object, not a path
+            cloudpickle.dump((data, params), save_path)
 
     @staticmethod
     def _load_from_file(load_path):
-        if not os.path.exists(load_path):
-            if os.path.exists(load_path + ".pkl"):
-                load_path += ".pkl"
-            else:
-                raise ValueError("Error: the file {} could not be found".format(load_path))
+        if isinstance(load_path, str):
+            if not os.path.exists(load_path):
+                if os.path.exists(load_path + ".pkl"):
+                    load_path += ".pkl"
+                else:
+                    raise ValueError("Error: the file {} could not be found".format(load_path))
 
-        with open(load_path, "rb") as file:
-            data, params = cloudpickle.load(file)
+            with open(load_path, "rb") as file:
+                data, params = cloudpickle.load(file)
+        else:
+            # Here load_path is a file-like object, not a path
+            data, params = cloudpickle.load(load_path)
 
         return data, params
 

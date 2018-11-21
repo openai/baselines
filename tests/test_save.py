@@ -1,4 +1,5 @@
 import os
+from io import BytesIO
 
 import pytest
 
@@ -19,10 +20,16 @@ MODEL_LIST = [
     TRPO,
 ]
 
+STORE_METHODS = [
+    "path",
+    "file-like"
+]
+
 
 @pytest.mark.slow
 @pytest.mark.parametrize("model_class", MODEL_LIST)
-def test_model_manipulation(model_class):
+@pytest.mark.parametrize("storage_method", STORE_METHODS)
+def test_model_manipulation(model_class, storage_method):
     """
     Test if the algorithm (with a given policy) can be loaded and saved without any issues, the environment switching
     works and that the action prediction works
@@ -50,12 +57,23 @@ def test_model_manipulation(model_class):
         acc_reward = sum(acc_reward) / N_TRIALS
 
         # saving
-        model.save("./test_model")
+        if storage_method == "path":  # saving to a path
+            model.save("./test_model")
+        else:  # saving to a file-like object (BytesIO in this case)
+            b_io = BytesIO()
+            model.save(b_io)
+            model_bytes = b_io.getvalue()
+            b_io.close()
 
         del model, env
 
         # loading
-        model = model_class.load("./test_model")
+        if storage_method == "path":  # loading from path
+            model = model_class.load("./test_model")
+        else:
+            b_io = BytesIO(model_bytes)  # loading from file-like object (BytesIO in this case)
+            model = model_class.load(b_io)
+            b_io.close()
 
         # changing environment (note: this can be done at loading)
         env = DummyVecEnv([lambda: IdentityEnv(10)])
