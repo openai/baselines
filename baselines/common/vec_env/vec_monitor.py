@@ -22,16 +22,12 @@ class VecMonitor(VecEnvWrapper):
         obs, rews, dones, infos = self.venv.step_wait()
         self.eprets += rews
         self.eplens += 1
-        newinfos = []
-        for (i, (done, ret, eplen, info)) in enumerate(zip(dones, self.eprets, self.eplens, infos)):
-            info = info.copy()
+        for (i, (done, ret, eplen)) in enumerate(zip(dones, self.eprets, self.eplens)):
             if done:
                 epinfo = {'r': ret, 'l': eplen, 't': round(time.time() - self.tstart, 6)}
-                info['episode'] = epinfo
+                infos[i]['episode'] = epinfo
                 self.eprets[i] = 0
                 self.eplens[i] = 0
                 self.results_writer.write_row(epinfo)
 
-            newinfos.append(info)
-
-        return obs, rews, dones, newinfos
+        return obs, rews, dones, infos
