@@ -9,6 +9,7 @@ Pre-Release 2.2.2a (WIP)
 --------------------------
 
 - added support for storing model in file like object. (thanks to @erniejunior)
+- fixed wrong image detection when using tensorboard logging with DQN
 
 
 Release 2.2.1 (2018-11-18)
