@@ -1,0 +1,3 @@
+[submodule "mujoco-py"]
+	path = mujoco-py
+	url = git@github.com:openai/mujoco-py.git
