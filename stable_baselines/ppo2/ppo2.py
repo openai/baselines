@@ -221,9 +221,9 @@ class PPO2(ActorCriticRLModel):
             td_map[self.train_model.masks_ph] = masks
 
         if states is None:
-            update_fac = self.n_batch // self.nminibatches // self.noptepochs
+            update_fac = self.n_batch // self.nminibatches // self.noptepochs + 1
         else:
-            update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps
+            update_fac = self.n_batch // self.nminibatches // self.noptepochs // self.n_steps + 1
 
         if writer is not None:
             # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)
@@ -262,7 +262,7 @@ class PPO2(ActorCriticRLModel):
             nupdates = total_timesteps // self.n_batch
             for update in range(1, nupdates + 1):
                 assert self.n_batch % self.nminibatches == 0
-                n_batch_train = self.n_batch // self.nminibatches
+                batch_size = self.n_batch // self.nminibatches
                 t_start = time.time()
                 frac = 1.0 - (update - 1.0) / nupdates
                 lr_now = self.learning_rate(frac)
@@ -275,10 +275,10 @@ class PPO2(ActorCriticRLModel):
                     inds = np.arange(self.n_batch)
                     for epoch_num in range(self.noptepochs):
                         np.random.shuffle(inds)
-                        for start in range(0, self.n_batch, n_batch_train):
+                        for start in range(0, self.n_batch, batch_size):
                             timestep = ((update * self.noptepochs * self.n_batch + epoch_num * self.n_batch + start) //
-                                        n_batch_train)
-                            end = start + n_batch_train
+                                        batch_size)
+                            end = start + batch_size
                             mbinds = inds[start:end]
                             slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
                             mb_loss_vals.append(self._train_step(lr_now, cliprangenow, *slices, writer=writer,
@@ -287,7 +287,7 @@ class PPO2(ActorCriticRLModel):
                     assert self.n_envs % self.nminibatches == 0
                     env_indices = np.arange(self.n_envs)
                     flat_indices = np.arange(self.n_envs * self.n_steps).reshape(self.n_envs, self.n_steps)
-                    envs_per_batch = n_batch_train // self.n_steps
+                    envs_per_batch = batch_size // self.n_steps
                     for epoch_num in range(self.noptepochs):
                         np.random.shuffle(env_indices)
                         for start in range(0, self.n_envs, envs_per_batch):
@@ -316,9 +316,9 @@ class PPO2(ActorCriticRLModel):
 
                 if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
                     explained_var = explained_variance(values, returns)
-                    logger.logkv("serial_timesteps", (update + 1) * self.n_steps)
-                    logger.logkv("nupdates", (update + 1))
-                    logger.logkv("total_timesteps", (update + 1) * self.n_batch)
+                    logger.logkv("serial_timesteps", update * self.n_steps)
+                    logger.logkv("nupdates", update)
+                    logger.logkv("total_timesteps", update * self.n_batch)
                     logger.logkv("fps", fps)
                     logger.logkv("explained_variance", float(explained_var))
                     logger.logkv('ep_rewmean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
