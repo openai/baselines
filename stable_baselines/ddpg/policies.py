@@ -19,6 +19,7 @@ class DDPGPolicy(BasePolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
     """
+
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
         super(DDPGPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
                                          scale=scale, add_action_ph=True)
@@ -160,8 +161,8 @@ class FeedForwardPolicy(DDPGPolicy):
                     qf_h = tf.concat([qf_h, action], axis=-1)
 
             qvalue_fn = tf.layers.dense(qf_h, 1, name=scope,
-                                       kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
-                                                                                        maxval=3e-3))
+                                        kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
+                                                                                         maxval=3e-3))
 
             self.qvalue_fn = qvalue_fn
             self._qvalue = qvalue_fn[:, 0]
