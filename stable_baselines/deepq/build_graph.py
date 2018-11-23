@@ -436,7 +436,7 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
         is_image = len(obs_phs[0].shape) == 3 and obs_phs[0].shape[-1] in [1, 3, 4]
         if is_image:
             tf.summary.image('observation', obs_phs[0])
-        else:
+        elif len(obs_phs[0].shape) == 1:
             tf.summary.histogram('observation', obs_phs[0])
 
     optimize_expr = optimizer.apply_gradients(gradients)
