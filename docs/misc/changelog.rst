@@ -9,6 +9,9 @@ Pre-Release 2.2.2a (WIP)
 --------------------------
 
 - added support for storing model in file like object. (thanks to @erniejunior)
+- fixed wrong image detection when using tensorboard logging with DQN
+- fixed bug in ppo2 when passing non callable lr after loading
+- fixed tensorboard logging in ppo2 when nminibatches=1
 
 
 Release 2.2.1 (2018-11-18)

@@ -19,12 +19,13 @@ class DDPGPolicy(BasePolicy):
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
     """
+
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False):
         super(DDPGPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
                                          scale=scale, add_action_ph=True)
         assert isinstance(ac_space, Box), "Error: the action space must be of type gym.spaces.Box"
         assert (np.abs(ac_space.low) == ac_space.high).all(), "Error: the action space low and high must be symmetric"
-        self.value_fn = None
+        self.qvalue_fn = None
         self.policy = None
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
@@ -112,7 +113,7 @@ class FeedForwardPolicy(DDPGPolicy):
         self.cnn_kwargs = kwargs
         self.cnn_extractor = cnn_extractor
         self.reuse = reuse
-        self._value = None
+        self._qvalue = None
         if layers is None:
             layers = [64, 64]
         self.layers = layers
@@ -148,24 +149,24 @@ class FeedForwardPolicy(DDPGPolicy):
 
         with tf.variable_scope(scope, reuse=reuse):
             if self.feature_extraction == "cnn":
-                vf_h = self.cnn_extractor(obs, **self.cnn_kwargs)
+                qf_h = self.cnn_extractor(obs, **self.cnn_kwargs)
             else:
-                vf_h = tf.layers.flatten(obs)
+                qf_h = tf.layers.flatten(obs)
             for i, layer_size in enumerate(self.layers):
-                vf_h = tf.layers.dense(vf_h, layer_size, name='fc' + str(i))
+                qf_h = tf.layers.dense(qf_h, layer_size, name='fc' + str(i))
                 if self.layer_norm:
-                    vf_h = tf.contrib.layers.layer_norm(vf_h, center=True, scale=True)
-                vf_h = self.activ(vf_h)
+                    qf_h = tf.contrib.layers.layer_norm(qf_h, center=True, scale=True)
+                qf_h = self.activ(qf_h)
                 if i == 0:
-                    vf_h = tf.concat([vf_h, action], axis=-1)
+                    qf_h = tf.concat([qf_h, action], axis=-1)
 
-            value_fn = tf.layers.dense(vf_h, 1, name=scope,
-                                       kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
-                                                                                        maxval=3e-3))
+            qvalue_fn = tf.layers.dense(qf_h, 1, name=scope,
+                                        kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
+                                                                                         maxval=3e-3))
 
-            self.value_fn = value_fn
-            self._value = value_fn[:, 0]
-        return self.value_fn
+            self.qvalue_fn = qvalue_fn
+            self._qvalue = qvalue_fn[:, 0]
+        return self.qvalue_fn
 
     def step(self, obs, state=None, mask=None):
         return self.sess.run(self.policy, {self.obs_ph: obs})
@@ -174,7 +175,7 @@ class FeedForwardPolicy(DDPGPolicy):
         return self.sess.run(self.policy, {self.obs_ph: obs})
 
     def value(self, obs, action, state=None, mask=None):
-        return self.sess.run(self._value, {self.obs_ph: obs, self.action_ph: action})
+        return self.sess.run(self._qvalue, {self.obs_ph: obs, self.action_ph: action})
 
 
 class CnnPolicy(FeedForwardPolicy):
