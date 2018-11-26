@@ -12,6 +12,7 @@ Pre-Release 2.2.2a (WIP)
 - fixed wrong image detection when using tensorboard logging with DQN
 - fixed bug in ppo2 when passing non callable lr after loading
 - fixed tensorboard logging in ppo2 when nminibatches=1
+- added early stoppping via callback return value (@erniejunior)
 
 
 Release 2.2.1 (2018-11-18)
