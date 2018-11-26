@@ -807,7 +807,10 @@ class DDPG(OffPolicyRLModel):
                             self._store_transition(obs, action, reward, new_obs, done)
                             obs = new_obs
                             if callback is not None:
-                                callback(locals(), globals())
+                                # Only stop training if return value is False, not when it is None. This is for backwards
+                                # compatibility with callbacks that have no return statement.
+                                if callback(locals(), globals()) == False:
+                                    return self
 
                             if done:
                                 # Episode done.

@@ -20,7 +20,7 @@ def callback(lcl, _glb):
     else:
         mean_100ep_reward = round(float(np.mean(lcl['episode_rewards'][-101:-1])), 1)
     is_solved = lcl['step'] > 100 and mean_100ep_reward >= 199
-    return is_solved
+    return not is_solved
 
 
 def main(args):

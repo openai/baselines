@@ -486,7 +486,10 @@ class ACER(ActorCriticRLModel):
                                                          steps, writer)
 
                 if callback is not None:
-                    callback(locals(), globals())
+                    # Only stop training if return value is False, not when it is None. This is for backwards
+                    # compatibility with callbacks that have no return statement.
+                    if callback(locals(), globals()) == False:
+                        break
 
                 if self.verbose >= 1 and (int(steps / runner.n_batch) % log_interval == 0):
                     logger.record_tabular("total_timesteps", steps)
