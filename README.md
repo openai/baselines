@@ -42,6 +42,23 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 
 Documentation is available online: [https://stable-baselines.readthedocs.io/](https://stable-baselines.readthedocs.io/)
 
+## RL Baselines Zoo: A Collection of 70+ Trained RL Agents
+
+[RL Baselines Zoo](https://github.com/araffin/rl-baselines-zoo). is a collection of pre-trained Reinforcement Learning agents using
+Stable-Baselines.
+
+It also provides basic scripts for training, evaluating agents and recording videos.
+
+Goals of this repository:
+
+1. Provide a simple interface to train and enjoy RL agents
+2. Benchmark the different Reinforcement Learning algorithms
+3. Provide tuned hyperparameters for each environment and RL algorithm
+4. Have fun with the trained agents!
+
+Github repo: https://github.com/araffin/rl-baselines-zoo
+Documentation: https://stable-baselines.readthedocs.io/en/master/guide/rl_zoo.html
+
 ## Installation
 
 ### Prerequisites
@@ -154,6 +171,11 @@ All unit tests in baselines can be run using pytest runner:
 pip install pytest pytest-cov
 pytest --cov-config .coveragerc --cov-report html --cov-report term --cov=.
 ```
+
+## Projects Using Stable-Baselines
+
+We try to maintain a list of project using stable-baselines in the [Documentation](https://stable-baselines.readthedocs.io/en/master/misc/projects.html),
+please tell us when if you want your project to appear on this page ;)
 
 ## Citing the Project
 

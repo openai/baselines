@@ -4,8 +4,8 @@
 RL Baselines Zoo
 =================
 
-`RL Baselines Zoo <https://github.com/araffin/rl-baselines-zoo>`_. is a Collection of Pre-Trained Reinforcement Learning Agents using
-Stabe-Baselines.
+`RL Baselines Zoo <https://github.com/araffin/rl-baselines-zoo>`_. is a collection of pre-trained Reinforcement Learning agents using
+Stable-Baselines.
 It also provides basic scripts for training, evaluating agents and recording videos.
 
 Goals of this repository:
@@ -27,7 +27,7 @@ Installation
 2. Clone the repository:
 
 ::
-  
+
   git clone https://github.com/araffin/rl-baselines-zoo
 
 
@@ -83,5 +83,4 @@ For example, enjoy A2C on Breakout during 5000 timesteps:
 
 .. note::
 
-	You can find more information about the rl baselines zoo in the repo `README <https://github.com/araffin/rl-baselines-zoo>`_.
-  For instance, how to record a video of a trained agent.
+	You can find more information about the rl baselines zoo in the repo `README <https://github.com/araffin/rl-baselines-zoo>`_. For instance, how to record a video of a trained agent.

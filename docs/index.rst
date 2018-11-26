@@ -78,6 +78,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
   :caption: Misc
 
   misc/changelog
+  misc/projects
   misc/results_plotter
 
 

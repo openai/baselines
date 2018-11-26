@@ -1,0 +1,33 @@
+.. _projects:
+
+Projects
+=========
+
+This is a list of projects using stable-baselines.
+Please tell us when if you want your project to appear on this page ;)
+
+Learning to drive in a day
+--------------------------
+
+Implementation of reinforcement learning approach to make a donkey car learn to drive.
+Uses DDPG on VAE features (reproducing paper from wayve.ai)
+
+| Author: Roma Sokolkov (@r7vme)
+| Github repo: https://github.com/r7vme/learning-to-drive-in-a-day
+
+Donkey Gym
+----------
+
+OpenAI gym environment for donkeycar simulator.
+
+| Author: Tawn Kramer (@tawnkramer)
+| Github repo: https://github.com/tawnkramer/donkey_gym
+
+
+Self-driving FZERO Artificial Intelligence
+------------------------------------------
+
+Series of videos on how to make a self-driving FZERO artificial intelligence using reinforcement learning algorithms PPO2 and A2C.
+
+| Author: Lucas Thompson
+| Link: https://www.youtube.com/watch?v=PT9pQliUXDk&list=PLTWFMbPFsvz2LIR7thpuU738FcRQbR_8I
