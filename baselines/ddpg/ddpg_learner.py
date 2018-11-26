@@ -185,7 +185,7 @@ class DDPG(object):
         normalized_critic_target_tf = tf.clip_by_value(normalize(self.critic_target, self.ret_rms), self.return_range[0], self.return_range[1])
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
-            critic_reg_vars = [var for var in self.critic.trainable_vars if 'kernel' in var.name and 'output' not in var.name]
+            critic_reg_vars = [var for var in self.critic.trainable_vars if var.name.endswith('/w:0') and 'output' not in var.name]
             for var in critic_reg_vars:
                 logger.info('  regularizing: {}'.format(var.name))
             logger.info('  applying l2 regularization with {}'.format(self.critic_l2_reg))
