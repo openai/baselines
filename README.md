@@ -57,6 +57,7 @@ Goals of this repository:
 4. Have fun with the trained agents!
 
 Github repo: https://github.com/araffin/rl-baselines-zoo
+
 Documentation: https://stable-baselines.readthedocs.io/en/master/guide/rl_zoo.html
 
 ## Installation
@@ -174,7 +175,7 @@ pytest --cov-config .coveragerc --cov-report html --cov-report term --cov=.
 
 ## Projects Using Stable-Baselines
 
-We try to maintain a list of project using stable-baselines in the [Documentation](https://stable-baselines.readthedocs.io/en/master/misc/projects.html),
+We try to maintain a list of project using stable-baselines in the [documentation](https://stable-baselines.readthedocs.io/en/master/misc/projects.html),
 please tell us when if you want your project to appear on this page ;)
 
 ## Citing the Project
