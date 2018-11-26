@@ -31,3 +31,12 @@ Series of videos on how to make a self-driving FZERO artificial intelligence usi
 
 | Author: Lucas Thompson
 | Link: https://www.youtube.com/watch?v=PT9pQliUXDk&list=PLTWFMbPFsvz2LIR7thpuU738FcRQbR_8I
+
+S-RL Toolbox
+------------
+
+S-RL Toolbox: Reinforcement Learning (RL) and State Representation Learning (SRL) for Robotics.
+Stable-Baselines was originally developped for this project.
+
+| Authors: Antonin Raffin, Ashley Hill, René Traoré, Timothée Lesort, Natalia Díaz-Rodríguez, David Filliat
+| Github repo: https://github.com/araffin/robotics-rl-srl
