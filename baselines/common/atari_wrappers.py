@@ -73,7 +73,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         lives = self.env.unwrapped.ale.lives()
         if lives < self.lives and lives > 0:
             # for Qbert sometimes we stay in lives == 0 condition for a few frames
-            # so its important to keep lives > 0, so that we only reset once
+            # so it's important to keep lives > 0, so that we only reset once
             # the environment advertises done.
             done = True
         self.lives = lives
