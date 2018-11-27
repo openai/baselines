@@ -122,10 +122,9 @@ class Model(object):
         self.save = functools.partial(save_variables, sess=sess)
         self.load = functools.partial(load_variables, sess=sess)
 
-        if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
-            initialize()
-        else:
-            global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
+        initialize()
+        global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
+        if MPI is not None:
             sync_from_root(sess, global_variables) #pylint: disable=E1101
 
     def train(self, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
