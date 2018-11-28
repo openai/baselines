@@ -17,8 +17,7 @@ common_kwargs = {
 
 learn_args = {
     'a2c': dict(total_timesteps=50000),
-    # TODO need to resolve inference (step) API differences for acer; also slow
-    # 'acer': dict(seed=0, total_timesteps=1000),
+    'acer': dict(total_timesteps=20000),
     'deepq': dict(total_timesteps=5000),
     'acktr': dict(total_timesteps=30000),
     'ppo2': dict(total_timesteps=50000, lr=1e-3, nsteps=128, ent_coef=0.0),
@@ -47,4 +46,4 @@ def test_mnist(alg):
     simple_test(env_fn, learn_fn, 0.6)
 
 if __name__ == '__main__':
-    test_mnist('deepq')
+    test_mnist('acer')

@@ -3,9 +3,9 @@ import tensorflow.contrib.layers as layers
 
 from baselines.contract.common.models import augment_network_with_contract_state
 
-def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
+def _mlp(hiddens, input_, num_actions, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
-        out = inpt
+        out = input_
         for hidden in hiddens:
             out = layers.fully_connected(out, num_outputs=hidden, activation_fn=None)
             if layer_norm:
@@ -22,6 +22,9 @@ def mlp(hiddens=[], layer_norm=False):
     ----------
     hiddens: [int]
         list of sizes of hidden layers
+    layer_norm: bool
+        if true applies layer normalization for every layer
+        as described in https://arxiv.org/abs/1607.06450
 
     Returns
     -------
@@ -31,9 +34,9 @@ def mlp(hiddens=[], layer_norm=False):
     return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
 
 
-def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, layer_norm=False):
+def _cnn_to_mlp(convs, hiddens, dueling, input_, num_actions, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
-        out = inpt
+        out = input_
         with tf.variable_scope("convnet"):
             for num_outputs, kernel_size, stride in convs:
                 out = layers.convolution2d(out,
@@ -73,7 +76,7 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
 
     Parameters
     ----------
-    convs: [(int, int int)]
+    convs: [(int, int, int)]
         list of convolutional layers in form of
         (num_outputs, kernel_size, stride)
     hiddens: [int]
@@ -81,6 +84,9 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
     dueling: bool
         if true double the output MLP to compute a baseline
         for action scores
+    layer_norm: bool
+        if true applies layer normalization for every layer
+        as described in https://arxiv.org/abs/1607.06450
 
     Returns
     -------

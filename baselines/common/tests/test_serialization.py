@@ -1,4 +1,5 @@
 import os
+import gym
 import tempfile
 import pytest
 import tensorflow as tf
@@ -16,6 +17,7 @@ learn_kwargs = {
     'deepq': {},
     'a2c': {},
     'acktr': {},
+    'acer': {},
     'ppo2': {'nminibatches': 1, 'nsteps': 10},
     'trpo_mpi': {},
 }
@@ -36,10 +38,10 @@ def test_serialization(learn_fn, network_fn):
     '''
 
 
-    if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
+    if network_fn.endswith('lstm') and learn_fn in ['acer', 'acktr', 'trpo_mpi', 'deepq']:
             # TODO make acktr work with recurrent policies
             # and test
-            # github issue: https://github.com/openai/baselines/issues/194
+            # github issue: https://github.com/openai/baselines/issues/660
             return
 
     env = DummyVecEnv([lambda: MnistEnv(10, episode_len=100)])
@@ -73,6 +75,41 @@ def test_serialization(learn_fn, network_fn):
 
         np.testing.assert_allclose(mean1, mean2, atol=0.5)
         np.testing.assert_allclose(std1, std2, atol=0.5)
+
+
+@pytest.mark.parametrize("learn_fn", learn_kwargs.keys())
+@pytest.mark.parametrize("network_fn", ['mlp'])
+def test_coexistence(learn_fn, network_fn):
+    '''
+    Test if more than one model can exist at a time
+    '''
+
+    if learn_fn == 'deepq':
+            # TODO enable multiple DQN models to be useable at the same time
+            # github issue https://github.com/openai/baselines/issues/656
+            return
+
+    if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
+            # TODO make acktr work with recurrent policies
+            # and test
+            # github issue: https://github.com/openai/baselines/issues/660
+            return
+
+    env = DummyVecEnv([lambda: gym.make('CartPole-v0')])
+    learn = get_learn_function(learn_fn)
+
+    kwargs = {}
+    kwargs.update(network_kwargs[network_fn])
+    kwargs.update(learn_kwargs[learn_fn])
+
+    learn =  partial(learn, env=env, network=network_fn, total_timesteps=0, **kwargs)
+    make_session(make_default=True, graph=tf.Graph())
+    model1 = learn(seed=1)
+    make_session(make_default=True, graph=tf.Graph())
+    model2 = learn(seed=2)
+
+    model1.step(env.observation_space.sample())
+    model2.step(env.observation_space.sample())
 
 
 
