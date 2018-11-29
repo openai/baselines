@@ -30,7 +30,7 @@ Self-driving FZERO Artificial Intelligence
 Series of videos on how to make a self-driving FZERO artificial intelligence using reinforcement learning algorithms PPO2 and A2C.
 
 | Author: Lucas Thompson
-| Link: https://www.youtube.com/watch?v=PT9pQliUXDk&list=PLTWFMbPFsvz2LIR7thpuU738FcRQbR_8I
+| `Video Link <https://www.youtube.com/watch?v=PT9pQliUXDk&list=PLTWFMbPFsvz2LIR7thpuU738FcRQbR_8I>`_
 
 S-RL Toolbox
 ------------
@@ -40,3 +40,24 @@ Stable-Baselines was originally developped for this project.
 
 | Authors: Antonin Raffin, Ashley Hill, René Traoré, Timothée Lesort, Natalia Díaz-Rodríguez, David Filliat
 | Github repo: https://github.com/araffin/robotics-rl-srl
+
+
+Roboschool simulations training on Amazon SageMaker
+---------------------------------------------------
+
+"In this notebook example, we will make HalfCheetah learn to walk using the stable-baselines [...]"
+
+
+| Author: Amazon AWS
+| `Repo Link <https://github.com/awslabs/amazon-sagemaker-examples/tree/master/reinforcement_learning/rl_roboschool_stable_baselines>`_
+
+
+MarathonEnvs + OpenAi.Baselines
+-------------------------------
+
+
+Experimental - using OpenAI baselines with MarathonEnvs (ML-Agents)
+
+
+| Author: Joe Booth (@Sohojoe)
+| Github repo: https://github.com/Sohojoe/MarathonEnvsBaselines
