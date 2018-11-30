@@ -181,11 +181,11 @@ def parse_cmdline_kwargs(args):
 
 
 
-def main():
+def main(args):
     # configure logger, disable logging in child MPI processes (with rank > 0)
 
     arg_parser = common_arg_parser()
-    args, unknown_args = arg_parser.parse_known_args()
+    args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
 
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
@@ -220,5 +220,7 @@ def main():
 
         env.close()
 
+    return model
+
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
