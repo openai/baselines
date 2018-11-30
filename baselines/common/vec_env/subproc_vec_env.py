@@ -1,4 +1,5 @@
 import numpy as np
+import multiprocessing
 from multiprocessing import Process, Pipe
 from . import VecEnv, CloudpickleWrapper
 
@@ -46,6 +47,10 @@ class SubprocVecEnv(VecEnv):
         self.closed = False
         nenvs = len(env_fns)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
+
+        # Set the multi-process startup method to 'spawn` instead of `fork` to support VSCode debugging.
+        multiprocessing.set_start_method('spawn')
+
         self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                    for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for p in self.ps:
