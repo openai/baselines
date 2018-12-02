@@ -77,6 +77,10 @@ Installation of system packages on Mac requires [Homebrew](https://brew.sh). Wit
 brew install cmake openmpi
 ```
 
+#### Windows 10
+
+To install stable-baselines on Windows, please look at the [documentation](https://stable-baselines.readthedocs.io/en/master/guide/install.html#prerequisites).
+
 ### Install using pip
 Install the Stable Baselines package
 

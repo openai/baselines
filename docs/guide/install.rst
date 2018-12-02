@@ -30,6 +30,23 @@ Homebrew installed, run the follwing:
 .. _Homebrew: https://brew.sh
 
 
+Windows 10
+~~~~~~~~~~
+
+We recommend using `Anaconda <https://conda.io/docs/user-guide/install/windows.html>`_ for windows users.
+
+0. Create a new environment in the Anaconda Navigator (at least python 3.5) and install ``zlib`` in this environment.
+
+1. Install `MPI for Windows <https://www.microsoft.com/en-us/download/details.aspx?id=57467>`_ (you need to download and install ``msmpisetup.exe``)
+
+2. Clone Stable-Baselines Github repo and replace this line ``gym[atari,classic_control]>=0.10.9`` by this one ``gym[classic_control]>=0.10.9``
+
+3. Install Stable-Baselines from source, inside the folder, run ``pip install -e .``
+
+4. [Optional] If you want to use atari environments, you need to install this package: https://github.com/j8lp/atari-py
+(using again ``pip install -e .``)
+
+
 Stable Release
 --------------
 
