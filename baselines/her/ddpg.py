@@ -154,6 +154,10 @@ class DDPG(object):
     def initDemoBuffer(self, demoDataFile, update_stats=True): #function that initializes the demo buffer
 
         demoData = np.load(demoDataFile) #load the demonstration data from data file
+        demoDataObs = demoData['obs']
+        demoDataAcs = demoData['acs']
+        demoDataInfo = demoData['info']
+        
         info_keys = [key.replace('info_', '') for key in self.input_dims.keys() if key.startswith('info_')]
         info_values = [np.empty((self.T, 1, self.input_dims['info_' + key]), np.float32) for key in info_keys]
 
@@ -161,15 +165,15 @@ class DDPG(object):
             obs, acts, goals, achieved_goals = [], [] ,[] ,[]
             i = 0
             for transition in range(self.T):
-                obs.append([demoData['obs'][epsd ][transition].get('observation')])
-                acts.append([demoData['acs'][epsd][transition]])
-                goals.append([demoData['obs'][epsd][transition].get('desired_goal')])
-                achieved_goals.append([demoData['obs'][epsd][transition].get('achieved_goal')])
+                obs.append([demoDataObs[epsd][transition].get('observation')])
+                acts.append([demoDataAcs[epsd][transition]])
+                goals.append([demoDataObs[epsd][transition].get('desired_goal')])
+                achieved_goals.append([demoDataObs[epsd][transition].get('achieved_goal')])
                 for idx, key in enumerate(info_keys):
-                    info_values[idx][transition, i] = demoData['info'][epsd][transition][key]
+                    info_values[idx][transition, i] = demoDataInfo[epsd][transition][key]
 
-            obs.append([demoData['obs'][epsd][self.T].get('observation')])
-            achieved_goals.append([demoData['obs'][epsd][self.T].get('achieved_goal')])
+            obs.append([demoDataObs[epsd][self.T].get('observation')])
+            achieved_goals.append([demoDataObs[epsd][self.T].get('achieved_goal')])
 
             episode = dict(o=obs,
                            u=acts,
