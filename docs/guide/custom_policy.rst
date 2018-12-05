@@ -19,7 +19,8 @@ However, you can also easily define a custom architecture for the policy (or val
   class CustomPolicy(FeedForwardPolicy):
       def __init__(self, *args, **kwargs):
           super(CustomPolicy, self).__init__(*args, **kwargs,
-                                             layers=[128, 128, 128],
+                                             net_arch=[dict(pi=[128, 128, 128],
+                                                            vf=[128, 128, 128])],
                                              feature_extraction="mlp")
 
   # Create and wrap the environment
@@ -54,7 +55,8 @@ You can also registered your policy, to help with code simplicity: you can refer
   class CustomPolicy(FeedForwardPolicy):
       def __init__(self, *args, **kwargs):
           super(CustomPolicy, self).__init__(*args, **kwargs,
-                                             layers=[128, 128, 128],
+                                             net_arch=[dict(pi=[128, 128, 128],
+                                                            vf=[128, 128, 128])],
                                              feature_extraction="mlp")
 
   # Register the policy, it will check that the name is not already taken
@@ -63,6 +65,68 @@ You can also registered your policy, to help with code simplicity: you can refer
   # Because the policy is now registered, you can pass
   # a string to the agent constructor instead of passing a class
   model = A2C(policy='CustomPolicy', env='LunarLander-v2', verbose=1).learn(total_timesteps=100000)
+
+
+.. deprecated:: 2.3.0
+
+  Use ``net_arch`` instead of ``layers`` parameter to define the network architecture. It allows to have a greater control.
+
+
+The ``net_arch`` parameter of ``FeedForwardPolicy`` allows to specify the amount and size of the hidden layers and how many
+of them are shared between the policy network and the value network. It is assumed to be a list with the following
+structure:
+
+1. An arbitrary length (zero allowed) number of integers each specifying the number of units in a shared layer.
+   If the number of ints is zero, there will be no shared layers.
+2. An optional dict, to specify the following non-shared layers for the value network and the policy network.
+   It is formatted like ``dict(vf=[<value layer sizes>], pi=[<policy layer sizes>])``.
+   If it is missing any of the keys (pi or vf), no non-shared layers (empty list) is assumed.
+
+In short: ``[<shared layers>, dict(vf=[<non-shared value network layers>], pi=[<non-shared policy network layers>])]``.
+
+Examples
+~~~~~~~~
+
+Two shared layers of size 128: ``net_arch=[128, 128]``
+
+
+.. code-block:: none
+
+                  obs
+                   |
+                 <128>
+                   |
+                 <128>
+           /               \
+        action            value
+
+
+Value network deeper than policy network, first layer shared: ``net_arch=[128, dict(vf=[256, 256])]``
+
+.. code-block:: none
+
+                  obs
+                   |
+                 <128>
+           /               \
+        action             <256>
+                             |
+                           <256>
+                             |
+                           value
+
+
+Initially shared then diverging: ``[128, dict(vf=[256], pi=[16])]``
+
+.. code-block:: none
+
+                  obs
+                   |
+                 <128>
+           /               \
+         <16>             <256>
+           |                |
+        action            value
 
 
 If however, your task requires a more granular control over the policy architecture, you can redefine the policy directly:
@@ -86,7 +150,7 @@ If however, your task requires a more granular control over the policy architect
           with tf.variable_scope("model", reuse=reuse):
               activ = tf.nn.relu
 
-              extracted_features = nature_cnn(self.processed_x, **kwargs)
+              extracted_features = nature_cnn(self.self.processed_obs, **kwargs)
               extracted_features = tf.layers.flatten(extracted_features)
 
               pi_h = extracted_features

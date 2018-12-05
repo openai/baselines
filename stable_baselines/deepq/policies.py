@@ -100,11 +100,11 @@ class FeedForwardPolicy(DQNPolicy):
         with tf.variable_scope("model", reuse=reuse):
             with tf.variable_scope("action_value"):
                 if feature_extraction == "cnn":
-                    extracted_features = cnn_extractor(self.processed_x, **kwargs)
+                    extracted_features = cnn_extractor(self.processed_obs, **kwargs)
                     action_out = extracted_features
                 else:
                     activ = tf.nn.relu
-                    extracted_features = tf.layers.flatten(self.processed_x)
+                    extracted_features = tf.layers.flatten(self.processed_obs)
                     action_out = extracted_features
                     for layer_size in layers:
                         action_out = tf_layers.fully_connected(action_out, num_outputs=layer_size, activation_fn=None)

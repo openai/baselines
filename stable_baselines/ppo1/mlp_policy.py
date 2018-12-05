@@ -18,11 +18,11 @@ class BasePolicy(object):
         self.scope = None
         self.obs_ph = None
         self.stochastic_ph = None
-        self.processed_x = None
+        self.processed_obs = None
 
         if placeholders is not None:
             self.obs_ph = placeholders.get("obs", None)
-            self.processed_x = placeholders.get("processed_obs", None)
+            self.processed_obs = placeholders.get("processed_obs", None)
             self.stochastic_ph = placeholders.get("stochastic", None)
 
     def get_obs_and_pdtype(self, ob_space, ac_space):
@@ -35,9 +35,9 @@ class BasePolicy(object):
         self.pdtype = pdtype = make_proba_dist_type(ac_space)
 
         if self.obs_ph is None:
-            self.obs_ph, self.processed_x = observation_input(ob_space)
+            self.obs_ph, self.processed_obs = observation_input(ob_space)
         else:
-            assert self.processed_x is not None
+            assert self.processed_obs is not None
 
         return self.obs_ph, pdtype
 

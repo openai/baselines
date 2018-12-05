@@ -9,7 +9,7 @@ from stable_baselines.deepq.policies import FeedForwardPolicy
 class CustomPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
         super(CustomPolicy, self).__init__(*args, **kwargs,
-                                           layers=[64],
+                                           net_arch=[dict(pi=[64], vf=[64])],
                                            layer_norm=True,
                                            feature_extraction="mlp")
 

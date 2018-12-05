@@ -5,7 +5,7 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre-Release 2.2.2a (WIP)
+Pre-Release 2.3.0a (WIP)
 --------------------------
 
 - added support for storing model in file like object. (thanks to @erniejunior)
@@ -13,6 +13,7 @@ Pre-Release 2.2.2a (WIP)
 - fixed bug in ppo2 when passing non callable lr after loading
 - fixed tensorboard logging in ppo2 when nminibatches=1
 - added early stoppping via callback return value (@erniejunior)
+- added more flexible custom mlp policies (@erniejunior)
 
 
 Release 2.2.1 (2018-11-18)

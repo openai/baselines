@@ -300,7 +300,7 @@ However, you can also easily define a custom architecture for the policy network
   class CustomPolicy(FeedForwardPolicy):
       def __init__(self, *args, **kwargs):
           super(CustomPolicy, self).__init__(*args, **kwargs,
-                                             layers=[128, 128, 128],
+                                             net_arch=[dict(pi=[128, 128, 128], vf=[128, 128, 128])],
                                              feature_extraction="mlp")
 
   # Create and wrap the environment

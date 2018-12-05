@@ -12,7 +12,7 @@ N_TRIALS = 100
 class CustomCommonPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
         super(CustomCommonPolicy, self).__init__(*args, **kwargs,
-                                           layers=[8, 8],
+                                           net_arch=[8, dict(vf=[8, 8], pi=[8, 8])],
                                            feature_extraction="mlp")
 
 class CustomDQNPolicy(DQNPolicy):

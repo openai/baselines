@@ -124,7 +124,7 @@ class FeedForwardPolicy(DDPGPolicy):
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         if obs is None:
-            obs = self.processed_x
+            obs = self.processed_obs
 
         with tf.variable_scope(scope, reuse=reuse):
             if self.feature_extraction == "cnn":
@@ -143,7 +143,7 @@ class FeedForwardPolicy(DDPGPolicy):
 
     def make_critic(self, obs=None, action=None, reuse=False, scope="qf"):
         if obs is None:
-            obs = self.processed_x
+            obs = self.processed_obs
         if action is None:
             action = self.action_ph
 
