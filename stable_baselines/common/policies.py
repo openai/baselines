@@ -299,9 +299,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
     :param reuse: (bool) If the policy is reusable or not
     :param layers: ([int]) (deprecated, use net_arch instead) The size of the Neural network for the policy
-    (if None, default to [64, 64])
+        (if None, default to [64, 64])
     :param net_arch: (list) Specification of the actor-critic policy network architecture (see mlp_extractor
-    documentation for details).
+        documentation for details).
     :param act_fun: the activation function to use in the neural network.
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
     :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
