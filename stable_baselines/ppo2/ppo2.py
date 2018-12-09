@@ -484,7 +484,7 @@ def constfn(val):
 def safe_mean(arr):
     """
     Compute the mean of an array if there is at least one element.
-    For empty array, return zero. It is used for logging only.
+    For empty array, return nan. It is used for logging only.
 
     :param arr: (np.ndarray)
     :return: (float)
