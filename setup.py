@@ -40,7 +40,7 @@ setup(name='baselines',
           'progressbar2',
           'cloudpickle',
           'click',
-          'opencv-python', 'botocore', 'boto3', 'numpy'
+          'opencv-python', 'botocore', 'boto3', 'numpy', 'coloredlogs'
       ],
       extras_require=extras,
       description='OpenAI baselines: high quality implementations of reinforcement learning algorithms',
