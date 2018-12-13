@@ -50,8 +50,8 @@ def train(policy, rollout_worker, evaluator,
         for _ in range(n_cycles):
             episode = rollout_worker.generate_rollouts()
             clogger.info("Episode = {}".format(episode.keys()))
-            for key in episode.keys():
-                clogger.info(" - {}: {}".format(key, episode[key].shape))
+            # for key in episode.keys():
+            #     clogger.info(" - {}: {}".format(key, episode[key].shape))
             policy.store_episode(episode)
             for _ in range(n_batches):
                 policy.train()
