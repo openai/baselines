@@ -13,6 +13,7 @@ Pre-Release 2.4.0a (WIP)
 - fixed DDPG that did not save target network parameters
 - fixed bug related to shape of true_reward (@abhiskk)
 - fixed example code in documentation of tf_util:Function (@JohannesAck)
+- added learning rate schedule for SAC
 
 Release 2.3.0 (2018-12-05)
 --------------------------

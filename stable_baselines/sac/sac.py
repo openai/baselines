@@ -10,7 +10,7 @@ from stable_baselines.a2c.utils import find_trainable_variables, total_episode_r
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.deepq.replay_buffer import ReplayBuffer
-from stable_baselines.ppo2.ppo2 import safe_mean
+from stable_baselines.ppo2.ppo2 import safe_mean, get_schedule_fn
 from stable_baselines.sac.policies import SACPolicy
 from stable_baselines import logger
 
@@ -37,8 +37,9 @@ class SAC(OffPolicyRLModel):
     :param policy: (SACPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, LnMlpPolicy, ...)
     :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
     :param gamma: (float) the discount factor
-    :param learning_rate: (float) learning rate for adam optimizer,
+    :param learning_rate: (float or callable) learning rate for adam optimizer,
         the same learning rate will be used for all networks (Q-Values, Actor and Value function)
+        it can be a function of the current progress (from 1 to 0)
     :param buffer_size: (int) size of the replay buffer
     :param batch_size: (int) Minibatch size for each gradient update
     :param tau: (float) the soft update coefficient ("polyak update", between 0 and 1)
@@ -102,6 +103,7 @@ class SAC(OffPolicyRLModel):
         self.infos_names = None
         self.entropy = None
         self.target_params = None
+        self.learning_rate_ph = None
 
         if _init_setup_model:
             self.setup_model()
@@ -134,6 +136,7 @@ class SAC(OffPolicyRLModel):
                     self.rewards_ph = tf.placeholder(tf.float32, shape=(None, 1), name='rewards')
                     self.actions_ph = tf.placeholder(tf.float32, shape=(None,) + self.action_space.shape,
                                                      name='actions')
+                    self.learning_rate_ph = tf.placeholder(tf.float32, [], name="learning_rate_ph")
 
                 with tf.variable_scope("model", reuse=False):
                     # Create the policy
@@ -191,13 +194,13 @@ class SAC(OffPolicyRLModel):
 
                     # Policy train op
                     # (has to be separate from value train op, because min_qf_pi appears in policy_loss)
-                    policy_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+                    policy_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph)
                     policy_train_op = policy_optimizer.minimize(policy_loss, var_list=get_vars('model/pi'))
 
                     # Value train op
                     # (control dep of policy_train_op because sess.run otherwise
                     # evaluates in nondeterministic order)
-                    value_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
+                    value_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph)
                     values_params = get_vars('model/values_fn')
 
                     source_params = get_vars("model/values_fn/vf")
@@ -231,6 +234,7 @@ class SAC(OffPolicyRLModel):
                     tf.summary.scalar('qf2_loss', qf2_loss)
                     tf.summary.scalar('value_loss', value_loss)
                     tf.summary.scalar('entropy', self.entropy)
+                    tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph))
 
                 # Retrieve parameters that must be saved
                 self.params = find_trainable_variables("model")
@@ -243,7 +247,7 @@ class SAC(OffPolicyRLModel):
 
                 self.summary = tf.summary.merge_all()
 
-    def _train_step(self, step, writer):
+    def _train_step(self, step, writer, learning_rate):
         # Sample a batch from the replay buffer
         batch = self.replay_buffer.sample(self.batch_size)
         batch_obs, batch_actions, batch_rewards, batch_next_obs, batch_dones = batch
@@ -254,6 +258,7 @@ class SAC(OffPolicyRLModel):
             self.next_observations_ph: batch_next_obs,
             self.rewards_ph: batch_rewards.reshape(self.batch_size, -1),
             self.terminals_ph: batch_dones.reshape(self.batch_size, -1),
+            self.learning_rate_ph: learning_rate
         }
 
         # out  = [policy_loss, qf1_loss, qf2_loss,
@@ -279,6 +284,11 @@ class SAC(OffPolicyRLModel):
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=4, tb_log_name="SAC"):
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
             self._setup_learn(seed)
+
+            # Transform to callable if needed
+            self.learning_rate = get_schedule_fn(self.learning_rate)
+            # Initial learning rate
+            current_lr = self.learning_rate(1)
 
             start_time = time.time()
             episode_rewards = [0.0]
@@ -334,8 +344,11 @@ class SAC(OffPolicyRLModel):
                         if step < self.batch_size or step < self.learning_starts:
                             break
                         n_updates += 1
+                        # Compute current learning_rate
+                        frac = 1.0 - step / total_timesteps
+                        current_lr = self.learning_rate(frac)
                         # Update policy and critics (q functions)
-                        mb_infos_vals.append(self._train_step(step, writer))
+                        mb_infos_vals.append(self._train_step(step, writer, current_lr))
                         # Update target network
                         if (step + grad_step) % self.target_update_interval == 0:
                             # Update target network
@@ -364,6 +377,7 @@ class SAC(OffPolicyRLModel):
                     logger.logkv('ep_rewmean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
                     logger.logkv('eplenmean', safe_mean([ep_info['l'] for ep_info in ep_info_buf]))
                     logger.logkv("n_updates", n_updates)
+                    logger.logkv("current_lr", current_lr)
                     logger.logkv("fps", fps)
                     logger.logkv('time_elapsed', int(time.time() - start_time))
                     if len(infos_values) > 0:
