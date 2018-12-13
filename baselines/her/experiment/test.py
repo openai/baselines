@@ -30,7 +30,7 @@ def mpi_average(value):
     return mpi_moments(np.array(value))[0]
 
 
-def train(policy, rollout_worker, evaluator,
+def test(policy, rollout_worker, evaluator,
           n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
           save_policies, demo_file, **kwargs):
     rank = MPI.COMM_WORLD.Get_rank()
@@ -45,33 +45,36 @@ def train(policy, rollout_worker, evaluator,
     if policy.bc_loss == 1: policy.initDemoBuffer(demo_file) #initialize demo buffer if training with demonstrations
     for epoch in range(n_epochs):
         clogger.info("Start: Epoch {}/{}".format(epoch, n_epochs))
-        # train
-        rollout_worker.clear_history()
-        for _ in range(n_cycles):
-            episode = rollout_worker.generate_rollouts()
-            clogger.info("Episode = {}".format(episode.keys()))
-            for key in episode.keys():
-                clogger.info(" - {}: {}".format(key, episode[key].shape))
-            policy.store_episode(episode)
-            for _ in range(n_batches):
-                policy.train()
-            policy.update_target_net()
+        # # train
+        # rollout_worker.clear_history()
+        # for _ in range(n_cycles):
+        #     episode = rollout_worker.generate_rollouts()
+        #     clogger.info("Episode = {}".format(episode.keys()))
+        #     for key in episode.keys():
+        #         clogger.info(" - {}: {}".format(key, episode[key].shape))
+        #     policy.store_episode(episode)
+        #     for _ in range(n_batches):
+        #         policy.train()
+        #     policy.update_target_net()
 
         # test
         evaluator.clear_history()
         for _ in range(n_test_rollouts):
-            evaluator.generate_rollouts()
-
+            episode = evaluator.generate_rollouts()
+            clogger.info("Episode = {}".format(episode.keys()))
+            
+        
         # record logs
         logger.record_tabular('epoch', epoch)
         for key, val in evaluator.logs('test'):
             logger.record_tabular(key, mpi_average(val))
-        for key, val in rollout_worker.logs('train'):
-            logger.record_tabular(key, mpi_average(val))
+        # for key, val in rollout_worker.logs('train'):
+        #     logger.record_tabular(key, mpi_average(val))
         for key, val in policy.logs():
             logger.record_tabular(key, mpi_average(val))
 
         if rank == 0:
+            clogger.info("Show table")
             logger.dump_tabular()
 
         # save the policy if it's better than the previous ones
@@ -96,7 +99,7 @@ def train(policy, rollout_worker, evaluator,
 
 def launch(
     env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
-        demo_file, logdir_tf=None, override_params={}, save_policies=True,
+        demo_file, logdir_tf=None, override_params={}, save_policies=True
 ):
     # Fork for multi-CPU MPI implementation.
     if num_cpu > 1:
@@ -150,17 +153,12 @@ def launch(
         logger.warn('****************')
         logger.warn()
 
-
     dims = config.configure_dims(params)
     policy = config.configure_ddpg(dims=dims, params=params, clip_return=clip_return)
-    clogger.info(policy.sess)
-    # Prepare for Saving Network
-    clogger.info("logdir_tf: {}".format(logdir_tf))
-    if not logdir_tf == None:
-        clogger.info("Create tc.Saver()")
+    if logdir_tf:
         import tensorflow as tf
         saver = tf.train.Saver()
-    
+        saver.restore(policy.sess, logdir_tf)
 
     rollout_params = {
         'exploit': False,
@@ -188,19 +186,11 @@ def launch(
     evaluator = RolloutWorker(params['make_env'], policy, dims, logger, **eval_params)
     evaluator.seed(rank_seed)
 
-    train(
+    test(
         logdir=logdir, policy=policy, rollout_worker=rollout_worker,
         evaluator=evaluator, n_epochs=n_epochs, n_test_rollouts=params['n_test_rollouts'],
         n_cycles=params['n_cycles'], n_batches=params['n_batches'],
         policy_save_interval=policy_save_interval, save_policies=save_policies, demo_file=demo_file)
-
-
-    # Save Trained Network
-    if logdir_tf:
-        clogger.info("Save tf.variables to {}".format(logdir_tf))
-        clogger.info(policy.sess)
-        saver.save(policy.sess, logdir_tf)
-        clogger.info("Model was successflly saved [logidr_tf={}]".format(logdir_tf))
 
 
 @click.command()

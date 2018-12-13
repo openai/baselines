@@ -7,6 +7,13 @@ from mujoco_py import MujocoException
 from baselines.her.util import convert_episode_to_batch_major, store_args
 
 
+# --------------------------------------------------------------------------------------
+from baselines.custom_logger import CustomLoggerObject
+clogger = CustomLoggerObject()
+clogger.info("MyLogger is working!!")
+# --------------------------------------------------------------------------------------
+
+
 class RolloutWorker:
 
     @store_args
@@ -84,7 +91,8 @@ class RolloutWorker:
                 noise_eps=self.noise_eps if not self.exploit else 0.,
                 random_eps=self.random_eps if not self.exploit else 0.,
                 use_target_net=self.use_target_net)
-
+            # clogger.info("compute_Q[{}, {}]: policy_output: {}".format(self.compute_Q, t, policy_output))
+            
             if self.compute_Q:
                 u, Q = policy_output
                 Qs.append(Q)
