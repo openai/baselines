@@ -26,6 +26,16 @@ python -m baselines.her.experiment.test --env HandManipulateBlock-v0 \
        --logdir_aq < path to save actions etc... >
 ```
 
+### Log File
+ログファイルには以下の項目が記述されている.
+
++ `goal/desired`: ゴール (`g`)
++ `goal/achieved`: 到達点 (`ag`)
++ `observation`: 観測 (`o`)
++ `action`: action, shape=[EpisodeNo, Batch, Sequence, env.action_space]
++ `Qvalue`: Q-value, shape=[EpisodeNo, Batch, Sequence, env.action_space]
+
+
 
 
 
