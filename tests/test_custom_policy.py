@@ -2,10 +2,11 @@ import os
 
 import pytest
 
-from stable_baselines import A2C, ACER, ACKTR, DQN, PPO1, PPO2, TRPO, DDPG
+from stable_baselines import A2C, ACER, ACKTR, DQN, PPO1, PPO2, TRPO, SAC, DDPG
 from stable_baselines.common.policies import FeedForwardPolicy
 from stable_baselines.deepq.policies import FeedForwardPolicy as DQNPolicy
 from stable_baselines.ddpg.policies import FeedForwardPolicy as DDPGPolicy
+from stable_baselines.sac.policies import FeedForwardPolicy as SACPolicy
 
 N_TRIALS = 100
 
@@ -27,6 +28,11 @@ class CustomDDPGPolicy(DDPGPolicy):
                                            layers=[8, 8],
                                            feature_extraction="mlp")
 
+class CustomSACPolicy(SACPolicy):
+    def __init__(self, *args, **kwargs):
+        super(CustomSACPolicy, self).__init__(*args, **kwargs,
+                                           layers=[8, 8],
+                                           feature_extraction="mlp")
 
 MODEL_DICT = {
     'a2c': (A2C, CustomCommonPolicy),
@@ -36,6 +42,7 @@ MODEL_DICT = {
     'ddpg': (DDPG, CustomDDPGPolicy),
     'ppo1': (PPO1, CustomCommonPolicy),
     'ppo2': (PPO2, CustomCommonPolicy),
+    'sac': (SAC, CustomSACPolicy),
     'trpo': (TRPO, CustomCommonPolicy),
 }
 
@@ -49,7 +56,7 @@ def test_custom_policy(model_name):
 
     try:
         model_class, policy = MODEL_DICT[model_name]
-        if model_name == 'ddpg':
+        if model_name in ['ddpg', 'sac']:
             env = 'MountainCarContinuous-v0'
         else:
             env = 'CartPole-v1'
@@ -63,7 +70,7 @@ def test_custom_policy(model_name):
         for _ in range(N_TRIALS):
             action, _ = model.predict(obs)
             # Test action probability method
-            if model_name != 'ddpg':
+            if model_name not in ['ddpg', 'sac']:
                 model.action_probability(obs)
             obs, _, _, _ = env.step(action)
         # saving

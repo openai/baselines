@@ -10,8 +10,9 @@ from stable_baselines.gail import GAIL
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
+from stable_baselines.sac import SAC
 
-__version__ = "2.3.0"
+__version__ = "2.4.0a"
 
 
 # patch Gym spaces to add equality functions, if not implemented

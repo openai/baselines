@@ -1,8 +1,6 @@
 from setuptools import setup, find_packages
 import sys
 
-from stable_baselines import __version__
-
 if sys.version_info.major != 3:
     print('This Python is only compatible with Python 3, but you are running '
           'Python {}. The installation will likely fail.'.format(sys.version_info.major))
@@ -114,7 +112,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version=__version__,
+      version="2.4.0a",
       )
 
 # python setup.py sdist

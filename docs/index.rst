@@ -62,6 +62,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
   modules/her
   modules/ppo1
   modules/ppo2
+  modules/sac
   modules/trpo
 
 .. toctree::

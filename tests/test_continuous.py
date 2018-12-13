@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from stable_baselines.a2c import A2C
+from stable_baselines import A2C, SAC
 # TODO: add support for continuous actions
 # from stable_baselines.acer import ACER
 # from stable_baselines.acktr import ACKTR
@@ -27,6 +27,7 @@ MODEL_LIST = [
     DDPG,
     PPO1,
     PPO2,
+    SAC,
     TRPO
 ]
 

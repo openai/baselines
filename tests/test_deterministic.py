@@ -1,6 +1,6 @@
 import pytest
 
-from stable_baselines import A2C, ACER, ACKTR, DQN, DDPG, PPO1, PPO2, TRPO
+from stable_baselines import A2C, ACER, ACKTR, DQN, DDPG, PPO1, PPO2, SAC, TRPO
 from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env import DummyVecEnv
@@ -16,6 +16,7 @@ LEARN_FUNC_DICT = {
     'ddpg': lambda e: DDPG(policy="MlpPolicy", env=e, param_noise=PARAM_NOISE_DDPG).learn(total_timesteps=1000),
     'ppo1': lambda e: PPO1(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
     'ppo2': lambda e: PPO2(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
+    'sac': lambda e: SAC(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
     'trpo': lambda e: TRPO(policy="MlpPolicy", env=e).learn(total_timesteps=1000),
 }
 
@@ -47,7 +48,7 @@ def test_identity(model_name):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("model_name", ['a2c', 'ddpg', 'ppo1', 'ppo2', 'trpo'])
+@pytest.mark.parametrize("model_name", ['a2c', 'ddpg', 'ppo1', 'ppo2', 'sac', 'trpo'])
 def test_identity_continuous(model_name):
     """
     Test if the algorithm (with a given policy)

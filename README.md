@@ -152,6 +152,7 @@ All the following examples can be executed online using Google colab notebooks:
 | HER <sup>(3)</sup>  | :x: <sup>(5)</sup>           | :x:                | :heavy_check_mark: | :x:                | :x:                 | :x:                | :x:                               |
 | PPO1                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark: | :heavy_check_mark: <sup>(4)</sup> |
 | PPO2                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark: | :heavy_check_mark:                |
+| SAC                | :heavy_check_mark:           | :x:                | :heavy_check_mark: | :x:                | :x:                 | :x:                | :x:                               |
 | TRPO                | :heavy_check_mark:           | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark: | :heavy_check_mark: <sup>(4)</sup> |
 
 <sup><sup>(1): Whether or not the algorithm has be refactored to fit the ```BaseRLModel``` class.</sup></sup><br>
@@ -159,6 +160,8 @@ All the following examples can be executed online using Google colab notebooks:
 <sup><sup>(3): Only implemented for DDPG.</sup></sup><br>
 <sup><sup>(4): Multi Processing with [MPI](https://mpi4py.readthedocs.io/en/stable/).</sup></sup><br>
 <sup><sup>(5): TODO, in project scope.</sup></sup>
+
+NOTE: Soft Actor-Critic (SAC) was not part of the original baselines.
 
 Actions ```gym.spaces```:
  * ```Box```: A N-dimensional box that containes every point in the action space.

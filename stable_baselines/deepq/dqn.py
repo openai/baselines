@@ -35,7 +35,8 @@ class DQN(OffPolicyRLModel):
     :param learning_starts: (int) how many steps of the model to collect transitions for before learning starts
     :param target_network_update_freq: (int) update the target network every `target_network_update_freq` steps.
     :param prioritized_replay: (bool) if True prioritized replay buffer will be used.
-    :param prioritized_replay_alpha: (float) alpha parameter for prioritized replay buffer
+    :param prioritized_replay_alpha: (float)alpha parameter for prioritized replay buffer.
+        It determines how much prioritization is used, with alpha=0 corresponding to the uniform case.
     :param prioritized_replay_beta0: (float) initial value of beta for prioritized replay buffer
     :param prioritized_replay_beta_iters: (int) number of iterations over which beta will be annealed from initial
             value to 1.0. If set to None equals to max_timesteps.
@@ -141,9 +142,11 @@ class DQN(OffPolicyRLModel):
                 self.replay_buffer = PrioritizedReplayBuffer(self.buffer_size, alpha=self.prioritized_replay_alpha)
                 if self.prioritized_replay_beta_iters is None:
                     prioritized_replay_beta_iters = total_timesteps
-                    self.beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
-                                                        initial_p=self.prioritized_replay_beta0,
-                                                        final_p=1.0)
+                else:
+                    prioritized_replay_beta_iters = self.prioritized_replay_beta_iters
+                self.beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
+                                                    initial_p=self.prioritized_replay_beta0,
+                                                    final_p=1.0)
             else:
                 self.replay_buffer = ReplayBuffer(self.buffer_size)
                 self.beta_schedule = None
