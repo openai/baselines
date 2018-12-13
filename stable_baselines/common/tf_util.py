@@ -207,32 +207,31 @@ def conv2d(input_tensor, num_filters, name, filter_size=(3, 3), stride=(1, 1),
 
 def function(inputs, outputs, updates=None, givens=None):
     """
-    Just like Theano function. Take a bunch of tensorflow placeholders and expressions
+    Take a bunch of tensorflow placeholders and expressions
     computed based on those placeholders and produces f(inputs) -> outputs. Function f takes
     values to be fed to the input's placeholders and produces the values of the expressions
-    in outputs.
+    in outputs. Just like a Theano function. 
 
     Input values can be passed in the same order as inputs or can be provided as kwargs based
     on placeholder name (passed to constructor or accessible via placeholder.op.name).
 
     Example:
-        x = tf.placeholder(tf.int32, (), name="x")
-        y = tf.placeholder(tf.int32, (), name="y")
-        z = 3 * x + 2 * y
-        lin = function([x, y], z, givens={y: 0})
-
-        with single_threaded_session():
-            initialize()
-
-            assert lin(2) == 6
-            assert lin(x=3) == 9
-            assert lin(2, 2) == 10
-            assert lin(x=2, y=3) == 12
-
+       >>> x = tf.placeholder(tf.int32, (), name="x")
+       >>> y = tf.placeholder(tf.int32, (), name="y")
+       >>> z = 3 * x + 2 * y
+       >>> lin = function([x, y], z, givens={y: 0})
+       >>> with single_threaded_session():
+       >>>     initialize()
+       >>>     assert lin(2) == 6
+       >>>     assert lin(x=3) == 9
+       >>>     assert lin(2, 2) == 10
+    
     :param inputs: (TensorFlow Tensor or Object with make_feed_dict) list of input arguments
     :param outputs: (TensorFlow Tensor) list of outputs or a single output to be returned from function. Returned
         value will also have the same shape.
-    :param updates: (list) update functions
+    :param updates: ([tf.Operation] or tf.Operation)
+        list of update functions or single update function that will be run whenever
+        the function is called. The return is ignored. 
     :param givens: (dict) the values known for the output
     """
     if isinstance(outputs, list):
@@ -253,7 +252,9 @@ class _Function(object):
         :param inputs: (TensorFlow Tensor or Object with make_feed_dict) list of input arguments
         :param outputs: (TensorFlow Tensor) list of outputs or a single output to be returned from function. Returned
             value will also have the same shape.
-        :param updates: (list) update functions
+        :param updates: ([tf.Operation] or tf.Operation)
+        list of update functions or single update function that will be run whenever
+        the function is called. The return is ignored. 
         :param givens: (dict) the values known for the output
         """
         for inpt in inputs:
