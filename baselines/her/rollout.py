@@ -68,7 +68,7 @@ class RolloutWorker:
         for i in range(self.rollout_batch_size):
             self.reset_rollout(i)
 
-    def generate_rollouts(self):
+    def generate_rollouts(self, is_train=True):
         """Performs `rollout_batch_size` rollouts in parallel for time horizon `T` with the current
         policy acting on it accordingly.
         """
@@ -82,6 +82,7 @@ class RolloutWorker:
 
         # generate episodes
         obs, achieved_goals, acts, goals, successes = [], [], [], [], []
+        q_vals = []
         info_values = [np.empty((self.T, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
         Qs = []
         for t in range(self.T):
@@ -96,6 +97,7 @@ class RolloutWorker:
             if self.compute_Q:
                 u, Q = policy_output
                 Qs.append(Q)
+                q_vals.append(Q.copy())
             else:
                 u = policy_output
 
@@ -139,10 +141,20 @@ class RolloutWorker:
         achieved_goals.append(ag.copy())
         self.initial_o[:] = o
 
-        episode = dict(o=obs,
-                       u=acts,
-                       g=goals,
-                       ag=achieved_goals)
+        if is_train:
+            episode = dict(o=obs,
+                           u=acts,
+                           g=goals,
+                           ag=achieved_goals
+            )
+        else:
+            episode = dict(o=obs,
+                           u=acts,
+                           g=goals,
+                           ag=achieved_goals,
+                           q=q_vals,
+            )
+            
         for key, value in zip(self.info_keys, info_values):
             episode['info_{}'.format(key)] = value
 
