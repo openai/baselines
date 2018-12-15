@@ -48,21 +48,10 @@ def test(policy, rollout_worker, evaluator,
     if policy.bc_loss == 1: policy.initDemoBuffer(demo_file) #initialize demo buffer if training with demonstrations
     for epoch in range(n_epochs):
         clogger.info("Start: Epoch {}/{}".format(epoch, n_epochs))
-        # # train
-        # rollout_worker.clear_history()
-        # for _ in range(n_cycles):
-        #     episode = rollout_worker.generate_rollouts()
-        #     clogger.info("Episode = {}".format(episode.keys()))
-        #     for key in episode.keys():
-        #         clogger.info(" - {}: {}".format(key, episode[key].shape))
-        #     policy.store_episode(episode)
-        #     for _ in range(n_batches):
-        #         policy.train()
-        #     policy.update_target_net()
 
         # test
         evaluator.clear_history()
-        episode_box = {"g":[],"ag":[],"o":[],"u":[],"q":[],}
+        episode_box = {"g":[],"ag":[],"o":[],"u":[],"q":[], "fc":[]}
         for _ in range(n_test_rollouts):
             episode = evaluator.generate_rollouts(is_train=False)
             clogger.info("Episode = {}".format(episode.keys()))
@@ -87,6 +76,7 @@ def test(policy, rollout_worker, evaluator,
             f.create_dataset('obeservation',     data=episode_box["o"])
             f.create_dataset('action',           data=episode_box["u"])
             f.create_dataset('Qvalue',           data=episode_box["q"])
+            f.create_dataset('fc',               data=episode_box["fc"])
             
             
         
