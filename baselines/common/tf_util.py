@@ -337,7 +337,7 @@ def save_state(fname, sess=None):
 
 def save_variables(save_path, variables=None, sess=None):
     sess = sess or get_session()
-    variables = variables or tf.trainable_variables()
+    variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 
     ps = sess.run(variables)
     save_dict = {v.name: value for v, value in zip(variables, ps)}
@@ -348,7 +348,7 @@ def save_variables(save_path, variables=None, sess=None):
 
 def load_variables(load_path, variables=None, sess=None):
     sess = sess or get_session()
-    variables = variables or tf.trainable_variables()
+    variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 
     loaded_params = joblib.load(os.path.expanduser(load_path))
     restores = []

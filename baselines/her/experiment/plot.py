@@ -1,3 +1,5 @@
+# DEPRECATED, use baselines.common.plot_util instead
+
 import os
 import matplotlib.pyplot as plt
 import numpy as np

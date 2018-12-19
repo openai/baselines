@@ -2,7 +2,6 @@ from collections import deque
 
 import numpy as np
 import pickle
-from mujoco_py import MujocoException
 
 from baselines.her.util import convert_episode_to_batch_major, store_args
 
@@ -10,9 +9,9 @@ from baselines.her.util import convert_episode_to_batch_major, store_args
 class RolloutWorker:
 
     @store_args
-    def __init__(self, make_env, policy, dims, logger, T, rollout_batch_size=1,
+    def __init__(self, venv, policy, dims, logger, T, rollout_batch_size=1,
                  exploit=False, use_target_net=False, compute_Q=False, noise_eps=0,
-                 random_eps=0, history_len=100, render=False, **kwargs):
+                 random_eps=0, history_len=100, render=False, monitor=False, **kwargs):
         """Rollout worker generates experience by interacting with one or many environments.
 
         Args:
@@ -31,7 +30,7 @@ class RolloutWorker:
             history_len (int): length of history for statistics smoothing
             render (boolean): whether or not to render the rollouts
         """
-        self.envs = [make_env() for _ in range(rollout_batch_size)]
+
         assert self.T > 0
 
         self.info_keys = [key.replace('info_', '') for key in dims.keys() if key.startswith('info_')]
@@ -40,26 +39,14 @@ class RolloutWorker:
         self.Q_history = deque(maxlen=history_len)
 
         self.n_episodes = 0
-        self.g = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # goals
-        self.initial_o = np.empty((self.rollout_batch_size, self.dims['o']), np.float32)  # observations
-        self.initial_ag = np.empty((self.rollout_batch_size, self.dims['g']), np.float32)  # achieved goals
         self.reset_all_rollouts()
         self.clear_history()
 
-    def reset_rollout(self, i):
-        """Resets the `i`-th rollout environment, re-samples a new goal, and updates the `initial_o`
-        and `g` arrays accordingly.
-        """
-        obs = self.envs[i].reset()
-        self.initial_o[i] = obs['observation']
-        self.initial_ag[i] = obs['achieved_goal']
-        self.g[i] = obs['desired_goal']
-
     def reset_all_rollouts(self):
-        """Resets all `rollout_batch_size` rollout workers.
-        """
-        for i in range(self.rollout_batch_size):
-            self.reset_rollout(i)
+        self.obs_dict = self.venv.reset()
+        self.initial_o = self.obs_dict['observation']
+        self.initial_ag = self.obs_dict['achieved_goal']
+        self.g = self.obs_dict['desired_goal']
 
     def generate_rollouts(self):
         """Performs `rollout_batch_size` rollouts in parallel for time horizon `T` with the current
@@ -75,7 +62,8 @@ class RolloutWorker:
 
         # generate episodes
         obs, achieved_goals, acts, goals, successes = [], [], [], [], []
-        info_values = [np.empty((self.T, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
+        dones = []
+        info_values = [np.empty((self.T - 1, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
         Qs = []
         for t in range(self.T):
             policy_output = self.policy.get_actions(
@@ -99,27 +87,27 @@ class RolloutWorker:
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
             # compute new states and observations
-            for i in range(self.rollout_batch_size):
-                try:
-                    # We fully ignore the reward here because it will have to be re-computed
-                    # for HER.
-                    curr_o_new, _, _, info = self.envs[i].step(u[i])
-                    if 'is_success' in info:
-                        success[i] = info['is_success']
-                    o_new[i] = curr_o_new['observation']
-                    ag_new[i] = curr_o_new['achieved_goal']
-                    for idx, key in enumerate(self.info_keys):
-                        info_values[idx][t, i] = info[key]
-                    if self.render:
-                        self.envs[i].render()
-                except MujocoException as e:
-                    return self.generate_rollouts()
+            obs_dict_new, _, done, info = self.venv.step(u)
+            o_new = obs_dict_new['observation']
+            ag_new = obs_dict_new['achieved_goal']
+            success = np.array([i.get('is_success', 0.0) for i in info])
+
+            if any(done):
+                # here we assume all environments are done is ~same number of steps, so we terminate rollouts whenever any of the envs returns done
+                # trick with using vecenvs is not to add the obs from the environments that are "done", because those are already observations
+                # after a reset
+                break
+
+            for i, info_dict in enumerate(info):
+                for idx, key in enumerate(self.info_keys):
+                    info_values[idx][t, i] = info[i][key]
 
             if np.isnan(o_new).any():
                 self.logger.warn('NaN caught during rollout generation. Trying again...')
                 self.reset_all_rollouts()
                 return self.generate_rollouts()
 
+            dones.append(done)
             obs.append(o.copy())
             achieved_goals.append(ag.copy())
             successes.append(success.copy())
@@ -129,7 +117,6 @@ class RolloutWorker:
             ag[...] = ag_new
         obs.append(o.copy())
         achieved_goals.append(ag.copy())
-        self.initial_o[:] = o
 
         episode = dict(o=obs,
                        u=acts,
@@ -181,8 +168,3 @@ class RolloutWorker:
         else:
             return logs
 
-    def seed(self, seed):
-        """Seeds each environment with a distinct seed derived from the passed in global seed.
-        """
-        for idx, env in enumerate(self.envs):
-            env.seed(seed + 1000 * idx)

@@ -6,26 +6,29 @@ For details on Hindsight Experience Replay (HER), please read the [paper](https:
 ### Getting started
 Training an agent is very simple:
 ```bash
-python -m baselines.her.experiment.train
+python -m baselines.run --alg=her --env=FetchReach-v1 --num_timesteps=5000
 ```
 This will train a DDPG+HER agent on the `FetchReach` environment.
 You should see the success rate go up quickly to `1.0`, which means that the agent achieves the
-desired goal in 100% of the cases.
-The training script logs other diagnostics as well and pickles the best policy so far (w.r.t. to its test success rate),
-the latest policy, and, if enabled, a history of policies every K epochs.
-
-To inspect what the agent has learned, use the play script:
+desired goal in 100% of the cases (note how HER can solve it in <5k steps - try doing that with PPO by replacing her with ppo2 :))
+The training script logs other diagnostics as well. Policy at the end of the training can be saved using `--save_path` flag, for instance:
 ```bash
-python -m baselines.her.experiment.play /path/to/an/experiment/policy_best.pkl
+python -m baselines.run --alg=her --env=FetchReach-v1 --num_timesteps=5000 --save_path=~/policies/her/fetchreach5k
 ```
-You can try it right now with the results of the training step (the script prints out the path for you).
-This should visualize the current policy for 10 episodes and will also print statistics.
+
+To inspect what the agent has learned, use the `--play` flag: 
+```bash
+python -m baselines.run --alg=her --env=FetchReach-v1 --num_timesteps=5000 --play
+```
+(note `--play` can be combined with `--load_path`, which lets one load trained policies, for more results see [README.md](../../README.md))
 
 
 ### Reproducing results
-In order to reproduce the results from [Plappert et al. (2018)](https://arxiv.org/abs/1802.09464), run the following command:
+In [Plappert et al. (2018)](https://arxiv.org/abs/1802.09464), 38 trajectories were generated in parallel
+(19 MPI processes, each generating computing gradients from 2 trajectories and aggregating). 
+To reproduce that behaviour, use 
 ```bash
-python -m baselines.her.experiment.train --num_cpu 19
+mpirun -np 19 python -m baselines.run --num_env=2 --alg=her ... 
 ```
 This will require a machine with sufficient amount of physical CPU cores. In our experiments,
 we used [Azure's D15v2 instances](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/sizes),
@@ -45,6 +48,13 @@ python experiment/data_generation/fetch_data_generation.py
 ```
 This outputs ```data_fetch_random_100.npz``` file which is our data file.
 
+To launch training with demonstrations (more technically, with behaviour cloning loss as an auxilliary loss), run the following
+```bash
+python -m baselines.run --alg=her --env=FetchPickAndPlace-v1 --num_timesteps=2.5e6 --demo_file=/Path/to/demo_file.npz
+```
+This will train a DDPG+HER agent on the `FetchPickAndPlace` environment by using previously generated demonstration data.
+To inspect what the agent has learned, use the `--play` flag as described above.
+
 #### Configuration
 The provided configuration is for training an agent with HER without demonstrations, we need to change a few paramters for the HER algorithm to learn through demonstrations, to do that, set:
 
@@ -62,13 +72,7 @@ Apart from these changes the reported results also have the following configurat
 * random_eps: 0.1  - percentage of time a random action is taken
 * noise_eps: 0.1  - std of gaussian noise added to not-completely-random actions
 
-Now training an agent with pre-recorded demonstrations:
-```bash
-python -m baselines.her.experiment.train --env=FetchPickAndPlace-v0 --n_epochs=1000 --demo_file=/Path/to/demo_file.npz --num_cpu=1
-```
-
-This will train a DDPG+HER agent on the `FetchPickAndPlace` environment by using previously generated demonstration data.
-To inspect what the agent has learned, use the play script as described above.
+These parameters can be changed either in [experiment/config.py](experiment/config.py) or passed to the command line as `--param=value`)
 
 ### Results
 Training with demonstrations helps overcome the exploration problem and achieves a faster and better convergence. The following graphs contrast the difference between training with and without demonstration data, We report the mean Q values vs Epoch and the Success Rate vs Epoch:
@@ -78,3 +82,4 @@ Training with demonstrations helps overcome the exploration problem and achieves
 <center><img src="../../data/fetchPickAndPlaceContrast.png"></center>
 <div class="thecap" align="middle"><b>Training results for Fetch Pick and Place task constrasting between training with and without demonstration data.</b></div>
 </div>
+
