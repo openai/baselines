@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import warnings
 
 from stable_baselines import logger
 from stable_baselines.acer import ACER
@@ -25,7 +26,7 @@ def train(env_id, num_timesteps, seed, policy, lr_schedule, num_cpu):
     elif policy == 'lstm':
         policy_fn = CnnLstmPolicy
     else:
-        print("Policy {} not implemented".format(policy))
+        warnings.warn("Policy {} not implemented".format(policy))
         return
 
     model = ACER(policy_fn, env, lr_schedule=lr_schedule, buffer_size=5000)

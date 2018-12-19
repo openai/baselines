@@ -5,6 +5,7 @@ import json
 import time
 import datetime
 import tempfile
+import warnings
 from collections import defaultdict
 
 DEBUG = 10
@@ -68,7 +69,7 @@ class HumanOutputFormat(KVWriter, SeqWriter):
 
         # Find max widths
         if len(key2str) == 0:
-            print('WARNING: tried to write empty key-value dict')
+            warnings.warn('Tried to write empty key-value dict')
             return
         else:
             keywidth = max(map(len, key2str.keys()))
