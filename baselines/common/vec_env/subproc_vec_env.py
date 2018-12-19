@@ -57,6 +57,7 @@ class SubprocVecEnv(VecEnv):
         self.remotes[0].send(('get_spaces', None))
         observation_space, action_space = self.remotes[0].recv()
         self.viewer = None
+        self.specs = [f().spec for f in env_fns]
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
     def step_async(self, actions):
@@ -70,13 +71,13 @@ class SubprocVecEnv(VecEnv):
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
-        return np.stack(obs), np.stack(rews), np.stack(dones), infos
+        return _flatten_obs(obs), np.stack(rews), np.stack(dones), infos
 
     def reset(self):
         self._assert_not_closed()
         for remote in self.remotes:
             remote.send(('reset', None))
-        return np.stack([remote.recv() for remote in self.remotes])
+        return _flatten_obs([remote.recv() for remote in self.remotes])
 
     def close_extras(self):
         self.closed = True
@@ -97,3 +98,17 @@ class SubprocVecEnv(VecEnv):
 
     def _assert_not_closed(self):
         assert not self.closed, "Trying to operate on a SubprocVecEnv after calling close()"
+
+
+def _flatten_obs(obs):
+    assert isinstance(obs, list) or isinstance(obs, tuple)
+    assert len(obs) > 0
+
+    if isinstance(obs[0], dict):
+        import collections
+        assert isinstance(obs, collections.OrderedDict)
+        keys = obs[0].keys()
+        return {k: np.stack([o[k] for o in obs]) for k in keys}
+    else:
+        return np.stack(obs)
+

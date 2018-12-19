@@ -1,18 +1,5 @@
 import gym
-import time
-import random
 import numpy as np
-import rospy
-import roslaunch
-
-from random import randint
-from std_srvs.srv import Empty
-from sensor_msgs.msg import JointState
-from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import Pose
-from std_msgs.msg import Float64
-from controller_manager_msgs.srv import SwitchController
-from gym.utils import seeding
 
 
 """Data generation for the case of a single block pick and place in Fetch Env"""
@@ -22,7 +9,7 @@ observations = []
 infos = []
 
 def main():
-    env = gym.make('FetchPickAndPlace-v0')
+    env = gym.make('FetchPickAndPlace-v1')
     numItr = 100
     initStateSpace = "random"
     env.reset()
@@ -31,21 +18,19 @@ def main():
         obs = env.reset()
         print("ITERATION NUMBER ", len(actions))
         goToGoal(env, obs)
-        
+
 
     fileName = "data_fetch"
     fileName += "_" + initStateSpace
     fileName += "_" + str(numItr)
     fileName += ".npz"
-    
+
     np.savez_compressed(fileName, acs=actions, obs=observations, info=infos) # save the file
 
 def goToGoal(env, lastObs):
 
     goal = lastObs['desired_goal']
     objectPos = lastObs['observation'][3:6]
-    gripperPos = lastObs['observation'][:3]
-    gripperState = lastObs['observation'][9:11]
     object_rel_pos = lastObs['observation'][6:9]
     episodeAcs = []
     episodeObs = []
@@ -53,7 +38,7 @@ def goToGoal(env, lastObs):
 
     object_oriented_goal = object_rel_pos.copy()
     object_oriented_goal[2] += 0.03 # first make the gripper go slightly above the object
-    
+
     timeStep = 0 #count the total number of timesteps
     episodeObs.append(lastObs)
 
@@ -76,8 +61,6 @@ def goToGoal(env, lastObs):
         episodeObs.append(obsDataNew)
 
         objectPos = obsDataNew['observation'][3:6]
-        gripperPos = obsDataNew['observation'][:3]
-        gripperState = obsDataNew['observation'][9:11]
         object_rel_pos = obsDataNew['observation'][6:9]
 
     while np.linalg.norm(object_rel_pos) >= 0.005 and timeStep <= env._max_episode_steps :
@@ -96,8 +79,6 @@ def goToGoal(env, lastObs):
         episodeObs.append(obsDataNew)
 
         objectPos = obsDataNew['observation'][3:6]
-        gripperPos = obsDataNew['observation'][:3]
-        gripperState = obsDataNew['observation'][9:11]
         object_rel_pos = obsDataNew['observation'][6:9]
 
 
@@ -117,8 +98,6 @@ def goToGoal(env, lastObs):
         episodeObs.append(obsDataNew)
 
         objectPos = obsDataNew['observation'][3:6]
-        gripperPos = obsDataNew['observation'][:3]
-        gripperState = obsDataNew['observation'][9:11]
         object_rel_pos = obsDataNew['observation'][6:9]
 
     while True: #limit the number of timesteps in the episode to a fixed duration
@@ -134,8 +113,6 @@ def goToGoal(env, lastObs):
         episodeObs.append(obsDataNew)
 
         objectPos = obsDataNew['observation'][3:6]
-        gripperPos = obsDataNew['observation'][:3]
-        gripperState = obsDataNew['observation'][9:11]
         object_rel_pos = obsDataNew['observation'][6:9]
 
         if timeStep >= env._max_episode_steps: break

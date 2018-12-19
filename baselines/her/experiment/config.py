@@ -1,10 +1,11 @@
+import os
 import numpy as np
 import gym
 
 from baselines import logger
 from baselines.her.ddpg import DDPG
-from baselines.her.her import make_sample_her_transitions
-
+from baselines.her.her_sampler import make_sample_her_transitions
+from baselines.bench.monitor import Monitor
 
 DEFAULT_ENV_PARAMS = {
     'FetchReach-v1': {
@@ -72,16 +73,32 @@ def cached_make_env(make_env):
 def prepare_params(kwargs):
     # DDPG params
     ddpg_params = dict()
-
     env_name = kwargs['env_name']
 
-    def make_env():
-        return gym.make(env_name)
+    def make_env(subrank=None):
+        env = gym.make(env_name)
+        if subrank is not None and logger.get_dir() is not None:
+            try:
+                from mpi4py import MPI
+                mpi_rank = MPI.COMM_WORLD.Get_rank()
+            except ImportError:
+                MPI = None
+                mpi_rank = 0
+                logger.warn('Running with a single MPI process. This should work, but the results may differ from the ones publshed in Plappert et al.')
+
+            max_episode_steps = env._max_episode_steps
+            env =  Monitor(env,
+                           os.path.join(logger.get_dir(), str(mpi_rank) + '.' + str(subrank)),
+                           allow_early_resets=True)
+            # hack to re-expose _max_episode_steps (ideally should replace reliance on it downstream)
+            env = gym.wrappers.TimeLimit(env, max_episode_steps=max_episode_steps)
+        return env
+
     kwargs['make_env'] = make_env
     tmp_env = cached_make_env(kwargs['make_env'])
     assert hasattr(tmp_env, '_max_episode_steps')
     kwargs['T'] = tmp_env._max_episode_steps
-    tmp_env.reset()
+
     kwargs['max_u'] = np.array(kwargs['max_u']) if isinstance(kwargs['max_u'], list) else kwargs['max_u']
     kwargs['gamma'] = 1. - 1. / kwargs['T']
     if 'lr' in kwargs:

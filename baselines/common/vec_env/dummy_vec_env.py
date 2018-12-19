@@ -27,6 +27,7 @@ class DummyVecEnv(VecEnv):
         self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
         self.actions = None
+        self.specs = [e.spec for e in self.envs]
 
     def step_async(self, actions):
         listify = True

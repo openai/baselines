@@ -1,3 +1,4 @@
+# DEPRECATED, use --play flag to baselines.run instead
 import click
 import numpy as np
 import pickle

@@ -168,6 +168,7 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
          - monitor - if enable_monitor is True, this field contains pandas dataframe with loaded monitor.csv file (or aggregate of all *.monitor.csv files in the directory)
          - progress - if enable_progress is True, this field contains pandas dataframe with loaded progress.csv file
     '''
+    import re
     if isinstance(root_dir_or_dirs, str):
         rootdirs = [osp.expanduser(root_dir_or_dirs)]
     else:
@@ -179,7 +180,9 @@ def load_results(root_dir_or_dirs, enable_progress=True, enable_monitor=True, ve
             if '-proc' in dirname:
                 files[:] = []
                 continue
-            if set(['metadata.json', 'monitor.json', 'monitor.csv', 'progress.json', 'progress.csv']).intersection(files):
+            monitor_re = re.compile(r'(\d+\.)?(\d+\.)?monitor\.csv')
+            if set(['metadata.json', 'monitor.json', 'progress.json', 'progress.csv']).intersection(files) or \
+               any([f for f in files if monitor_re.match(f)]):  # also match monitor files like 0.1.monitor.csv
                 # used to be uncommented, which means do not go deeper than current directory if any of the data files
                 # are found
                 # dirs[:] = []

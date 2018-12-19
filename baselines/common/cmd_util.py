@@ -18,11 +18,16 @@ from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common import retro_wrappers
 
-def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_index=0, reward_scale=1.0, gamestate=None):
+def make_vec_env(env_id, env_type, num_env, seed,
+                 wrapper_kwargs=None,
+                 start_index=0,
+                 reward_scale=1.0,
+                 flatten_dict_observations=True,
+                 gamestate=None):
     """
     Create a wrapped, monitored SubprocVecEnv for Atari and MuJoCo.
     """
-    if wrapper_kwargs is None: wrapper_kwargs = {}
+    wrapper_kwargs = wrapper_kwargs or {}
     mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = seed + 10000 * mpi_rank if seed is not None else None
     def make_thunk(rank):
@@ -33,6 +38,7 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
             seed=seed,
             reward_scale=reward_scale,
             gamestate=gamestate,
+            flatten_dict_observations=flatten_dict_observations,
             wrapper_kwargs=wrapper_kwargs
         )
 
@@ -43,8 +49,9 @@ def make_vec_env(env_id, env_type, num_env, seed, wrapper_kwargs=None, start_ind
         return DummyVecEnv([make_thunk(start_index)])
 
 
-def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate=None, wrapper_kwargs={}):
+def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate=None, flatten_dict_observations=True, wrapper_kwargs=None):
     mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
+    wrapper_kwargs = wrapper_kwargs or {}
     if env_type == 'atari':
         env = make_atari(env_id)
     elif env_type == 'retro':
@@ -53,6 +60,10 @@ def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate
         env = retro_wrappers.make_retro(game=env_id, max_episode_steps=10000, use_restricted_actions=retro.Actions.DISCRETE, state=gamestate)
     else:
         env = gym.make(env_id)
+
+    if flatten_dict_observations and isinstance(env.observation_space, gym.spaces.Dict):
+        keys = env.observation_space.spaces.keys()
+        env = gym.wrappers.FlattenDictWrapper(env, dict_keys=list(keys))
 
     env.seed(seed + subrank if seed is not None else None)
     env = Monitor(env,

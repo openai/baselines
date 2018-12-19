@@ -156,9 +156,10 @@ register_benchmark({
 
 # HER DDPG
 
+_fetch_tasks = ['FetchReach-v1', 'FetchPush-v1', 'FetchSlide-v1']
 register_benchmark({
-    'name': 'HerDdpg',
-    'description': 'Smoke-test only benchmark of HER',
-    'tasks': [{'trials': 1, 'env_id': 'FetchReach-v1'}]
+    'name': 'Fetch1M',
+    'description': 'Fetch* benchmarks for 1M timesteps',
+    'tasks': [{'trials': 6, 'env_id': env_id, 'num_timesteps': int(1e6)} for env_id in _fetch_tasks]
 })
 

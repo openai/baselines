@@ -10,13 +10,14 @@ from baselines.her.util import (
 from baselines.her.normalizer import Normalizer
 from baselines.her.replay_buffer import ReplayBuffer
 from baselines.common.mpi_adam import MpiAdam
+from baselines.common import tf_util
 
 
 def dims_to_shapes(input_dims):
     return {key: tuple([val]) if val > 0 else tuple() for key, val in input_dims.items()}
 
 
-global demoBuffer #buffer for demonstrations
+global DEMO_BUFFER #buffer for demonstrations
 
 class DDPG(object):
     @store_args
@@ -94,16 +95,16 @@ class DDPG(object):
             self._create_network(reuse=reuse)
 
         # Configure the replay buffer.
-        buffer_shapes = {key: (self.T if key != 'o' else self.T+1, *input_shapes[key])
+        buffer_shapes = {key: (self.T-1 if key != 'o' else self.T, *input_shapes[key])
                          for key, val in input_shapes.items()}
         buffer_shapes['g'] = (buffer_shapes['g'][0], self.dimg)
-        buffer_shapes['ag'] = (self.T+1, self.dimg)
+        buffer_shapes['ag'] = (self.T, self.dimg)
 
         buffer_size = (self.buffer_size // self.rollout_batch_size) * self.rollout_batch_size
         self.buffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions)
 
-        global demoBuffer
-        demoBuffer = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions) #initialize the demo buffer; in the same way as the primary data buffer
+        global DEMO_BUFFER
+        DEMO_BUFFER = ReplayBuffer(buffer_shapes, buffer_size, self.T, self.sample_transitions) #initialize the demo buffer; in the same way as the primary data buffer
 
     def _random_action(self, n):
         return np.random.uniform(low=-self.max_u, high=self.max_u, size=(n, self.dimu))
@@ -118,6 +119,11 @@ class DDPG(object):
         o = np.clip(o, -self.clip_obs, self.clip_obs)
         g = np.clip(g, -self.clip_obs, self.clip_obs)
         return o, g
+
+    def step(self, obs):
+        actions = self.get_actions(obs['observation'], obs['achieved_goal'], obs['desired_goal'])
+        return actions, None, None, None
+
 
     def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False,
                     compute_Q=False):
@@ -151,25 +157,30 @@ class DDPG(object):
         else:
             return ret
 
-    def initDemoBuffer(self, demoDataFile, update_stats=True): #function that initializes the demo buffer
+    def init_demo_buffer(self, demoDataFile, update_stats=True): #function that initializes the demo buffer
 
         demoData = np.load(demoDataFile) #load the demonstration data from data file
         info_keys = [key.replace('info_', '') for key in self.input_dims.keys() if key.startswith('info_')]
-        info_values = [np.empty((self.T, 1, self.input_dims['info_' + key]), np.float32) for key in info_keys]
+        info_values = [np.empty((self.T - 1, 1, self.input_dims['info_' + key]), np.float32) for key in info_keys]
+
+        demo_data_obs = demoData['obs']
+        demo_data_acs = demoData['acs']
+        demo_data_info = demoData['info']
 
         for epsd in range(self.num_demo): # we initialize the whole demo buffer at the start of the training
             obs, acts, goals, achieved_goals = [], [] ,[] ,[]
             i = 0
-            for transition in range(self.T):
-                obs.append([demoData['obs'][epsd ][transition].get('observation')])
-                acts.append([demoData['acs'][epsd][transition]])
-                goals.append([demoData['obs'][epsd][transition].get('desired_goal')])
-                achieved_goals.append([demoData['obs'][epsd][transition].get('achieved_goal')])
+            for transition in range(self.T - 1):
+                obs.append([demo_data_obs[epsd][transition].get('observation')])
+                acts.append([demo_data_acs[epsd][transition]])
+                goals.append([demo_data_obs[epsd][transition].get('desired_goal')])
+                achieved_goals.append([demo_data_obs[epsd][transition].get('achieved_goal')])
                 for idx, key in enumerate(info_keys):
-                    info_values[idx][transition, i] = demoData['info'][epsd][transition][key]
+                    info_values[idx][transition, i] = demo_data_info[epsd][transition][key]
 
-            obs.append([demoData['obs'][epsd][self.T].get('observation')])
-            achieved_goals.append([demoData['obs'][epsd][self.T].get('achieved_goal')])
+
+            obs.append([demo_data_obs[epsd][self.T - 1].get('observation')])
+            achieved_goals.append([demo_data_obs[epsd][self.T - 1].get('achieved_goal')])
 
             episode = dict(o=obs,
                            u=acts,
@@ -179,10 +190,9 @@ class DDPG(object):
                 episode['info_{}'.format(key)] = value
 
             episode = convert_episode_to_batch_major(episode)
-            global demoBuffer
-            demoBuffer.store_episode(episode) # create the observation dict and append them into the demonstration buffer
-
-            print("Demo buffer size currently ", demoBuffer.get_current_size()) #print out the demonstration buffer size
+            global DEMO_BUFFER
+            DEMO_BUFFER.store_episode(episode) # create the observation dict and append them into the demonstration buffer
+            logger.debug("Demo buffer size currently ", DEMO_BUFFER.get_current_size()) #print out the demonstration buffer size
 
             if update_stats:
                 # add transitions to normalizer to normalize the demo data as well
@@ -191,7 +201,7 @@ class DDPG(object):
                 num_normalizing_transitions = transitions_in_episode_batch(episode)
                 transitions = self.sample_transitions(episode, num_normalizing_transitions)
 
-                o, o_2, g, ag = transitions['o'], transitions['o_2'], transitions['g'], transitions['ag']
+                o, g, ag = transitions['o'], transitions['g'], transitions['ag']
                 transitions['o'], transitions['g'] = self._preprocess_og(o, ag, g)
                 # No need to preprocess the o_2 and g_2 since this is only used for stats
 
@@ -201,6 +211,8 @@ class DDPG(object):
                 self.o_stats.recompute_stats()
                 self.g_stats.recompute_stats()
             episode.clear()
+
+        logger.info("Demo buffer size: ", DEMO_BUFFER.get_current_size()) #print out the demonstration buffer size
 
     def store_episode(self, episode_batch, update_stats=True):
         """
@@ -217,7 +229,7 @@ class DDPG(object):
             num_normalizing_transitions = transitions_in_episode_batch(episode_batch)
             transitions = self.sample_transitions(episode_batch, num_normalizing_transitions)
 
-            o, o_2, g, ag = transitions['o'], transitions['o_2'], transitions['g'], transitions['ag']
+            o, g, ag = transitions['o'], transitions['g'], transitions['ag']
             transitions['o'], transitions['g'] = self._preprocess_og(o, ag, g)
             # No need to preprocess the o_2 and g_2 since this is only used for stats
 
@@ -251,9 +263,9 @@ class DDPG(object):
     def sample_batch(self):
         if self.bc_loss: #use demonstration buffer to sample as well if bc_loss flag is set TRUE
             transitions = self.buffer.sample(self.batch_size - self.demo_batch_size)
-            global demoBuffer
-            transitionsDemo = demoBuffer.sample(self.demo_batch_size) #sample from the demo buffer
-            for k, values in transitionsDemo.items():
+            global DEMO_BUFFER
+            transitions_demo = DEMO_BUFFER.sample(self.demo_batch_size) #sample from the demo buffer
+            for k, values in transitions_demo.items():
                 rolloutV = transitions[k].tolist()
                 for v in values:
                     rolloutV.append(v.tolist())
@@ -302,10 +314,7 @@ class DDPG(object):
 
     def _create_network(self, reuse=False):
         logger.info("Creating a DDPG agent with action space %d x %s..." % (self.dimu, self.max_u))
-
-        self.sess = tf.get_default_session()
-        if self.sess is None:
-            self.sess = tf.InteractiveSession()
+        self.sess = tf_util.get_session()
 
         # running averages
         with tf.variable_scope('o_stats') as vs:
@@ -433,3 +442,7 @@ class DDPG(object):
         assert(len(vars) == len(state["tf"]))
         node = [tf.assign(var, val) for var, val in zip(vars, state["tf"])]
         self.sess.run(node)
+
+    def save(self, save_path):
+        tf_util.save_variables(save_path)
+

@@ -63,7 +63,7 @@ def rollout(env, model, n_trials):
 
     for i in range(n_trials):
         obs = env.reset()
-        state = model.initial_state
+        state = model.initial_state if hasattr(model, 'initial_state') else None
         episode_rew = []
         episode_actions = []
         episode_obs = []
