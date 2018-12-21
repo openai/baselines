@@ -16,7 +16,6 @@ RUN pip3 install --upgrade pip
 # Install Python Module
 COPY requirements.txt /root
 RUN pip install -r /root/requirements.txt
-# RUN pip3 install matplotlib numpy scipy sklearn pandas seaborn librosa h5py
 
 
 

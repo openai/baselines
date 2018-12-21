@@ -5,3 +5,4 @@ sklearn
 pandas
 seaborn
 librosa
+jupyter
