@@ -5,6 +5,13 @@ from baselines import logger
 from baselines.her.ddpg import DDPG
 from baselines.her.her import make_sample_her_transitions
 
+# --------------------------------------------------------------------------------------
+from baselines.custom_logger import CustomLoggerObject
+clogger = CustomLoggerObject()
+clogger.info("MyLogger is working!!")
+# --------------------------------------------------------------------------------------
+
+
 
 DEFAULT_ENV_PARAMS = {
     'FetchReach-v1': {
@@ -170,12 +177,16 @@ def configure_dims(params):
     env = cached_make_env(params['make_env'])
     env.reset()
     obs, _, _, info = env.step(env.action_space.sample())
+    
 
     dims = {
         'o': obs['observation'].shape[0],
         'u': env.action_space.shape[0],
         'g': obs['desired_goal'].shape[0],
     }
+    clogger.info("input_dims = {}".format(dims))
+    clogger.info("env.action_apace={}".format(env.action_space))
+    clogger.info("env.observation_space={}".format(env.observation_space))
     for key, value in info.items():
         value = np.array(value)
         if value.ndim == 0:

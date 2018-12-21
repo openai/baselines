@@ -3,7 +3,41 @@ This repository is cloned from [openai/baselines](https://github.com/openai/base
 
 
 ## Train model with DDPG
-TBA
+以下のコマンドで学習済みモデルを作成する. tensorflowのモデルを保存するディレクトリを`--lodir_tf` で指定する.
+
+例
+```
+python -m baselines.her.experiment.test \
+       --env HandManipulateBlock-v0 \
+       --num_cpu 1 \
+       --n_epochs 100 \
+       --logdir_tf < Dierctory path to save tensorflow model>
+```
+
+
+## Action and Q-value Generation
+以下のコマンドで学習モデルをロードし, 指定したディレクトリにアクションなどを書き出す. `--logdir_tf`で学習済みのモデルを指定し, `--logdir_aq`でactionやQ-valueなどを出力するディレクトリを指定する.
+
+
+```
+python -m baselines.her.experiment.test --env HandManipulateBlock-v0 \
+       --num_cpu 1 --n_epochs 5 \
+       --logdir_tf < path to saved model > \
+       --logdir_aq < path to save actions etc... >
+```
+
+### Log File
+ログファイルには以下の項目が記述されている.
+
++ `goal/desired`: ゴール (`g`)
++ `goal/achieved`: 到達点 (`ag`)
++ `observation`: 観測 (`o`)
++ `action`: action, shape=[EpisodeNo, Batch, Sequence, env.action_space]
++ `Qvalue`: Q-value, shape=[EpisodeNo, Batch, Sequence, env.action_space]
+
+
+
+
 
 --------------------------------------
 ## Memo

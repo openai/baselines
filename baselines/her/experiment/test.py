@@ -14,6 +14,8 @@ from baselines.her.rollout import RolloutWorker
 from baselines.her.util import mpi_fork
 
 from subprocess import CalledProcessError
+import h5py
+
 
 # --------------------------------------------------------------------------------------
 from baselines.custom_logger import CustomLoggerObject
@@ -30,9 +32,10 @@ def mpi_average(value):
     return mpi_moments(np.array(value))[0]
 
 
-def train(policy, rollout_worker, evaluator,
+def test(policy, rollout_worker, evaluator,
           n_epochs, n_test_rollouts, n_cycles, n_batches, policy_save_interval,
-          save_policies, demo_file, **kwargs):
+          save_policies, demo_file, logdir_aq, **kwargs):
+    clogger.info("Logdir for actions & Q-values: {}".format(logdir_aq))
     rank = MPI.COMM_WORLD.Get_rank()
 
     latest_policy_path = os.path.join(logger.get_dir(), 'policy_latest.pkl')
@@ -45,33 +48,49 @@ def train(policy, rollout_worker, evaluator,
     if policy.bc_loss == 1: policy.initDemoBuffer(demo_file) #initialize demo buffer if training with demonstrations
     for epoch in range(n_epochs):
         clogger.info("Start: Epoch {}/{}".format(epoch, n_epochs))
-        # train
-        rollout_worker.clear_history()
-        for _ in range(n_cycles):
-            episode = rollout_worker.generate_rollouts()
-            clogger.info("Episode = {}".format(episode.keys()))
-            # for key in episode.keys():
-            #     clogger.info(" - {}: {}".format(key, episode[key].shape))
-            policy.store_episode(episode)
-            for _ in range(n_batches):
-                policy.train()
-            policy.update_target_net()
 
         # test
         evaluator.clear_history()
+        episode_box = {"g":[],"ag":[],"o":[],"u":[],"q":[], "fc":[]}
         for _ in range(n_test_rollouts):
-            evaluator.generate_rollouts()
+            episode = evaluator.generate_rollouts(is_train=False)
+            clogger.info("Episode = {}".format(episode.keys()))
+            for key in episode.keys():
+                # clogger.info(" - {}: {}".format(key, episode[key].shape))
+                if key in episode_box.keys():
+                    episode_box[key].append(episode[key][np.newaxis, :])
 
+
+        # Dump episode info
+        for key in episode_box.keys():
+            # episode_box[key].append(episode[key])
+            l = len(episode[key])
+            episode_box[key] = np.concatenate(episode_box[key], axis=0)
+            clogger.info(" - {:<4}: {:>4} => {}".format(key, l, episode_box[key].shape))
+
+        filename = os.path.join(logdir_aq, 'epoch{}.h5'.format(epoch))
+        with h5py.File(filename, 'w') as f:
+            f.create_group('goal')
+            f['goal'].create_dataset('desired',  data=episode_box["g"])
+            f['goal'].create_dataset('achieved', data=episode_box["ag"])
+            f.create_dataset('obeservation',     data=episode_box["o"])
+            f.create_dataset('action',           data=episode_box["u"])
+            f.create_dataset('Qvalue',           data=episode_box["q"])
+            f.create_dataset('fc',               data=episode_box["fc"])
+            
+            
+        
         # record logs
         logger.record_tabular('epoch', epoch)
         for key, val in evaluator.logs('test'):
             logger.record_tabular(key, mpi_average(val))
-        for key, val in rollout_worker.logs('train'):
-            logger.record_tabular(key, mpi_average(val))
+        # for key, val in rollout_worker.logs('train'):
+        #     logger.record_tabular(key, mpi_average(val))
         for key, val in policy.logs():
             logger.record_tabular(key, mpi_average(val))
 
         if rank == 0:
+            clogger.info("Show table")
             logger.dump_tabular()
 
         # save the policy if it's better than the previous ones
@@ -96,8 +115,9 @@ def train(policy, rollout_worker, evaluator,
 
 def launch(
     env, logdir, n_epochs, num_cpu, seed, replay_strategy, policy_save_interval, clip_return,
-        demo_file, logdir_tf=None, override_params={}, save_policies=True,
+        demo_file, logdir_tf=None, logdir_aq=None, override_params={}, save_policies=True
 ):
+    assert logdir_tf, "Test mode need `logdir_tf`"
     # Fork for multi-CPU MPI implementation.
     if num_cpu > 1:
         try:
@@ -150,17 +170,13 @@ def launch(
         logger.warn('****************')
         logger.warn()
 
-
     dims = config.configure_dims(params)
     policy = config.configure_ddpg(dims=dims, params=params, clip_return=clip_return)
-    clogger.info(policy.sess)
-    # Prepare for Saving Network
-    clogger.info("logdir_tf: {}".format(logdir_tf))
-    if not logdir_tf == None:
-        clogger.info("Create tc.Saver()")
+    # Load Learned Parameters
+    if logdir_tf:
         import tensorflow as tf
         saver = tf.train.Saver()
-    
+        saver.restore(policy.sess, logdir_tf)
 
     rollout_params = {
         'exploit': False,
@@ -188,19 +204,20 @@ def launch(
     evaluator = RolloutWorker(params['make_env'], policy, dims, logger, **eval_params)
     evaluator.seed(rank_seed)
 
-    train(
+    # Log Directory for actions and qvalues
+    if not logdir_aq:
+        logdir_aq = os.path.join(logdir_tf, "ActionQvals")
+    if not os.path.exists(logdir_aq):
+        os.makedirs(logdir_aq)
+        clogger.info("Create Logdir to {}".format(logdir_aq))
+
+    test(
         logdir=logdir, policy=policy, rollout_worker=rollout_worker,
         evaluator=evaluator, n_epochs=n_epochs, n_test_rollouts=params['n_test_rollouts'],
         n_cycles=params['n_cycles'], n_batches=params['n_batches'],
-        policy_save_interval=policy_save_interval, save_policies=save_policies, demo_file=demo_file)
-
-
-    # Save Trained Network
-    if logdir_tf:
-        clogger.info("Save tf.variables to {}".format(logdir_tf))
-        clogger.info(policy.sess)
-        saver.save(policy.sess, logdir_tf)
-        clogger.info("Model was successflly saved [logidr_tf={}]".format(logdir_tf))
+        policy_save_interval=policy_save_interval, save_policies=save_policies, demo_file=demo_file,
+        logdir_aq=logdir_aq,
+    )
 
 
 @click.command()
@@ -214,6 +231,7 @@ def launch(
 @click.option('--clip_return', type=int, default=1, help='whether or not returns should be clipped')
 @click.option('--demo_file', type=str, default = 'PATH/TO/DEMO/DATA/FILE.npz', help='demo data file path')
 @click.option('--logdir_tf', type=str, default=None, help='the path to save tf.variables.')
+@click.option('--logdir_aq', type=str, default=None, help='the path to save tf.variables.')
 def main(**kwargs):
     clogger.info("Main Func @her.experiment.train")
     launch(**kwargs)

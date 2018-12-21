@@ -11,6 +11,11 @@ from baselines.common import set_global_seeds
 import baselines.common.tf_util as U
 
 from baselines import logger
+# --------------------------------------------------------------------------------------
+from baselines.custom_logger import CustomLoggerObject
+clogger = CustomLoggerObject()
+clogger.info("MyLogger is working!!")
+# --------------------------------------------------------------------------------------
 import numpy as np
 
 try:
@@ -118,6 +123,7 @@ def learn(network, env,
 
 
     start_time = time.time()
+    clogger.info("Start Training [nb_epochs={}]".format(nb_epochs))
 
     epoch_episode_rewards = []
     epoch_episode_steps = []
@@ -125,6 +131,7 @@ def learn(network, env,
     epoch_qs = []
     epoch_episodes = 0
     for epoch in range(nb_epochs):
+        clogger.info("Start Epoch={}".format(epoch))
         for cycle in range(nb_epoch_cycles):
             # Perform rollouts.
             if nenvs > 1:
@@ -134,7 +141,7 @@ def learn(network, env,
             for t_rollout in range(nb_rollout_steps):
                 # Predict next action.
                 action, q, _, _ = agent.step(obs, apply_noise=True, compute_Q=True)
-
+                clogger.info("action.shape={}, q={}".format(action.shape, q))
                 # Execute next action.
                 if rank == 0 and render:
                     env.render()
@@ -210,6 +217,7 @@ def learn(network, env,
             mpi_size = MPI.COMM_WORLD.Get_size()
         else:
             mpi_size = 1
+        clogger.info("Finish Training {}".format(time.time())) 
 
         # Log stats.
         # XXX shouldn't call np.mean on variable length lists

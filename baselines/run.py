@@ -15,6 +15,14 @@ from importlib import import_module
 
 from baselines.common.vec_env.vec_normalize import VecNormalize
 
+
+# --------------------------------------------------------------------------------------
+from baselines.custom_logger import CustomLoggerObject
+clogger = CustomLoggerObject()
+clogger.info("MyLogger is working!!")
+# --------------------------------------------------------------------------------------
+        
+        
 try:
     from mpi4py import MPI
 except ImportError:
