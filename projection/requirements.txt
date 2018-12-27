@@ -6,3 +6,4 @@ pandas
 seaborn
 librosa
 jupyter
+h5py
