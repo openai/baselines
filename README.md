@@ -34,6 +34,7 @@ python -m baselines.her.experiment.test --env HandManipulateBlock-v0 \
 + `observation`: 観測 (`o`)
 + `action`: action, shape=[EpisodeNo, Batch, Sequence, env.action_space]
 + `Qvalue`: Q-value, shape=[EpisodeNo, Batch, Sequence, env.action_space]
++ `fc`: Critic Networkの中間出力 (fc2), shape=[EpisodeNo, Batch, Sequence, n_unit(=256)]
 
 
 
