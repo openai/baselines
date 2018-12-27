@@ -7,7 +7,7 @@ This repository is cloned from [openai/baselines](https://github.com/openai/base
 
 例
 ```
-python -m baselines.her.experiment.test \
+python -m baselines.her.experiment.train \
        --env HandManipulateBlock-v0 \
        --num_cpu 1 \
        --n_epochs 100 \
