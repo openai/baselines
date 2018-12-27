@@ -22,7 +22,7 @@ def resampling(X,th_min=-1., th_max=1.):
     
     Args.
     -----
-    - x: float
+    - x: float [degree]
     - th_min/th_max: float, threshhold [unit=degree]
     """
     _X = X.copy()
@@ -45,7 +45,7 @@ def threading_clbk(ps):
     logger.info("Start: A={}, FC={} [from {}]".format(A.shape, FC.shape, path_in))
         
     # 量子化 & Onehot Encoding
-    As = resampling(A,)
+    As = resampling(A*(180./np.pi),)
 
     shape = list(As.shape) + [3]
     As_onehot = np.eye(3)[As.ravel().astype(int)+1]
@@ -56,8 +56,8 @@ def threading_clbk(ps):
         f.create_dataset("fc", data=FC)
         f.create_group('action')
         f["action"].create_dataset("raw", data=A)
-        #f["action"].create_dataset("resampled", data=As)
-        f["action"].create_dataset("onehot", data=As_onehot)
+        f["action"].create_dataset("resampled", data=As)
+        # f["action"].create_dataset("onehot", data=As_onehot)
     logger.info("Finish: Write to {}".format(path_out))
     return True
 

@@ -1,5 +1,7 @@
 import os
 import numpy as np
+import h5py
+
 
 from logging import getLogger, basicConfig, DEBUG
 logger = getLogger(__name__)
@@ -12,29 +14,33 @@ class DefaultDataset(chainer.dataset.DatasetMixin):
     """ Default Dataset Object for Multi-Class Classification
     """
 
-    def __init__(self, X, Y_key, labels,):
+    def __init__(self, file_list):
         """
         Args.
         -----
-        - X      : Input np.ndarray, shape= [Sample, Timestep, Features], dtype=float32
-        - Y_key  : Label [sample,]
-        - labels : Dictionary of labels
+        - file_list :list of input files (+.h5)
         """
-        assert X.dtype == np.float32, "Invaild data type for X. expected np.float32 but get {}".format(X.dtype)
-        assert Y_key.dtype == np.int32,   "Invaild data type for Y. expected np.float32 but get {}".format(Y.dtype)
-        self.Y_key = Y_key
-        self.labels = labels
+        X, Y = [], []
+        for path in file_list:
+            if not os.path.exists(path):
+                logger.warning("File does not exsists! [path={}]".format(path))
+                continue
+            X_tmp, Y_tmp = self.load_file(path)
+            X.append(X_tmp)
+            Y.append(Y_tmp)
+        self.X = np.concatenate(X, axis=0)
+        self.Y = np.concatenate(Y, axis=0)
+        logger.info("Success: X={}, Y={}".format(self.X.shape, self.Y.shape))
 
-        # Convert X to channel First
-        _X = X.transpose(0,2,1)
-        logger.debug("_X= {} => {}".format(X.shape, _X.shape))
-        sh = _X.shape
-        _X = X.reshape((sh[0], sh[1], sh[2], 1)) # STC => SCHT
-        self.X = _X
-        logger.debug("self.X = {}".format(self.X.shape))
 
-        # Renew Label (Raw => Sequential Number)
-        self.Y = to_sequential_number_label(self.Y_key, labels)
+    def load_file(self, path):
+        with h5py.File(path, 'r') as f:
+            X = np.array(f["fc"],)
+            Y = np.array(f['action/resampled'],)            
+
+        xshape, yshape = X.shape, Y.shape
+        X, Y = X.reshape((-1, xshape[-1])), Y.reshape((-1,yshape[-1]))
+        return X, Y
         
         
     def __len__(self):
