@@ -120,13 +120,13 @@ class DDPG(object):
         return o, g
 
     def get_actions(self, o, ag, g, noise_eps=0., random_eps=0., use_target_net=False,
-                    compute_Q=False):
+                    compute_Q=False,):
         o, g = self._preprocess_og(o, ag, g)
         policy = self.target if use_target_net else self.main
         # values to compute
         vals = [policy.pi_tf]
         if compute_Q:
-            vals += [policy.Q_pi_tf]
+            vals += [policy.Q_pi_tf, policy.pi_tf_fc2]
         # feed
         feed = {
             policy.o_tf: o.reshape(-1, self.dimo),
@@ -150,6 +150,7 @@ class DDPG(object):
             return ret[0]
         else:
             return ret
+        
 
     def initDemoBuffer(self, demoDataFile, update_stats=True): #function that initializes the demo buffer
 

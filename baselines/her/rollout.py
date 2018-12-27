@@ -83,6 +83,7 @@ class RolloutWorker:
         # generate episodes
         obs, achieved_goals, acts, goals, successes = [], [], [], [], []
         q_vals = []
+        fcs = []
         info_values = [np.empty((self.T, self.rollout_batch_size, self.dims['info_' + key]), np.float32) for key in self.info_keys]
         Qs = []
         for t in range(self.T):
@@ -91,13 +92,15 @@ class RolloutWorker:
                 compute_Q=self.compute_Q,
                 noise_eps=self.noise_eps if not self.exploit else 0.,
                 random_eps=self.random_eps if not self.exploit else 0.,
-                use_target_net=self.use_target_net)
+                use_target_net=self.use_target_net,)
             # clogger.info("compute_Q[{}, {}]: policy_output: {}".format(self.compute_Q, t, policy_output))
             
             if self.compute_Q:
-                u, Q = policy_output
+                u, Q, fc = policy_output
                 Qs.append(Q)
                 q_vals.append(Q.copy())
+                if fc.ndim == 1:
+                    fc = fc.reshape(1,-1)                            
             else:
                 u = policy_output
 
@@ -105,6 +108,7 @@ class RolloutWorker:
                 # The non-batched case should still have a reasonable shape.
                 u = u.reshape(1, -1)
 
+                
             o_new = np.empty((self.rollout_batch_size, self.dims['o']))
             ag_new = np.empty((self.rollout_batch_size, self.dims['g']))
             success = np.zeros(self.rollout_batch_size)
@@ -134,6 +138,8 @@ class RolloutWorker:
             achieved_goals.append(ag.copy())
             successes.append(success.copy())
             acts.append(u.copy())
+            if self.compute_Q:
+                fcs.append(fc.copy())
             goals.append(self.g.copy())
             o[...] = o_new
             ag[...] = ag_new
@@ -150,6 +156,7 @@ class RolloutWorker:
         else:
             episode = dict(o=obs,
                            u=acts,
+                           fc=fcs,
                            g=goals,
                            ag=achieved_goals,
                            q=q_vals,

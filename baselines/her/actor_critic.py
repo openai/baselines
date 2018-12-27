@@ -32,8 +32,33 @@ class ActorCritic:
 
         # Networks.
         with tf.variable_scope('pi'):
-            self.pi_tf = self.max_u * tf.tanh(nn(
-                input_pi, [self.hidden] * self.layers + [self.dimu]))
+            # self.pi_tf = self.max_u * tf.tanh(nn(
+            #     input_pi, [self.hidden] * self.layers + [self.dimu]))
+
+            # 3-Layers FC Network
+            ## FC1
+            fc1 = tf.layers.dense(inputs=input_pi,
+                                  units=self.hidden,
+                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                  reuse=None,
+                                  name='fc1')
+            fc1 = tf.nn.relu(fc1)
+            ## FC2
+            fc2 = tf.layers.dense(inputs=fc1,
+                                  units=self.hidden,
+                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                  reuse=None,
+                                  name='fc2')
+            fc2 = tf.nn.relu(fc2)
+            ## FC3
+            fc3 = tf.layers.dense(inputs=fc2,
+                                  units=self.dimu,
+                                  kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                  reuse=None,
+                                  name='fc3')
+            self.pi_tf_fc2 = fc2
+            self.pi_tf     = fc3
+            
         with tf.variable_scope('Q'):
             # for policy training
             input_Q = tf.concat(axis=1, values=[o, g, self.pi_tf / self.max_u])

@@ -7,7 +7,7 @@ This repository is cloned from [openai/baselines](https://github.com/openai/base
 
 例
 ```
-python -m baselines.her.experiment.test \
+python -m baselines.her.experiment.train \
        --env HandManipulateBlock-v0 \
        --num_cpu 1 \
        --n_epochs 100 \
@@ -34,6 +34,7 @@ python -m baselines.her.experiment.test --env HandManipulateBlock-v0 \
 + `observation`: 観測 (`o`)
 + `action`: action, shape=[EpisodeNo, Batch, Sequence, env.action_space]
 + `Qvalue`: Q-value, shape=[EpisodeNo, Batch, Sequence, env.action_space]
++ `fc`: Critic Networkの中間出力 (fc2), shape=[EpisodeNo, Batch, Sequence, n_unit(=256)]
 
 
 
