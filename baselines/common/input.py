@@ -26,7 +26,7 @@ def observation_placeholder(ob_space, batch_size=None, name='Ob'):
             [observation_placeholder(space, batch_size, name=name+str(i)) for space, i in enumerate(ob_space.spaces)])
 
     assert isinstance(ob_space, Discrete) or isinstance(ob_space, Box) or isinstance(ob_space, MultiDiscrete), \
-        'Can only deal with Discrete and Box observation spaces for now'
+        'Can only deal with Discrete and Box observation spaces for now, given instance of {}'.format(ob_space.__class__)
 
     dtype = ob_space.dtype
     if dtype == np.int8:
