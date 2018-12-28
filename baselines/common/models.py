@@ -226,7 +226,7 @@ def tuple_network(network1, network2=None):
         else:
             out_2 = layers.flatten(X[1])
         return tf.concat([out_1, out_2], axis=-1)
-    return network_fn()
+    return network_fn
 
 
 def get_network_builder(name):
