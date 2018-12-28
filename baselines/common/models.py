@@ -220,9 +220,9 @@ def tuple_network(network1, network2=None):
 
     '''
     def network_fn(X):
-        out_1 = layers.flatten(network1.network_fn(X[0]))
+        out_1 = layers.flatten(network1(X[0]))
         if network2 is not None:
-            out_2 = layers.flatten(network2.network_fn(X[1]))
+            out_2 = layers.flatten(network2(X[1]))
         else:
             out_2 = layers.flatten(X[1])
         return tf.concat([out_1, out_2], axis=-1)
