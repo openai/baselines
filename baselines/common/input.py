@@ -22,6 +22,7 @@ def observation_placeholder(ob_space, batch_size=None, name='Ob'):
     '''
 
     if isinstance(ob_space, Tuple):
+        name = name + '_Tp_'
         return tf.tuple(
             [observation_placeholder(space, batch_size, name=name+str(i)) for i, space in enumerate(ob_space.spaces)])
 
@@ -55,7 +56,9 @@ def encode_observation(ob_space, placeholder):
 
     placeholder: tf.placeholder     observation input placeholder
     '''
-    if isinstance(ob_space, Discrete):
+    if isinstance(ob_space, Tuple) and isinstance(placeholder, tf.tuple):
+        return [encode_observation(space, tensor) for space, tensor in zip(ob_space.spaces, placeholder.tensors)]
+    elif isinstance(ob_space, Discrete):
         return tf.to_float(tf.one_hot(placeholder, ob_space.n))
     elif isinstance(ob_space, Box):
         return tf.to_float(placeholder)
