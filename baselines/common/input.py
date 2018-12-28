@@ -41,8 +41,10 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
     Create placeholder to feed observations into of the size appropriate to the observation space, and add input
     encoder of the appropriate type.
     '''
+    print('obs_space:', ob_space)
 
     placeholder = observation_placeholder(ob_space, batch_size, name)
+    print('Placehldr:', placeholder)
     return placeholder, encode_observation(ob_space, placeholder)
 
 def encode_observation(ob_space, placeholder):
@@ -57,7 +59,7 @@ def encode_observation(ob_space, placeholder):
     placeholder: tf.placeholder     observation input placeholder
     '''
     if isinstance(ob_space, Tuple):
-        return [encode_observation(space, tensor) for space, tensor in zip(ob_space.spaces, placeholder)]
+        return [encode_observation(space, tensor) for space, tensor in zip(ob_space.spaces, placeholder.tensors)]
     elif isinstance(ob_space, Discrete):
         return tf.to_float(tf.one_hot(placeholder, ob_space.n))
     elif isinstance(ob_space, Box):
