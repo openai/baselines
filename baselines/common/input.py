@@ -44,7 +44,6 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
     print('obs_space:', ob_space)
 
     placeholder = observation_placeholder(ob_space, batch_size, name)
-    print('Placehldr:', placeholder)
     return placeholder, encode_observation(ob_space, placeholder)
 
 def encode_observation(ob_space, placeholder):

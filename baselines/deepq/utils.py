@@ -28,7 +28,10 @@ class TfInput(object):
 class PlaceholderTfInput(TfInput):
     def __init__(self, placeholder):
         """Wrapper for regular tensorflow placeholder."""
-        super().__init__(placeholder.name)
+        if isinstance(placeholder, list):
+            super().__init__("tf_tuple")
+        else:
+            super().__init__(placeholder.name)
         self._placeholder = placeholder
 
     def get(self):
