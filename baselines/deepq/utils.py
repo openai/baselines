@@ -38,7 +38,11 @@ class PlaceholderTfInput(TfInput):
         return self._placeholder
 
     def make_feed_dict(self, data):
-        return {self._placeholder: adjust_shape(self._placeholder, data)}
+        if isinstance(self._placeholder, list):
+            adj_data = adjust_shape(self._placeholder, data)
+            return dict(zip(self._placeholder, adj_data))
+        else:
+            return {self._placeholder: adjust_shape(self._placeholder, data)}
 
 
 class ObservationInput(PlaceholderTfInput):

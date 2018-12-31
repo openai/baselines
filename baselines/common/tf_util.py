@@ -379,17 +379,35 @@ def adjust_shape(placeholder, data):
         reshaped data
     '''
 
-    if not isinstance(data, np.ndarray) and not isinstance(data, list):
-        return data
-    if isinstance(data, list):
-        data = np.array(data)
+    if isinstance(placeholder, list):
+        try:
+            return [adjust_shape(ph, dat) for ph, dat in zip(placeholder, data)]
+        except ValueError:
+            data = list(map(list, zip(*data)))
+            return [adjust_shape(ph, dat) for ph, dat in zip(placeholder, data)]
 
-    placeholder_shape = [x or -1 for x in placeholder.shape.as_list()]
+        # # Data is a batch of tuples
+        #
+        # # [[a,b],[a,b]] to [[a,a],[b,b]]
+        # data = list(map(list, zip(*data)))
+        # return [adjust_shape(ph, dat) for ph, dat in zip(placeholder, data)]
+        #
+        #
+        # # Data is a tuple
+        # return [adjust_shape(ph, dat) for ph, dat in zip(placeholder, data)]
 
-    assert _check_shape(placeholder_shape, data.shape), \
-        'Shape of data {} is not compatible with shape of the placeholder {}'.format(data.shape, placeholder_shape)
+    else:
+        if not isinstance(data, np.ndarray) and not isinstance(data, list):
+            return data
+        if isinstance(data, list):
+            data = np.array(data)
 
-    return np.reshape(data, placeholder_shape)
+        placeholder_shape = [x or -1 for x in placeholder.shape.as_list()]
+
+        assert _check_shape(placeholder_shape, data.shape), \
+            'Shape of data {} is not compatible with shape of the placeholder {}'.format(data.shape, placeholder_shape)
+
+        return np.reshape(data, placeholder_shape)
 
 
 def _check_shape(placeholder_shape, data_shape):
