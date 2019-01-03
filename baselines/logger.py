@@ -68,7 +68,8 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         self.file.flush()
 
     def _truncate(self, s):
-        return s[:20] + '...' if len(s) > 23 else s
+        maxlen = 30
+        return s[:maxlen-3] + '...' if len(s) > maxlen else s
 
     def writeseq(self, seq):
         seq = list(seq)
@@ -210,14 +211,17 @@ def logkvs(d):
     for (k, v) in d.items():
         logkv(k, v)
 
-def dumpkvs():
+def dumpkvs(mpi_mean=False):
     """
     Write all of the diagnostics from the current iteration
 
-    level: int. (see logger.py docs) If the global logger level is higher than
-                the level argument here, don't print to stdout.
+    mpi_mean:  whether to average across MPI workers. mpi_mean=False just
+               has each worker write its own stats (and under default settings
+               non-root workers don't write anything), whereas mpi_mean=True has
+               the root worker collect all of the stats and write the average,
+               and no one else writes anything.
     """
-    Logger.CURRENT.dumpkvs()
+    return Logger.CURRENT.dumpkvs(mpi_mean=mpi_mean)
 
 def getkvs():
     return Logger.CURRENT.name2val
@@ -307,20 +311,30 @@ class Logger(object):
         self.name2val[key] = val
 
     def logkv_mean(self, key, val):
-        if val is None:
-            self.name2val[key] = None
-            return
         oldval, cnt = self.name2val[key], self.name2cnt[key]
         self.name2val[key] = oldval*cnt/(cnt+1) + val/(cnt+1)
         self.name2cnt[key] = cnt + 1
 
-    def dumpkvs(self):
+    def dumpkvs(self, mpi_mean=False):
         if self.level == DISABLED: return
+        if mpi_mean:
+            from baselines.common import mpi_util
+            from mpi4py import MPI
+            comm = MPI.COMM_WORLD
+            d = mpi_util.mpi_weighted_mean(comm,
+                {name : (val, self.name2cnt.get(name, 1))
+                    for (name, val) in self.name2val.items()})
+            if comm.rank != 0:
+                d['dummy'] = 1 # so we don't get a warning about empty dict
+        else:
+            d = self.name2val
+        out = d.copy() # Return the dict for unit testing purposes
         for fmt in self.output_formats:
             if isinstance(fmt, KVWriter):
-                fmt.writekvs(self.name2val)
+                fmt.writekvs(d)
         self.name2val.clear()
         self.name2cnt.clear()
+        return out
 
     def log(self, *args, level=INFO):
         if self.level <= level:
@@ -456,7 +470,6 @@ def read_tb(path):
     import pandas
     import numpy as np
     from glob import glob
-    from collections import defaultdict
     import tensorflow as tf
     if osp.isdir(path):
         fnames = glob(osp.join(path, "events.*"))
@@ -484,6 +497,8 @@ def read_tb(path):
 
 # configure the default logger on import
 _configure_default_logger()
+
+
 
 if __name__ == "__main__":
     _demo()

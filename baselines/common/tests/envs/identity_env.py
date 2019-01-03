@@ -26,7 +26,6 @@ class IdentityEnv(Env):
         self._choose_next_state()
         done = False
         if self.episode_len and self.time >= self.episode_len:
-            rew = 0
             done = True
 
         return self.state, rew, done, {}
@@ -74,7 +73,7 @@ class BoxIdentityEnv(IdentityEnv):
             episode_len=None,
     ):
 
-        self.action_space = Box(low=-1.0, high=1.0, shape=shape)
+        self.action_space = Box(low=-1.0, high=1.0, shape=shape, dtype=np.float32)
         super().__init__(episode_len=episode_len)
 
     def _get_reward(self, actions):
