@@ -128,8 +128,23 @@ Initially shared then diverging: ``[128, dict(vf=[256], pi=[16])]``
            |                |
         action            value
 
+The ``LstmPolicy`` can be used to construct recurrent policies in a similar way:
 
-If however, your task requires a more granular control over the policy architecture, you can redefine the policy directly:
+.. code-block:: python
+
+    class CustomLSTMPolicy(LstmPolicy):
+        def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=64, reuse=False, **_kwargs):
+            super().__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, reuse,
+                             net_arch=[8, 'lstm', dict(vf=[5, 10], pi=[10])],
+                             layer_norm=True, feature_extraction="mlp", **_kwargs)
+
+Here the ``net_arch`` parameter takes an additional (mandatory) 'lstm' entry within the shared network section.
+The LSTM is shared between value network and policy network.
+
+
+
+
+If your task requires even more granular control over the policy architecture, you can redefine the policy directly:
 
 .. code-block:: python
 
@@ -144,8 +159,7 @@ If however, your task requires a more granular control over the policy architect
   # with a nature_cnn feature extractor
   class CustomPolicy(ActorCriticPolicy):
       def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **kwargs):
-          super(CustomPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256,
-                                             reuse=reuse, scale=True)
+          super(CustomPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=True)
 
           with tf.variable_scope("model", reuse=reuse):
               activ = tf.nn.relu

@@ -14,6 +14,7 @@ Pre-Release 2.4.0a (WIP)
 - fixed bug related to shape of true_reward (@abhiskk)
 - fixed example code in documentation of tf_util:Function (@JohannesAck)
 - added learning rate schedule for SAC
+- added more flexible custom LSTM policies
 
 Release 2.3.0 (2018-12-05)
 --------------------------

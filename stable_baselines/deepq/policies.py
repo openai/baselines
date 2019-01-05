@@ -16,7 +16,6 @@ class DQNPolicy(BasePolicy):
     :param n_env: (int) The number of environments to run
     :param n_steps: (int) The number of steps to run for each environment
     :param n_batch: (int) The number of batch to run (n_envs * n_steps)
-    :param n_lstm: (int) The number of LSTM cells (for recurrent policies)
     :param reuse: (bool) If the policy is reusable or not
     :param scale: (bool) whether or not to scale the input
     :param obs_phs: (TensorFlow Tensor, TensorFlow Tensor) a tuple containing an override for observation placeholder
@@ -24,11 +23,11 @@ class DQNPolicy(BasePolicy):
     :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=256, reuse=False, scale=False,
+    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, scale=False,
                  obs_phs=None, dueling=True):
         # DQN policies need an override for the obs placeholder, due to the architecture of the code
-        super(DQNPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=n_lstm, reuse=reuse,
-                                        scale=scale, obs_phs=obs_phs)
+        super(DQNPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse, scale=scale,
+                                        obs_phs=obs_phs)
         assert isinstance(ac_space, Discrete), "Error: the action space for DQN must be of type gym.spaces.Discrete"
         self.n_actions = ac_space.n
         self.value_fn = None
@@ -92,8 +91,8 @@ class FeedForwardPolicy(DQNPolicy):
                  cnn_extractor=nature_cnn, feature_extraction="cnn",
                  obs_phs=None, layer_norm=False, dueling=True, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps,
-                                                n_batch, n_lstm=256, dueling=dueling,
-                                                reuse=reuse, scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
+                                                n_batch, dueling=dueling, reuse=reuse,
+                                                scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
         if layers is None:
             layers = [64, 64]
 
