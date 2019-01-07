@@ -20,7 +20,7 @@ while True:
     state = sim.get_state()
 
     state.qpos[1] = 0.1*math.sin(0.01*t)
-    state.qpos[0] = 0.1*math.cos(0.01*t)
+    state.qpos[0] = 0.05*math.cos(0.01*t)
 
     sim.set_state(state)
     # if t > 100 and os.getenv('TESTING') is not None:

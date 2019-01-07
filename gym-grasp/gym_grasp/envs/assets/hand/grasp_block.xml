@@ -26,13 +26,13 @@
 
         <geom type="plane" pos="1 0.87 0.175" size="0.2 0.2 0.2" rgba=".9 .9 .9 1"/>
 
-        <body name="object" pos="1 0.87 0.2">
+        <body name="object" pos="1 0.85 0.2">
             <geom name="object" type="box" size="0.025 0.025 0.025" material="material:object" condim="4" density="567"></geom>
-            <geom name="object_hidden" type="box" size="0.024 0.024 0.024" material="material:hidden" condim="4" contype="0" conaffinity="0" mass="0"></geom>
+            <geom name="object_hidden" type="box" size="0.024 0.024 0.024" material="material:hidden" condim="4" contype="0" conaffinity="0" mass="0.l"></geom>
             <site name="object:center" pos="0 0 0" rgba="1 0 0 0" size="0.01 0.01 0.01"></site>
             <joint name="object:joint" type="free" damping="0.01"></joint>
         </body>
-        <body name="target" pos="1 0.87 0.2">
+        <body name="target" pos="1 0.87 0.4">
             <geom name="target" type="box" size="0.025 0.025 0.025" material="material:target" condim="4" group="2" contype="0" conaffinity="0"></geom>
             <site name="target:center" pos="0 0 0" rgba="1 0 0 0" size="0.01 0.01 0.01"></site>
             <joint name="target:joint" type="free" damping="0.01"></joint>
@@ -40,4 +40,8 @@
 
         <light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false" pos="0 1 4" dir="0 0 -1" name="light0"></light>
     </worldbody>
+
+    <actuator>
+        <position name="robot0:A_slider" class="robot0:asset_class" user="2090" joint="robot0:slider" ctrlrange="-0.01 0" kp="5" forcerange="-0.9 0.9"/>
+    </actuator>
 </mujoco>
