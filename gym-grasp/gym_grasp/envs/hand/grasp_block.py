@@ -2,7 +2,8 @@ import os
 import numpy as np
 
 from gym import utils, error
-from gym.envs.robotics import rotations, hand_env
+# from gym.envs.robotics import rotations, hand_env
+from gym_grasp.envs import rotations, hand_env
 from gym.envs.robotics.utils import robot_get_obs
 
 try:
@@ -195,7 +196,7 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
 
         # Run the simulation for a bunch of timesteps to let everything settle in.
         for _ in range(10):
-            self._set_action(np.zeros(20))
+            self._set_action(np.zeros(21))
             try:
                 self.sim.step()
             except mujoco_py.MujocoException:
@@ -301,7 +302,7 @@ class HandPenEnv(ManipulateEnv):
 
 
 class GraspBlockEnv(ManipulateEnv):
-    def __init__(self, target_position='fixed', target_rotation='ignored', reward_type='continuous'):
+    def __init__(self, target_position='fixed', target_rotation='xyz', reward_type='continuous'):
         super(GraspBlockEnv, self).__init__(
             model_path=GRASP_BLOCK_XML, target_position=target_position,
             target_rotation=target_rotation,
