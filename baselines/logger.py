@@ -196,13 +196,13 @@ def logkv(key, val):
     Call this once for each diagnostic quantity, each iteration
     If called many times, last value will be used.
     """
-    Logger.CURRENT.logkv(key, val)
+    get_current().logkv(key, val)
 
 def logkv_mean(key, val):
     """
     The same as logkv(), but if called many times, values averaged.
     """
-    Logger.CURRENT.logkv_mean(key, val)
+    get_current().logkv_mean(key, val)
 
 def logkvs(d):
     """
@@ -221,17 +221,17 @@ def dumpkvs(mpi_mean=False):
                the root worker collect all of the stats and write the average,
                and no one else writes anything.
     """
-    return Logger.CURRENT.dumpkvs(mpi_mean=mpi_mean)
+    return get_current().dumpkvs(mpi_mean=mpi_mean)
 
 def getkvs():
-    return Logger.CURRENT.name2val
+    return get_current().name2val
 
 
 def log(*args, level=INFO):
     """
     Write the sequence of args, with no separators, to the console and output files (if you've configured an output file).
     """
-    Logger.CURRENT.log(*args, level=level)
+    get_current().log(*args, level=level)
 
 def debug(*args):
     log(*args, level=DEBUG)
@@ -250,14 +250,14 @@ def set_level(level):
     """
     Set logging threshold on current logger.
     """
-    Logger.CURRENT.set_level(level)
+    get_current().set_level(level)
 
 def get_dir():
     """
     Get directory that log files are being written to.
     will be None if there is no output directory (i.e., if you didn't call start)
     """
-    return Logger.CURRENT.get_dir()
+    return get_current().get_dir()
 
 record_tabular = logkv
 dump_tabular = dumpkvs
@@ -273,7 +273,7 @@ class ProfileKV:
     def __enter__(self):
         self.t1 = time.time()
     def __exit__(self ,type, value, traceback):
-        Logger.CURRENT.name2val[self.n] += time.time() - self.t1
+        get_current().name2val[self.n] += time.time() - self.t1
 
 def profile(n):
     """
@@ -292,6 +292,13 @@ def profile(n):
 # ================================================================
 # Backend
 # ================================================================
+
+def get_current():
+    if Logger.CURRENT is None:
+        _configure_default_logger()
+
+    return Logger.CURRENT
+
 
 class Logger(object):
     DEFAULT = None  # A logger with no output files. (See right below class definition)
@@ -409,7 +416,7 @@ class scoped_configure(object):
         self.format_strs = format_strs
         self.prevlogger = None
     def __enter__(self):
-        self.prevlogger = Logger.CURRENT
+        self.prevlogger = get_current()
         configure(dir=self.dir, format_strs=self.format_strs)
     def __exit__(self, *args):
         Logger.CURRENT.close()
@@ -437,7 +444,7 @@ def _demo():
     logkv_mean("b", -44.4)
     logkv("a", 5.5)
     dumpkvs()
-    info("^^^ should see b = 33.3")
+    info("^^^ should see b = -33.3")
 
     logkv("b", -2.5)
     dumpkvs()
@@ -494,11 +501,6 @@ def read_tb(path):
         for (step, value) in pairs:
             data[step-1, colidx] = value
     return pandas.DataFrame(data, columns=tags)
-
-# configure the default logger on import
-_configure_default_logger()
-
-
 
 if __name__ == "__main__":
     _demo()
