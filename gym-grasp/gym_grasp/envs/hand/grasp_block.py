@@ -302,10 +302,12 @@ class HandPenEnv(ManipulateEnv):
 
 
 class GraspBlockEnv(ManipulateEnv):
-    def __init__(self, target_position='fixed', target_rotation='xyz', reward_type='continuous'):
+    def __init__(self, target_position='random', target_rotation='xyz', reward_type='sparse'):
         super(GraspBlockEnv, self).__init__(
             model_path=GRASP_BLOCK_XML, target_position=target_position,
             target_rotation=target_rotation,
-            target_position_range=np.array([(0.975, 1.025), (0.825, 0.875), (0.3, 0.3)]),
-            randomize_initial_position=False, reward_type=reward_type
+            target_position_range=np.array([(-0.025, 0.025), (-0.025, 0.025), (0.2, 0.25)]),
+            randomize_initial_position=False, reward_type=reward_type,
+            distance_threshold=0.05,
+            rotation_threshold=100.0
         )
