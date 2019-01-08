@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+import gym_grasp
 
 from baselines import logger
 from baselines.her.ddpg import DDPG
