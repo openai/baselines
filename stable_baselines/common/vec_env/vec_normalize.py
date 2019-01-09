@@ -14,7 +14,7 @@ class VecNormalize(VecEnvWrapper):
     :param venv: (VecEnv) the vectorized environment to wrap
     :param training: (bool) Whether to update or not the moving average
     :param norm_obs: (bool) Whether to normalize observation or not (default: True)
-    :param norm_reward: (bool) Whether to normalize rewards or not (default: False)
+    :param norm_reward: (bool) Whether to normalize rewards or not (default: True)
     :param clip_obs: (float) Max absolute value for observation
     :param clip_reward: (float) Max value absolute for discounted reward
     :param gamma: (float) discount factor
