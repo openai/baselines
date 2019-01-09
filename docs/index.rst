@@ -102,12 +102,10 @@ Contributing
 ------------
 
 To any interested in making the rl baselines better, there is still some improvements
-that needs to be done: good-to-have features like support for continuous actions (ACER)
-and more documentation on the rl algorithms.
+that needs to be done.
 A full TODO list is available in the `roadmap <https://github.com/hill-a/stable-baselines/projects/1>`_.
 
-If you want to contribute, please open an issue first and then propose your pull request on Github at
-https://github.com/hill-a/stable-baselines.
+If you want to contribute, please read `CONTRIBUTING.md <https://github.com/hill-a/stable-baselines/blob/master/CONTRIBUTING.md>`_ first.
 
 Indices and tables
 -------------------

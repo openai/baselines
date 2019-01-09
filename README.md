@@ -207,11 +207,8 @@ Stable-Baselines is currently maintained by [Ashley Hill](https://github.com/hil
 ## How To Contribute
 
 To any interested in making the baselines better, there is still some documentation that needs to be done.
-If you want to contribute, please open an issue first and then propose your pull request.
+If you want to contribute, please read **CONTRIBUTING.md** guide first.
 
-Nice to have (for the future):
-- [ ] Continuous actions support for ACER
-- [ ] Continuous actions support for ACKTR
 
 ## Acknowledgments
 
