@@ -30,7 +30,8 @@ class SAC(OffPolicyRLModel):
     Soft Actor-Critic (SAC)
     Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor,
     This implementation borrows code from original implementation (https://github.com/haarnoja/sac)
-    and from OpenAI Spinning Up (https://github.com/openai/spinningup)
+    from OpenAI Spinning Up (https://github.com/openai/spinningup) and from the Softlearning repo
+    (https://github.com/rail-berkeley/softlearning/)
     Paper: https://arxiv.org/abs/1801.01290
     Introduction to SAC: https://spinningup.openai.com/en/latest/algorithms/sac.html
 
@@ -43,20 +44,23 @@ class SAC(OffPolicyRLModel):
     :param buffer_size: (int) size of the replay buffer
     :param batch_size: (int) Minibatch size for each gradient update
     :param tau: (float) the soft update coefficient ("polyak update", between 0 and 1)
-    :param ent_coef: (float) Entropy regularization coefficient. (Equivalent to
+    :param ent_coef: (str or float) Entropy regularization coefficient. (Equivalent to
         inverse of reward scale in the original SAC paper.)  Controlling exploration/exploitation trade-off.
+        Set it to 'auto' to learn it automatically (and 'auto_0.1' for using 0.1 as initial value)
     :param train_freq: (int) Update the model every `train_freq` steps.
     :param learning_starts: (int) how many steps of the model to collect transitions for before learning starts
     :param target_update_interval: (int) update the target network every `target_network_update_freq` steps.
     :param gradient_steps: (int) How many gradient update after each step
+    :param target_entropy: (str or float) target entropy when learning ent_coef (ent_coef = 'auto')
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     """
 
-    def __init__(self, policy, env, gamma=0.99, learning_rate=3e-3, buffer_size=50000,
+    def __init__(self, policy, env, gamma=0.99, learning_rate=3e-4, buffer_size=50000,
                  learning_starts=100, train_freq=1, batch_size=64,
-                 tau=0.005, ent_coef=0.1, target_update_interval=1, gradient_steps=1,
+                 tau=0.005, ent_coef='auto', target_update_interval=1,
+                 gradient_steps=1, target_entropy='auto',
                  verbose=0, tensorboard_log=None, _init_setup_model=True):
         super(SAC, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose,
                                   policy_base=SACPolicy, requires_vec_env=False)
@@ -88,6 +92,7 @@ class SAC(OffPolicyRLModel):
         self.params = None
         self.summary = None
         self.policy_tf = None
+        self.target_entropy = target_entropy
 
         self.obs_target = None
         self.target_policy = None
@@ -104,6 +109,9 @@ class SAC(OffPolicyRLModel):
         self.entropy = None
         self.target_params = None
         self.learning_rate_ph = None
+        self.processed_obs_ph = None
+        self.processed_next_obs_ph = None
+        self.log_ent_coef = None
 
         if _init_setup_model:
             self.setup_model()
@@ -116,7 +124,6 @@ class SAC(OffPolicyRLModel):
                 if sys.platform == 'darwin':
                     n_cpu //= 2
                 self.sess = tf_util.make_session(num_cpu=n_cpu, graph=self.graph)
-
 
                 self.replay_buffer = ReplayBuffer(self.buffer_size)
 
@@ -140,9 +147,9 @@ class SAC(OffPolicyRLModel):
 
                 with tf.variable_scope("model", reuse=False):
                     # Create the policy
-                    # mu corresponds to deterministic actions
-                    # pi  corresponds to stochastic actions, used for training
-                    # logp_pi is the log probabilty of action pi
+                    # first return value corresponds to deterministic actions
+                    # policy_out corresponds to stochastic actions, used for training
+                    # logp_pi is the log probabilty of actions taken by the policy
                     _, policy_out, logp_pi = self.policy_tf.make_actor(self.processed_obs_ph)
                     # Monitor the entropy of the policy,
                     # this is not used for training
@@ -153,6 +160,34 @@ class SAC(OffPolicyRLModel):
                     qf1_pi, qf2_pi, _ = self.policy_tf.make_critics(self.processed_obs_ph,
                                                                     policy_out, create_qf=True, create_vf=False,
                                                                     reuse=True)
+
+                    # Target entropy is used when learning the entropy coefficient
+                    if self.target_entropy == 'auto':
+                        # automatically set target entropy if needed
+                        self.target_entropy = -np.prod(self.env.action_space.shape).astype(np.float32)
+                    else:
+                        # Force conversion
+                        # this will also throw an error for unexpected string
+                        self.target_entropy = float(self.target_entropy)
+
+                    # The entropy coefficient or entropy can be learned automatically
+                    # see Automating Entropy Adjustment for Maximum Entropy RL section
+                    # of https://arxiv.org/abs/1812.05905
+                    if isinstance(self.ent_coef, str) and self.ent_coef.startswith('auto'):
+                        # Default initial value of ent_coef when learned
+                        init_value = 1.0
+                        if '_' in self.ent_coef:
+                            init_value = float(self.ent_coef.split('_')[1])
+                            assert init_value > 0., "The initial value of ent_coef must be greater than 0"
+
+                        self.log_ent_coef = tf.get_variable('log_ent_coef', dtype=tf.float32,
+                                                            initializer=np.log(init_value).astype(np.float32))
+                        self.ent_coef = tf.exp(self.log_ent_coef)
+                    else:
+                        # Force conversion to float
+                        # this will throw an error if a malformed string (different from 'auto')
+                        # is passed
+                        self.ent_coef = float(self.ent_coef)
 
                 with tf.variable_scope("target", reuse=False):
                     # Create the value network
@@ -174,6 +209,14 @@ class SAC(OffPolicyRLModel):
                     # TODO: test with huber loss (it would avoid too high values)
                     qf1_loss = 0.5 * tf.reduce_mean((q_backup - qf1) ** 2)
                     qf2_loss = 0.5 * tf.reduce_mean((q_backup - qf2) ** 2)
+
+                    # Compute the entropy temperature loss
+                    # it is used when the entropy coefficient is learned
+                    ent_coef_loss, entropy_optimizer = None, None
+                    if not isinstance(self.ent_coef, float):
+                        ent_coef_loss = -tf.reduce_mean(
+                            self.log_ent_coef * tf.stop_gradient(logp_pi + self.target_entropy))
+                        entropy_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph)
 
                     # Compute the policy loss
                     # Alternative: policy_kl_loss = tf.reduce_mean(logp_pi - min_qf_pi)
@@ -198,8 +241,6 @@ class SAC(OffPolicyRLModel):
                     policy_train_op = policy_optimizer.minimize(policy_loss, var_list=get_vars('model/pi'))
 
                     # Value train op
-                    # (control dep of policy_train_op because sess.run otherwise
-                    # evaluates in nondeterministic order)
                     value_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph)
                     values_params = get_vars('model/values_fn')
 
@@ -228,12 +269,23 @@ class SAC(OffPolicyRLModel):
                                          value_loss, qf1, qf2, value_fn, logp_pi,
                                          self.entropy, policy_train_op, train_values_op]
 
+                        # Add entropy coefficient optimization operation if needed
+                        if ent_coef_loss is not None:
+                            with tf.control_dependencies([train_values_op]):
+                                ent_coef_op = entropy_optimizer.minimize(ent_coef_loss, var_list=self.log_ent_coef)
+                                self.infos_names += ['ent_coef_loss', 'ent_coef']
+                                self.step_ops += [ent_coef_op, ent_coef_loss, self.ent_coef]
+
                     # Monitor losses and entropy in tensorboard
                     tf.summary.scalar('policy_loss', policy_loss)
                     tf.summary.scalar('qf1_loss', qf1_loss)
                     tf.summary.scalar('qf2_loss', qf2_loss)
                     tf.summary.scalar('value_loss', value_loss)
                     tf.summary.scalar('entropy', self.entropy)
+                    if ent_coef_loss is not None:
+                        tf.summary.scalar('ent_coef_loss', ent_coef_loss)
+                        tf.summary.scalar('ent_coef', self.ent_coef)
+
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph))
 
                 # Retrieve parameters that must be saved
@@ -278,6 +330,10 @@ class SAC(OffPolicyRLModel):
         policy_loss, qf1_loss, qf2_loss, value_loss, *values = out
         # qf1, qf2, value_fn, logp_pi, entropy, *_ = values
         entropy = values[4]
+
+        if self.log_ent_coef is not None:
+            ent_coef_loss, ent_coef = values[-2:]
+            return policy_loss, qf1_loss, qf2_loss, value_loss, entropy, ent_coef_loss, ent_coef
 
         return policy_loss, qf1_loss, qf2_loss, value_loss, entropy
 
@@ -416,7 +472,8 @@ class SAC(OffPolicyRLModel):
             "train_freq": self.train_freq,
             "batch_size": self.batch_size,
             "tau": self.tau,
-            "ent_coef": self.ent_coef,
+            "ent_coef": self.ent_coef if isinstance(self.ent_coef, float) else 'auto',
+            "target_entropy": self.target_entropy,
             # Should we also store the replay buffer?
             # this may lead to high memory usage
             # with all transition inside

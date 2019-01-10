@@ -15,6 +15,7 @@ Pre-Release 2.4.0a (WIP)
 - fixed example code in documentation of tf_util:Function (@JohannesAck)
 - added learning rate schedule for SAC
 - added more flexible custom LSTM policies
+- added auto entropy coefficient optimization for SAC
 
 Release 2.3.0 (2018-12-05)
 --------------------------

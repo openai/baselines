@@ -29,6 +29,7 @@ Notes
 - Original paper: https://arxiv.org/abs/1801.01290
 - OpenAI Spinning Guide for SAC: https://spinningup.openai.com/en/latest/algorithms/sac.html
 - Original Implementation: https://github.com/haarnoja/sac
+- Blog post on using SAC with real robots: https://bair.berkeley.edu/blog/2018/12/14/sac/
 
 .. note::
     In our implementation, we use an entropy coefficient (as in OpenAI Spinning or Facebook Horizon),

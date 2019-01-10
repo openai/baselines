@@ -252,9 +252,10 @@ class LstmPolicy(ActorCriticPolicy):
             self.states_ph = tf.placeholder(tf.float32, [self.n_env, n_lstm * 2], name="states_ph")  # states
 
         if net_arch is None:  # Legacy mode
-            warnings.warn("The layers parameter is deprecated. Use the net_arch parameter instead.")
             if layers is None:
                 layers = [64, 64]
+            else:
+                warnings.warn("The layers parameter is deprecated. Use the net_arch parameter instead.")
 
             with tf.variable_scope("model", reuse=reuse):
                 if feature_extraction == "cnn":
