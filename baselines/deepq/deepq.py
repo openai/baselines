@@ -19,7 +19,6 @@ from baselines.deepq.utils import ObservationInput
 from baselines.common.tf_util import get_session
 from baselines.deepq.models import build_q_func
 
-
 class ActWrapper(object):
     def __init__(self, act, act_params):
         self._act = act
@@ -30,7 +29,7 @@ class ActWrapper(object):
     def load_act(path):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
-        act = deepq.build_act(**act_params)
+        act, debug = deepq.build_act(**act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
@@ -39,9 +38,9 @@ class ActWrapper(object):
                 f.write(model_data)
 
             zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
-            load_variables(os.path.join(td, "model"))
+            U.load_state(os.path.join(td, "model"))
 
-        return ActWrapper(act, act_params)
+        return ActWrapper(act, act_params), debug
 
     def __call__(self, *args, **kwargs):
         return self._act(*args, **kwargs)
@@ -58,7 +57,7 @@ class ActWrapper(object):
             path = os.path.join(logger.get_dir(), "model.pkl")
 
         with tempfile.TemporaryDirectory() as td:
-            save_variables(os.path.join(td, "model"))
+            U.save_state(os.path.join(td, "model"))
             arc_name = os.path.join(td, "packed.zip")
             with zipfile.ZipFile(arc_name, 'w') as zipf:
                 for root, dirs, files in os.walk(td):
@@ -72,7 +71,7 @@ class ActWrapper(object):
             cloudpickle.dump((model_data, self._act_params), f)
 
     def save(self, path):
-        save_variables(path)
+        U.save_state(path)
 
 
 def load_act(path):
@@ -184,6 +183,8 @@ def learn(env,
     act: ActWrapper
         Wrapper over act function. Adds ability to save it and load it.
         See header of baselines/deepq/categorical.py for details on the act function.
+    debug: {str: function}
+        a bunch of functions to print debug data like q_values.
     """
     # Create all the functions necessary to train the model
 
@@ -249,11 +250,11 @@ def learn(env,
         model_saved = False
 
         if tf.train.latest_checkpoint(td) is not None:
-            load_variables(model_file)
+            U.load_state(model_file)
             logger.log('Loaded model from {}'.format(model_file))
             model_saved = True
         elif load_path is not None:
-            load_variables(load_path)
+            U.load_state(load_path)
             logger.log('Loaded model from {}'.format(load_path))
 
 
@@ -279,6 +280,8 @@ def learn(env,
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
+            td_errors = None
+            debug_func = debug["q_values"]
             new_obs, rew, done, _ = env.step(env_action)
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))
@@ -299,6 +302,7 @@ def learn(env,
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
                 td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
@@ -309,8 +313,9 @@ def learn(env,
 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)
-            if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
+            if done and print_freq is not None and len(episode_rewards) % print_freq == 0 and t>learning_starts:
                 logger.record_tabular("steps", t)
+                logger.record_tabular("loss", np.sum(td_errors)/batch_size)
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
@@ -322,12 +327,12 @@ def learn(env,
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
                                    saved_mean_reward, mean_100ep_reward))
-                    save_variables(model_file)
+                    U.save_state(model_file)
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
-            load_variables(model_file)
+            U.load_state(model_file)
 
-    return act
+    return act, debug

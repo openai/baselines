@@ -183,6 +183,10 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
         q_values = q_func(observations_ph.get(), num_actions, scope="q_func")
         deterministic_actions = tf.argmax(q_values, axis=1)
 
+        obs_t_input = make_obs_ph("obs_t")
+        q_t = q_func(obs_t_input.get(), num_actions, scope="q_func", reuse=True)
+        q_values_get = U.function([obs_t_input], q_t)
+
         batch_size = tf.shape(observations_ph.get())[0]
         random_actions = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
         chose_random = tf.random_uniform(tf.stack([batch_size]), minval=0, maxval=1, dtype=tf.float32) < eps
@@ -196,7 +200,7 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
                          updates=[update_eps_expr])
         def act(ob, stochastic=True, update_eps=-1):
             return _act(ob, stochastic, update_eps)
-        return act
+        return act, q_values_get
 
 
 def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None, param_noise_filter_func=None):
