@@ -7,7 +7,8 @@ import tensorflow as tf
 from gym.spaces import Discrete
 
 from stable_baselines.a2c.utils import conv, linear, conv_to_fc, batch_to_seq, seq_to_batch, lstm
-from stable_baselines.common.distributions import make_proba_dist_type
+from stable_baselines.common.distributions import make_proba_dist_type, CategoricalProbabilityDistribution, \
+    MultiCategoricalProbabilityDistribution, DiagGaussianProbabilityDistribution, BernoulliProbabilityDistribution
 from stable_baselines.common.input import observation_input
 
 
@@ -179,9 +180,17 @@ class ActorCriticPolicy(BasePolicy):
             self.action = self.proba_distribution.sample()
             self.deterministic_action = self.proba_distribution.mode()
             self.neglogp = self.proba_distribution.neglogp(self.action)
-            self.policy_proba = self.policy
-            if self.is_discrete:
-                self.policy_proba = tf.nn.softmax(self.policy_proba)
+            if isinstance(self.proba_distribution, CategoricalProbabilityDistribution):
+                self.policy_proba = tf.nn.softmax(self.policy)
+            elif isinstance(self.proba_distribution, DiagGaussianProbabilityDistribution):
+                self.policy_proba = [self.proba_distribution.mean, self.proba_distribution.std]
+            elif isinstance(self.proba_distribution, BernoulliProbabilityDistribution):
+                self.policy_proba = tf.nn.sigmoid(self.policy)
+            elif isinstance(self.proba_distribution, MultiCategoricalProbabilityDistribution):
+                self.policy_proba = [tf.nn.softmax(categorical.flatparam())
+                                     for categorical in self.proba_distribution.categoricals]
+            else:
+                self.policy_proba = []  # it will return nothing, as it is not implemented
             self._value = self.value_fn[:, 0]
 
     def step(self, obs, state=None, mask=None, deterministic=False):

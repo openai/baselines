@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import os
 import glob
+import warnings
 
 import cloudpickle
 import numpy as np
@@ -161,14 +162,29 @@ class BaseRLModel(ABC):
         pass
 
     @abstractmethod
-    def action_probability(self, observation, state=None, mask=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None):
         """
-        Get the model's action probability distribution from an observation
+        If ``actions`` is ``None``, then get the model's action probability distribution from a given observation
+
+        depending on the action space the output is:
+            - Discrete: probability for each possible action
+            - Box: mean and standard deviation of the action output
+
+        However if ``actions`` is not ``None``, this function will return the probability that the given actions are
+        taken with the given parameters (observation, state, ...) on this model.
+
+        .. warning::
+            When working with continuous probability distribution (e.g. Gaussian distribution for continuous action)
+            the probability of taking a particular action is exactly zero.
+            See http://blog.christianperone.com/2019/01/ for a good explanation
 
         :param observation: (np.ndarray) the input observation
         :param state: (np.ndarray) The last states (can be None, used in recurrent policies)
         :param mask: (np.ndarray) The last masks (can be None, used in recurrent policies)
-        :return: (np.ndarray) the model's action probability distribution
+        :param actions: (np.ndarray) (OPTIONAL) For calculating the likelihood that the given actions are chosen by
+            the model for each of the given parameters. Must have the same number of actions and observations.
+            (set to None to return the complete action probability distribution)
+        :return: (np.ndarray) the model's action probability
         """
         pass
 
@@ -299,6 +315,7 @@ class ActorCriticRLModel(BaseRLModel):
     :param policy_base: (BasePolicy) the base policy used by this method (default=ActorCriticPolicy)
     :param requires_vec_env: (bool) Does this model require a vectorized environment
     """
+
     def __init__(self, policy, env, _init_setup_model, verbose=0, policy_base=ActorCriticPolicy,
                  requires_vec_env=False):
         super(ActorCriticRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
@@ -329,14 +346,19 @@ class ActorCriticRLModel(BaseRLModel):
         observation = observation.reshape((-1,) + self.observation_space.shape)
         actions, _, states, _ = self.step(observation, state, mask, deterministic=deterministic)
 
+        clipped_actions = actions
+        # Clip the actions to avoid out of bound error
+        if isinstance(self.action_space, gym.spaces.Box):
+            clipped_actions = np.clip(actions, self.action_space.low, self.action_space.high)
+
         if not vectorized_env:
             if state is not None:
                 raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
-            actions = actions[0]
+            clipped_actions = clipped_actions[0]
 
-        return actions, states
+        return clipped_actions, states
 
-    def action_probability(self, observation, state=None, mask=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None):
         if state is None:
             state = self.initial_state
         if mask is None:
@@ -346,6 +368,46 @@ class ActorCriticRLModel(BaseRLModel):
 
         observation = observation.reshape((-1,) + self.observation_space.shape)
         actions_proba = self.proba_step(observation, state, mask)
+
+        if len(actions_proba) == 0:  # empty list means not implemented
+            warnings.warn("Warning: action probability is not implemented for {} action space. Returning None."
+                          .format(type(self.action_space).__name__))
+            return None
+
+        if actions is not None:  # comparing the action distribution, to given actions
+            actions = np.array([actions])
+            if isinstance(self.action_space, gym.spaces.Discrete):
+                actions = actions.reshape((-1,))
+                assert observation.shape[0] == actions.shape[0], \
+                    "Error: batch sizes differ for actions and observations."
+                actions_proba = actions_proba[np.arange(actions.shape[0]), actions]
+
+            elif isinstance(self.action_space, gym.spaces.MultiDiscrete):
+                actions = actions.reshape((-1, len(self.action_space.nvec)))
+                assert observation.shape[0] == actions.shape[0], \
+                    "Error: batch sizes differ for actions and observations."
+                # Discrete action probability, over multiple categories
+                actions = np.swapaxes(actions, 0, 1)  # swap axis for easier categorical split
+                actions_proba = np.prod([proba[np.arange(act.shape[0]), act]
+                                         for proba, act in zip(actions_proba, actions)], axis=0)
+
+            elif isinstance(self.action_space, gym.spaces.MultiBinary):
+                actions = actions.reshape((-1, self.action_space.n))
+                assert observation.shape[0] == actions.shape[0], \
+                    "Error: batch sizes differ for actions and observations."
+                # Bernoulli action probability, for every action
+                actions_proba = np.prod(actions_proba * actions + (1 - actions_proba) * (1 - actions), axis=1)
+
+            elif isinstance(self.action_space, gym.spaces.Box):
+                warnings.warn("The probabilty of taken a given action is exactly zero for a continuous distribution."
+                              "See http://blog.christianperone.com/2019/01/ for a good explanation")
+                actions_proba = np.zeros((observation.shape[0], 1), dtype=np.float32)
+            else:
+                warnings.warn("Warning: action_probability not implemented for {} actions space. Returning None."
+                              .format(type(self.action_space).__name__))
+                return None
+            # normalize action proba shape for the different gym spaces
+            actions_proba = actions_proba.reshape((-1, 1))
 
         if not vectorized_env:
             if state is not None:
@@ -408,7 +470,7 @@ class OffPolicyRLModel(BaseRLModel):
         pass
 
     @abstractmethod
-    def action_probability(self, observation, state=None, mask=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None):
         pass
 
     @abstractmethod

@@ -3,6 +3,7 @@ import os
 import time
 from collections import deque
 import pickle
+import warnings
 
 import gym
 import numpy as np
@@ -950,17 +951,15 @@ class DDPG(OffPolicyRLModel):
 
         return actions, None
 
-    def action_probability(self, observation, state=None, mask=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None):
         observation = np.array(observation)
-        vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
-        observation = observation.reshape((-1,) + self.observation_space.shape)
+        if actions is not None:
+            raise ValueError("Error: DDPG does not have action probabilities.")
 
-        # here there are no action probabilities, as DDPG is continuous
-        if vectorized_env:
-            return self.sess.run(self.policy_tf.policy_proba, feed_dict={self.obs_train: observation})
-        else:
-            return self.sess.run(self.policy_tf.policy_proba, feed_dict={self.obs_train: observation})[0]
+        # here there are no action probabilities, as DDPG does not use a probability distribution
+        warnings.warn("Warning: action probability is meaningless for DDPG. Returning None")
+        return None
 
     def save(self, save_path):
         data = {

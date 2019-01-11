@@ -2,6 +2,7 @@ import sys
 import time
 import multiprocessing
 from collections import deque
+import warnings
 
 import numpy as np
 import tensorflow as tf
@@ -445,10 +446,19 @@ class SAC(OffPolicyRLModel):
                     infos_values = []
             return self
 
-    def action_probability(self, observation, state=None, mask=None):
-        # Here there are no action probabilities, as SAC is continuous
-        # therefore we return the action vector
-        return self.predict(observation, state, mask, deterministic=True)[0]
+    def action_probability(self, observation, state=None, mask=None, actions=None):
+        if actions is None:
+            warnings.warn("Even thought SAC has a Gaussian policy, it cannot return a distribution as it "
+                          "is squashed by an tanh before being scaled and ouputed. Therefore 'action_probability' "
+                          "will only work with the 'actions' keyword argument being used. Returning None.")
+            return None
+
+        observation = np.array(observation)
+
+        warnings.warn("The probabilty of taken a given action is exactly zero for a continuous distribution."
+                      "See http://blog.christianperone.com/2019/01/ for a good explanation")
+
+        return np.zeros((observation.shape[0], 1), dtype=np.float32)
 
     def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)

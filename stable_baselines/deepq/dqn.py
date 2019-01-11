@@ -268,12 +268,21 @@ class DQN(OffPolicyRLModel):
 
         return actions, None
 
-    def action_probability(self, observation, state=None, mask=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None):
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
         observation = observation.reshape((-1,) + self.observation_space.shape)
         actions_proba = self.proba_step(observation, state, mask)
+
+        if actions is not None:  # comparing the action distribution, to given actions
+            actions = np.array([actions])
+            assert isinstance(self.action_space, gym.spaces.Discrete)
+            actions = actions.reshape((-1,))
+            assert observation.shape[0] == actions.shape[0], "Error: batch sizes differ for actions and observations."
+            actions_proba = actions_proba[np.arange(actions.shape[0]), actions]
+            # normalize action proba shape
+            actions_proba = actions_proba.reshape((-1, 1))
 
         if not vectorized_env:
             if state is not None:

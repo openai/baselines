@@ -10,9 +10,9 @@ LOG_STD_MAX = 2
 LOG_STD_MIN = -20
 
 
-def gaussian_logp(input_, mu_, log_std):
+def gaussian_likelihood(input_, mu_, log_std):
     """
-    Helper to computer log probability of a gaussian.
+    Helper to computer log likelihood of a gaussian.
     Here we assume this is a Diagonal Gaussian.
 
     :param input_: (tf.Tensor)
@@ -106,6 +106,8 @@ class SACPolicy(BasePolicy):
         self.value_fn = None
         self.policy = None
         self.deterministic_policy = None
+        self.act_mu = None
+        self.std = None
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         """
@@ -147,12 +149,12 @@ class SACPolicy(BasePolicy):
 
     def proba_step(self, obs, state=None, mask=None):
         """
-        Returns the action probability for a single step
+        Returns the action probability params (mean, std) for a single step
 
         :param obs: ([float] or [int]) The current observation of the environment
         :param state: ([float]) The last states (used in recurrent policies)
         :param mask: ([float]) The last masks (used in recurrent policies)
-        :return: ([float]) the action probability
+        :return: ([float], [float])
         """
         raise NotImplementedError
 
@@ -209,7 +211,7 @@ class FeedForwardPolicy(SACPolicy):
 
             pi_h = mlp(pi_h, self.layers, self.activ_fn, layer_norm=self.layer_norm)
 
-            mu_ = tf.layers.dense(pi_h, self.ac_space.shape[0], activation=None)
+            self.act_mu = mu_ = tf.layers.dense(pi_h, self.ac_space.shape[0], activation=None)
             # Important difference with SAC and other algo such as PPO:
             # the std depends on the state, so we cannot use stable_baselines.common.distribution
             log_std = tf.layers.dense(pi_h, self.ac_space.shape[0], activation=None)
@@ -225,10 +227,10 @@ class FeedForwardPolicy(SACPolicy):
         # Original Implementation
         log_std = tf.clip_by_value(log_std, LOG_STD_MIN, LOG_STD_MAX)
 
-        std = tf.exp(log_std)
+        self.std = std = tf.exp(log_std)
         # Reparameterization trick
         pi_ = mu_ + tf.random_normal(tf.shape(mu_)) * std
-        logp_pi = gaussian_logp(pi_, mu_, log_std)
+        logp_pi = gaussian_likelihood(pi_, mu_, log_std)
         self.entropy = gaussian_entropy(log_std)
         # MISSING: reg params for log and mu
         # Apply squashing and account for it in the probabilty
@@ -280,7 +282,7 @@ class FeedForwardPolicy(SACPolicy):
         return self.sess.run(self.policy, {self.obs_ph: obs})
 
     def proba_step(self, obs, state=None, mask=None):
-        pass
+        return self.sess.run([self.act_mu, self.std], {self.obs_ph: obs})
 
 
 class CnnPolicy(FeedForwardPolicy):

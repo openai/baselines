@@ -2,6 +2,7 @@ import os
 from io import BytesIO
 
 import pytest
+import numpy as np
 
 from stable_baselines import A2C, ACER, ACKTR, DQN, PPO1, PPO2, TRPO
 from stable_baselines.common import set_global_seeds
@@ -55,6 +56,17 @@ def test_model_manipulation(model_class, storage_method):
             obs, reward, _, _ = env.step(action)
             acc_reward += reward
         acc_reward = sum(acc_reward) / N_TRIALS
+
+        # test action probability for given (obs, action) pair
+        env = model.get_env()
+        obs = env.reset()
+        observations = np.array([obs for _ in range(10)])
+        observations = np.squeeze(observations)
+        actions = np.array([env.action_space.sample() for _ in range(10)])
+        actions_probas = model.action_probability(observations, actions=actions)
+        assert actions_probas.shape == (len(actions), 1), actions_probas.shape
+        assert actions_probas.min() >= 0, actions_probas.min()
+        assert actions_probas.max() <= 1, actions_probas.max()
 
         # saving
         if storage_method == "path":  # saving to a path

@@ -1,4 +1,5 @@
 import pytest
+import numpy as np
 
 from stable_baselines import A2C, ACER, ACKTR, DQN, DDPG, PPO1, PPO2, TRPO
 from stable_baselines.ddpg import AdaptiveParamNoiseSpec
@@ -47,6 +48,9 @@ def test_identity(model_name):
         action, _ = model.predict(obs)
         obs, reward, _, _ = env.step(action)
         reward_sum += reward
+    assert model.action_probability(obs).shape == (1, 10), "Error: action_probability not returning correct shape"
+    assert np.prod(model.action_probability(obs, actions=env.action_space.sample()).shape) == 1, \
+        "Error: not scalar probability"
     assert reward_sum > 0.9 * n_trials
     # Free memory
     del model, env

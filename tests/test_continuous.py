@@ -2,6 +2,7 @@ import subprocess
 import os
 
 import pytest
+import numpy as np
 
 from stable_baselines import A2C, SAC
 # TODO: add support for continuous actions
@@ -79,6 +80,36 @@ def test_model_manipulation(model_class):
             obs, reward, _, _ = env.step(action)
             loaded_acc_reward += reward
         loaded_acc_reward = sum(loaded_acc_reward) / N_TRIALS
+
+        with pytest.warns(None) as record:
+            act_prob = model.action_probability(obs)
+
+        if model_class in [DDPG, SAC]:
+            # check that only one warning was raised
+            assert len(record) == 1, "No warning was raised for {}".format(model_class)
+            assert act_prob is None, "Error: action_probability should be None for {}".format(model_class)
+        else:
+            assert act_prob[0].shape == (1, 1) and act_prob[1].shape == (1, 1), \
+                "Error: action_probability not returning correct shape"
+
+        # test action probability for given (obs, action) pair
+        # must return zero and raise a warning or raise an exception if not defined
+        env = model.get_env()
+        obs = env.reset()
+        observations = np.array([obs for _ in range(10)])
+        observations = np.squeeze(observations)
+        observations = observations.reshape((-1, 1))
+        actions = np.array([env.action_space.sample() for _ in range(10)])
+
+        if model_class == DDPG:
+            with pytest.raises(ValueError):
+                model.action_probability(observations, actions=actions)
+        else:
+            with pytest.warns(UserWarning):
+                actions_probas = model.action_probability(observations, actions=actions)
+            assert actions_probas.shape == (len(actions), 1), actions_probas.shape
+            assert np.all(actions_probas == 0.0), actions_probas
+
         # assert <15% diff
         assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.15, \
             "Error: the prediction seems to have changed between loading and saving"
