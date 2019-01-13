@@ -48,7 +48,7 @@ You can find a `complete guide online <https://github.com/openai/gym/tree/master
 on creating a custom Gym environment.
 
 
-Optionnaly, you can also register the environment with gym,
+Optionally, you can also register the environment with gym,
 that will allow you to create the RL agent in one line (and use ``gym.make()`` to instantiate the env).
 
 

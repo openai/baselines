@@ -30,18 +30,20 @@ However, you can also easily define a custom architecture for the policy (or val
   model = A2C(CustomPolicy, env, verbose=1)
   # Train the agent
   model.learn(total_timesteps=100000)
+  # Save the agent
+  model.save("a2c-lunar")
 
   del model
   # When loading a model with a custom policy
   # you MUST pass explicitly the policy when loading the saved model
-  model = A2C.load(policy=CustomPolicy)
+  model = A2C.load("a2c-lunar", policy=CustomPolicy)
 
 .. warning::
 
   When loading a model with a custom policy, you must pass the custom policy explicitly when loading the model. (cf previous example)
 
 
-You can also registered your policy, to help with code simplicity: you can refer to your custom policy using a string.
+You can also register your policy, to help with code simplicity: you can refer to your custom policy using a string.
 
 .. code-block:: python
 
@@ -164,7 +166,7 @@ If your task requires even more granular control over the policy architecture, y
           with tf.variable_scope("model", reuse=reuse):
               activ = tf.nn.relu
 
-              extracted_features = nature_cnn(self.self.processed_obs, **kwargs)
+              extracted_features = nature_cnn(self.processed_obs, **kwargs)
               extracted_features = tf.layers.flatten(extracted_features)
 
               pi_h = extracted_features
