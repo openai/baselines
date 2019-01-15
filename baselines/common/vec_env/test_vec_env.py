@@ -8,6 +8,7 @@ import pytest
 from .dummy_vec_env import DummyVecEnv
 from .shmem_vec_env import ShmemVecEnv
 from .subproc_vec_env import SubprocVecEnv
+from baselines.common.tests.test_with_mpi import test_with_mpi
 
 
 def assert_envs_equal(env1, env2, num_steps):
@@ -99,3 +100,15 @@ class SimpleEnv(gym.Env):
 
     def render(self, mode=None):
         raise NotImplementedError
+
+
+
+@test_with_mpi()
+def test_mpi_with_subprocvecenv():
+    shape = (2,3,4)
+    nenv = 1
+    venv = SubprocVecEnv([lambda: SimpleEnv(0, shape, 'float32')] * nenv)
+    ob = venv.reset()
+    venv.close()
+    assert ob.shape == (nenv,) + shape
+

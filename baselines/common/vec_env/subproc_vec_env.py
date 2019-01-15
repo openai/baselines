@@ -1,6 +1,28 @@
-import numpy as np
+import contextlib
 import multiprocessing as mp
+import os
+
+import numpy as np
 from . import VecEnv, CloudpickleWrapper
+
+@contextlib.contextmanager
+def clear_mpi_env_vars():
+    """
+    from mpi4py import MPI will call MPI_Init by default.  If the child process has MPI environment variables, MPI will think that the child process is an MPI process just like the parent and do bad things such as hang.
+
+    This context manager is a hacky way to clear those environment variables temporarily such as when we are starting multiprocessing
+    Processes.
+    """
+    removed_environment = {}
+    for k, v in list(os.environ.items()):
+        for prefix in ['OMPI_', 'PMI_']:
+            if k.startswith(prefix):
+                removed_environment[k] = v
+                del os.environ[k]
+    try:
+        yield
+    finally:
+        os.environ.update(removed_environment)
 
 ctx = mp.get_context('spawn')
 
@@ -52,7 +74,8 @@ class SubprocVecEnv(VecEnv):
                    for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for p in self.ps:
             p.daemon = True  # if the main process crashes, we should not cause things to hang
-            p.start()
+            with clear_mpi_env_vars():
+                p.start()
         for remote in self.work_remotes:
             remote.close()
 

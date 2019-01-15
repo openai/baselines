@@ -35,7 +35,8 @@ def make_vec_env(env_id, env_type, num_env, seed,
         return lambda: make_env(
             env_id=env_id,
             env_type=env_type,
-            subrank = rank,
+            mpi_rank=mpi_rank,
+            subrank=rank,
             seed=seed,
             reward_scale=reward_scale,
             gamestate=gamestate,
@@ -51,8 +52,7 @@ def make_vec_env(env_id, env_type, num_env, seed,
         return DummyVecEnv([make_thunk(start_index)])
 
 
-def make_env(env_id, env_type, subrank=0, seed=None, reward_scale=1.0, gamestate=None, flatten_dict_observations=True, wrapper_kwargs=None, logger_dir=None):
-    mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
+def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.0, gamestate=None, flatten_dict_observations=True, wrapper_kwargs=None, logger_dir=None):
     wrapper_kwargs = wrapper_kwargs or {}
     if env_type == 'atari':
         env = make_atari(env_id)
