@@ -7,7 +7,7 @@ import pytest
 
 from mpi4py import MPI
 
-def test_with_mpi(nproc=2, timeout=5, skip_if_no_mpi=True):
+def test_with_mpi(nproc=2, timeout=10, skip_if_no_mpi=True):
     def outer_thunk(fn):
         def thunk(*args, **kwargs):
             serialized_fn = base64.b64encode(cloudpickle.dumps(lambda: fn(*args, **kwargs)))

@@ -2,9 +2,9 @@
 An interface for asynchronous vectorized environments.
 """
 
-from multiprocessing import Pipe, Array, Process
+import multiprocessing as mp
 import numpy as np
-from . import VecEnv, CloudpickleWrapper
+from . import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
 import ctypes
 from baselines import logger
 
@@ -15,6 +15,8 @@ _NP_TO_CT = {np.float32: ctypes.c_float,
              np.int8: ctypes.c_int8,
              np.uint8: ctypes.c_char,
              np.bool: ctypes.c_bool}
+
+ctx = mp.get_context('spawn')
 
 
 class ShmemVecEnv(VecEnv):
@@ -39,20 +41,21 @@ class ShmemVecEnv(VecEnv):
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
         self.obs_keys, self.obs_shapes, self.obs_dtypes = obs_space_info(observation_space)
         self.obs_bufs = [
-            {k: Array(_NP_TO_CT[self.obs_dtypes[k].type], int(np.prod(self.obs_shapes[k]))) for k in self.obs_keys}
+            {k: ctx.Array(_NP_TO_CT[self.obs_dtypes[k].type], int(np.prod(self.obs_shapes[k]))) for k in self.obs_keys}
             for _ in env_fns]
         self.parent_pipes = []
         self.procs = []
-        for env_fn, obs_buf in zip(env_fns, self.obs_bufs):
-            wrapped_fn = CloudpickleWrapper(env_fn)
-            parent_pipe, child_pipe = Pipe()
-            proc = Process(target=_subproc_worker,
-                           args=(child_pipe, parent_pipe, wrapped_fn, obs_buf, self.obs_shapes, self.obs_dtypes, self.obs_keys))
-            proc.daemon = True
-            self.procs.append(proc)
-            self.parent_pipes.append(parent_pipe)
-            proc.start()
-            child_pipe.close()
+        with clear_mpi_env_vars():
+            for env_fn, obs_buf in zip(env_fns, self.obs_bufs):
+                wrapped_fn = CloudpickleWrapper(env_fn)
+                parent_pipe, child_pipe = ctx.Pipe()
+                proc = ctx.Process(target=_subproc_worker,
+                            args=(child_pipe, parent_pipe, wrapped_fn, obs_buf, self.obs_shapes, self.obs_dtypes, self.obs_keys))
+                proc.daemon = True
+                self.procs.append(proc)
+                self.parent_pipes.append(parent_pipe)
+                proc.start()
+                child_pipe.close()
         self.waiting_step = False
         self.viewer = None
 
