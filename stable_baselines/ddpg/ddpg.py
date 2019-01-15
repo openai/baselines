@@ -167,6 +167,7 @@ class DDPG(OffPolicyRLModel):
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
     """
 
     def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None, nb_train_steps=50,
@@ -175,11 +176,11 @@ class DDPG(OffPolicyRLModel):
                  normalize_returns=False, enable_popart=False, observation_range=(-5., 5.), critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf), actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.,
                  render=False, render_eval=False, memory_limit=100, verbose=0, tensorboard_log=None,
-                 _init_setup_model=True):
+                 _init_setup_model=True, policy_kwargs=None):
 
         # TODO: replay_buffer refactoring
         super(DDPG, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DDPGPolicy,
-                                   requires_vec_env=False)
+                                   requires_vec_env=False, policy_kwargs=policy_kwargs)
 
         # Parameters.
         self.gamma = gamma
@@ -294,10 +295,12 @@ class DDPG(OffPolicyRLModel):
                     else:
                         self.ret_rms = None
 
-                    self.policy_tf = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
+                    self.policy_tf = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None,
+                                                 **self.policy_kwargs)
 
                     # Create target networks.
-                    self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None)
+                    self.target_policy = self.policy(self.sess, self.observation_space, self.action_space, 1, 1, None,
+                                                     **self.policy_kwargs)
                     self.obs_target = self.target_policy.obs_ph
                     self.action_target = self.target_policy.action_ph
 
@@ -309,13 +312,14 @@ class DDPG(OffPolicyRLModel):
                     if self.param_noise is not None:
                         # Configure perturbed actor.
                         self.param_noise_actor = self.policy(self.sess, self.observation_space, self.action_space, 1, 1,
-                                                             None)
+                                                             None, **self.policy_kwargs)
                         self.obs_noise = self.param_noise_actor.obs_ph
                         self.action_noise_ph = self.param_noise_actor.action_ph
 
                         # Configure separate copy for stddev adoption.
                         self.adaptive_param_noise_actor = self.policy(self.sess, self.observation_space,
-                                                                      self.action_space, 1, 1, None)
+                                                                      self.action_space, 1, 1, None,
+                                                                      **self.policy_kwargs)
                         self.obs_adapt_noise = self.adaptive_param_noise_actor.obs_ph
                         self.action_adapt_noise = self.adaptive_param_noise_actor.action_ph
 
@@ -989,7 +993,8 @@ class DDPG(OffPolicyRLModel):
             "policy": self.policy,
             "memory_policy": self.memory_policy,
             "n_envs": self.n_envs,
-            "_vectorize_action": self._vectorize_action
+            "_vectorize_action": self._vectorize_action,
+            "policy_kwargs": self.policy_kwargs
         }
 
         params = self.sess.run(self.params)
@@ -1000,6 +1005,11 @@ class DDPG(OffPolicyRLModel):
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
         data, params = cls._load_from_file(load_path)
+
+        if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
+            raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "
+                             "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
+                                                                              kwargs['policy_kwargs']))
 
         model = cls(None, env, _init_setup_model=False)
         model.__dict__.update(data)

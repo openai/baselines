@@ -90,15 +90,16 @@ class ACER(ActorCriticRLModel):
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
     """
 
     def __init__(self, policy, env, gamma=0.99, n_steps=20, num_procs=1, q_coef=0.5, ent_coef=0.01, max_grad_norm=10,
                  learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5, buffer_size=5000,
                  replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True, alpha=0.99, delta=1,
-                 verbose=0, tensorboard_log=None, _init_setup_model=True):
+                 verbose=0, tensorboard_log=None, _init_setup_model=True, policy_kwargs=None):
 
         super(ACER, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
-                                   _init_setup_model=_init_setup_model)
+                                   _init_setup_model=_init_setup_model, policy_kwargs=policy_kwargs)
 
         self.n_steps = n_steps
         self.replay_ratio = replay_ratio
@@ -180,14 +181,14 @@ class ACER(ActorCriticRLModel):
                 n_batch_train = self.n_envs * (self.n_steps + 1)
 
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                         n_batch_step, reuse=False)
+                                         n_batch_step, reuse=False, **self.policy_kwargs)
 
                 self.params = find_trainable_variables("model")
 
                 with tf.variable_scope("train_model", reuse=True,
                                        custom_getter=tf_util.outer_scope_getter("train_model")):
                     train_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
-                                              self.n_steps + 1, n_batch_train, reuse=True)
+                                              self.n_steps + 1, n_batch_train, reuse=True, **self.policy_kwargs)
 
                 with tf.variable_scope("moving_average"):
                     # create averaged model
@@ -202,7 +203,8 @@ class ACER(ActorCriticRLModel):
                 with tf.variable_scope("polyak_model", reuse=True, custom_getter=custom_getter):
                     self.polyak_model = polyak_model = self.policy(self.sess, self.observation_space, self.action_space,
                                                                    self.n_envs, self.n_steps + 1,
-                                                                   self.n_envs * (self.n_steps + 1), reuse=True)
+                                                                   self.n_envs * (self.n_steps + 1), reuse=True,
+                                                                   **self.policy_kwargs)
 
                 with tf.variable_scope("loss", reuse=False):
                     self.done_ph = tf.placeholder(tf.float32, [self.n_batch])  # dones
@@ -539,7 +541,8 @@ class ACER(ActorCriticRLModel):
             "observation_space": self.observation_space,
             "action_space": self.action_space,
             "n_envs": self.n_envs,
-            "_vectorize_action": self._vectorize_action
+            "_vectorize_action": self._vectorize_action,
+            "policy_kwargs": self.policy_kwargs
         }
 
         params = self.sess.run(self.params)
