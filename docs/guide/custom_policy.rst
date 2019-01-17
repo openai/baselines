@@ -36,9 +36,10 @@ You can also easily define a custom architecture for the policy (or value) netwo
 
 .. note::
 
-	Defining a custom policy class is equivalent to passing ``policy_kwargs``. However,
-  it lets you name the policy and so makes usually the code clearer. ``policy_kwargs`` should be rather used
-  when doing hyperparameter search.
+    Defining a custom policy class is equivalent to passing ``policy_kwargs``.
+    However, it lets you name the policy and so makes usually the code clearer.
+    ``policy_kwargs`` should be rather used when doing hyperparameter search.
+
 
 
 .. code-block:: python
@@ -74,7 +75,8 @@ You can also easily define a custom architecture for the policy (or value) netwo
 
 .. warning::
 
-  When loading a model with a custom policy, you must pass the custom policy explicitly when loading the model. (cf previous example)
+    When loading a model with a custom policy, you must pass the custom policy explicitly when loading the model.
+    (cf previous example)
 
 
 You can also register your policy, to help with code simplicity: you can refer to your custom policy using a string.

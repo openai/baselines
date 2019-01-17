@@ -5,8 +5,16 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre-Release 2.4.0a (WIP)
+Pre-Release 2.4.1 (WIP)
 --------------------------
+
+
+
+
+Release 2.4.0 (2019-01-17)
+--------------------------
+
+**Soft Actor-Critic (SAC) and policy kwargs**
 
 - added Soft Actor-Critic (SAC) model
 - fixed a bug in DQN where prioritized_replay_beta_iters param was not used
