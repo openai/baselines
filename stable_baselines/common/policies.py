@@ -123,6 +123,24 @@ class BasePolicy(ABC):
         self.ob_space = ob_space
         self.ac_space = ac_space
 
+    @staticmethod
+    def _kwargs_check(feature_extraction, kwargs):
+        """
+        Ensure that the user is not passing wrong keywords
+        when using policy_kwargs.
+
+        :param feature_extraction: (str)
+        :param kwargs: (dict)
+        """
+        # When using policy_kwargs parameter on model creation,
+        # all keywords arguments must be consumed by the policy constructor except
+        # the ones for the cnn_extractor network (cf nature_cnn()), where the keywords arguments
+        # are not passed explicitely (using **kwargs to forward the arguments)
+        # that's why there should be not kwargs left when using the mlp_extractor
+        # (in that case the keywords arguments are passed explicitely)
+        if feature_extraction == 'mlp' and len(kwargs) > 0:
+            raise ValueError("Unknown keywords for policy: {}".format(kwargs))
+
     def step(self, obs, state=None, mask=None):
         """
         Returns the policy for a single step
@@ -243,6 +261,7 @@ class LstmPolicy(ActorCriticPolicy):
     :param layers: ([int]) The size of the Neural network before the LSTM layer  (if None, default to [64, 64])
     :param net_arch: (list) Specification of the actor-critic policy network architecture. Notation similar to the
         format described in mlp_extractor but with additional support for a 'lstm' entry in the shared network part.
+    :param act_fun: (tf.func) the activation function to use in the neural network.
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
     :param layer_norm: (bool) Whether or not to use layer normalizing LSTMs
     :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
@@ -254,6 +273,8 @@ class LstmPolicy(ActorCriticPolicy):
                  **kwargs):
         super(LstmPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
                                          scale=(feature_extraction == "cnn"))
+
+        self._kwargs_check(feature_extraction, kwargs)
 
         with tf.variable_scope("input", reuse=True):
             self.masks_ph = tf.placeholder(tf.float32, [n_batch], name="masks_ph")  # mask (done t-1)
@@ -338,7 +359,7 @@ class LstmPolicy(ActorCriticPolicy):
                 for idx, vf_layer_size in enumerate(value_only_layers):
                     if vf_layer_size == "lstm":
                         raise NotImplementedError("LSTMs are only supported in the shared part of the value function "
-                                                   "network.")
+                                                  "network.")
                     assert isinstance(vf_layer_size, int), "Error: net_arch[-1]['vf'] must only contain integers."
                     latent_value = act_fun(
                         linear(latent_value, "vf_fc{}".format(idx), vf_layer_size, init_scale=np.sqrt(2)))
@@ -383,7 +404,7 @@ class FeedForwardPolicy(ActorCriticPolicy):
         (if None, default to [64, 64])
     :param net_arch: (list) Specification of the actor-critic policy network architecture (see mlp_extractor
         documentation for details).
-    :param act_fun: the activation function to use in the neural network.
+    :param act_fun: (tf.func) the activation function to use in the neural network.
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
     :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
@@ -393,6 +414,8 @@ class FeedForwardPolicy(ActorCriticPolicy):
                  act_fun=tf.tanh, cnn_extractor=nature_cnn, feature_extraction="cnn", **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse,
                                                 scale=(feature_extraction == "cnn"))
+
+        self._kwargs_check(feature_extraction, kwargs)
 
         if layers is not None:
             warnings.warn("Usage of the `layers` parameter is deprecated! Use net_arch instead "

@@ -84,15 +84,19 @@ class FeedForwardPolicy(DQNPolicy):
         and the processed observation placeholder respectivly
     :param layer_norm: (bool) enable layer normalisation
     :param dueling: (bool) if true double the output MLP to compute a baseline for action scores
+    :param act_fun: (tf.func) the activation function to use in the neural network.
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
                  cnn_extractor=nature_cnn, feature_extraction="cnn",
-                 obs_phs=None, layer_norm=False, dueling=True, **kwargs):
+                 obs_phs=None, layer_norm=False, dueling=True, act_fun=tf.nn.relu, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps,
                                                 n_batch, dueling=dueling, reuse=reuse,
                                                 scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
+
+        self._kwargs_check(feature_extraction, kwargs)
+
         if layers is None:
             layers = [64, 64]
 
@@ -102,14 +106,13 @@ class FeedForwardPolicy(DQNPolicy):
                     extracted_features = cnn_extractor(self.processed_obs, **kwargs)
                     action_out = extracted_features
                 else:
-                    activ = tf.nn.relu
                     extracted_features = tf.layers.flatten(self.processed_obs)
                     action_out = extracted_features
                     for layer_size in layers:
                         action_out = tf_layers.fully_connected(action_out, num_outputs=layer_size, activation_fn=None)
                         if layer_norm:
                             action_out = tf_layers.layer_norm(action_out, center=True, scale=True)
-                        action_out = activ(action_out)
+                        action_out = act_fun(action_out)
 
                 action_scores = tf_layers.fully_connected(action_out, num_outputs=self.n_actions, activation_fn=None)
 
@@ -120,7 +123,7 @@ class FeedForwardPolicy(DQNPolicy):
                         state_out = tf_layers.fully_connected(state_out, num_outputs=layer_size, activation_fn=None)
                         if layer_norm:
                             state_out = tf_layers.layer_norm(state_out, center=True, scale=True)
-                        state_out = tf.nn.relu(state_out)
+                        state_out = act_fun(state_out)
                     state_score = tf_layers.fully_connected(state_out, num_outputs=1, activation_fn=None)
                 action_scores_mean = tf.reduce_mean(action_scores, axis=1)
                 action_scores_centered = action_scores - tf.expand_dims(action_scores_mean, axis=1)

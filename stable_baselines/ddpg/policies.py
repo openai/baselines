@@ -100,13 +100,17 @@ class FeedForwardPolicy(DDPGPolicy):
     :param cnn_extractor: (function (TensorFlow Tensor, ``**kwargs``): (TensorFlow Tensor)) the CNN feature extraction
     :param feature_extraction: (str) The feature extraction type ("cnn" or "mlp")
     :param layer_norm: (bool) enable layer normalisation
+    :param act_fun: (tf.func) the activation function to use in the neural network.
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None,
-                 cnn_extractor=nature_cnn, feature_extraction="cnn", layer_norm=False, **kwargs):
+                 cnn_extractor=nature_cnn, feature_extraction="cnn",
+                 layer_norm=False, act_fun=tf.nn.relu, **kwargs):
         super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse,
                                                 scale=(feature_extraction == "cnn"))
+
+        self._kwargs_check(feature_extraction, kwargs)
         self.layer_norm = layer_norm
         self.feature_extraction = feature_extraction
         self.cnn_kwargs = kwargs
@@ -119,7 +123,7 @@ class FeedForwardPolicy(DDPGPolicy):
 
         assert len(layers) >= 1, "Error: must have at least one hidden layer for the policy."
 
-        self.activ = tf.nn.relu
+        self.activ = act_fun
 
     def make_actor(self, obs=None, reuse=False, scope="pi"):
         if obs is None:

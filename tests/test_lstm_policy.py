@@ -9,7 +9,7 @@ from stable_baselines.common.policies import MlpLstmPolicy, LstmPolicy
 class CustomLSTMPolicy1(LstmPolicy):
     def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm=128, reuse=False, **_kwargs):
         super().__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, n_lstm, reuse, net_arch=[8, 'lstm', 8],
-                                            layer_norm=False, feature_extraction="mlp", **_kwargs)
+                         layer_norm=False, feature_extraction="mlp", **_kwargs)
 
 
 class CustomLSTMPolicy2(LstmPolicy):
@@ -58,7 +58,7 @@ def test_lstm_policy(model_class, policy):
         model.save("./test_model")
         del model, env
         # loading
-        model = model_class.load("./test_model", policy=policy)
+        _ = model_class.load("./test_model", policy=policy)
 
     finally:
         if os.path.exists("./test_model"):

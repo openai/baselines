@@ -3,15 +3,6 @@ import argparse
 import gym
 
 from stable_baselines.deepq import DQN
-from stable_baselines.deepq.policies import FeedForwardPolicy
-
-
-class CustomPolicy(FeedForwardPolicy):
-    def __init__(self, *args, **kwargs):
-        super(CustomPolicy, self).__init__(*args, **kwargs,
-                                           net_arch=[dict(pi=[64], vf=[64])],
-                                           layer_norm=True,
-                                           feature_extraction="mlp")
 
 
 def main(args):
@@ -24,13 +15,14 @@ def main(args):
 
     # using layer norm policy here is important for parameter space noise!
     model = DQN(
-        policy=CustomPolicy,
+        policy="LnMlpPolicy",
         env=env,
         learning_rate=1e-3,
         buffer_size=50000,
         exploration_fraction=0.1,
         exploration_final_eps=0.1,
-        param_noise=True
+        param_noise=True,
+        policy_kwargs=dict(layers=[64])
     )
     model.learn(total_timesteps=args.max_timesteps)
 

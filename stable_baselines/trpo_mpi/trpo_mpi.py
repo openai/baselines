@@ -119,12 +119,12 @@ class TRPO(ActorCriticRLModel):
 
                 # Construct network for new policy
                 self.policy_pi = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                             None, reuse=False)
+                                             None, reuse=False, **self.policy_kwargs)
 
                 # Network for old policy
                 with tf.variable_scope("oldpi", reuse=False):
                     old_policy = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
-                                             None, reuse=False)
+                                             None, reuse=False, **self.policy_kwargs)
 
                 with tf.variable_scope("loss", reuse=False):
                     atarg = tf.placeholder(dtype=tf.float32, shape=[None])  # Target advantage function (if applicable)

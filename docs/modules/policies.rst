@@ -6,9 +6,9 @@ Policy Networks
 ===============
 
 Stable-baselines provides a set of default policies, that can be used with most action spaces.
-To customize the default policies, you can specify the `policy_kwargs` parameter to the model class you use.
-Those kwargs are then passed to the policy on instantiation.
-If you need more control on the policy architecture, You can also create a custom policy (see :ref:`custom_policy`).
+To customize the default policies, you can specify the ``policy_kwargs`` parameter to the model class you use.
+Those kwargs are then passed to the policy on instantiation (see :ref:`custom_policy` for an example).
+If you need more control on the policy architecture, you can also create a custom policy (see :ref:`custom_policy`).
 
 .. note::
 

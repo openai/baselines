@@ -15,7 +15,7 @@ from stable_baselines.common.schedules import LinearSchedule
 class CustomPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kwargs):
         super(CustomPolicy, self).__init__(*args, **kwargs,
-                                           net_arch=[dict(vf=[64], pi=[64])],
+                                           layers=[64],
                                            feature_extraction="mlp")
 
 
