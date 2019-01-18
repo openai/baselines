@@ -215,25 +215,25 @@ def test(args, *, logger=getLogger(__name__+".test")):
         _x, y_true_tmp = concat_examples(test_batch, device=gpu_id)
         with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
             # y_pred_tmp = model.predictor(_x).data
-            y_pred_tmp, y_inter_tmp = model.get_inter_layer(_x)
+            y_pred_tmp, y_inter_tmp = model.predictor.get_inter_layer(_x)
             
         x_in.append(cuda.to_cpu(_x))
-        y_pred.append(cuda.to_cpu(y_pred_tmp))
+        y_pred.append(cuda.to_cpu(y_pred_tmp.data))
         y_true.append(cuda.to_cpu(y_true_tmp))
         
         for _y in y_inter_tmp:
             if len(y_inter) == 0:
-                for key in y_inter_tmp.keys():                    
-                    y_inter[key] = [cuda.to_cpu(y_inter_tmp[key]),]
+                for key in y_inter_tmp.keys():
+                    y_inter[key] = [cuda.to_cpu(y_inter_tmp[key].data),]
             else:
-                for key in y_inter_tmp.keys():                    
-                    y_inter[key].append([cuda.to_cpu(y_inter_tmp[key]),])
-                    
+                for key in y_inter_tmp.keys():
+                    _z = cuda.to_cpu(y_inter_tmp[key].data)
+                    y_inter[key].append(_z)                    
 
         if iter_test.is_new_epoch:
             iter_test.reset()
             break
-
+        
         
     x_in   = np.concatenate(x_in,   axis=0)
     y_pred = np.concatenate(y_pred, axis=0)
@@ -263,9 +263,7 @@ def test(args, *, logger=getLogger(__name__+".test")):
         # Intermidiate output after applying activation functions
         f.create_group('post_act')
         for key in y_inter.keys():
-            f["post_act"].create_dataset(key, data=y_inter[key])
-            
-
+            f["post_act"].create_dataset(key, data=y_inter[key])            
             
     
     # Summary

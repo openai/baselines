@@ -8,7 +8,7 @@ This repository is cloned from [openai/baselines](https://github.com/openai/base
 例
 ```
 python -m baselines.her.experiment.train \
-       --env HandManipulateBlock-v0 \
+       --env GraspBlock-v0 \
        --num_cpu 1 \
        --n_epochs 100 \
        --logdir_tf < Dierctory path to save tensorflow model>
@@ -20,7 +20,8 @@ python -m baselines.her.experiment.train \
 
 
 ```
-python -m baselines.her.experiment.test --env HandManipulateBlock-v0 \
+python -m baselines.her.experiment.test \
+       --env GraspBlock-v0 \
        --num_cpu 1 --n_epochs 5 \
        --logdir_tf < path to saved model > \
        --logdir_aq < path to save actions etc... >
@@ -85,6 +86,15 @@ More thorough tutorial on virtualenvs and options can be found [here](https://vi
     ```bash
     pip install -e .
     ```
+
+- Install original environment
+
+```bash
+cd gym-grasp
+pip install -e .
+```
+
+
 
 ### MuJoCo
 Some of the baselines examples use [MuJoCo](http://www.mujoco.org) (multi-joint dynamics in contact) physics simulator, which is proprietary and requires binaries and a license (temporary 30-day license can be obtained from [www.mujoco.org](http://www.mujoco.org)). Instructions on setting up MuJoCo can be found [here](https://github.com/openai/mujoco-py)
