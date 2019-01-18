@@ -204,38 +204,70 @@ def test(args, *, logger=getLogger(__name__+".test")):
     # Inference
     from chainer.dataset import concat_examples
     from chainer import cuda
-    iter_no, y_true, y_pred = 0, [], []
+    iter_no, x_in, y_true, y_pred = 0, [], [], []
+    y_inter = {}
 
     while True:
         iter_no += 1
         if iter_no%1000 == 0:
             logger.debug("Iteration: {}".format(iter_no))
         test_batch = iter_test.next()
-        _x, y_true_tmp = concat_examples(test_batch, device=gpu_id)        
+        _x, y_true_tmp = concat_examples(test_batch, device=gpu_id)
         with chainer.using_config('train', False), chainer.using_config('enable_backprop', False):
-            y_pred_tmp = model.predictor(_x).data
+            # y_pred_tmp = model.predictor(_x).data
+            y_pred_tmp, y_inter_tmp = model.get_inter_layer(_x)
+            
+        x_in.append(cuda.to_cpu(_x))
         y_pred.append(cuda.to_cpu(y_pred_tmp))
         y_true.append(cuda.to_cpu(y_true_tmp))
+        
+        for _y in y_inter_tmp:
+            if len(y_inter) == 0:
+                for key in y_inter_tmp.keys():                    
+                    y_inter[key] = [cuda.to_cpu(y_inter_tmp[key]),]
+            else:
+                for key in y_inter_tmp.keys():                    
+                    y_inter[key].append([cuda.to_cpu(y_inter_tmp[key]),])
+                    
 
         if iter_test.is_new_epoch:
             iter_test.reset()
             break
-    
+
+        
+    x_in   = np.concatenate(x_in,   axis=0)
     y_pred = np.concatenate(y_pred, axis=0)
     y_true = np.concatenate(y_true, axis=0)
-    logger.debug("- y_true={}, y_pred={}\n".format(y_true.shape, y_pred.shape))
-
+    logger.debug("- x_in, y_true={}, y_pred={}\n".format(x_in.shape, y_true.shape, y_pred.shape))
+    for key in y_inter.keys():
+        y_inter[key] = np.concatenate(y_inter[key], axis=0)
+    
+    
     # Eval
+    df_in   = pd.DataFrame(x_in)
+    df_in.columns = ["x_{}".format(c) for c in list(df_in.columns)]
     df_pred = pd.DataFrame(y_pred)
     df_pred.columns = ["pred_{}".format(c) for c in list(df_pred.columns)]
     df_true = pd.DataFrame(y_true)
     df_true.columns = ["true_{}".format(c) for c in list(df_true.columns)]
-    df_pred = pd.concat([df_pred,df_true], axis=1)
+    df_pred = pd.concat([df_in, df_pred,df_true], axis=1)
     logger.info("df_pred = \n {}".format(df_pred.head()))
     filename = os.path.join(DIR_LOG, "pred_detail.csv")
     df_pred.to_csv(filename)
     logger.info("Write results to {} [df_pred={}]".format(filename, df_pred.shape))
 
+
+    # Save Internal State
+    filename = os.path.join(DIR_LOG, "pred_inernal.csv")
+    with h5py.File(filename, "w") as f:
+        # Intermidiate output after applying activation functions
+        f.create_group('post_act')
+        for key in y_inter.keys():
+            f["post_act"].create_dataset(key, data=y_inter[key])
+            
+
+            
+    
     # Summary
     ## MSE
     mse = np.mean((y_pred - y_true)**2)
