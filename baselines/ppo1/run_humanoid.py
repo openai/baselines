@@ -69,8 +69,5 @@ def main():
             if done:
                 ob = env.reset()
 
-
-
-
 if __name__ == '__main__':
     main()
