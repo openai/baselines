@@ -1,7 +1,7 @@
 import multiprocessing as mp
 
 import numpy as np
-from . import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
+from .vec_env import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
 
 ctx = mp.get_context('spawn')
 

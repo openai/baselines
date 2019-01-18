@@ -4,7 +4,7 @@ An interface for asynchronous vectorized environments.
 
 import multiprocessing as mp
 import numpy as np
-from . import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
+from .vec_env import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
 import ctypes
 from baselines import logger
 
