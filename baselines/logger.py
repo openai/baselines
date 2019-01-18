@@ -397,11 +397,7 @@ def configure(dir=None, format_strs=None):
     log('Logging to %s'%dir)
 
 def _configure_default_logger():
-    format_strs = None
-    # keep the old default of only writing to stdout
-    if 'OPENAI_LOG_FORMAT' not in os.environ:
-        format_strs = ['stdout']
-    configure(format_strs=format_strs)
+    configure()
     Logger.DEFAULT = Logger.CURRENT
 
 def reset():
