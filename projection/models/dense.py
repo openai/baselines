@@ -35,3 +35,18 @@ class DenseNet(chainer.Chain):
         h2 = F.dropout(F.relu(self.fc2(h1)))
         h3 = F.tanh(self.fc3(h2))
         return h3
+
+
+    def get_inter_layer(self, x):
+        h1 = F.relu(self.fc1(x))
+        h2 = F.relu(self.fc2(h1))
+        h3 = F.tanh(self.fc3(h2))
+
+        ret = {
+            "h1": h1,
+            "h2": h2,
+            "h3": h3,            
+        }
+
+        return h3, ret
+        
