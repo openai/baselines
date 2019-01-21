@@ -8,7 +8,7 @@ For download links, please look at `Github release page <https://github.com/hill
 Pre-Release 2.4.1 (WIP)
 --------------------------
 
-
+- fixed computation of training metrics in TRPO and PPO1
 
 
 Release 2.4.0 (2019-01-17)
@@ -225,4 +225,4 @@ Contributors (since v2.0.0):
 In random order...
 
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
-@EliasHasle @mrakgr @Bleyddyn
+@EliasHasle @mrakgr @Bleyddyn @antoine-galataud
