@@ -42,6 +42,6 @@
     </worldbody>
 
     <actuator>
-        <position name="robot0:A_slider" joint="robot0:slider" ctrlrange="-0.2 0.5" ctrllimited="true" kp="1" gear="4"/>
+        <position name="robot0:A_slider" joint="robot0:slider" ctrlrange="-0.6 0.6" ctrllimited="true" kp="1" gear="4"/>
     </actuator>
 </mujoco>

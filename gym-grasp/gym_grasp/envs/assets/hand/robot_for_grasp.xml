@@ -3,7 +3,7 @@
     <body name="robot0:vertical slider" pos="1 1.25 0.3">
         <inertial pos="0 0 0" mass="0.001" diaginertia="0.01 0.01 0.01"></inertial>
         <geom name="vertical slider" type="box" size="0.01 0.010 0.01"></geom>
-        <joint name="robot0:slider" type="slide" pos="0 0 0" axis="0 0 1" range="0.1 0.5"/>
+        <joint name="robot0:slider" type="slide" pos="0 0 0" axis="0 0 1" range="-0.6 0.6" armature="0.001" damping="1"/>
         <body name="robot0:hand mount" pos="0 0 0" euler="1.5708 0 0">
             <inertial mass="0.001" pos="0 0 0" diaginertia="0.001 0.001 0.001"></inertial>
             <body childclass="robot0:asset_class" name="robot0:forearm" pos="0 0.01 0" euler="0 0 0">
