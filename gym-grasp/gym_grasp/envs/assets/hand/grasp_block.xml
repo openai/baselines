@@ -28,7 +28,7 @@
 
         <body name="object" pos="1 0.85 0.2">
             <geom name="object" type="box" size="0.025 0.025 0.025" material="material:object" condim="4" density="567"></geom>
-            <geom name="object_hidden" type="box" size="0.024 0.024 0.024" material="material:hidden" condim="4" contype="0" conaffinity="0" mass="0.l"></geom>
+            <geom name="object_hidden" type="box" size="0.024 0.024 0.024" material="material:hidden" condim="4" contype="0" conaffinity="0" mass="0.0l"></geom>
             <site name="object:center" pos="0 0 0" rgba="1 0 0 0" size="0.01 0.01 0.01"></site>
             <joint name="object:joint" type="free" damping="0.01"></joint>
         </body>
@@ -42,6 +42,6 @@
     </worldbody>
 
     <actuator>
-        <position name="robot0:A_slider" joint="robot0:slider" ctrlrange="-0.6 0.6" ctrllimited="true" kp="1" gear="4"/>
+        <position name="robot0:A_slider" joint="robot0:slider" ctrlrange="-0.6 0.6" ctrllimited="true" kp="5"/>
     </actuator>
 </mujoco>
