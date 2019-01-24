@@ -5,5 +5,6 @@ from .subproc_vec_env import SubprocVecEnv
 from .vec_frame_stack import VecFrameStack
 from .vec_monitor import VecMonitor
 from .vec_normalize import VecNormalize
+from .vec_remove_dict_obs import VecRemoveDictObs
 
-__all__ = ['AlreadySteppingError', 'NotSteppingError', 'VecEnv', 'VecEnvWrapper', 'VecEnvObservationWrapper', 'CloudpickleWrapper', 'DummyVecEnv', 'ShmemVecEnv', 'SubprocVecEnv', 'VecFrameStack', 'VecMonitor', 'VecNormalize']
+__all__ = ['AlreadySteppingError', 'NotSteppingError', 'VecEnv', 'VecEnvWrapper', 'VecEnvObservationWrapper', 'CloudpickleWrapper', 'DummyVecEnv', 'ShmemVecEnv', 'SubprocVecEnv', 'VecFrameStack', 'VecMonitor', 'VecNormalize', 'VecRemoveDictObs']
