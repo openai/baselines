@@ -5,7 +5,10 @@ import cloudpickle
 import base64
 import pytest
 
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
 
 def test_with_mpi(nproc=2, timeout=30, skip_if_no_mpi=True):
     def outer_thunk(fn):
