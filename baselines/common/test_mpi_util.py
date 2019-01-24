@@ -1,5 +1,3 @@
-import subprocess
-import sys
 from baselines import logger
 from baselines.common.tests.test_with_mpi import with_mpi
 from baselines.common import mpi_util

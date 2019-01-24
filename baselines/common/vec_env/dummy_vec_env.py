@@ -1,5 +1,4 @@
 import numpy as np
-from gym import spaces
 from .vec_env import VecEnv
 from .util import copy_obs_dict, dict_to_obs, obs_space_info
 
