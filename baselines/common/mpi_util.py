@@ -19,15 +19,10 @@ def sync_from_root(sess, variables, comm=None):
       variables: all parameter variables including optimizer's
     """
     if comm is None: comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    for var in variables:
-        if rank == 0:
-            comm.Bcast(sess.run(var))
-        else:
-            import tensorflow as tf
-            returned_var = np.empty(var.shape, dtype='float32')
-            comm.Bcast(returned_var)
-            sess.run(tf.assign(var, returned_var))
+    import tensorflow as tf
+    values = comm.bcast(sess.run(variables))
+    sess.run([tf.assign(var, val)
+        for (var, val) in zip(variables, values)])
 
 def gpu_count():
     """

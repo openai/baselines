@@ -16,11 +16,13 @@ class Monitor(Wrapper):
     def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), info_keywords=()):
         Wrapper.__init__(self, env=env)
         self.tstart = time.time()
-        self.results_writer = ResultsWriter(
-            filename,
-            header={"t_start": time.time(), 'env_id' : env.spec and env.spec.id},
-            extra_keys=reset_keywords + info_keywords
-        )
+        if filename:
+            self.results_writer = ResultsWriter(filename,
+                header={"t_start": time.time(), 'env_id' : env.spec and env.spec.id},
+                extra_keys=reset_keywords + info_keywords
+            )
+        else:
+            self.results_writer = None
         self.reset_keywords = reset_keywords
         self.info_keywords = info_keywords
         self.allow_early_resets = allow_early_resets
@@ -68,8 +70,9 @@ class Monitor(Wrapper):
             self.episode_lengths.append(eplen)
             self.episode_times.append(time.time() - self.tstart)
             epinfo.update(self.current_reset_info)
-            self.results_writer.write_row(epinfo)
-
+            if self.results_writer:
+                self.results_writer.write_row(epinfo)
+            assert isinstance(info, dict)
             if isinstance(info, dict):
                 info['episode'] = epinfo
 
@@ -96,30 +99,26 @@ class LoadMonitorResultsError(Exception):
 
 
 class ResultsWriter(object):
-    def __init__(self, filename=None, header='', extra_keys=()):
+    def __init__(self, filename, header='', extra_keys=()):
         self.extra_keys = extra_keys
-        if filename is None:
-            self.f = None
-            self.logger = None
-        else:
-            if not filename.endswith(Monitor.EXT):
-                if osp.isdir(filename):
-                    filename = osp.join(filename, Monitor.EXT)
-                else:
-                    filename = filename + "." + Monitor.EXT
-            self.f = open(filename, "wt")
-            if isinstance(header, dict):
-                header = '# {} \n'.format(json.dumps(header))
-            self.f.write(header)
-            self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't')+tuple(extra_keys))
-            self.logger.writeheader()
-            self.f.flush()
+        assert filename is not None
+        if not filename.endswith(Monitor.EXT):
+            if osp.isdir(filename):
+                filename = osp.join(filename, Monitor.EXT)
+            else:
+                filename = filename + "." + Monitor.EXT
+        self.f = open(filename, "wt")
+        if isinstance(header, dict):
+            header = '# {} \n'.format(json.dumps(header))
+        self.f.write(header)
+        self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't')+tuple(extra_keys))
+        self.logger.writeheader()
+        self.f.flush()
 
     def write_row(self, epinfo):
         if self.logger:
             self.logger.writerow(epinfo)
             self.f.flush()
-
 
 
 def get_monitor_files(dir):
