@@ -8,7 +8,7 @@ import pytest
 from .dummy_vec_env import DummyVecEnv
 from .shmem_vec_env import ShmemVecEnv
 from .subproc_vec_env import SubprocVecEnv
-from baselines.common.tests.test_with_mpi import test_with_mpi
+from baselines.common.tests.test_with_mpi import with_mpi
 
 
 def assert_envs_equal(env1, env2, num_steps):
@@ -103,7 +103,7 @@ class SimpleEnv(gym.Env):
 
 
 
-@test_with_mpi()
+@with_mpi()
 def test_mpi_with_subprocvecenv():
     shape = (2,3,4)
     nenv = 1

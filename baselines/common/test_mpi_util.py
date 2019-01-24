@@ -1,10 +1,12 @@
-from baselines.common import mpi_util
-from mpi4py import MPI
 import subprocess
 import sys
 from baselines import logger
+from baselines.common.tests.test_with_mpi import with_mpi
+from baselines.common import mpi_util
 
-def helper_for_mpi_weighted_mean():
+@with_mpi()
+def test_mpi_weighted_mean():
+    from mpi4py import MPI
     comm = MPI.COMM_WORLD
     if comm.rank == 0:
         name2valcount = {'a' : (10, 2), 'b' : (20,3)}
@@ -24,8 +26,3 @@ def helper_for_mpi_weighted_mean():
     d2 = logger.dumpkvs(mpi_mean=True)
     if comm.rank == 0:
         assert d2 == correctval
-
-
-def test_mpi_weighted_mean():
-    subprocess.check_call(['mpirun', '-n', '2', sys.executable, '-c',
-        'from baselines.common import test_mpi_util; test_mpi_util.helper_for_mpi_weighted_mean()'])

@@ -10,7 +10,7 @@ try:
 except ImportError:
     MPI = None
 
-def test_with_mpi(nproc=2, timeout=30, skip_if_no_mpi=True):
+def with_mpi(nproc=2, timeout=30, skip_if_no_mpi=True):
     def outer_thunk(fn):
         def thunk(*args, **kwargs):
             serialized_fn = base64.b64encode(cloudpickle.dumps(lambda: fn(*args, **kwargs)))

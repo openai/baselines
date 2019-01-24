@@ -1,10 +1,15 @@
 from collections import defaultdict
-from mpi4py import MPI
 import os, numpy as np
 import platform
 import shutil
 import subprocess
 import warnings
+
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
+
 
 def sync_from_root(sess, variables, comm=None):
     """
