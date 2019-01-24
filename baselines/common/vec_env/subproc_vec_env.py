@@ -112,7 +112,6 @@ def _flatten_obs(obs):
 
     if isinstance(obs[0], dict):
         import collections
-        assert isinstance(obs, collections.OrderedDict)
         keys = obs[0].keys()
         return {k: np.stack([o[k] for o in obs]) for k in keys}
     else:
