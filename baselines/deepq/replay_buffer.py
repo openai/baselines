@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import sys
 
 from baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 
@@ -20,6 +21,12 @@ class ReplayBuffer(object):
 
     def __len__(self):
         return len(self._storage)
+
+    def size(self):
+        if self._next_idx >= len(self._storage):
+            return sys.getsizeof(self._storage) * self._maxsize / self._next_idx
+        else:
+            return sys.getsizeof(self._storage)
 
     def add(self, obs_t, action, reward, obs_tp1, done):
         data = (obs_t, action, reward, obs_tp1, done)
