@@ -184,7 +184,7 @@ def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
     '''
 
     def network_fn(X):
-        out = tf.cast(X, tf.float32) # / 255.
+        out = tf.cast(X, tf.float32) / 255.
         with tf.variable_scope("convnet"):
             for num_outputs, kernel_size, stride in convs:
                 out = layers.convolution2d(out,
@@ -203,7 +203,7 @@ def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     norm_x = tf.clip_by_value((x - rms.mean) / rms.std, min(clip_range), max(clip_range))
     return norm_x, rms
 
-
+@register("tuple_of")
 def tuple_network(network1, network2=None):
     '''
     applies network one to the first element of input and network2 to the second (if not None)
@@ -228,6 +228,32 @@ def tuple_network(network1, network2=None):
         return tf.concat([out_1, out_2], axis=-1)
     return network_fn
 
+
+@register("single_layer")
+def fully_connected(num_outputs=32, **fc_kwargs):
+    '''
+    applies network one to the first element of input and network2 to the second (if not None)
+    results are flattened and concatenated (preserving batch dimension)
+
+    Parameters:
+    ----------
+
+    network1:     network for the first element in the tuple
+
+    Returns:
+
+    function that takes tensorflow tensor as input and returns the output of the last convolutional layer
+
+    '''
+    def network_fn(X):
+        with tf.variable_scope("fully_connected"):
+                out = layers.fully_connected(X,
+                                             num_outputs=num_outputs,
+                                             activation_fn=tf.nn.relu,
+                                             **fc_kwargs)
+
+        return out
+    return network_fn
 
 def get_network_builder(name):
     """
