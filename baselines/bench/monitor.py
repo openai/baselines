@@ -93,6 +93,9 @@ class Monitor(Wrapper):
     def get_episode_times(self):
         return self.episode_times
 
+    def update_params(self, frac):
+        self.env.update_params(frac)
+
 class LoadMonitorResultsError(Exception):
     pass
 

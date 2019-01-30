@@ -23,6 +23,8 @@ def worker(remote, parent_remote, env_fn_wrapper):
                 break
             elif cmd == 'get_spaces':
                 remote.send((env.observation_space, env.action_space))
+            elif cmd == 'update_params':
+                env.update_params(data)
             else:
                 raise NotImplementedError
     except KeyboardInterrupt:
@@ -97,3 +99,8 @@ class SubprocVecEnv(VecEnv):
 
     def _assert_not_closed(self):
         assert not self.closed, "Trying to operate on a SubprocVecEnv after calling close()"
+
+    def update_params(self, frac):
+        self._assert_not_closed()
+        for remote in self.remotes:
+            remote.send(('update_params', frac))

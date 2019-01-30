@@ -84,3 +84,7 @@ class DummyVecEnv(VecEnv):
             self.envs[0].render(mode=mode)
         else:
             super().render(mode=mode)
+
+    def update_params(self, frac):
+        for env in self.envs:
+            env.update_params(frac)

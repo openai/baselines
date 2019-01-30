@@ -48,9 +48,9 @@ class TfRunningMeanStd(object):
 
 
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
-            self._mean  = tf.get_variable('mean',  initializer=np.zeros(shape, 'float64'),      dtype=tf.float64)
-            self._var   = tf.get_variable('std',   initializer=np.ones(shape, 'float64'),       dtype=tf.float64)
-            self._count = tf.get_variable('count', initializer=np.full((), epsilon, 'float64'), dtype=tf.float64)
+            self._mean  = tf.get_variable('mean/b',  initializer=np.zeros(shape, 'float64'),      dtype=tf.float64)
+            self._var   = tf.get_variable('std/b',   initializer=np.ones(shape, 'float64'),       dtype=tf.float64)
+            self._count = tf.get_variable('count/b', initializer=np.full((), epsilon, 'float64'), dtype=tf.float64)
 
         self.update_ops = tf.group([
             self._var.assign(self._new_var),

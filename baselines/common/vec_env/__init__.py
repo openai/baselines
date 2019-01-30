@@ -129,6 +129,9 @@ class VecEnv(ABC):
             self.viewer = rendering.SimpleImageViewer()
         return self.viewer
 
+    def update_params(self, frac):
+        raise NotImplementedError
+
 
 class VecEnvWrapper(VecEnv):
     """
@@ -162,6 +165,9 @@ class VecEnvWrapper(VecEnv):
 
     def get_images(self):
         return self.venv.get_images()
+
+    def update_params(self, frac):
+        self.venv.update_params(frac)
 
 class CloudpickleWrapper(object):
     """
