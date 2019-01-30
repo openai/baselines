@@ -427,7 +427,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
                                    sorted(target_q_func_vars, key=lambda v: v.name)):
             update_target_expr.append(var_target.assign(var))
-        update_target_expr = tf.group(*update_target_expr)
+        update_target_expr = tf.group(update_target_expr)
 
         # Create callable functions
         train = U.function(
