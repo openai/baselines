@@ -410,7 +410,7 @@ class DDPG(object):
         logs += [('stats_g/mean', np.mean(self.sess.run([self.g_stats.mean])))]
         logs += [('stats_g/std', np.mean(self.sess.run([self.g_stats.std])))]
 
-        if prefix is not '' and not prefix.endswith('/'):
+        if prefix != '' and not prefix.endswith('/'):
             return [(prefix + '/' + key, val) for key, val in logs]
         else:
             return logs

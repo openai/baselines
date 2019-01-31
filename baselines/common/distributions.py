@@ -75,7 +75,8 @@ class CategoricalPdType(PdType):
 
 class MultiCategoricalPdType(PdType):
     def __init__(self, nvec):
-        self.ncats = nvec
+        self.ncats = nvec.astype('int32')
+        assert (self.ncats > 0).all()
     def pdclass(self):
         return MultiCategoricalPd
     def pdfromflat(self, flat):

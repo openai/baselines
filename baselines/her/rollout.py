@@ -163,7 +163,7 @@ class RolloutWorker:
             logs += [('mean_Q', np.mean(self.Q_history))]
         logs += [('episode', self.n_episodes)]
 
-        if prefix is not '' and not prefix.endswith('/'):
+        if prefix != '' and not prefix.endswith('/'):
             return [(prefix + '/' + key, val) for key, val in logs]
         else:
             return logs
