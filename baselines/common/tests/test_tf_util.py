@@ -18,7 +18,9 @@ def test_function():
             initialize()
 
             assert lin(2) == 6
+            assert lin(x=3) == 9
             assert lin(2, 2) == 10
+            assert lin(x=2, y=3) == 12
 
 
 def test_multikwargs():
