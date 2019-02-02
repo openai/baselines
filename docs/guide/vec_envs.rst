@@ -21,7 +21,7 @@ Because of that, `actions` passed to the environment are now a vector (of dimens
 
 .. warning::
 
-		For using ``SubprocVecEnv``, Windows users must wrap the code
+		When using ``SubprocVecEnv``, Windows users must wrap the code
 		in an ``if __name__=="__main__":``.
 		See `stackoverflow question <https://stackoverflow.com/questions/24374288/where-to-put-freeze-support-in-a-python-script>`_
 		for more information about multiprocessing on Windows using python.
