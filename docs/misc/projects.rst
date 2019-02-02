@@ -61,3 +61,14 @@ Experimental - using OpenAI baselines with MarathonEnvs (ML-Agents)
 
 | Author: Joe Booth (@Sohojoe)
 | Github repo: https://github.com/Sohojoe/MarathonEnvsBaselines
+
+
+Learning to drive smoothly in minutes
+-------------------------------------
+
+Implementation of reinforcement learning approach to make a car learn to drive smoothly in minutes.
+Uses SAC on VAE features.
+
+| Author: Antonin Raffin (@araffin)
+| Blog post: https://towardsdatascience.com/learning-to-drive-smoothly-in-minutes-450a7cdb35f4
+| Github repo: https://github.com/araffin/learning-to-drive-in-5-minutes
