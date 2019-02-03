@@ -160,7 +160,6 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             envsperbatch = nenvs // nminibatches
             envinds = np.arange(nenvs)
             flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
-            envsperbatch = nbatch_train // nsteps
             for _ in range(noptepochs):
                 np.random.shuffle(envinds)
                 for start in range(0, nenvs, envsperbatch):
