@@ -1,15 +1,15 @@
 import time
 import tensorflow as tf
 from utils import logger
-from policies.model import Model
+from policies.agent import Agent
 from utils.stats import EpisodeStats
 from utils.schedules import Scheduler
 
 
 # remove last step
 def strip(var, nenvs, nsteps, flat=False):
-    variables = Model().batch_to_seq(var, nenvs, nsteps + 1, flat)
-    return Model().seq_to_batch(variables[:-1], flat)
+    variables = Agent().batch_to_seq(var, nenvs, nsteps + 1, flat)
+    return Agent().seq_to_batch(variables[:-1], flat)
 
 
 def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
@@ -24,18 +24,18 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
     :return: Q_retrace values
     """
     # list of len steps, shape [nenvs]
-    rho_bar = Model().batch_to_seq(tf.minimum(1.0, rho_i), nenvs, nsteps, True)
+    rho_bar = Agent().batch_to_seq(tf.minimum(1.0, rho_i), nenvs, nsteps, True)
     # list of len steps, shape [nenvs]
-    rs = Model().batch_to_seq(rewards, nenvs, nsteps, True)
+    rs = Agent().batch_to_seq(rewards, nenvs, nsteps, True)
     # list of len steps, shape [nenvs]
-    ds = Model().batch_to_seq(dones, nenvs, nsteps, True)
-    q_is = Model().batch_to_seq(q_i, nenvs, nsteps, True)
-    vs = Model().batch_to_seq(values, nenvs, nsteps + 1, True)
+    ds = Agent().batch_to_seq(dones, nenvs, nsteps, True)
+    q_is = Agent().batch_to_seq(q_i, nenvs, nsteps, True)
+    vs = Agent().batch_to_seq(values, nenvs, nsteps + 1, True)
     v_final = vs[-1]
     qret = v_final
     qrets = []
     for i in range(nsteps - 1, -1, -1):
-        Model().check_shape(
+        Agent().check_shape(
             [qret, ds[i], rs[i], rho_bar[i], q_is[i], vs[i]],
             [[nenvs]] * 6
         )
@@ -43,7 +43,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
         qrets.append(qret)
         qret = (rho_bar[i] * (qret - q_is[i])) + vs[i]
     qrets = qrets[::-1]
-    qret = Model().seq_to_batch(qrets, flat=True)
+    qret = Agent().seq_to_batch(qrets, flat=True)
     return qret
 
 
@@ -52,7 +52,7 @@ def q_retrace(rewards, dones, q_i, values, rho_i, nenvs, nsteps, gamma):
 #     # assume 0 <= eps_clip <= 1
 #     return tf.minimum(1 + eps_clip, tf.maximum(1 - eps_clip, ratio))
 
-class Acer(Model):
+class Acer(Agent):
     def __init__(
             self,
             policy,
@@ -75,6 +75,7 @@ class Acer(Model):
             alpha,
             delta
     ):
+        # super(Acer, self).__init__(name='Acer')
         self.sess = self.init_session()
         nbatch = nenvs * nsteps
         self.c = c
@@ -154,7 +155,7 @@ class Acer(Model):
     ################################################################
     # Loss function                                                #
     ################################################################
-    @Model.define_scope
+    @Agent.define_scope
     def loss(self):
         # Notation: (var) = batch variable, (var)s = seqeuence
         # variable, (var)_i = variable index by action at step i
@@ -239,7 +240,7 @@ class Acer(Model):
     ################################################################
     # Optimizer                                                    #
     ################################################################
-    @Model.define_scope
+    @Agent.define_scope
     def optimizer(self):
         f, f_pol, entropy, loss_f, loss_bc, loss_policy, ev, loss_q, loss \
             = self.loss
@@ -335,7 +336,7 @@ class Acer(Model):
         return names_ops, self.sess.run(run_ops, td_map)[1:]  # strip off _train
 
 
-class Agent(object):
+class AgentEnv(object):
     def __init__(self, runner, model, buffer, log_interval):
         self.env_runner = runner
         self.model = model

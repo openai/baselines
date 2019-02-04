@@ -12,7 +12,7 @@ from policies.mlp_gaussian import GaussianMlp
 from policies.netvalue import NetValueFunction
 from common.vec_env.vec_frame_stack import VecFrameStack
 from common.vec_env.environment import AbstractEnvRunner
-from utils.math_util import explained_variance, discount_with_dones
+from utils.math import explained_variance, discount_with_dones
 from utils.cmd import (arg_parser, make_atari_env, atari_arg_parser,
                        make_mujoco_env, mujoco_arg_parser)
 

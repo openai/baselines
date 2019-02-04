@@ -8,7 +8,7 @@ from policies.lstm import Lstm
 from policies.lnlstm import LnLstm
 from policies.convnet import Convnet
 from utils.misc import set_global_seeds
-from utils.math_util import explained_variance, discount_with_dones
+from utils.math import explained_variance, discount_with_dones
 from utils.cmd import make_atari_env, atari_arg_parser
 from common.vec_env.vec_frame_stack import VecFrameStack
 from common.vec_env.environment import AbstractEnvRunner

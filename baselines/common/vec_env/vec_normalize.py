@@ -1,6 +1,6 @@
 import numpy as np
 from common.vec_env import VecEnvWrapper
-from utils.running_mean_std import RunningMeanStd
+from utils.stats import RunningMeanStd
 
 
 class VecNormalize(VecEnvWrapper):

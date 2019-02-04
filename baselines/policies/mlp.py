@@ -1,12 +1,12 @@
 import numpy as np
 import tensorflow as tf
-from algos.a2c import A2C
-from models.model import Model
+# from algos.a2c import A2C
+from policies.agent import Agent
 from utils.distributions import make_pdtype
 from utils.inputs import observation_input
 
 
-class Mlp(A2C):
+class Mlp(Agent):
     def __init__(
             self,
             observation_space,
@@ -25,7 +25,7 @@ class Mlp(A2C):
         self.name = name
         self.setup
 
-    @Model.define_scope
+    @Agent.define_scope
     def setup(self):
         self.pdtype = make_pdtype(self.ation_space)
         with tf.variable_scope(self.name, reuse=self.reuse):

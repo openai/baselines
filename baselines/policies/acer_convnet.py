@@ -1,14 +1,15 @@
 # coding: utf-8
 
 import tensorflow as tf
-from algos.acer import Acer
-from policies.model import Model
+# from algos.acer import Acer
+from policies.agent import Agent
 
 
-class AcerConvnet(Acer):
+class AcerConvnet(Agent):
 
     def __init__(self, sess, ob_space, ac_space, nenv, nsteps, nstack,
                  reuse=False, name='AcerConvnet'):
+        super(AcerConvnet, self).__init__(name=name)
         self.batch_size = nenv * nsteps
         self.session = sess
         self.observation_space = ob_space
@@ -23,15 +24,15 @@ class AcerConvnet(Acer):
         self.X = tf.placeholder(tf.uint8, self.observation_shape)  # obs
         self.setup
 
-    @Model.define_scope
+    @Agent.define_scope
     def setup(self):
         with tf.variable_scope(self.name, reuse=self.reuse):
-            h = Model().nature_cnn(self.X)
-            pi_logits = Model().fc(h, 'pi', self.nactions, init_scale=0.01)
-            self.pi = Model().activation('softmax')(pi_logits)
-            self.q = Model().fc(h, 'q', self.nactions)
+            h = self.nature_cnn(self.X)
+            pi_logits = self.fc(h, 'pi', self.nactions, init_scale=0.01)
+            self.pi = self.activation('softmax')(pi_logits)
+            self.q = self.fc(h, 'q', self.nactions)
 
-        self.action = Model().sample(pi_logits)  # could change this to use self.pi instead
+        self.action = self.sample(pi_logits)  # could change this to use self.pi instead
         self.initial_state = []  # not stateful
         # self.X = X
 

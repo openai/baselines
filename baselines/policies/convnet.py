@@ -1,11 +1,11 @@
 import tensorflow as tf
-from algos.a2c import A2C
-from policies.model import Model
+# from algos.a2c import A2C
+from policies.agent import Agent
 from utils.distributions import make_pdtype
 from utils.inputs import observation_input
 
 
-class Convnet(A2C):
+class Convnet(Agent):
 
     def __init__(
             self,
@@ -32,7 +32,7 @@ class Convnet(A2C):
     ################################################################
     # network architecture                                         #
     ################################################################
-    @Model.define_scope
+    @Agent.define_scope
     def setup(self):
         pdtype = make_pdtype(self.action_space)
         X, processed_x = observation_input(
@@ -52,18 +52,32 @@ class Convnet(A2C):
         self.vf = vf
         self.a0 = a0
         self.neglogp0 = neglogp0
+        self.pdtype = pdtype
+        self.pd = pd
 
-    def step(self, *_args, **_kwargs):
-        if _args and _kwargs:
-            a, v, neglogp = _kwargs['session'].run(
-                [self.a0, self.vf, self.neglogp0],
-                feed_dict={self.X: _args[0]}
-            )
-            return a, v, self.initial_state, neglogp
+    # def step(self, *_args, **_kwargs):
+    #     if _args and _kwargs:
+    #         a, v, neglogp = _kwargs['session'].run(
+    #             [self.a0, self.vf, self.neglogp0],
+    #             feed_dict={self.X: _args[0]}
+    #         )
+    #         return a, v, self.initial_state, neglogp
 
-    def value(self, *_args, **_kwargs):
-        if _args and _kwargs:
-            return _kwargs['session'].run(
-                self.vf,
-                feed_dict={self.X: _args[0]}
-            )
+    # def value(self, *_args, **_kwargs):
+    #     if _args and _kwargs:
+    #         return _kwargs['session'].run(
+    #             self.vf,
+    #             feed_dict={self.X: _args[0]}
+    #         )
+
+    def step(self, *args, **kwargs):
+        step_fn = self.function(
+            inputs=[self.X],
+            outputs=[self.a0, self.vf, self.neglogp0]
+        )
+        a, v, neglogp = step_fn(kwargs['observations'])
+        return a, v, self.initial_state, neglogp
+
+    def value(self, *args, **kwargs):
+        value_fn = self.function(inputs=[self.X], outputs=self.vf)
+        return value_fn(kwargs['observations'])

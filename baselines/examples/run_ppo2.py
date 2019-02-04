@@ -311,6 +311,7 @@ def main():
 
         sess.close()
         env.close()
+        del sess
 
     # mujoco
     if platform == 'mujoco':
@@ -356,6 +357,7 @@ def main():
 
         sess.close()
         env.close()
+        del sess
 
 
 if __name__ == '__main__':

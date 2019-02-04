@@ -7,11 +7,11 @@ from collections import deque
 from utils.misc import zipsame
 from policies.model import Model
 # from policies.tf_primitives import TfUtil
-from mpi.mpi_adam import MpiAdam
 from utils.dataset import Dataset
 from utils.console import fmt_row
-from mpi.mpi_moments import mpi_moments
-from utils.math_util import explained_variance
+from optimizers.mpi.mpi_adam import MpiAdam
+from utils.math import explained_variance
+from optimizers.mpi.mpi_moments import mpi_moments
 
 
 class PPOSGD(Model):

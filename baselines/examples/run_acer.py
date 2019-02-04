@@ -3,7 +3,8 @@ import time
 import numpy as np
 import tensorflow as tf
 from utils import logger
-from algos.acer import Acer, Agent
+from algos.acer import Acer, AgentEnv
+from policies.agent import Agent
 from dstruct.buffers import Buffer
 from utils.misc import set_global_seeds
 from policies.acer_lstm import AcerLstm
@@ -133,7 +134,7 @@ def fit(
     else:
         buffer = None
     nbatch = env.num_envs * nsteps
-    agent = Agent(env_runner, model, buffer, log_interval)
+    agent = AgentEnv(env_runner, model, buffer, log_interval)
     agent.tstart = time.time()
     # nbatch samples, 1 on_policy call and multiple off-policy calls
     for agent.steps in range(0, total_timesteps, nbatch):

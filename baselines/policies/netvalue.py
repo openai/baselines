@@ -3,7 +3,7 @@ import tensorflow as tf
 from utils import logger
 from policies.model import Model
 from optimizers.kfac import KfacOptimizer
-from utils.math_util import explained_variance
+from utils.math import explained_variance
 
 
 class NetValueFunction(Model):

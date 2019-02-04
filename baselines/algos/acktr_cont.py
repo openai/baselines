@@ -3,7 +3,7 @@ import tensorflow as tf
 from utils import logger
 from policies.model import Model
 from utils.filters import ZFilter
-from utils.math_util import discount
+from utils.math import discount
 from optimizers.kfac import KfacOptimizer
 
 

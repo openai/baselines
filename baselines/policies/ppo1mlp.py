@@ -2,7 +2,7 @@ import gym
 import tensorflow as tf
 from policies.model import Model
 from utils.distributions import make_pdtype
-from mpi.mpi_running_mean_std import RunningMeanStd
+from optimizers.mpi.mpi_running_mean_std import RunningMeanStd
 
 
 class PPO1Mlp(Model):

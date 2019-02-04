@@ -1,10 +1,10 @@
 import gym
 import tensorflow as tf
-from policies.model import Model
+from policies.agent import Agent
 from utils.distributions import make_pdtype
 
 
-class PPO1Cnn(Model):
+class PPO1Cnn(Agent):
     recurrent = False
 
     def __init__(self, name, ob_space, ac_space, kind='large'):
