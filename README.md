@@ -2,7 +2,12 @@
 
 # Notice
 
-This repository is a fork of OpenAI baselines but at the same time it has introduced a number of changes in order to make development and fast prototyping easier. The changes that have been introduced are described in the following [PR](https://github.com/openai/baselines/pull/503)
+This repository is a fork of OpenAI baselines but at the same time it has introduced a number of changes in order to make development and fast prototyping easier. The changes that have been introduced are described in the following [PR](https://github.com/openai/baselines/pull/503).
+
+In order to run any of the experiments please run call them as you would call a python module.
+```
+python -m examples.run_ppo2
+```
 
 # Baselines
 
