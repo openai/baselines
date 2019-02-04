@@ -204,7 +204,7 @@ def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     return norm_x, rms
 
 @register("tuple_of")
-def tuple_network(network1, network2=None):
+def tuple_network(network1, network2=None, network3=None):
     '''
     applies network one to the first element of input and network2 to the second (if not None)
     results are flattened and concatenated (preserving batch dimension)
@@ -225,7 +225,10 @@ def tuple_network(network1, network2=None):
             out_2 = layers.flatten(network2(X[1]))
         else:
             out_2 = layers.flatten(X[1])
-        return tf.concat([out_1, out_2], axis=-1)
+        out_3 = tf.concat([out_1, out_2], axis=-1)
+        if network3 is not None:
+            out_3 = network3(out_3)
+        return out_3
     return network_fn
 
 

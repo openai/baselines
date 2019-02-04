@@ -21,7 +21,7 @@ class PolicyWithValue(object):
         ----------
         env             RL environment
 
-        observations    tensorflow placeholder in which the observations will be fed
+        observations    tensorflow placeholder, or list of tensorflow placeholders, in which the observations will be fed
 
         latent          latent state from which policy distribution parameters should be inferred
 
@@ -34,6 +34,7 @@ class PolicyWithValue(object):
         """
 
         self.X = observations
+        self.is_list_obs = isinstance(self.X, list)
         self.state = tf.constant([])
         self.initial_state = None
         self.__dict__.update(tensors)
@@ -65,7 +66,12 @@ class PolicyWithValue(object):
 
     def _evaluate(self, variables, observation, **extra_feed):
         sess = self.sess
-        feed_dict = {self.X: adjust_shape(self.X, observation)}
+        feed_dict = {}
+        if self.is_list_obs:
+            for idx, X in enumerate(self.X):
+                feed_dict[X] = adjust_shape(X, observation[idx])
+        else:
+            feed_dict[self.X] = adjust_shape(self.X, observation)
         for inpt_name, data in extra_feed.items():
             if inpt_name in self.__dict__.keys():
                 inpt = self.__dict__[inpt_name]
