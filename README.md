@@ -1,5 +1,9 @@
 <img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/openai/baselines.svg?branch=master)](https://travis-ci.org/openai/baselines)
 
+# Notice
+
+This repository is a fork of OpenAI baselines but at the same time it has introduced a number of changes in order to make development and fast prototyping easier. The changes that have been introduced are described in the following [PR](https://github.com/openai/baselines/pull/503)
+
 # Baselines
 
 OpenAI Baselines is a set of high-quality implementations of reinforcement learning algorithms.
