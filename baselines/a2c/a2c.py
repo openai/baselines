@@ -34,7 +34,9 @@ class Model(object):
 
         sess = tf_util.get_session()
         nenvs = env.num_envs
-        nbatch = nenvs*nsteps
+        nbatch = None
+        if nsteps:
+            nbatch = nenvs*nsteps
 
 
         with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
