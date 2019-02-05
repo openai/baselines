@@ -7,21 +7,20 @@ class FixedSequenceEnv(Env):
     def __init__(
             self,
             n_actions=10,
-            seed=0,
             episode_len=100
     ):
         self.np_random = np.random.RandomState()
-        self.np_random.seed(seed)
-        self.sequence = [self.np_random.randint(0, n_actions-1) for _ in range(episode_len)]
+        self.sequence = None
 
         self.action_space = Discrete(n_actions)
         self.observation_space = Discrete(1)
 
         self.episode_len = episode_len
         self.time = 0
-        self.reset()
 
     def reset(self):
+        if self.sequence is None:
+            self.sequence = [self.np_random.randint(0, self.action_space.n-1) for _ in range(self.episode_len)]
         self.time = 0
         return 0
 
@@ -34,6 +33,9 @@ class FixedSequenceEnv(Env):
             done = True
 
         return 0, rew, done, {}
+
+    def seed(self, seed=None):
+        self.np_random.seed(seed)
 
     def _choose_next_state(self):
         self.time += 1

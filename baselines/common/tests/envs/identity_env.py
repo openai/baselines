@@ -10,6 +10,7 @@ class IdentityEnv(Env):
             episode_len=None
     ):
 
+        self.observation_space = self.action_space
         self.episode_len = episode_len
         self.time = 0
         self.reset()
@@ -17,7 +18,6 @@ class IdentityEnv(Env):
     def reset(self):
         self._choose_next_state()
         self.time = 0
-        self.observation_space = self.action_space
 
         return self.state
 
@@ -29,6 +29,9 @@ class IdentityEnv(Env):
             done = True
 
         return self.state, rew, done, {}
+
+    def seed(self, seed=None):
+        self.action_space.seed(seed)
 
     def _choose_next_state(self):
         self.state = self.action_space.sample()
