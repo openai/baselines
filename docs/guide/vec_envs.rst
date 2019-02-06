@@ -21,8 +21,10 @@ Because of that, `actions` passed to the environment are now a vector (of dimens
 
 .. warning::
 
-	It seems that Windows users are experiencing issues with SubprocVecEnv.
-	We recommend to use the docker image in that case. (See `Issue #42 <https://github.com/hill-a/stable-baselines/issues/40>`_)
+		When using ``SubprocVecEnv``, Windows users must wrap the code
+		in an ``if __name__=="__main__":``.
+		See `stackoverflow question <https://stackoverflow.com/questions/24374288/where-to-put-freeze-support-in-a-python-script>`_
+		for more information about multiprocessing on Windows using python.
 
 
 DummyVecEnv
