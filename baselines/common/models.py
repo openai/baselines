@@ -203,6 +203,10 @@ def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     norm_x = tf.clip_by_value((x - rms.mean) / rms.std, min(clip_range), max(clip_range))
     return norm_x, rms
 
+def _uint8_to_float(x):
+    if x.dtype.as_numpy_dtype == np.uint8:
+        return (tf.cast(x, tf.float32) - 127) / 255.
+
 @register("tuple_of")
 def tuple_network(network1, network2=None, network3=None):
     '''
@@ -221,10 +225,11 @@ def tuple_network(network1, network2=None, network3=None):
     '''
     def network_fn(X):
         out_1 = layers.flatten(network1(X[0]))
+        in_2 = _uint8_to_float(X[1])
         if network2 is not None:
-            out_2 = layers.flatten(network2(X[1]))
+            out_2 = layers.flatten(network2(in_2))
         else:
-            out_2 = layers.flatten(X[1])
+            out_2 = layers.flatten(in_2)
         out_3 = tf.concat([out_1, out_2], axis=-1)
         if network3 is not None:
             out_3 = network3(out_3)
