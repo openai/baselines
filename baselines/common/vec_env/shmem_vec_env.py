@@ -16,19 +16,18 @@ _NP_TO_CT = {np.float32: ctypes.c_float,
              np.uint8: ctypes.c_char,
              np.bool: ctypes.c_bool}
 
-ctx = mp.get_context('spawn')
-
 
 class ShmemVecEnv(VecEnv):
     """
     Optimized version of SubprocVecEnv that uses shared variables to communicate observations.
     """
 
-    def __init__(self, env_fns, spaces=None):
+    def __init__(self, env_fns, spaces=None, context='spawn'):
         """
         If you don't specify observation_space, we'll have to create a dummy
         environment to get it.
         """
+        ctx = mp.get_context(context)
         if spaces:
             observation_space, action_space = spaces
         else:

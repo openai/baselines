@@ -3,7 +3,6 @@ import multiprocessing as mp
 import numpy as np
 from .vec_env import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
 
-ctx = mp.get_context('spawn')
 
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
@@ -39,7 +38,7 @@ class SubprocVecEnv(VecEnv):
     VecEnv that runs multiple environments in parallel in subproceses and communicates with them via pipes.
     Recommended to use when num_envs > 1 and step() can be a bottleneck.
     """
-    def __init__(self, env_fns, spaces=None):
+    def __init__(self, env_fns, spaces=None, context='spawn'):
         """
         Arguments:
 
@@ -48,6 +47,7 @@ class SubprocVecEnv(VecEnv):
         self.waiting = False
         self.closed = False
         nenvs = len(env_fns)
+        ctx = mp.get_context(context)
         self.remotes, self.work_remotes = zip(*[ctx.Pipe() for _ in range(nenvs)])
         self.ps = [ctx.Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                    for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
