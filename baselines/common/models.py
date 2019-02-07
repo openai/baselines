@@ -206,6 +206,8 @@ def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
 def _uint8_to_float(x):
     if x.dtype.as_numpy_dtype == np.uint8:
         return (tf.cast(x, tf.float32) - 127) / 255.
+    else:
+        return x / 255
 
 @register("tuple_of")
 def tuple_network(network1, network2=None, network3=None):
