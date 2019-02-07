@@ -41,6 +41,7 @@ def observation_input(ob_space, batch_size=None, name='Ob'):
     encoder of the appropriate type.
     '''
     print('obs_space:', ob_space)
+    print([space.dtype for space in ob_space])
 
     placeholder = observation_placeholder(ob_space, batch_size, name)
     return placeholder, encode_observation(ob_space, placeholder)
