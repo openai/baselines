@@ -158,7 +158,8 @@ class KfacOptimizer:
                             if len(b_tensor.get_shape()) > 0 and b_tensor.get_shape()[0].value is None:
                                 b_tensor.set_shape(b_tensor_shape)
                             b_tensors.append(b_tensor)
-                    fprop_op_name = op_types.append('UNK-' + fprop_op.op_def.name)
+                    fprop_op_name = 'UNK-' + fprop_op.op_def.name
+                    op_types.append(fprop_op_name)
 
             return {'opName': fprop_op_name, 'op': fprop_op, 'fpropFactors': f_tensors, 'bpropFactors': b_tensors}
 

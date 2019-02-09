@@ -168,6 +168,8 @@ class DDPG(OffPolicyRLModel):
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
+    :param full_tensorboard_log: (bool) enable additional logging when using tensorboard
+        WARNING: this logging can take a lot of space quickly
     """
 
     def __init__(self, policy, env, gamma=0.99, memory_policy=None, eval_env=None, nb_train_steps=50,
@@ -176,7 +178,7 @@ class DDPG(OffPolicyRLModel):
                  normalize_returns=False, enable_popart=False, observation_range=(-5., 5.), critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf), actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.,
                  render=False, render_eval=False, memory_limit=100, verbose=0, tensorboard_log=None,
-                 _init_setup_model=True, policy_kwargs=None):
+                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False):
 
         # TODO: replay_buffer refactoring
         super(DDPG, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DDPGPolicy,
@@ -208,6 +210,7 @@ class DDPG(OffPolicyRLModel):
         self.nb_rollout_steps = nb_rollout_steps
         self.memory_limit = memory_limit
         self.tensorboard_log = tensorboard_log
+        self.full_tensorboard_log = full_tensorboard_log
 
         # init
         self.graph = None
@@ -260,6 +263,7 @@ class DDPG(OffPolicyRLModel):
         self.summary = None
         self.episode_reward = None
         self.tb_seen_steps = None
+
         self.target_params = None
 
         if _init_setup_model:
@@ -361,7 +365,8 @@ class DDPG(OffPolicyRLModel):
                     self.target_q = self.rewards + (1. - self.terminals1) * self.gamma * q_obs1
 
                     tf.summary.scalar('critic_target', tf.reduce_mean(self.critic_target))
-                    tf.summary.histogram('critic_target', self.critic_target)
+                    if self.full_tensorboard_log:
+                        tf.summary.histogram('critic_target', self.critic_target)
 
                     # Set up parts.
                     if self.normalize_returns and self.enable_popart:
@@ -371,13 +376,15 @@ class DDPG(OffPolicyRLModel):
 
                 with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.rewards))
-                    tf.summary.histogram('rewards', self.rewards)
                     tf.summary.scalar('param_noise_stddev', tf.reduce_mean(self.param_noise_stddev))
-                    tf.summary.histogram('param_noise_stddev', self.param_noise_stddev)
-                    if len(self.observation_space.shape) == 3 and self.observation_space.shape[0] in [1, 3, 4]:
-                        tf.summary.image('observation', self.obs_train)
-                    else:
-                        tf.summary.histogram('observation', self.obs_train)
+
+                    if self.full_tensorboard_log:
+                        tf.summary.histogram('rewards', self.rewards)
+                        tf.summary.histogram('param_noise_stddev', self.param_noise_stddev)
+                        if len(self.observation_space.shape) == 3 and self.observation_space.shape[0] in [1, 3, 4]:
+                            tf.summary.image('observation', self.obs_train)
+                        else:
+                            tf.summary.histogram('observation', self.obs_train)
 
                 with tf.variable_scope("Adam_mpi", reuse=False):
                     self._setup_actor_optimizer()
@@ -631,7 +638,7 @@ class DDPG(OffPolicyRLModel):
         if writer is not None:
             # run loss backprop with summary if the step_id was not already logged (can happen with the right
             # parameters as the step value is only an estimate)
-            if log and step not in self.tb_seen_steps:
+            if self.full_tensorboard_log and log and step not in self.tb_seen_steps:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 summary, actor_grads, actor_loss, critic_grads, critic_loss = \
@@ -737,8 +744,13 @@ class DDPG(OffPolicyRLModel):
                 self.param_noise_stddev: self.param_noise.current_stddev,
             })
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DDPG"):
-        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="DDPG",
+              reset_num_timesteps=True):
+
+        new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
+                as writer:
             self._setup_learn(seed)
 
             # a list for tensorboard logging, to prevent logging with the same step number, if it already occured
@@ -800,9 +812,10 @@ class DDPG(OffPolicyRLModel):
                                 ep_rew = np.array([reward]).reshape((1, -1))
                                 ep_done = np.array([done]).reshape((1, -1))
                                 self.episode_reward = total_episode_reward_logger(self.episode_reward, ep_rew, ep_done,
-                                                                                  writer, total_steps)
+                                                                                  writer, self.num_timesteps)
                             step += 1
                             total_steps += 1
+                            self.num_timesteps += 1
                             if rank == 0 and self.render:
                                 self.env.render()
                             episode_reward += reward
@@ -814,9 +827,9 @@ class DDPG(OffPolicyRLModel):
                             self._store_transition(obs, action, reward, new_obs, done)
                             obs = new_obs
                             if callback is not None:
-                                # Only stop training if return value is False, not when it is None. This is for backwards
-                                # compatibility with callbacks that have no return statement.
-                                if callback(locals(), globals()) == False:
+                                # Only stop training if return value is False, not when it is None.
+                                # This is for backwards compatibility with callbacks that have no return statement.
+                                if callback(locals(), globals()) is False:
                                     return self
 
                             if done:
@@ -847,7 +860,7 @@ class DDPG(OffPolicyRLModel):
                             # weird equation to deal with the fact the nb_train_steps will be different
                             # to nb_rollout_steps
                             step = (int(t_train * (self.nb_rollout_steps / self.nb_train_steps)) +
-                                    total_steps - self.nb_rollout_steps)
+                                    self.num_timesteps - self.nb_rollout_steps)
 
                             critic_loss, actor_loss = self._train_step(step, writer, log=t_train == 0)
                             epoch_critic_losses.append(critic_loss)

@@ -9,8 +9,14 @@ Pre-Release 2.4.1a (WIP)
 --------------------------
 
 - fixed computation of training metrics in TRPO and PPO1
+- added ``reset_num_timesteps`` keyword when calling train() to continue tensorboard learning curves
+- reduced the size taken by tensorboard logs (added a ``full_tensorboard_log`` to enable full logging, which was the previous behavior)
+- fixed image detection for tensorboard logging
+- fixed ACKTR for recurrent policies
+- fixed gym breaking changes
 - fixed custom policy examples in the doc for DQN and DDPG
 - remove gym spaces patch for equality functions
+- fixed tensorflow dependency: cpu version was installed overwritting tensorflow-gpu when present.
 
 
 Release 2.4.0 (2019-01-17)

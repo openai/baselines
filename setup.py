@@ -1,9 +1,34 @@
-from setuptools import setup, find_packages
 import sys
+import subprocess
+from setuptools import setup, find_packages
+from distutils.version import LooseVersion
 
 if sys.version_info.major != 3:
     print('This Python is only compatible with Python 3, but you are running '
           'Python {}. The installation will likely fail.'.format(sys.version_info.major))
+
+# Check tensorflow installation to avoid
+# breaking pre-installed tf gpu
+install_tf, tf_gpu = False, False
+try:
+    import tensorflow as tf
+    if tf.__version__ < LooseVersion('1.5.0'):
+        install_tf = True
+        # check if a gpu version is needed
+        tf_gpu = tf.test.is_gpu_available()
+except ImportError:
+    install_tf = True
+    # Check if a nvidia gpu is present
+    for command in ['nvidia-smi', '/usr/bin/nvidia-smi', 'nvidia-smi.exe']:
+        if subprocess.call([command]) == 0:
+            tf_gpu = True
+            break
+
+tf_dependency = []
+if install_tf:
+    tf_dependency = ['tensorflow-gpu>=1.5.0'] if tf_gpu else ['tensorflow>=1.5.0']
+    if tf_gpu:
+        print("A GPU was detected, tensorflow-gpu will be installed")
 
 
 long_description = """
@@ -83,7 +108,6 @@ setup(name='stable_baselines',
           'progressbar2',
           'mpi4py',
           'cloudpickle>=0.5.5',
-          'tensorflow>=1.5.0',
           'click',
           'opencv-python',
           'numpy',
@@ -91,7 +115,7 @@ setup(name='stable_baselines',
           'matplotlib',
           'seaborn',
           'glob2'
-      ],
+      ] + tf_dependency,
       extras_require={
         'tests': [
             'pytest==3.5.1',
@@ -112,7 +136,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version="2.4.1a",
+      version="2.4.1a0",
       )
 
 # python setup.py sdist

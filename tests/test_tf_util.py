@@ -1,7 +1,8 @@
 # tests for tf_util
+import numpy as np
 import tensorflow as tf
 
-from stable_baselines.common.tf_util import function, initialize, single_threaded_session
+from stable_baselines.common.tf_util import function, initialize, single_threaded_session, is_image
 
 
 def test_function():
@@ -38,6 +39,23 @@ def test_multikwargs():
             assert linear_fn(2, 2) == 10
 
 
-if __name__ == '__main__':
-    test_function()
-    test_multikwargs()
+def test_image_detection():
+    rgb = (32, 64, 3)
+    gray = (43, 23, 1)
+    rgbd = (12, 32, 4)
+    invalid_1 = (32, 12)
+    invalid_2 = (12, 32, 6)
+
+    # TF checks
+    for shape in (rgb, gray, rgbd):
+        assert is_image(tf.placeholder(tf.uint8, shape=shape))
+
+    for shape in (invalid_1, invalid_2):
+        assert not is_image(tf.placeholder(tf.uint8, shape=shape))
+
+    # Numpy checks
+    for shape in (rgb, gray, rgbd):
+        assert is_image(np.ones(shape))
+
+    for shape in (invalid_1, invalid_2):
+        assert not is_image(np.ones(shape))

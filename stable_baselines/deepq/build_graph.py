@@ -319,8 +319,9 @@ def build_act_with_param_noise(q_func, ob_space, ac_space, stochastic_ph, update
     return act, obs_phs
 
 
-def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=None, gamma=1.0, double_q=True,
-                scope="deepq", reuse=None, param_noise=False, param_noise_filter_func=None):
+def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=None,
+                gamma=1.0, double_q=True, scope="deepq", reuse=None,
+                param_noise=False, param_noise_filter_func=None, full_tensorboard_log=False):
     """
     Creates the train function:
 
@@ -340,6 +341,8 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
     :param param_noise_filter_func: (function (TensorFlow Tensor): bool) function that decides whether or not a
         variable should be perturbed. Only applicable if param_noise is True. If set to None, default_param_noise_filter
         is used by default.
+    :param full_tensorboard_log: (bool) enable additional logging when using tensorboard
+        WARNING: this logging can take a lot of space quickly
 
     :return: (tuple)
 
@@ -410,8 +413,10 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
         weighted_error = tf.reduce_mean(importance_weights_ph * errors)
 
         tf.summary.scalar("td_error", tf.reduce_mean(td_error))
-        tf.summary.histogram("td_error", td_error)
         tf.summary.scalar("loss", weighted_error)
+
+        if full_tensorboard_log:
+            tf.summary.histogram("td_error", td_error)
 
         # update_target_fn will be called periodically to copy Q network to target Q network
         update_target_expr = []
@@ -429,15 +434,15 @@ def build_train(q_func, ob_space, ac_space, optimizer, sess, grad_norm_clipping=
 
     with tf.variable_scope("input_info", reuse=False):
         tf.summary.scalar('rewards', tf.reduce_mean(rew_t_ph))
-        tf.summary.histogram('rewards', rew_t_ph)
         tf.summary.scalar('importance_weights', tf.reduce_mean(importance_weights_ph))
-        tf.summary.histogram('importance_weights', importance_weights_ph)
-        # Valid image: RGB, RGBD, GrayScale
-        is_image = len(obs_phs[0].shape) == 3 and obs_phs[0].shape[-1] in [1, 3, 4]
-        if is_image:
-            tf.summary.image('observation', obs_phs[0])
-        elif len(obs_phs[0].shape) == 1:
-            tf.summary.histogram('observation', obs_phs[0])
+
+        if full_tensorboard_log:
+            tf.summary.histogram('rewards', rew_t_ph)
+            tf.summary.histogram('importance_weights', importance_weights_ph)
+            if tf_util.is_image(obs_phs[0]):
+                tf.summary.image('observation', obs_phs[0])
+            elif len(obs_phs[0].shape) == 1:
+                tf.summary.histogram('observation', obs_phs[0])
 
     optimize_expr = optimizer.apply_gradients(gradients)
 

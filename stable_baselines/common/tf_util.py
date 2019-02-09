@@ -11,6 +11,19 @@ from tensorflow.python.client import device_lib
 from stable_baselines import logger
 
 
+def is_image(tensor):
+    """
+    Check if a tensor has the shape of
+    a valid image for tensorboard logging.
+    Valid image: RGB, RGBD, GrayScale
+
+    :param tensor: (np.ndarray or tf.placeholder)
+    :return: (bool)
+    """
+
+    return len(tensor.shape) == 3 and tensor.shape[-1] in [1, 3, 4]
+
+
 def switch(condition, then_expression, else_expression):
     """
     Switches between two operations depending on a scalar value (int or bool).
@@ -210,7 +223,7 @@ def function(inputs, outputs, updates=None, givens=None):
     Take a bunch of tensorflow placeholders and expressions
     computed based on those placeholders and produces f(inputs) -> outputs. Function f takes
     values to be fed to the input's placeholders and produces the values of the expressions
-    in outputs. Just like a Theano function. 
+    in outputs. Just like a Theano function.
 
     Input values can be passed in the same order as inputs or can be provided as kwargs based
     on placeholder name (passed to constructor or accessible via placeholder.op.name).
@@ -225,13 +238,13 @@ def function(inputs, outputs, updates=None, givens=None):
        >>>     assert lin(2) == 6
        >>>     assert lin(x=3) == 9
        >>>     assert lin(2, 2) == 10
-    
+
     :param inputs: (TensorFlow Tensor or Object with make_feed_dict) list of input arguments
     :param outputs: (TensorFlow Tensor) list of outputs or a single output to be returned from function. Returned
         value will also have the same shape.
     :param updates: ([tf.Operation] or tf.Operation)
         list of update functions or single update function that will be run whenever
-        the function is called. The return is ignored. 
+        the function is called. The return is ignored.
     :param givens: (dict) the values known for the output
     """
     if isinstance(outputs, list):
@@ -254,7 +267,7 @@ class _Function(object):
             value will also have the same shape.
         :param updates: ([tf.Operation] or tf.Operation)
         list of update functions or single update function that will be run whenever
-        the function is called. The return is ignored. 
+        the function is called. The return is ignored.
         :param givens: (dict) the values known for the output
         """
         for inpt in inputs:

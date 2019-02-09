@@ -22,7 +22,7 @@ def test_probtypes():
     categorical = CategoricalProbabilityDistributionType(pdparam_categorical.size)
     validate_probtype(categorical, pdparam_categorical)
 
-    nvec = [1, 2, 3]
+    nvec = np.array([1, 2, 3])
     pdparam_multicategorical = np.array([-.2, .3, .5, .1, 1, -.1])
     multicategorical = MultiCategoricalProbabilityDistributionType(nvec)
     validate_probtype(multicategorical, pdparam_multicategorical)

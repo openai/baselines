@@ -15,32 +15,36 @@ from stable_baselines.common.cg import conjugate_gradient
 from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
+
+
 # from stable_baselines.gail.statistics import Stats
 
 
 class TRPO(ActorCriticRLModel):
+    """
+    Trust Region Policy Optimization (https://arxiv.org/abs/1502.05477)
+
+    :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param gamma: (float) the discount value
+    :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
+    :param max_kl: (float) the kullback leiber loss threshold
+    :param cg_iters: (int) the number of iterations for the conjugate gradient calculation
+    :param lam: (float) GAE factor
+    :param entcoeff: (float) the weight for the entropy loss
+    :param cg_damping: (float) the compute gradient dampening factor
+    :param vf_stepsize: (float) the value function stepsize
+    :param vf_iters: (int) the value function's number iterations for learning
+    :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
+    :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
+    :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
+    :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
+    :param full_tensorboard_log: (bool) enable additional logging when using tensorboard
+        WARNING: this logging can take a lot of space quickly
+    """
     def __init__(self, policy, env, gamma=0.99, timesteps_per_batch=1024, max_kl=0.01, cg_iters=10, lam=0.98,
                  entcoeff=0.0, cg_damping=1e-2, vf_stepsize=3e-4, vf_iters=3, verbose=0, tensorboard_log=None,
-                 _init_setup_model=True, policy_kwargs=None):
-        """
-        learns a TRPO policy using the given environment
-
-        :param policy: (ActorCriticPolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
-        :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
-        :param gamma: (float) the discount value
-        :param timesteps_per_batch: (int) the number of timesteps to run per batch (horizon)
-        :param max_kl: (float) the kullback leiber loss threshold
-        :param cg_iters: (int) the number of iterations for the conjugate gradient calculation
-        :param lam: (float) GAE factor
-        :param entcoeff: (float) the weight for the entropy loss
-        :param cg_damping: (float) the compute gradient dampening factor
-        :param vf_stepsize: (float) the value function stepsize
-        :param vf_iters: (int) the value function's number iterations for learning
-        :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
-        :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
-        :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
-        :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
-        """
+                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False):
         super(TRPO, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=False,
                                    _init_setup_model=_init_setup_model, policy_kwargs=policy_kwargs)
 
@@ -55,6 +59,7 @@ class TRPO(ActorCriticRLModel):
         self.vf_stepsize = vf_stepsize
         self.entcoeff = entcoeff
         self.tensorboard_log = tensorboard_log
+        self.full_tensorboard_log = full_tensorboard_log
 
         # GAIL Params
         self.pretrained_weight = None
@@ -181,7 +186,7 @@ class TRPO(ActorCriticRLModel):
                     self.assign_old_eq_new = \
                         tf_util.function([], [], updates=[tf.assign(oldv, newv) for (oldv, newv) in
                                                           zipsame(tf_util.get_globals_vars("oldpi"),
-                                                          tf_util.get_globals_vars("model"))])
+                                                                  tf_util.get_globals_vars("model"))])
                     self.compute_losses = tf_util.function([observation, old_policy.obs_ph, action, atarg], losses)
                     self.compute_fvp = tf_util.function([flat_tangent, observation, old_policy.obs_ph, action, atarg],
                                                         fvp)
@@ -220,17 +225,19 @@ class TRPO(ActorCriticRLModel):
 
                 with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('discounted_rewards', tf.reduce_mean(ret))
-                    tf.summary.histogram('discounted_rewards', ret)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.vf_stepsize))
-                    tf.summary.histogram('learning_rate', self.vf_stepsize)
                     tf.summary.scalar('advantage', tf.reduce_mean(atarg))
-                    tf.summary.histogram('advantage', atarg)
                     tf.summary.scalar('kl_clip_range', tf.reduce_mean(self.max_kl))
-                    tf.summary.histogram('kl_clip_range', self.max_kl)
-                    if len(self.observation_space.shape) == 3:
-                        tf.summary.image('observation', observation)
-                    else:
-                        tf.summary.histogram('observation', observation)
+
+                    if self.full_tensorboard_log:
+                        tf.summary.histogram('discounted_rewards', ret)
+                        tf.summary.histogram('learning_rate', self.vf_stepsize)
+                        tf.summary.histogram('advantage', atarg)
+                        tf.summary.histogram('kl_clip_range', self.max_kl)
+                        if tf_util.is_image(self.observation_space):
+                            tf.summary.image('observation', observation)
+                        else:
+                            tf.summary.histogram('observation', observation)
 
                 self.timed = timed
                 self.allmean = allmean
@@ -249,8 +256,13 @@ class TRPO(ActorCriticRLModel):
                     tf_util.function([observation, old_policy.obs_ph, action, atarg, ret],
                                      [self.summary, tf_util.flatgrad(optimgain, var_list)] + losses)
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="TRPO"):
-        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="TRPO",
+              reset_num_timesteps=True):
+
+        new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
+                as writer:
             self._setup_learn(seed)
 
             with self.sess.as_default():
@@ -282,7 +294,7 @@ class TRPO(ActorCriticRLModel):
                     if callback is not None:
                         # Only stop training if return value is False, not when it is None. This is for backwards
                         # compatibility with callbacks that have no return statement.
-                        if callback(locals(), globals()) == False:
+                        if callback(locals(), globals()) is False:
                             break
                     if total_timesteps and timesteps_so_far >= total_timesteps:
                         break
@@ -291,6 +303,7 @@ class TRPO(ActorCriticRLModel):
 
                     def fisher_vector_product(vec):
                         return self.allmean(self.compute_fvp(vec, *fvpargs, sess=self.sess)) + self.cg_damping * vec
+
                     # ------------------ Update G ------------------
                     logger.log("Optimizing Policy...")
                     # g_step = 1 when not using GAIL
@@ -315,7 +328,7 @@ class TRPO(ActorCriticRLModel):
                                                                               seg["true_rew"].reshape(
                                                                                   (self.n_envs, -1)),
                                                                               seg["dones"].reshape((self.n_envs, -1)),
-                                                                              writer, timesteps_so_far)
+                                                                              writer, self.num_timesteps)
 
                         args = seg["ob"], seg["ob"], seg["ac"], atarg
                         fvpargs = [arr[::5] for arr in args]
@@ -323,15 +336,16 @@ class TRPO(ActorCriticRLModel):
                         self.assign_old_eq_new(sess=self.sess)
 
                         with self.timed("computegrad"):
-                            steps = timesteps_so_far + (k + 1) * (seg["total_timestep"] / self.g_step)
+                            steps = self.num_timesteps + (k + 1) * (seg["total_timestep"] / self.g_step)
                             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-                            run_metadata = tf.RunMetadata()
+                            run_metadata = tf.RunMetadata() if self.full_tensorboard_log else None
                             # run loss backprop with summary, and save the metadata (memory, compute time, ...)
                             if writer is not None:
                                 summary, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
                                                                                       options=run_options,
                                                                                       run_metadata=run_metadata)
-                                writer.add_run_metadata(run_metadata, 'step%d' % steps)
+                                if self.full_tensorboard_log:
+                                    writer.add_run_metadata(run_metadata, 'step%d' % steps)
                                 writer.add_summary(summary, steps)
                             else:
                                 _, grad, *lossbefore = self.compute_lossandgrad(*args, tdlamret, sess=self.sess,
@@ -432,11 +446,13 @@ class TRPO(ActorCriticRLModel):
                         logger.record_tabular("EpTrueRewMean", np.mean(true_rewbuffer))
                     logger.record_tabular("EpThisIter", len(lens))
                     episodes_so_far += len(lens)
-                    timesteps_so_far += seg["total_timestep"]
+                    current_it_timesteps = MPI.COMM_WORLD.allreduce(seg["total_timestep"])
+                    timesteps_so_far += current_it_timesteps
+                    self.num_timesteps += current_it_timesteps
                     iters_so_far += 1
 
                     logger.record_tabular("EpisodesSoFar", episodes_so_far)
-                    logger.record_tabular("TimestepsSoFar", timesteps_so_far)
+                    logger.record_tabular("TimestepsSoFar", self.num_timesteps)
                     logger.record_tabular("TimeElapsed", time.time() - t_start)
 
                     if self.verbose >= 1 and self.rank == 0:

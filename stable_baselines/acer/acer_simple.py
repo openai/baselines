@@ -91,12 +91,15 @@ class ACER(ActorCriticRLModel):
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
     :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
+    :param full_tensorboard_log: (bool) enable additional logging when using tensorboard
+        WARNING: this logging can take a lot of space quickly
     """
 
     def __init__(self, policy, env, gamma=0.99, n_steps=20, num_procs=1, q_coef=0.5, ent_coef=0.01, max_grad_norm=10,
                  learning_rate=7e-4, lr_schedule='linear', rprop_alpha=0.99, rprop_epsilon=1e-5, buffer_size=5000,
-                 replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True, alpha=0.99, delta=1,
-                 verbose=0, tensorboard_log=None, _init_setup_model=True, policy_kwargs=None):
+                 replay_ratio=4, replay_start=1000, correction_term=10.0, trust_region=True,
+                 alpha=0.99, delta=1, verbose=0, tensorboard_log=None,
+                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False):
 
         super(ACER, self).__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=True,
                                    _init_setup_model=_init_setup_model, policy_kwargs=policy_kwargs)
@@ -119,6 +122,7 @@ class ACER(ActorCriticRLModel):
         self.lr_schedule = lr_schedule
         self.num_procs = num_procs
         self.tensorboard_log = tensorboard_log
+        self.full_tensorboard_log = full_tensorboard_log
 
         self.graph = None
         self.sess = None
@@ -361,17 +365,19 @@ class ACER(ActorCriticRLModel):
 
                 with tf.variable_scope("input_info", reuse=False):
                     tf.summary.scalar('rewards', tf.reduce_mean(self.reward_ph))
-                    tf.summary.histogram('rewards', self.reward_ph)
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate))
-                    tf.summary.histogram('learning_rate', self.learning_rate)
                     tf.summary.scalar('advantage', tf.reduce_mean(adv))
-                    tf.summary.histogram('advantage', adv)
                     tf.summary.scalar('action_probabilty', tf.reduce_mean(self.mu_ph))
-                    tf.summary.histogram('action_probabilty', self.mu_ph)
-                    if len(self.observation_space.shape) == 3:
-                        tf.summary.image('observation', train_model.obs_ph)
-                    else:
-                        tf.summary.histogram('observation', train_model.obs_ph)
+
+                    if self.full_tensorboard_log:
+                        tf.summary.histogram('rewards', self.reward_ph)
+                        tf.summary.histogram('learning_rate', self.learning_rate)
+                        tf.summary.histogram('advantage', adv)
+                        tf.summary.histogram('action_probabilty', self.mu_ph)
+                        if tf_util.is_image(self.observation_space):
+                            tf.summary.image('observation', train_model.obs_ph)
+                        else:
+                            tf.summary.histogram('observation', train_model.obs_ph)
 
                 trainer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate_ph, decay=self.rprop_alpha,
                                                     epsilon=self.rprop_epsilon)
@@ -429,7 +435,7 @@ class ACER(ActorCriticRLModel):
 
         if writer is not None:
             # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)
-            if (1 + (steps / self.n_batch)) % 10 == 0:
+            if self.full_tensorboard_log and (1 + (steps / self.n_batch)) % 10 == 0:
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 step_return = self.sess.run([self.summary] + self.run_ops, td_map, options=run_options,
@@ -444,8 +450,13 @@ class ACER(ActorCriticRLModel):
 
         return self.names_ops, step_return[1:]  # strip off _train
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="ACER"):
-        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name) as writer:
+    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="ACER",
+              reset_num_timesteps=True):
+
+        new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
+                as writer:
             self._setup_learn(seed)
 
             self.learning_rate_schedule = Scheduler(initial_value=self.learning_rate, n_values=total_timesteps,
@@ -474,7 +485,7 @@ class ACER(ActorCriticRLModel):
                     self.episode_reward = total_episode_reward_logger(self.episode_reward,
                                                                       rewards.reshape((self.n_envs, self.n_steps)),
                                                                       dones.reshape((self.n_envs, self.n_steps)),
-                                                                      writer, steps)
+                                                                      writer, self.num_timesteps)
 
                 # reshape stuff correctly
                 obs = obs.reshape(runner.batch_ob_shape)
@@ -485,16 +496,16 @@ class ACER(ActorCriticRLModel):
                 masks = masks.reshape([runner.batch_ob_shape[0]])
 
                 names_ops, values_ops = self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks,
-                                                         steps, writer)
+                                                         self.num_timesteps, writer)
 
                 if callback is not None:
                     # Only stop training if return value is False, not when it is None. This is for backwards
                     # compatibility with callbacks that have no return statement.
-                    if callback(locals(), globals()) == False:
+                    if callback(locals(), globals()) is False:
                         break
 
                 if self.verbose >= 1 and (int(steps / runner.n_batch) % log_interval == 0):
-                    logger.record_tabular("total_timesteps", steps)
+                    logger.record_tabular("total_timesteps", self.num_timesteps)
                     logger.record_tabular("fps", int(steps / (time.time() - t_start)))
                     # IMP: In EpisodicLife env, during training, we get done=True at each loss of life,
                     # not just at the terminal state. Thus, this is mean until end of life, not end of episode.
@@ -519,7 +530,10 @@ class ACER(ActorCriticRLModel):
                         dones = dones.reshape([runner.n_batch])
                         masks = masks.reshape([runner.batch_ob_shape[0]])
 
-                        self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks, steps)
+                        self._train_step(obs, actions, rewards, dones, mus, self.initial_state, masks,
+                                         self.num_timesteps)
+
+                self.num_timesteps += self.n_batch
 
         return self
 

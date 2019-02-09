@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from stable_baselines import A2C, ACER, PPO2
+from stable_baselines import A2C, ACER, ACKTR, PPO2
 from stable_baselines.common.policies import MlpLstmPolicy, LstmPolicy
 
 
@@ -33,7 +33,7 @@ class CustomLSTMPolicy4(LstmPolicy):
 
 N_TRIALS = 100
 
-MODELS = [A2C, ACER, PPO2]
+MODELS = [A2C, ACER, ACKTR, PPO2]
 LSTM_POLICIES = [MlpLstmPolicy, CustomLSTMPolicy1, CustomLSTMPolicy2, CustomLSTMPolicy3, CustomLSTMPolicy4]
 
 

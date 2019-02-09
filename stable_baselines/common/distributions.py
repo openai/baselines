@@ -186,7 +186,10 @@ class MultiCategoricalProbabilityDistributionType(ProbabilityDistributionType):
 
         :param n_vec: ([int]) the vectors
         """
-        self.n_vec = n_vec
+        # Cast the variable because tf does not allow uint32
+        self.n_vec = n_vec.astype(np.int32)
+        # Check that the cast was valid
+        assert (self.n_vec > 0).all(), "Casting uint32 to int32 was invalid"
 
     def probability_distribution_class(self):
         return MultiCategoricalProbabilityDistribution
