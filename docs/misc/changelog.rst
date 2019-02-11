@@ -5,8 +5,10 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre-Release 2.4.1a (WIP)
+Release 2.4.1 (2019-02-11)
 --------------------------
+
+**Bug fixes and improvements**
 
 - fixed computation of training metrics in TRPO and PPO1
 - added ``reset_num_timesteps`` keyword when calling train() to continue tensorboard learning curves
@@ -17,6 +19,7 @@ Pre-Release 2.4.1a (WIP)
 - fixed custom policy examples in the doc for DQN and DDPG
 - remove gym spaces patch for equality functions
 - fixed tensorflow dependency: cpu version was installed overwritting tensorflow-gpu when present.
+- fixed a bug in ``traj_segment_generator`` (used in ppo1 and trpo) where ``new`` was not updated. (spotted by @junhyeokahn)
 
 
 Release 2.4.0 (2019-01-17)
@@ -233,4 +236,4 @@ Contributors (since v2.0.0):
 In random order...
 
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
-@EliasHasle @mrakgr @Bleyddyn @antoine-galataud
+@EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn

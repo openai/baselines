@@ -42,7 +42,7 @@ import stable_baselines
 # -- Project information -----------------------------------------------------
 
 project = 'Stable Baselines'
-copyright = '2018, Stable Baselines'
+copyright = '2018-2019, Stable Baselines'
 author = 'Stable Baselines Contributors'
 
 # The short X.Y version

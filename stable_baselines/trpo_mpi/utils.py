@@ -18,7 +18,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
         - ob: (np.ndarray) observations
         - rew: (numpy float) rewards (if gail is used it is the predicted reward)
         - vpred: (numpy float) action logits
-        - new: (numpy bool) dones (is end of episode)
+        - dones: (numpy bool) dones (is end of episode -> True if first timestep of an episode)
         - ac: (np.ndarray) actions
         - prevac: (np.ndarray) previous actions
         - nextvpred: (numpy float) next action logits
@@ -32,7 +32,6 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     # Initialize state variables
     step = 0
     action = env.action_space.sample()  # not used, just so we have the datatype
-    new = True
     observation = env.reset()
 
     cur_ep_ret = 0  # return in current episode
@@ -51,7 +50,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     actions = np.array([action for _ in range(horizon)])
     prev_actions = actions.copy()
     states = policy.initial_state
-    done = None
+    done = True  # marks if we're on first timestep of an episode
 
     while True:
         prevac = action
@@ -66,9 +65,20 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
             else:
                 current_it_timesteps = sum(ep_lens) + current_it_len
 
-            yield {"ob": observations, "rew": rews, "dones": dones, "true_rew": true_rews, "vpred": vpreds,
-                   "ac": actions, "prevac": prev_actions, "nextvpred": vpred * (1 - new), "ep_rets": ep_rets,
-                   "ep_lens": ep_lens, "ep_true_rets": ep_true_rets, "total_timestep": current_it_timesteps}
+            yield {
+                    "ob": observations,
+                    "rew": rews,
+                    "dones": dones,
+                    "true_rew": true_rews,
+                    "vpred": vpreds,
+                    "ac": actions,
+                    "prevac": prev_actions,
+                    "nextvpred": vpred[0] * (1 - done),
+                    "ep_rets": ep_rets,
+                    "ep_lens": ep_lens,
+                    "ep_true_rets": ep_true_rets,
+                    "total_timestep": current_it_timesteps
+            }
             _, vpred, _, _ = policy.step(observation.reshape(-1, *observation.shape))
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
