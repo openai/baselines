@@ -9,6 +9,7 @@ class VecMonitor(VecEnvWrapper):
         VecEnvWrapper.__init__(self, venv)
         self.eprets = None
         self.eplens = None
+        self.epcount = 0
         self.tstart = time.time()
         if filename:
             self.results_writer = ResultsWriter(filename, header={'t_start': self.tstart})
@@ -38,6 +39,7 @@ class VecMonitor(VecEnvWrapper):
                 if self.keep_buf:
                     self.epret_buf.append(ret)
                     self.eplen_buf.append(eplen)
+                self.epcount += 1
                 self.eprets[i] = 0
                 self.eplens[i] = 0
                 if self.results_writer:

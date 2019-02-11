@@ -4,6 +4,7 @@ import platform
 import shutil
 import subprocess
 import warnings
+import sys
 
 try:
     from mpi4py import MPI
@@ -35,13 +36,15 @@ def gpu_count():
 
 def setup_mpi_gpus():
     """
-    Set CUDA_VISIBLE_DEVICES using MPI.
+    Set CUDA_VISIBLE_DEVICES to MPI rank if not already set
     """
-    num_gpus = gpu_count()
-    if num_gpus == 0:
-        return
-    local_rank, _ = get_local_rank_size(MPI.COMM_WORLD)
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank % num_gpus)
+    if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+        if sys.platform == 'darwin': # This Assumes if you're on OSX you're just
+            ids = []                 # doing a smoke test and don't want GPUs
+        else:
+            lrank, _lsize = get_local_rank_size(MPI.COMM_WORLD)
+            ids = [lrank]
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, ids))
 
 def get_local_rank_size(comm):
     """
@@ -127,3 +130,4 @@ def mpi_weighted_mean(comm, local_name2valcount):
         return {name : name2sum[name] / name2count[name] for name in name2sum}
     else:
         return {}
+
