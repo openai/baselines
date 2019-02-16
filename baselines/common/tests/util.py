@@ -1,7 +1,8 @@
 import tensorflow as tf
 import numpy as np
-from gym.spaces import np_random
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+
+np_random = np.random.RandomState()
 
 N_TRIALS = 10000
 N_EPISODES = 100
