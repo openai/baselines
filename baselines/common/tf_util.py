@@ -1,4 +1,3 @@
-import joblib
 import numpy as np
 import tensorflow as tf  # pylint: ignore-module
 import copy
@@ -336,6 +335,7 @@ def save_state(fname, sess=None):
 # TODO: ensure there is no subtle differences and remove one
 
 def save_variables(save_path, variables=None, sess=None):
+    import joblib
     sess = sess or get_session()
     variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 
@@ -347,6 +347,7 @@ def save_variables(save_path, variables=None, sess=None):
     joblib.dump(save_dict, save_path)
 
 def load_variables(load_path, variables=None, sess=None):
+    import joblib
     sess = sess or get_session()
     variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 
