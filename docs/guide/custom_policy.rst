@@ -223,8 +223,13 @@ If your task requires even more granular control over the policy architecture, y
           self.initial_state = None
           self._setup_init()
 
-      def step(self, obs, state=None, mask=None):
-          action, value, neglogp = self.sess.run([self.action, self._value, self.neglogp], {self.obs_ph: obs})
+      def step(self, obs, state=None, mask=None, deterministic=False):
+          if deterministic:
+              action, value, neglogp = self.sess.run([self.deterministic_action, self._value, self.neglogp],
+                                                     {self.obs_ph: obs})
+          else:
+              action, value, neglogp = self.sess.run([self.action, self._value, self.neglogp],
+                                                     {self.obs_ph: obs})
           return action, value, self.initial_state, neglogp
 
       def proba_step(self, obs, state=None, mask=None):
