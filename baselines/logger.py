@@ -6,6 +6,7 @@ import json
 import time
 import datetime
 import tempfile
+import copy
 from collections import defaultdict
 
 DEBUG = 10
@@ -88,11 +89,12 @@ class JSONOutputFormat(KVWriter):
         self.file = open(filename, 'wt')
 
     def writekvs(self, kvs):
-        for k, v in sorted(kvs.items()):
+        kv2json = copy.deepcopy(kvs)
+        for k, v in sorted(kv2json.items()):
             if hasattr(v, 'dtype'):
                 v = v.tolist()
-                kvs[k] = float(v)
-        self.file.write(json.dumps(kvs) + '\n')
+                kv2json[k] = [float(e) for e in v]
+        self.file.write(json.dumps(kv2json) + '\n')
         self.file.flush()
 
     def close(self):
