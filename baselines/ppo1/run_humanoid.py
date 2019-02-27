@@ -19,16 +19,17 @@ def train(num_timesteps, seed, model_path=None):
     # these are good enough to make humanoid walk, but whether those are
     # an absolute best or not is not certain
     env = RewScale(env, 0.1)
+    logger.log("NOTE: reward will be scaled by a factor of 10  in logged stats. Check the monitor for unscaled reward.")
     pi = pposgd_simple.learn(env, policy_fn,
             max_timesteps=num_timesteps,
             timesteps_per_actorbatch=2048,
-            clip_param=0.2, entcoeff=0.0,
+            clip_param=0.1, entcoeff=0.0,
             optim_epochs=10,
-            optim_stepsize=3e-4,
+            optim_stepsize=1e-4,
             optim_batchsize=64,
             gamma=0.99,
             lam=0.95,
-            schedule='linear',
+            schedule='constant',
         )
     env.close()
     if model_path:
@@ -47,7 +48,7 @@ def main():
     logger.configure()
     parser = mujoco_arg_parser()
     parser.add_argument('--model-path', default=os.path.join(logger.get_dir(), 'humanoid_policy'))
-    parser.set_defaults(num_timesteps=int(2e7))
+    parser.set_defaults(num_timesteps=int(5e7))
 
     args = parser.parse_args()
 
@@ -67,9 +68,6 @@ def main():
             env.render()
             if done:
                 ob = env.reset()
-
-
-
 
 if __name__ == '__main__':
     main()

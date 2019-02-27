@@ -44,7 +44,12 @@ def test_serialization(learn_fn, network_fn):
             # github issue: https://github.com/openai/baselines/issues/660
             return
 
-    env = DummyVecEnv([lambda: MnistEnv(10, episode_len=100)])
+    def make_env():
+        env = MnistEnv(episode_len=100)
+        env.seed(10)
+        return env
+
+    env = DummyVecEnv([make_env])
     ob = env.reset().copy()
     learn = get_learn_function(learn_fn)
 

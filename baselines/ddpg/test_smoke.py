@@ -1,7 +1,10 @@
-from baselines.run import main as M
+from multiprocessing import Process
+import baselines.run
 
 def _run(argstr):
-    M(('--alg=ddpg --env=Pendulum-v0 --num_timesteps=0 ' + argstr).split(' '))
+    p = Process(target=baselines.run.main, args=('--alg=ddpg --env=Pendulum-v0 --num_timesteps=0 ' + argstr).split(' '))
+    p.start()
+    p.join()
 
 def test_popart():
     _run('--normalize_returns=True --popart=True')

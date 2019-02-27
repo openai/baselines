@@ -1,6 +1,8 @@
+import multiprocessing as mp
+
 import numpy as np
-from multiprocessing import Process, Pipe
-from . import VecEnv, CloudpickleWrapper
+from .vec_env import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
+
 
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
@@ -21,8 +23,8 @@ def worker(remote, parent_remote, env_fn_wrapper):
             elif cmd == 'close':
                 remote.close()
                 break
-            elif cmd == 'get_spaces':
-                remote.send((env.observation_space, env.action_space))
+            elif cmd == 'get_spaces_spec':
+                remote.send((env.observation_space, env.action_space, env.spec))
             else:
                 raise NotImplementedError
     except KeyboardInterrupt:
@@ -36,7 +38,7 @@ class SubprocVecEnv(VecEnv):
     VecEnv that runs multiple environments in parallel in subproceses and communicates with them via pipes.
     Recommended to use when num_envs > 1 and step() can be a bottleneck.
     """
-    def __init__(self, env_fns, spaces=None):
+    def __init__(self, env_fns, spaces=None, context='spawn'):
         """
         Arguments:
 
@@ -45,19 +47,20 @@ class SubprocVecEnv(VecEnv):
         self.waiting = False
         self.closed = False
         nenvs = len(env_fns)
-        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
-        self.ps = [Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
+        ctx = mp.get_context(context)
+        self.remotes, self.work_remotes = zip(*[ctx.Pipe() for _ in range(nenvs)])
+        self.ps = [ctx.Process(target=worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
                    for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
         for p in self.ps:
             p.daemon = True  # if the main process crashes, we should not cause things to hang
-            p.start()
+            with clear_mpi_env_vars():
+                p.start()
         for remote in self.work_remotes:
             remote.close()
 
-        self.remotes[0].send(('get_spaces', None))
-        observation_space, action_space = self.remotes[0].recv()
+        self.remotes[0].send(('get_spaces_spec', None))
+        observation_space, action_space, self.spec = self.remotes[0].recv()
         self.viewer = None
-        self.specs = [f().spec for f in env_fns]
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
     def step_async(self, actions):
@@ -99,16 +102,16 @@ class SubprocVecEnv(VecEnv):
     def _assert_not_closed(self):
         assert not self.closed, "Trying to operate on a SubprocVecEnv after calling close()"
 
+    def __del__(self):
+        if not self.closed:
+            self.close()
 
 def _flatten_obs(obs):
-    assert isinstance(obs, list) or isinstance(obs, tuple)
+    assert isinstance(obs, (list, tuple))
     assert len(obs) > 0
 
     if isinstance(obs[0], dict):
-        import collections
-        assert isinstance(obs, collections.OrderedDict)
         keys = obs[0].keys()
         return {k: np.stack([o[k] for o in obs]) for k in keys}
     else:
         return np.stack(obs)
-

@@ -6,14 +6,12 @@ from collections import defaultdict
 import tensorflow as tf
 import numpy as np
 
+from baselines.common.vec_env import VecFrameStack, VecNormalize
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
-from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, make_env
 from baselines.common.tf_util import get_session
 from baselines import logger
 from importlib import import_module
-
-from baselines.common.vec_env.vec_normalize import VecNormalize
 
 try:
     from mpi4py import MPI
@@ -52,7 +50,7 @@ _game_envs['retro'] = {
 
 
 def train(args, extra_args):
-    env_type, env_id = get_env_type(args.env)
+    env_type, env_id = get_env_type(args)
     print('env_type: {}'.format(env_type))
 
     total_timesteps = int(args.num_timesteps)
@@ -64,7 +62,7 @@ def train(args, extra_args):
 
     env = build_env(args)
     if args.save_video_interval != 0:
-        env = VecVideoRecorder(env, osp.join(logger.Logger.CURRENT.dir, "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
+        env = VecVideoRecorder(env, osp.join(logger.get_dir(), "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
 
     if args.network:
         alg_kwargs['network'] = args.network
@@ -91,7 +89,7 @@ def build_env(args):
     alg = args.alg
     seed = args.seed
 
-    env_type, env_id = get_env_type(args.env)
+    env_type, env_id = get_env_type(args)
 
     if env_type in {'atari', 'retro'}:
         if alg == 'deepq':
@@ -104,22 +102,27 @@ def build_env(args):
             env = VecFrameStack(env, frame_stack_size)
 
     else:
-       config = tf.ConfigProto(allow_soft_placement=True,
+        config = tf.ConfigProto(allow_soft_placement=True,
                                intra_op_parallelism_threads=1,
                                inter_op_parallelism_threads=1)
-       config.gpu_options.allow_growth = True
-       get_session(config=config)
+        config.gpu_options.allow_growth = True
+        get_session(config=config)
 
-       flatten_dict_observations = alg not in {'her'}
-       env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
+        flatten_dict_observations = alg not in {'her'}
+        env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
 
-       if env_type == 'mujoco':
-           env = VecNormalize(env)
+        if env_type == 'mujoco':
+            env = VecNormalize(env)
 
     return env
 
 
-def get_env_type(env_id):
+def get_env_type(args):
+    env_id = args.env
+
+    if args.env_type is not None:
+        return args.env_type, env_id
+
     # Re-parse the gym registry, since we could have new envs since last time.
     for env in gym.envs.registry.all():
         env_type = env._entry_point.split(':')[0].split('.')[-1]
@@ -205,7 +208,6 @@ def main(args):
         rank = MPI.COMM_WORLD.Get_rank()
 
     model, env = train(args, extra_args)
-    env.close()
 
     if args.save_path is not None and rank == 0:
         save_path = osp.expanduser(args.save_path)
@@ -213,26 +215,28 @@ def main(args):
 
     if args.play:
         logger.log("Running trained model")
-        env = build_env(args)
         obs = env.reset()
 
         state = model.initial_state if hasattr(model, 'initial_state') else None
         dones = np.zeros((1,))
 
+        episode_rew = 0
         while True:
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
             else:
                 actions, _, _, _ = model.step(obs)
 
-            obs, _, done, _ = env.step(actions)
+            obs, rew, done, _ = env.step(actions)
+            episode_rew += rew[0]
             env.render()
             done = done.any() if isinstance(done, np.ndarray) else done
-
             if done:
+                print(f'episode_rew={episode_rew}')
+                episode_rew = 0
                 obs = env.reset()
 
-        env.close()
+    env.close()
 
     return model
 
