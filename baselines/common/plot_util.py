@@ -90,6 +90,8 @@ def one_sided_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
         sum_y *= interstep_decay
         count_y *= interstep_decay
         while True:
+            if luoi >= len(xolds):
+                break
             xold = xolds[luoi]
             if xold <= xnew:
                 decay = np.exp(- (xnew - xold) / decay_period)
@@ -97,8 +99,6 @@ def one_sided_ema(xolds, yolds, low=None, high=None, n=512, decay_steps=1., low_
                 count_y += decay
                 luoi += 1
             else:
-                break
-            if luoi >= len(xolds):
                 break
         sum_ys[i] = sum_y
         count_ys[i] = count_y

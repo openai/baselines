@@ -13,7 +13,6 @@ def test_mpi_weighted_mean():
             name2valcount = {'a' : (19, 1), 'c' : (42,3)}
         else:
             raise NotImplementedError
-
         d = mpi_util.mpi_weighted_mean(comm, name2valcount)
         correctval = {'a' : (10 * 2 + 19) / 3.0, 'b' : 20, 'c' : 42}
         if comm.rank == 0:
