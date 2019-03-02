@@ -113,6 +113,9 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
           callback=None
           ):
 
+    # configure log
+    logger.configure(dir=log_dir)
+
     nworkers = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
     np.set_printoptions(precision=3)
@@ -235,7 +238,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
             os.makedirs(os.path.dirname(fname), exist_ok=True)
             saver = tf.train.Saver()
             saver.save(tf.get_default_session(), fname)
-
+        
         logger.log("********** Iteration %i ************" % iters_so_far)
 
         def fisher_vector_product(p):
