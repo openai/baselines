@@ -1,10 +1,10 @@
+from baselines.common import mpi_util
+from mpi4py import MPI
 from baselines import logger
 from baselines.common.tests.test_with_mpi import with_mpi
-from baselines.common import mpi_util
 
 @with_mpi()
 def test_mpi_weighted_mean():
-    from mpi4py import MPI
     comm = MPI.COMM_WORLD
     with logger.scoped_configure(comm=comm):
         if comm.rank == 0:
