@@ -245,9 +245,22 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
             return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
         # ------------------ Update G ------------------
         logger.log("Optimizing Policy...")
+        total_obs = []
+        total_acs = []
+        total_ep_rets = []
+        total_ep_lens = []
+        total_ep_true_rets = []
         for _ in range(g_step):
             with timed("sampling"):
                 seg = seg_gen.__next__()
+
+            # add seg into total_seg
+            total_obs.append(seg["ob"])
+            total_acs.append(seg["ac"])
+            total_ep_rets.append(seg["ep_rets"])
+            total_ep_lens.append(seg["ep_lens"])
+            total_ep_true_rets.append(seg["ep_true_rets"])
+
             add_vtarg_and_adv(seg, gamma, lam)
             # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
             ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
@@ -309,17 +322,23 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
                         g = allmean(compute_vflossandgrad(mbob, mbret))
                         vfadam.update(g, vf_stepsize)
 
-        g_losses = meanlosses
-        for (lossname, lossval) in zip(loss_names, meanlosses):
-            logger.record_tabular(lossname, lossval)
-        logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
+        # g_losses = meanlosses
+        # for (lossname, lossval) in zip(loss_names, meanlosses):
+        #     logger.record_tabular(lossname, lossval)
+        # logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
         # ------------------ Update D ------------------
         logger.log("Optimizing Discriminator...")
+        total_obs = np.vstack(total_obs)
+        total_acs = np.vstack(total_acs)
+        total_ep_rets = np.concatenate(total_ep_rets)
+        total_ep_lens = np.concatenate(total_ep_lens)
+        total_ep_true_rets = np.concatenate(total_ep_true_rets)
+
         logger.log(fmt_row(13, reward_giver.loss_name))
-        ob_expert, ac_expert = expert_dataset.get_next_batch(len(ob))
-        batch_size = len(ob) // d_step
+        ob_expert, ac_expert = expert_dataset.get_next_batch(len(total_obs))
+        batch_size = len(total_obs) // d_step
         d_losses = []  # list of tuples, each of which gives the loss for a minibatch
-        for ob_batch, ac_batch in dataset.iterbatches((ob, ac),
+        for ob_batch, ac_batch in dataset.iterbatches((total_obs, total_acs),
                                                       include_final_partial_batch=False,
                                                       batch_size=batch_size):
             ob_expert, ac_expert = expert_dataset.get_next_batch(len(ob_batch))
@@ -330,7 +349,7 @@ def learn(env, policy_func, reward_giver, expert_dataset, rank,
             d_losses.append(newlosses)
         logger.log(fmt_row(13, np.mean(d_losses, axis=0)))
 
-        lrlocal = (seg["ep_lens"], seg["ep_rets"], seg["ep_true_rets"])  # local values
+        lrlocal = (total_ep_lens, total_ep_rets, total_ep_true_rets)  # local values
         listoflrpairs = MPI.COMM_WORLD.allgather(lrlocal)  # list of tuples
         lens, rews, true_rets = map(flatten_lists, zip(*listoflrpairs))
         true_rewbuffer.extend(true_rets)
