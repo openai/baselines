@@ -37,6 +37,8 @@ TRPO         ✔️                        ✔️         ✔️           ✔�
 .. [#f4] Multi Processing with `MPI`_.
 .. [#f5] TODO, in project scope.
 
+.. note::
+    Non-array spaces such as `Dict` or `Tuple` are not currently supported by any algorithm.
 
 Actions ``gym.spaces``:
 

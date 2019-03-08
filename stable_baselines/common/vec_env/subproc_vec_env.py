@@ -1,5 +1,7 @@
+from collections import OrderedDict
 from multiprocessing import Process, Pipe
 
+import gym
 import numpy as np
 
 from stable_baselines.common.vec_env import VecEnv, CloudpickleWrapper
@@ -73,12 +75,13 @@ class SubprocVecEnv(VecEnv):
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
-        return np.stack(obs), np.stack(rews), np.stack(dones), infos
+        return _flatten_obs(obs, self.observation_space), np.stack(rews), np.stack(dones), infos
 
     def reset(self):
         for remote in self.remotes:
             remote.send(('reset', None))
-        return np.stack([remote.recv() for remote in self.remotes])
+        obs = [remote.recv() for remote in self.remotes]
+        return _flatten_obs(obs, self.observation_space)
 
     def close(self):
         if self.closed:
@@ -161,3 +164,29 @@ class SubprocVecEnv(VecEnv):
         for remote in [self.remotes[i] for i in indices]:
             remote.send(('set_attr', (attr_name, value)))
         return [remote.recv() for remote in [self.remotes[i] for i in indices]]
+
+
+def _flatten_obs(obs, space):
+    """
+    Flatten observations, depending on the observation space.
+
+    :param obs: (list<X> or tuple<X> where X is dict<ndarray>, tuple<ndarray> or ndarray) observations.
+                A list or tuple of observations, one per environment.
+                Each environment observation may be a NumPy array, or a dict or tuple of NumPy arrays.
+    :return (OrderedDict<ndarray>, tuple<ndarray> or ndarray) flattened observations.
+            A flattened NumPy array or an OrderedDict or tuple of flattened numpy arrays.
+            Each NumPy array has the environment index as its first axis.
+    """
+    assert isinstance(obs, (list, tuple)), "expected list or tuple of observations per environment"
+    assert len(obs) > 0, "need observations from at least one environment"
+
+    if isinstance(space, gym.spaces.Dict):
+        assert isinstance(space.spaces, OrderedDict), "Dict space must have ordered subspaces"
+        assert isinstance(obs[0], dict), "non-dict observation for environment with Dict observation space"
+        return OrderedDict([(k, np.stack([o[k] for o in obs])) for k in space.spaces.keys()])
+    elif isinstance(space, gym.spaces.Tuple):
+        assert isinstance(obs[0], tuple), "non-tuple observation for environment with Tuple observation space"
+        obs_len = len(space.spaces)
+        return tuple((np.stack([o[i] for o in obs]) for i in range(obs_len)))
+    else:
+        return np.stack(obs)

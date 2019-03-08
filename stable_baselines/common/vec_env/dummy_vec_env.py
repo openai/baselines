@@ -1,9 +1,8 @@
 from collections import OrderedDict
-
 import numpy as np
-from gym import spaces
 
-from . import VecEnv
+from stable_baselines.common.vec_env import VecEnv
+from stable_baselines.common.vec_env.util import copy_obs_dict, dict_to_obs, obs_space_info
 
 
 class DummyVecEnv(VecEnv):
@@ -17,22 +16,12 @@ class DummyVecEnv(VecEnv):
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]
         VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
-        shapes, dtypes = {}, {}
-        self.keys = []
         obs_space = env.observation_space
+        self.keys, shapes, dtypes = obs_space_info(obs_space)
 
-        if isinstance(obs_space, spaces.Dict):
-            assert isinstance(obs_space.spaces, OrderedDict)
-            subspaces = obs_space.spaces
-        else:
-            subspaces = {None: obs_space}
-
-        for key, box in subspaces.items():
-            shapes[key] = box.shape
-            dtypes[key] = box.dtype
-            self.keys.append(key)
-
-        self.buf_obs = {k: np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]) for k in self.keys}
+        self.buf_obs = OrderedDict([
+            (k, np.zeros((self.num_envs,) + tuple(shapes[k]), dtype=dtypes[k]))
+            for k in self.keys])
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_rews = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
@@ -48,14 +37,14 @@ class DummyVecEnv(VecEnv):
             if self.buf_dones[env_idx]:
                 obs = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return (np.copy(self._obs_from_buf()), np.copy(self.buf_rews), np.copy(self.buf_dones),
+        return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
                 self.buf_infos.copy())
 
     def reset(self):
         for env_idx in range(self.num_envs):
             obs = self.envs[env_idx].reset()
             self._save_obs(env_idx, obs)
-        return np.copy(self._obs_from_buf())
+        return self._obs_from_buf()
 
     def close(self):
         return
@@ -77,10 +66,7 @@ class DummyVecEnv(VecEnv):
                 self.buf_obs[key][env_idx] = obs[key]
 
     def _obs_from_buf(self):
-        if self.keys == [None]:
-            return self.buf_obs[None]
-        else:
-            return self.buf_obs
+        return dict_to_obs(self.observation_space, copy_obs_dict(self.buf_obs))
 
     def env_method(self, method_name, *method_args, **method_kwargs):
         """
