@@ -29,10 +29,9 @@ SubprocVecEnv ✔️       ✔️           ✔️        ✔️         ✔️
 
 .. warning::
 
-		When using ``SubprocVecEnv``, Windows users must wrap the code
-		in an ``if __name__=="__main__":``.
-		See `stackoverflow question <https://stackoverflow.com/questions/24374288/where-to-put-freeze-support-in-a-python-script>`_
-		for more information about multiprocessing on Windows using python.
+		When using ``SubprocVecEnv``, users must wrap the code in an ``if __name__ == "__main__":``
+                if using the ``forkserver`` or ``spawn`` start method (the default).  For more information, see Python's 
+                `multiprocessing guidelines <https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods>`_.
 
 
 DummyVecEnv

@@ -1,5 +1,7 @@
 import collections
+import functools
 import itertools
+import multiprocessing
 import pytest
 import gym
 import numpy as np
@@ -94,6 +96,8 @@ def test_vecenv_custom_calls(vec_env_class):
     assert setattr_result == [None for _ in range(2)]
     assert getattr_result == [12] + [0 for _ in range(N_ENVS - 2)] + [12]
 
+    vec_env.close()
+
 
 SPACES = collections.OrderedDict([
     ('discrete', gym.spaces.Discrete(2)),
@@ -116,6 +120,7 @@ def check_vecenv_spaces(vec_env_class, space, obs_assert):
         actions = [vec_env.action_space.sample() for _ in range(N_ENVS)]
         obs, _rews, dones, _infos = vec_env.step(actions)
         obs_assert(obs)
+    vec_env.close()
 
 
 def check_vecenv_obs(obs, space):
@@ -170,3 +175,19 @@ def test_vecenv_tuple_spaces(vec_env_class):
             check_vecenv_obs(values, inner_space)
 
     return check_vecenv_spaces(vec_env_class, space, obs_assert)
+
+
+def test_subproc_start_method():
+    start_methods = [None] + multiprocessing.get_all_start_methods()
+    space = gym.spaces.Discrete(2)
+
+    def obs_assert(obs):
+        return check_vecenv_obs(obs, space)
+
+    for start_method in start_methods:
+        vec_env_class = functools.partial(SubprocVecEnv, start_method=start_method)
+        check_vecenv_spaces(vec_env_class, space, obs_assert)
+
+    with pytest.raises(ValueError, match="cannot find context for 'illegal_method'"):
+        vec_env_class = functools.partial(SubprocVecEnv, start_method='illegal_method')
+        check_vecenv_spaces(vec_env_class, space, obs_assert)

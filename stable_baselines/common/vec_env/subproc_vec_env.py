@@ -1,5 +1,5 @@
+import multiprocessing
 from collections import OrderedDict
-from multiprocessing import Process, Pipe
 
 import gym
 import numpy as np
@@ -47,20 +47,36 @@ class SubprocVecEnv(VecEnv):
     Creates a multiprocess vectorized wrapper for multiple environments
 
     :param env_fns: ([Gym Environment]) Environments to run in subprocesses
+    :param start_method: (str) method used to start the subprocesses.
+           Must be one of the methods returned by multiprocessing.get_all_start_methods().
+           Defaults to 'forkserver' on available platforms, and 'spawn' otherwise.
+           Both 'forkserver' and 'spawn' are thread-safe, which is important when TensorFlow
+           sessions or other non thread-safe libraries are used in the parent (see issue #217).
+           However, compared to 'fork' they incur a small start-up cost and have restrictions on
+           global variables. For more information, see the multiprocessing documentation.
     """
 
-    def __init__(self, env_fns):
+    def __init__(self, env_fns, start_method=None):
         self.waiting = False
         self.closed = False
         n_envs = len(env_fns)
-        self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(n_envs)])
-        self.processes = [Process(target=_worker, args=(work_remote, remote, CloudpickleWrapper(env_fn)))
-                          for (work_remote, remote, env_fn) in zip(self.work_remotes, self.remotes, env_fns)]
-        for process in self.processes:
-            process.daemon = True  # if the main process crashes, we should not cause things to hang
+
+        if start_method is None:
+            # Use thread safe method, see issue #217.
+            # forkserver faster than spawn but not always available.
+            forkserver_available = 'forkserver' in multiprocessing.get_all_start_methods()
+            start_method = 'forkserver' if forkserver_available else 'spawn'
+        ctx = multiprocessing.get_context(start_method)
+
+        self.remotes, self.work_remotes = zip(*[ctx.Pipe() for _ in range(n_envs)])
+        self.processes = []
+        for work_remote, remote, env_fn in zip(self.work_remotes, self.remotes, env_fns):
+            args = (work_remote, remote, CloudpickleWrapper(env_fn))
+            # daemon=True: if the main process crashes, we should not cause things to hang
+            process = ctx.Process(target=_worker, args=args, daemon=True)
             process.start()
-        for remote in self.work_remotes:
-            remote.close()
+            self.processes.append(process)
+            work_remote.close()
 
         self.remotes[0].send(('get_spaces', None))
         observation_space, action_space = self.remotes[0].recv()
