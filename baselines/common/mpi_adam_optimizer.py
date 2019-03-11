@@ -66,7 +66,7 @@ def test_nonfreeze():
     stepsize = 1e-2
     # for some reason the session config with inter_op_parallelism_threads was causing
     # nested sess.run calls to freeze
-    config = tf.ConfigProto(inter_op_parallelism_threads=2)
+    config = tf.ConfigProto(inter_op_parallelism_threads=1)
     sess = U.get_session(config=config)
     update_op = MpiAdamOptimizer(comm=MPI.COMM_WORLD, learning_rate=stepsize).minimize(loss)
     sess.run(tf.global_variables_initializer())
