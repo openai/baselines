@@ -1,4 +1,5 @@
 import sys
+import typing
 import multiprocessing
 import os.path as osp
 import gym
@@ -228,7 +229,7 @@ def main(args):
                 actions, _, _, _ = model.step(obs)
 
             obs, rew, done, _ = env.step(actions)
-            episode_rew += rew[0]
+            episode_rew += rew[0] if isinstance(rew, typing.Sequence) else rew 
             env.render()
             done = done.any() if isinstance(done, np.ndarray) else done
             if done:
@@ -239,6 +240,7 @@ def main(args):
     env.close()
 
     return model
+
 
 if __name__ == '__main__':
     main(sys.argv)
