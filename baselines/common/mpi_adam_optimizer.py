@@ -26,7 +26,7 @@ class MpiAdamOptimizer(tf.train.AdamOptimizer):
             self.comm.Allreduce(flat_grad, buf, op=MPI.SUM)
             np.divide(buf, float(num_tasks), out=buf)
             if countholder[0] % 100 == 0:
-                check_synced(self.comm, np_stat)
+                check_synced(np_stat, self.comm)
             countholder[0] += 1
             return buf
 
@@ -37,10 +37,18 @@ class MpiAdamOptimizer(tf.train.AdamOptimizer):
                     for g, (_, v) in zip(avg_grads, grads_and_vars)]
         return avg_grads_and_vars
 
-def check_synced(comm, localval):
+def check_synced(localval, comm=None):
     """
-    Check that values in localval are the same on every MPI worker
+    It's common to forget to initialize your variables to the same values, or
+    (less commonly) if you update them in some other way than adam, to get them out of sync.
+    This function checks that variables on all MPI workers are the same, and raises
+    an AssertionError otherwise
+
+    Arguments:
+        comm: MPI communicator
+        localval: list of local variables (list of variables on current worker to be compared with the other workers)
     """
+    comm = comm or MPI.COMM_WORLD
     vals = comm.gather(localval)
     if comm.rank == 0:
         assert all(val==vals[0] for val in vals[1:])
