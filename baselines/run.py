@@ -232,7 +232,7 @@ def main(args):
             env.render()
             done = done.any() if isinstance(done, np.ndarray) else done
             if done:
-                print(f'episode_rew={episode_rew}')
+                print('episode_rew={}'.format(episode_rew))
                 episode_rew = 0
                 obs = env.reset()
 
