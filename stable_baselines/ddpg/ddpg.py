@@ -913,9 +913,9 @@ class DDPG(OffPolicyRLModel):
                     combined_stats['rollout/actions_std'] = np.std(epoch_actions)
                     # Evaluation statistics.
                     if self.eval_env is not None:
-                        combined_stats['eval/return'] = eval_episode_rewards
+                        combined_stats['eval/return'] = np.mean(eval_episode_rewards)
                         combined_stats['eval/return_history'] = np.mean(eval_episode_rewards_history)
-                        combined_stats['eval/Q'] = eval_qs
+                        combined_stats['eval/Q'] = np.mean(eval_qs)
                         combined_stats['eval/episodes'] = len(eval_episode_rewards)
 
                     def as_scalar(scalar):

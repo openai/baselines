@@ -1,6 +1,7 @@
 import subprocess
 import os
 
+import gym
 import pytest
 import numpy as np
 
@@ -152,3 +153,15 @@ def test_ddpg():
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'stable_baselines.ddpg.main'] + args)
     _assert_eq(return_code, 0)
+
+
+def test_ddpg_eval_env():
+    """
+    Additional test to check that everything is working when passing
+    an eval env.
+    """
+    eval_env = gym.make("Pendulum-v0")
+    model = DDPG("MlpPolicy", "Pendulum-v0", nb_rollout_steps=5,
+                nb_train_steps=2, nb_eval_steps=10,
+                eval_env=eval_env, verbose=0)
+    model.learn(1000)
