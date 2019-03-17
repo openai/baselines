@@ -16,6 +16,7 @@ from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.identity_env import IdentityEnvBox
+from stable_baselines.ddpg import AdaptiveParamNoiseSpec
 from tests.test_common import _assert_eq
 
 
@@ -149,7 +150,7 @@ def test_model_manipulation(model_class):
 
 
 def test_ddpg():
-    args = ['--env-id', 'Pendulum-v0', '--num-timesteps', 1000]
+    args = ['--env-id', 'Pendulum-v0', '--num-timesteps', 1000, '--noise-type', 'ou_0.01']
     args = list(map(str, args))
     return_code = subprocess.call(['python', '-m', 'stable_baselines.ddpg.main'] + args)
     _assert_eq(return_code, 0)
@@ -165,3 +166,30 @@ def test_ddpg_eval_env():
                 nb_train_steps=2, nb_eval_steps=10,
                 eval_env=eval_env, verbose=0)
     model.learn(1000)
+
+
+def test_ddpg_normalization():
+    """
+    Test that observations and returns normalizations are properly saved and loaded.
+    """
+    param_noise = AdaptiveParamNoiseSpec(initial_stddev=0.05, desired_action_stddev=0.05)
+    model = DDPG('MlpPolicy', 'Pendulum-v0', memory_limit=50000, normalize_observations=True,
+                 normalize_returns=True, nb_rollout_steps=128, nb_train_steps=1,
+                 batch_size=64, param_noise=param_noise)
+    model.learn(1000)
+    obs_rms_params = model.sess.run(model.obs_rms_params)
+    ret_rms_params = model.sess.run(model.ret_rms_params)
+    model.save('./test_ddpg')
+
+    loaded_model = DDPG.load("test_ddpg")
+    obs_rms_params_2 = loaded_model.sess.run(loaded_model.obs_rms_params)
+    ret_rms_params_2 = loaded_model.sess.run(loaded_model.ret_rms_params)
+
+    for param, param_loaded in zip(obs_rms_params + ret_rms_params,
+                                   obs_rms_params_2 + ret_rms_params_2):
+        assert np.allclose(param, param_loaded)
+
+    del model, loaded_model
+
+    if os.path.exists("./test_ddpg"):
+        os.remove("./test_ddpg")

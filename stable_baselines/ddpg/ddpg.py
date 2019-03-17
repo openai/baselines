@@ -177,7 +177,7 @@ class DDPG(OffPolicyRLModel):
                  normalize_observations=False, tau=0.001, batch_size=128, param_noise_adaption_interval=50,
                  normalize_returns=False, enable_popart=False, observation_range=(-5., 5.), critic_l2_reg=0.,
                  return_range=(-np.inf, np.inf), actor_lr=1e-4, critic_lr=1e-3, clip_norm=None, reward_scale=1.,
-                 render=False, render_eval=False, memory_limit=100, verbose=0, tensorboard_log=None,
+                 render=False, render_eval=False, memory_limit=50000, verbose=0, tensorboard_log=None,
                  _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False):
 
         # TODO: replay_buffer refactoring
@@ -394,6 +394,10 @@ class DDPG(OffPolicyRLModel):
 
                 self.params = find_trainable_variables("model")
                 self.target_params = find_trainable_variables("target")
+                self.obs_rms_params = [var for var in tf.global_variables()
+                                           if "obs_rms" in var.name]
+                self.ret_rms_params = [var for var in tf.global_variables()
+                                           if "ret_rms" in var.name]
 
                 with self.sess.as_default():
                     self._initialize(self.sess)
@@ -1012,8 +1016,17 @@ class DDPG(OffPolicyRLModel):
 
         params = self.sess.run(self.params)
         target_params = self.sess.run(self.target_params)
+        norm_obs_params = self.sess.run(self.obs_rms_params)
+        norm_ret_params = self.sess.run(self.ret_rms_params)
 
-        self._save_to_file(save_path, data=data, params=params + target_params)
+        params_to_save = params \
+            + target_params \
+            + norm_obs_params \
+            + norm_ret_params
+        self._save_to_file(save_path,
+                           data=data,
+                           params=params_to_save)
+
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
@@ -1031,7 +1044,11 @@ class DDPG(OffPolicyRLModel):
         model.setup_model()
 
         restores = []
-        for param, loaded_p in zip(model.params + model.target_params, params):
+        params_to_load = model.params \
+            + model.target_params \
+            + model.obs_rms_params \
+            + model.ret_rms_params
+        for param, loaded_p in zip(params_to_load, params):
             restores.append(param.assign(loaded_p))
         model.sess.run(restores)
 
