@@ -1,5 +1,7 @@
 import numpy as np
+
 from baselines.common.runners import AbstractEnvRunner
+
 
 class Runner(AbstractEnvRunner):
     """
@@ -10,67 +12,122 @@ class Runner(AbstractEnvRunner):
     run():
     - Make a mini batch
     """
-    def __init__(self, *, env, model, nsteps, gamma, lam):
-        super().__init__(env=env, model=model, nsteps=nsteps)
-        # Lambda used in GAE (General Advantage Estimation)
-        self.lam = lam
-        # Discount rate
-        self.gamma = gamma
+
+    def __init__(self, *, env, model, nsteps, gamma, ob_space, lam):
+        self.env = env
+        self.model = model
+        self.nenv = nenv = env.num_envs if hasattr(env, 'num_envs') else 1
+        self.batch_ob_shape = (nenv * nsteps,) + env.observation_space.shape
+        self.obs = np.zeros((nenv,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
+        self.obs[:] = env.reset()
+        self.nsteps = nsteps
+
+        self.lam = lam  # Lambda used in GAE (General Advantage Estimation)
+        self.gamma = gamma  # Discount rate for rewards
+        self.ob_space = ob_space
 
     def run(self):
-        # Here, we init the lists that will contain the mb of experiences
-        mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [],[],[],[],[],[]
-        mb_states = self.states
+        minibatch = {
+            "obs": [],
+            "actions": [],
+            "rewards": [],
+            "values": [],
+            "dones": [],
+            "neglogpacs": [],
+        }
+
+        data_type = {
+            "obs": self.obs.dtype,
+            "actions": np.float32,
+            "rewards": np.float32,
+            "values": np.float32,
+            "dones": np.float32,
+            "neglogpacs": np.float32,
+        }
+
+        prev_state = {'dones': np.array([0 for _ in range(self.nenv)], dtype=np.float)}
+        dones = prev_state['dones']
         epinfos = []
+
         # For n in range number of steps
         for _ in range(self.nsteps):
-            # Given observations, get action value and neglopacs
-            # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
-            actions, values, self.states, neglogpacs = self.model.step(self.obs, S=self.states, M=self.dones)
-            mb_obs.append(self.obs.copy())
-            mb_actions.append(actions)
-            mb_values.append(values)
-            mb_neglogpacs.append(neglogpacs)
-            mb_dones.append(self.dones)
+            transition = {}
+            transition['obs'] = self.obs.copy()
+            transition['dones'] = dones
+            transition.update(self.model.step(observations=self.obs, **prev_state))
+            transition['values'] = transition['values']
 
             # Take actions in env and look the results
             # Infos contains a ton of useful informations
-            self.obs[:], rewards, self.dones, infos = self.env.step(actions)
+            self.obs[:], transition['rewards'], dones, infos = self.env.step(transition['actions'])
+            dones = np.array(dones, dtype=np.float)
+
             for info in infos:
                 maybeepinfo = info.get('episode')
-                if maybeepinfo: epinfos.append(maybeepinfo)
-            mb_rewards.append(rewards)
-        #batch of steps to batch of rollouts
-        mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
-        mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
-        mb_actions = np.asarray(mb_actions)
-        mb_values = np.asarray(mb_values, dtype=np.float32)
-        mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
-        mb_dones = np.asarray(mb_dones, dtype=np.bool)
-        last_values = self.model.value(self.obs, S=self.states, M=self.dones)
+                if maybeepinfo:
+                    epinfos.append(maybeepinfo)
 
-        # discount/bootstrap off value fn
-        mb_returns = np.zeros_like(mb_rewards)
-        mb_advs = np.zeros_like(mb_rewards)
-        lastgaelam = 0
+            for key in transition:
+                dtype = data_type[key] if key in data_type else np.float
+                transition[key] = np.array(transition[key], dtype=dtype)
+
+            for key in transition:
+                if key not in minibatch:
+                    minibatch[key] = []
+                minibatch[key].append(transition[key])
+            prev_state = transition
+        transition['obs'] = self.obs.copy()
+        transition['dones'] = dones
+        self.states = transition
+
+        for key in minibatch:
+            dtype = data_type[key] if key in data_type else np.float
+            minibatch[key] = np.asarray(minibatch[key], dtype=dtype)
+
+        last_values = self.model.step(observations=self.obs, **self.states)['values']
+
+        # Calculate returns and advantages.
+        minibatch['advs'], minibatch['returns'] = \
+            self.advantage_and_returns(values=minibatch['values'],
+                                       rewards=minibatch['rewards'],
+                                       dones=minibatch['dones'],
+                                       last_values=last_values,
+                                       last_dones=dones,
+                                       gamma=self.gamma)
+
+        for key in minibatch:
+            minibatch[key] = sf01(minibatch[key])
+
+        minibatch['epinfos'] = epinfos
+        return minibatch
+
+    def advantage_and_returns(self, values, rewards, dones, last_values, last_dones, gamma,
+                              use_non_episodic_rewards=False):
+        """
+        calculate Generalized Advantage Estimation (GAE), https://arxiv.org/abs/1506.02438
+        see also Proximal Policy Optimization Algorithms, https://arxiv.org/abs/1707.06347
+        """
+
+        advantages = np.zeros_like(rewards)
+        lastgaelam = 0  # Lambda used in General Advantage Estimation
         for t in reversed(range(self.nsteps)):
-            if t == self.nsteps - 1:
-                nextnonterminal = 1.0 - self.dones
-                nextvalues = last_values
+            if not use_non_episodic_rewards:
+                if t == self.nsteps - 1:
+                    next_non_terminal = 1.0 - last_dones
+                else:
+                    next_non_terminal = 1.0 - dones[t + 1]
             else:
-                nextnonterminal = 1.0 - mb_dones[t+1]
-                nextvalues = mb_values[t+1]
-            delta = mb_rewards[t] + self.gamma * nextvalues * nextnonterminal - mb_values[t]
-            mb_advs[t] = lastgaelam = delta + self.gamma * self.lam * nextnonterminal * lastgaelam
-        mb_returns = mb_advs + mb_values
-        return (*map(sf01, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs)),
-            mb_states, epinfos)
-# obs, returns, masks, actions, values, neglogpacs, states = runner.run()
+                next_non_terminal = 1.0
+            next_value = values[t + 1] if t < self.nsteps - 1 else last_values
+            delta = rewards[t] + gamma * next_value * next_non_terminal - values[t]
+            advantages[t] = lastgaelam = delta + gamma * self.lam * next_non_terminal * lastgaelam
+        returns = advantages + values
+        return advantages, returns
+
+
 def sf01(arr):
     """
     swap and then flatten axes 0 and 1
     """
     s = arr.shape
     return arr.swapaxes(0, 1).reshape(s[0] * s[1], *s[2:])
-
-
