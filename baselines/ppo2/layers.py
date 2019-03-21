@@ -33,7 +33,7 @@ def ppo_lstm(nlstm=128, layer_norm=False):
 
 
 @register("ppo_cnn_lstm")
-def ppo_cnn_lstm(nlstm=128, layer_norm=False):
+def ppo_cnn_lstm(nlstm=128, layer_norm=False, pad='VALID', **conv_kwargs):
     def network_fn(input, mask):
         memory_size = nlstm * 2
         nbatch = input.shape[0]
@@ -52,20 +52,23 @@ def ppo_cnn_lstm(nlstm=128, layer_norm=False):
                                          num_outputs=32,
                                          kernel_size=8,
                                          stride=4,
-                                         padding="VALID",
-                                         weights_initializer=initializer)
+                                         padding=pad,
+                                         weights_initializer=initializer,
+                                         **conv_kwargs)
             h = tf.contrib.layers.conv2d(h,
                                          num_outputs=64,
                                          kernel_size=4,
                                          stride=2,
-                                         padding="VALID",
-                                         weights_initializer=initializer)
+                                         padding=pad,
+                                         weights_initializer=initializer,
+                                         **conv_kwargs)
             h = tf.contrib.layers.conv2d(h,
                                          num_outputs=64,
                                          kernel_size=3,
                                          stride=1,
-                                         padding="VALID",
-                                         weights_initializer=initializer)
+                                         padding=pad,
+                                         weights_initializer=initializer,
+                                         **conv_kwargs)
             h = tf.layers.flatten(h)
             h = tf.layers.dense(h, units=512, activation=tf.nn.relu, kernel_initializer=initializer)
 
