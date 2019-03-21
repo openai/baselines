@@ -54,7 +54,7 @@ class Runner(AbstractEnvRunner):
             transition = {}
             transition['obs'] = self.obs.copy()
             transition['dones'] = dones
-            transition.update(self.model.step(observations=self.obs, **prev_state))
+            transition.update(self.model.step_as_dict(observations=self.obs, **prev_state))
             transition['values'] = transition['values']
 
             # Take actions in env and look the results
@@ -84,7 +84,7 @@ class Runner(AbstractEnvRunner):
             dtype = data_type[key] if key in data_type else np.float
             minibatch[key] = np.asarray(minibatch[key], dtype=dtype)
 
-        last_values = self.model.step(observations=self.obs, **self.states)['values']
+        last_values = self.model.step_as_dict(observations=self.obs, **self.states)['values']
 
         # Calculate returns and advantages.
         minibatch['advs'], minibatch['returns'] = \

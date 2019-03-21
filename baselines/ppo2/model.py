@@ -129,8 +129,13 @@ class Model(object):
             if MPI is not None:
                 sync_from_root(sess, global_variables)  # pylint: disable=E1101
 
-    def step(self, *args, **kwargs):
-        return self.act_model.step(*args, **kwargs)
+    def step_as_dict(self, **kwargs):
+        return self.act_model.step(**kwargs)
+
+    def step(self, observations, **kwargs):
+        kwargs.update({'observations': observations})
+        transition = self.act_model.step(**kwargs)
+        return transition['actions'], transition['values'], transition['states'], transition['neglogpacs']
 
     def train(self,
               lr,
