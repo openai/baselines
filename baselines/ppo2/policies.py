@@ -100,17 +100,13 @@ class PolicyWithValue(object):
         tf_util.load_state(load_path, sess=self.sess)
 
 
-def build_ppo_policy(env, policy_network, value_network=None, normalize_observations=False, estimate_q=False,
-                     **policy_kwargs):
+def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, **policy_kwargs):
     if isinstance(policy_network, str):
         network_type = policy_network
         policy_network = get_network_builder(network_type)(**policy_kwargs)
 
     if value_network is None:
         value_network = 'shared'
-
-    # TODO @gyunt
-    assert estimate_q is False
 
     def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
         next_states_list = []
@@ -124,13 +120,7 @@ def build_ppo_policy(env, policy_network, value_network=None, normalize_observat
                                                                                               batch_size=nbatch)
         dones = tf.placeholder_with_default(np.zeros([X.shape[0]]), [X.shape[0]], name='dones')
 
-        # TODO @gyunt
-        # if normalize_observations and X.dtype == tf.float32:
-        #     encoded_x, rms = _normalize_clip_observation(X)
-        #     extra_tensors['rms'] = rms
-        # else:
-        encoded_x = X
-        encoded_x = encode_observation(ob_space, encoded_x)
+        encoded_x = encode_observation(ob_space, X)
 
         if is_rnn_network(policy_network):
             policy_state, policy_network_ = policy_network(encoded_x, dones)
