@@ -32,6 +32,7 @@ class Model(object):
                  microbatch_size=None):
         self.sess = sess = get_session()
         self.name = name
+        self.initial_state = None
 
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE):
             with tf.name_scope('act_model'):
