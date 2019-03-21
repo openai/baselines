@@ -1,17 +1,15 @@
 import os
-import gym
 import tempfile
-import pytest
-import tensorflow as tf
-import numpy as np
-
-from baselines.common.tests.envs.mnist_env import MnistEnv
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.run import get_learn_function
-from baselines.common.tf_util import make_session, get_session
-
 from functools import partial
 
+import gym
+import numpy as np
+import pytest
+import tensorflow as tf
+from baselines.common.tests.envs.mnist_env import MnistEnv
+from baselines.common.tf_util import make_session, get_session
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.run import get_learn_function
 
 learn_kwargs = {
     'deepq': {},
@@ -37,12 +35,15 @@ def test_serialization(learn_fn, network_fn):
     Test if the trained model can be serialized
     '''
 
+    _network_kwargs = network_kwargs[network_fn]
 
     if network_fn.endswith('lstm') and learn_fn in ['acer', 'acktr', 'trpo_mpi', 'deepq']:
-            # TODO make acktr work with recurrent policies
-            # and test
-            # github issue: https://github.com/openai/baselines/issues/660
-            return
+        # TODO make acktr work with recurrent policies
+        # and test
+        # github issue: https://github.com/openai/baselines/issues/660
+        return
+    elif network_fn.endswith('lstm') and learn_fn == 'ppo2':
+        network_fn = 'ppo_' + network_fn
 
     def make_env():
         env = MnistEnv(episode_len=100)
@@ -54,9 +55,8 @@ def test_serialization(learn_fn, network_fn):
     learn = get_learn_function(learn_fn)
 
     kwargs = {}
-    kwargs.update(network_kwargs[network_fn])
+    kwargs.update(_network_kwargs)
     kwargs.update(learn_kwargs[learn_fn])
-
 
     learn = partial(learn, env=env, network=network_fn, seed=0, **kwargs)
 
@@ -76,7 +76,7 @@ def test_serialization(learn_fn, network_fn):
 
         for k, v in variables_dict1.items():
             np.testing.assert_allclose(v, variables_dict2[k], atol=0.01,
-                err_msg='saved and loaded variable {} value mismatch'.format(k))
+                                       err_msg='saved and loaded variable {} value mismatch'.format(k))
 
         np.testing.assert_allclose(mean1, mean2, atol=0.5)
         np.testing.assert_allclose(std1, std2, atol=0.5)
@@ -90,15 +90,15 @@ def test_coexistence(learn_fn, network_fn):
     '''
 
     if learn_fn == 'deepq':
-            # TODO enable multiple DQN models to be useable at the same time
-            # github issue https://github.com/openai/baselines/issues/656
-            return
+        # TODO enable multiple DQN models to be useable at the same time
+        # github issue https://github.com/openai/baselines/issues/656
+        return
 
     if network_fn.endswith('lstm') and learn_fn in ['acktr', 'trpo_mpi', 'deepq']:
-            # TODO make acktr work with recurrent policies
-            # and test
-            # github issue: https://github.com/openai/baselines/issues/660
-            return
+        # TODO make acktr work with recurrent policies
+        # and test
+        # github issue: https://github.com/openai/baselines/issues/660
+        return
 
     env = DummyVecEnv([lambda: gym.make('CartPole-v0')])
     learn = get_learn_function(learn_fn)
@@ -107,7 +107,7 @@ def test_coexistence(learn_fn, network_fn):
     kwargs.update(network_kwargs[network_fn])
     kwargs.update(learn_kwargs[learn_fn])
 
-    learn =  partial(learn, env=env, network=network_fn, total_timesteps=0, **kwargs)
+    learn = partial(learn, env=env, network=network_fn, total_timesteps=0, **kwargs)
     make_session(make_default=True, graph=tf.Graph())
     model1 = learn(seed=1)
     make_session(make_default=True, graph=tf.Graph())
@@ -115,7 +115,6 @@ def test_coexistence(learn_fn, network_fn):
 
     model1.step(env.observation_space.sample())
     model2.step(env.observation_space.sample())
-
 
 
 def _serialize_variables():
@@ -137,3 +136,24 @@ def _get_action_stats(model, ob):
 
     return mean, std
 
+if __name__ == '__main__':
+    learn_kwargs = {
+        'deepq': {},
+        'a2c': {},
+        'acktr': {},
+        'acer': {},
+        'ppo2': {'nminibatches': 1, 'nsteps': 10},
+        'trpo_mpi': {},
+    }
+
+    network_kwargs = {
+        'mlp': {},
+        'cnn': {'pad': 'SAME'},
+        'lstm': {},
+        'cnn_lnlstm': {'pad': 'SAME'}
+    }
+
+
+    # @pytest.mark.parametrize("learn_fn", learn_kwargs.keys())
+    # @pytest.mark.parametrize("network_fn", network_kwargs.keys())
+    test_serialization('ppo2', 'cnn')
