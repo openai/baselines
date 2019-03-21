@@ -124,6 +124,7 @@ class Model(object):
             self.load = functools.partial(load_variables, sess=sess)
 
             initialize()
+            sess.run(tf.initializers.local_variables())
             global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
             if MPI is not None:
                 sync_from_root(sess, global_variables)  # pylint: disable=E1101

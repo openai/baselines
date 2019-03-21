@@ -30,7 +30,11 @@ def ppo_lstm(nlstm=128, layer_norm=False):
         memory_size = nlstm * 2
         nbatch = input.shape[0]
         mask.get_shape().assert_is_compatible_with([nbatch])
-        state = tf.Variable(np.zeros([nbatch, memory_size]), name='state', trainable=False, dtype=tf.float32)
+        state = tf.Variable(np.zeros([nbatch, memory_size]),
+                            name='state',
+                            trainable=False,
+                            dtype=tf.float32,
+                            collections=[tf.GraphKeys.LOCAL_VARIABLES])
 
         def _network_fn(input, mask, state):
             input = tf.layers.flatten(input)
