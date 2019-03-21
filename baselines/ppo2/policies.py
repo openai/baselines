@@ -1,6 +1,7 @@
 import inspect
 
 import gym
+import numpy as np
 import tensorflow as tf
 from baselines.a2c.utils import fc
 from baselines.common import tf_util
@@ -121,7 +122,7 @@ def build_ppo_policy(env, policy_network, value_network=None, normalize_observat
         ob_space = env.observation_space
         X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space,
                                                                                               batch_size=nbatch)
-        dones = tf.placeholder(tf.float32, [X.shape[0]], name='dones')
+        dones = tf.placeholder_with_default(np.zeros([X.shape[0]]), [X.shape[0]], name='dones')
 
         # TODO @gyunt
         # if normalize_observations and X.dtype == tf.float32:
