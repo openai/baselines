@@ -54,7 +54,6 @@ class Model(object):
             self.VALUE_PREV = VALUE_PREV = tf.placeholder(tf.float32, [None], name='value_prev')
             self.OLDNEGLOGPAC = OLDNEGLOGPAC = tf.placeholder(tf.float32, [None],
                                                               name='negative_log_p_action_old')
-            self.LR = LR = tf.placeholder(tf.float32, [], name='learning_rate')
             self.CLIPRANGE = CLIPRANGE = tf.placeholder(tf.float32, [], name='clip_range')
 
             with tf.name_scope("neglogpac"):
@@ -91,6 +90,8 @@ class Model(object):
                 loss = pg_loss + entropy_loss + vf_loss
 
         with tf.name_scope('optimizer'):
+            self.LR = LR = tf.placeholder(tf.float32, [], name='learning_rate')
+
             # UPDATE THE PARAMETERS USING LOSS
             # 1. Get the model parameters
             params = tf.trainable_variables(name)
