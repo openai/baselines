@@ -8,6 +8,7 @@ from baselines.common import tf_util
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_placeholder, encode_observation
 from baselines.common.models import get_network_builder
+from baselines.common.tf_util import adjust_shape
 
 
 class PolicyWithValue(object):
@@ -83,7 +84,7 @@ class PolicyWithValue(object):
         feed_dict = {}
         for key in kwargs:
             if key in self.step_input:
-                feed_dict[self.step_input[key]] = kwargs[key]
+                feed_dict[self.step_input[key]] = adjust_shape(self.step_input[key], kwargs[key])
         return feed_dict
 
     def step(self, **kwargs):
