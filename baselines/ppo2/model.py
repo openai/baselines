@@ -134,8 +134,10 @@ class Model(object):
     def step_as_dict(self, **kwargs):
         return self.act_model.step(**kwargs)
 
-    def step(self, observations, **kwargs):
-        kwargs.update({'observations': observations})
+    def step(self, observation, done=None, **kwargs):
+        kwargs.update({'observations': observation})
+        if done is not None:
+            kwargs.update({'dones': done})
         transition = self.act_model.step(**kwargs)
         states = transition['states'] if 'states' in transition else None
         return transition['actions'], transition['values'], states, transition['neglogpacs']
@@ -143,7 +145,7 @@ class Model(object):
     def train(self,
               lr,
               cliprange,
-              obs,
+              observations,
               advs,
               returns,
               actions,
@@ -154,7 +156,7 @@ class Model(object):
         advs = (advs - advs.mean()) / (advs.std() + 1e-8)
 
         td_map = {
-            self.train_model.X: obs,
+            self.train_model.X: observations,
             self.A: actions,
             self.ADV: advs,
             self.RETURNS: returns,

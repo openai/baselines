@@ -76,7 +76,8 @@ class PolicyWithValue(object):
         }
         if self.states:
             self.step_input.update({'states': self.states['current']})
-            self.step_output.update({'states': self.states['next']})
+            self.step_output.update({'states': self.states['current'],
+                                     'next_states': self.states['next']})
 
     def feed_dict(self, **kwargs):
         feed_dict = {}

@@ -18,9 +18,10 @@ class Runner(AbstractEnvRunner):
         self.model = model
         self.nenv = nenv = env.num_envs if hasattr(env, 'num_envs') else 1
         self.batch_ob_shape = (nenv * nsteps,) + env.observation_space.shape
-        self.obs = np.zeros((nenv,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
-        self.obs[:] = env.reset()
+        self.observations = np.zeros((nenv,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
+        self.observations = env.reset()
         self.nsteps = nsteps
+        self.dones = np.array([False for _ in range(self.nenv)])
 
         self.lam = lam  # Lambda used in GAE (General Advantage Estimation)
         self.gamma = gamma  # Discount rate for rewards
@@ -28,7 +29,7 @@ class Runner(AbstractEnvRunner):
 
     def run(self):
         minibatch = {
-            "obs": [],
+            "observations": [],
             "actions": [],
             "rewards": [],
             "values": [],
@@ -37,7 +38,7 @@ class Runner(AbstractEnvRunner):
         }
 
         data_type = {
-            "obs": self.obs.dtype,
+            "observations": self.observations.dtype,
             "actions": np.float32,
             "rewards": np.float32,
             "values": np.float32,
@@ -45,46 +46,48 @@ class Runner(AbstractEnvRunner):
             "neglogpacs": np.float32,
         }
 
-        prev_state = {'dones': np.array([0 for _ in range(self.nenv)], dtype=np.float)}
-        dones = prev_state['dones']
+        prev_transition = {}
         epinfos = []
 
         # For n in range number of steps
         for _ in range(self.nsteps):
-            transition = {}
-            transition['obs'] = self.obs.copy()
-            transition['dones'] = dones
-            transition.update(self.model.step_as_dict(observations=self.obs, **prev_state))
-            transition['values'] = transition['values']
+            transitions = {}
+            transitions['observations'] = self.observations.copy()
+            transitions['dones'] = self.dones
+            if 'next_states' in prev_transition:
+                transitions['states'] = prev_transition['next_states']
+            transitions.update(self.model.step_as_dict(**transitions))
 
             # Take actions in env and look the results
             # Infos contains a ton of useful informations
-            self.obs[:], transition['rewards'], dones, infos = self.env.step(transition['actions'])
-            dones = np.array(dones, dtype=np.float)
+            self.observations, transitions['rewards'], self.dones, infos = self.env.step(transitions['actions'])
+            self.dones = np.array(self.dones, dtype=np.float)
 
             for info in infos:
                 maybeepinfo = info.get('episode')
                 if maybeepinfo:
                     epinfos.append(maybeepinfo)
 
-            for key in transition:
-                dtype = data_type[key] if key in data_type else np.float
-                transition[key] = np.array(transition[key], dtype=dtype)
-
-            for key in transition:
+            for key in transitions:
                 if key not in minibatch:
                     minibatch[key] = []
-                minibatch[key].append(transition[key])
-            prev_state = transition
-        transition['obs'] = self.obs.copy()
-        transition['dones'] = dones
-        self.states = transition
+                minibatch[key].append(transitions[key])
+            prev_transition = transitions
+
+        for key in minibatch:
+            dtype = data_type[key] if key in data_type else np.float
+            minibatch[key] = np.array(minibatch[key], dtype=dtype)
+
+        transitions['observations'] = self.observations.copy()
+        transitions['dones'] = self.dones
+        if 'states' in transitions:
+            transitions['states'] = transitions.pop('next_states')
 
         for key in minibatch:
             dtype = data_type[key] if key in data_type else np.float
             minibatch[key] = np.asarray(minibatch[key], dtype=dtype)
 
-        last_values = self.model.step_as_dict(observations=self.obs, **self.states)['values']
+        last_values = self.model.step_as_dict(**transitions)['values']
 
         # Calculate returns and advantages.
         minibatch['advs'], minibatch['returns'] = \
@@ -92,7 +95,7 @@ class Runner(AbstractEnvRunner):
                                        rewards=minibatch['rewards'],
                                        dones=minibatch['dones'],
                                        last_values=last_values,
-                                       last_dones=dones,
+                                       last_dones=self.dones,
                                        gamma=self.gamma)
 
         for key in minibatch:

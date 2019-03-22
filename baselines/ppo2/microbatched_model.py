@@ -35,7 +35,7 @@ class MicrobatchedModel(Model):
     def train(self,
               lr,
               cliprange,
-              obs,
+              observations,
               advs,
               returns,
               actions,
@@ -53,7 +53,7 @@ class MicrobatchedModel(Model):
             _sli = range(microbatch_idx * self.microbatch_size, (microbatch_idx + 1) * self.microbatch_size)
 
             td_map = {
-                self.train_model.X: obs[_sli],
+                self.train_model.X: observations[_sli],
                 self.A: actions[_sli],
                 self.ADV: advs[_sli],
                 self.RETURNS: returns[_sli],

@@ -5,7 +5,6 @@ from collections import deque
 
 import numpy as np
 import tensorflow as tf
-
 from baselines import logger
 from baselines.common import explained_variance
 from baselines.common import set_global_seeds
@@ -150,7 +149,7 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=128
 
         if eval_env is not None:
             eval_minibatch = eval_runner.run()
-            eval_obs = eval_minibatch['obs']
+            eval_obs = eval_minibatch['observations']
             eval_returns = eval_minibatch['returns']
             eval_masks = eval_minibatch['masks']
             eval_actions = eval_minibatch['actions']
