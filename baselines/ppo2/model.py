@@ -100,9 +100,6 @@ class Model(object):
                 # UPDATE THE PARAMETERS USING LOSS
                 # 1. Get the model parameters
                 params = tf.trainable_variables(self.scope.name)
-                import pprint
-                print('variable_scope:', self.scope)
-                pprint.pprint(params)
 
                 # 2. Build our trainer
                 if MPI is not None:
