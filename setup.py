@@ -20,9 +20,12 @@ except ImportError:
     install_tf = True
     # Check if a nvidia gpu is present
     for command in ['nvidia-smi', '/usr/bin/nvidia-smi', 'nvidia-smi.exe']:
-        if subprocess.call([command]) == 0:
-            tf_gpu = True
-            break
+        try:
+            if subprocess.call([command]) == 0:
+                tf_gpu = True
+                break
+        except IOError:  # command does not exist / is not executable
+            pass
 
 tf_dependency = []
 if install_tf:
