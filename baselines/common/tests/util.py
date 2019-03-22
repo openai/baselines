@@ -23,6 +23,7 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
         obs = [0]
         done = [True]
         args = inspect.getfullargspec(model.step).args
+        use_external_memory_management = model.initial_state is not None
         state = model.initial_state
 
         for i in range(n_trials):
@@ -31,7 +32,7 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
                 done = [True]
 
             kwargs = {}
-            if state is not None:
+            if use_external_memory_management:
                 kwargs['S'] = state
                 kwargs['M'] = done
             elif 'done' in args:
