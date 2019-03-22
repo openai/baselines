@@ -5,6 +5,12 @@ from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 N_TRIALS = 10000
 N_EPISODES = 100
 
+_sess_config = tf.ConfigProto(
+    allow_soft_placement=True,
+    intra_op_parallelism_threads=1,
+    inter_op_parallelism_threads=1
+)
+
 def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
     def seeded_env_fn():
         env = env_fn()
@@ -13,7 +19,7 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
 
     np.random.seed(0)
     env = DummyVecEnv([seeded_env_fn])
-    with tf.Graph().as_default(), tf.Session(config=tf.ConfigProto(allow_soft_placement=True)).as_default():
+    with tf.Graph().as_default(), tf.Session(config=_sess_config).as_default():
         tf.set_random_seed(0)
         model = learn_fn(env)
         sum_rew = 0
@@ -34,7 +40,7 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
 
 def reward_per_episode_test(env_fn, learn_fn, min_avg_reward, n_trials=N_EPISODES):
     env = DummyVecEnv([env_fn])
-    with tf.Graph().as_default(), tf.Session(config=tf.ConfigProto(allow_soft_placement=True)).as_default():
+    with tf.Graph().as_default(), tf.Session(config=_sess_config).as_default():
         model = learn_fn(env)
         N_TRIALS = 100
         observations, actions, rewards = rollout(env, model, N_TRIALS)
