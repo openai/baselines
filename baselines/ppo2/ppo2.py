@@ -149,13 +149,13 @@ def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=128
 
         if eval_env is not None:
             eval_minibatch = eval_runner.run()
-            eval_obs = eval_minibatch['observations']
-            eval_returns = eval_minibatch['returns']
-            eval_masks = eval_minibatch['masks']
-            eval_actions = eval_minibatch['actions']
-            eval_values = eval_minibatch['values']
-            eval_neglogpacs = eval_minibatch['neglogpacs']
-            eval_states = eval_minibatch['state']
+            _eval_obs = eval_minibatch['observations']  # noqa: F841
+            _eval_returns = eval_minibatch['returns']   # noqa: F841
+            _eval_masks = eval_minibatch['masks']       # noqa: F841
+            _eval_actions = eval_minibatch['actions']   # noqa: F841
+            _eval_values = eval_minibatch['values']     # noqa: F841
+            _eval_neglogpacs = eval_minibatch['neglogpacs'] # noqa: F841
+            _eval_states = eval_minibatch['state']      # noqa: F841
             eval_epinfos = eval_minibatch['epinfos']
 
         epinfobuf.extend(minibatch.pop('epinfos'))
