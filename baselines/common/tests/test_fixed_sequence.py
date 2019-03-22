@@ -33,7 +33,7 @@ def test_fixed_sequence(alg, rnn):
     kwargs = learn_kwargs[alg]
     kwargs.update(common_kwargs)
 
-    if alg == 'ppo2':
+    if alg == 'ppo2' and rnn.endswith('lstm'):
         rnn = 'ppo_' + rnn
 
     env_fn = lambda: FixedSequenceEnv(n_actions=10, episode_len=5)

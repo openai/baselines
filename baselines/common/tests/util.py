@@ -1,9 +1,12 @@
-import tensorflow as tf
+import inspect
+
 import numpy as np
+import tensorflow as tf
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
 N_TRIALS = 10000
 N_EPISODES = 100
+
 
 def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
     def seeded_env_fn():
@@ -17,20 +20,32 @@ def simple_test(env_fn, learn_fn, min_reward_fraction, n_trials=N_TRIALS):
         tf.set_random_seed(0)
         model = learn_fn(env)
         sum_rew = 0
-        done = True
+        obs = [0]
+        done = [True]
+        args = inspect.getfullargspec(model.step).args
+        state = model.initial_state
+
         for i in range(n_trials):
-            if done:
+            if done[0]:
                 obs = env.reset()
-                state = model.initial_state
+                done = [True]
+
+            kwargs = {}
             if state is not None:
-                a, v, state, _ = model.step(obs, S=state, M=[False])
-            else:
-                a, v, _, _ = model.step(obs)
+                kwargs['S'] = state
+                kwargs['M'] = done
+            elif 'done' in args:
+                kwargs['done'] = done
+
+            a, v, state, _ = model.step(obs, **kwargs)
             obs, rew, done, _ = env.step(a)
             sum_rew += float(rew)
+
         print("Reward in {} trials is {}".format(n_trials, sum_rew))
         assert sum_rew > min_reward_fraction * n_trials, \
-            'sum of rewards {} is less than {} of the total number of trials {}'.format(sum_rew, min_reward_fraction, n_trials)
+            'sum of rewards {} is less than {} of ' \
+            'the total number of trials {}'.format(sum_rew, min_reward_fraction, n_trials)
+
 
 def reward_per_episode_test(env_fn, learn_fn, min_avg_reward, n_trials=N_EPISODES):
     env = DummyVecEnv([env_fn])
@@ -43,6 +58,7 @@ def reward_per_episode_test(env_fn, learn_fn, min_avg_reward, n_trials=N_EPISODE
         print("Average reward in {} episodes is {}".format(n_trials, avg_rew))
         assert avg_rew > min_avg_reward, \
             'average reward in {} episodes ({}) is less than {}'.format(n_trials, avg_rew, min_avg_reward)
+
 
 def rollout(env, model, n_trials):
     rewards = []
@@ -58,7 +74,7 @@ def rollout(env, model, n_trials):
             if state is not None:
                 a, v, state, _ = model.step(obs, S=state, M=[False])
             else:
-                a,v, _, _ = model.step(obs)
+                a, v, _, _ = model.step(obs)
 
             obs, rew, done, _ = env.step(a)
             episode_rew.append(rew)
@@ -70,4 +86,3 @@ def rollout(env, model, n_trials):
         actions.append(episode_actions)
         observations.append(episode_obs)
     return observations, actions, rewards
-
