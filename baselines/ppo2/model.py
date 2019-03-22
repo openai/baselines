@@ -132,11 +132,12 @@ class Model(object):
                 self.save = functools.partial(save_variables, sess=sess)
                 self.load = functools.partial(load_variables, sess=sess)
 
-            sess.run(tf.initializers.variables(tf.global_variables(self.scope.name)))
-            sess.run(tf.initializers.variables(tf.local_variables(self.scope.name)))
-            global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope.name)
-            if MPI is not None:
-                sync_from_root(sess, global_variables)  # pylint: disable=E1101
+            with tf.variable_scope('initialization'):
+                sess.run(tf.initializers.variables(tf.global_variables(self.scope.name)))
+                sess.run(tf.initializers.variables(tf.local_variables(self.scope.name)))
+                global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope.name)
+                if MPI is not None:
+                    sync_from_root(sess, global_variables)  # pylint: disable=E1101
 
     def step_as_dict(self, **kwargs):
         return self.act_model.step(**kwargs)
