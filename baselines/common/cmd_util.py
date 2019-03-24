@@ -75,6 +75,8 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
     if env_type == 'atari':
         env = wrap_deepmind(env, **wrapper_kwargs)
     elif env_type == 'retro':
+        if 'frame_stack' not in wrapper_kwargs:
+            wrapper_kwargs['frame_stack'] = 1
         env = retro_wrappers.wrap_deepmind_retro(env, **wrapper_kwargs)
 
     if reward_scale != 1:
