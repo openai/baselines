@@ -113,7 +113,7 @@ def ppo_gru(nlstm=128):
 
 
 @register("ppo_lstm_mlp")
-def ppo_lstm(nlstm=128, layer_norm=False):
+def ppo_lstm_mlp(nlstm=128, layer_norm=False):
     def network_fn(input, mask):
         memory_size = nlstm * 2
         nbatch = input.shape[0]
