@@ -5,10 +5,10 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre-Release 2.5.0a0 (WIP)
+Release 2.5.0 (2019-03-28)
 --------------------------
 
-**Working GAIL and hotfix for A2C with continuous actions**
+**Working GAIL, pretrain RL models and hotfix for A2C with continuous actions**
 
 - fixed various bugs in GAIL
 - added scripts to generate dataset for gail
@@ -244,18 +244,20 @@ Release 0.1.6 (2018-07-27)
 -  Added atari tests
 -  Added logger tests
 
-Missing: tests for acktr continuous (+ HER, gail but they rely on
-mujoco...)
+Missing: tests for acktr continuous (+ HER, rely on mujoco...)
 
 Maintainers
 -----------
 
-Stable-Baselines is currently maintained by `Ashley Hill`_ (aka @hill-a) `Antonin Raffin`_ (aka `@araffin`_) and `Maximilian Ernestus`_ (aka @erniejunior).
+Stable-Baselines is currently maintained by `Ashley Hill`_ (aka @hill-a), `Antonin Raffin`_ (aka `@araffin`_),
+`Maximilian Ernestus`_ (aka @erniejunior) and `Adam Gleave`_ (`@AdamGleave`_).
 
 .. _Ashley Hill: https://github.com/hill-a
 .. _Antonin Raffin: https://araffin.github.io/
 .. _Maximilian Ernestus: https://github.com/erniejunior
+.. _Adam Gleave: https://gleave.me/
 .. _@araffin: https://github.com/araffin
+.. _@AdamGleave: https://github.com/adamgleave
 
 Contributors (since v2.0.0):
 ----------------------------

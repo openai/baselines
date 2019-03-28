@@ -9,4 +9,4 @@ from stable_baselines.ppo2 import PPO2
 from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.sac import SAC
 
-__version__ = "2.5.0a0"
+__version__ = "2.5.0"

@@ -92,7 +92,7 @@ To cite this project in publications:
 .. code-block:: bibtex
 
     @misc{stable-baselines,
-      author = {Hill, Ashley and Raffin, Antonin and Ernestus, Maximilian and Traore, Rene and Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
+      author = {Hill, Ashley and Raffin, Antonin and Ernestus, Maximilian and Gleave, Adam and Traore, Rene and Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai},
       title = {Stable Baselines},
       year = {2018},
       publisher = {GitHub},
