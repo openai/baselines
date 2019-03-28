@@ -12,10 +12,11 @@ from stable_baselines import logger
 from stable_baselines.bench import Monitor
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.atari_wrappers import make_atari, wrap_deepmind
-from stable_baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
+from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 
-def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0, allow_early_resets=True):
+def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None,
+                   start_index=0, allow_early_resets=True, start_method=None):
     """
     Create a wrapped, monitored SubprocVecEnv for Atari.
 
@@ -26,6 +27,8 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0, al
     :param start_index: (int) start rank index
     :param allow_early_resets: (bool) allows early reset of the environment
     :return: (Gym Environment) The atari environment
+    :param start_method: (str) method used to start the subprocesses.
+        See SubprocVecEnv doc for more information
     """
     if wrapper_kwargs is None:
         wrapper_kwargs = {}
@@ -39,7 +42,13 @@ def make_atari_env(env_id, num_env, seed, wrapper_kwargs=None, start_index=0, al
             return wrap_deepmind(env, **wrapper_kwargs)
         return _thunk
     set_global_seeds(seed)
-    return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)])
+
+    # When using one environment, no need to start subprocesses
+    if num_env == 1:
+        return DummyVecEnv([make_env(0)])
+
+    return SubprocVecEnv([make_env(i + start_index) for i in range(num_env)],
+                         start_method=start_method)
 
 
 def make_mujoco_env(env_id, seed, allow_early_resets=True):

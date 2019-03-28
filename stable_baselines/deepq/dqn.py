@@ -97,6 +97,10 @@ class DQN(OffPolicyRLModel):
         if _init_setup_model:
             self.setup_model()
 
+    def _get_pretrain_placeholders(self):
+        policy = self.step_model
+        return policy.obs_ph, tf.placeholder(tf.int32, [None]), policy.q_values
+
     def setup_model(self):
 
         with SetVerbosity(self.verbose):

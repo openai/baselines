@@ -29,9 +29,10 @@ SubprocVecEnv ✔️       ✔️           ✔️        ✔️         ✔️
 
 .. warning::
 
-		When using ``SubprocVecEnv``, users must wrap the code in an ``if __name__ == "__main__":``
-                if using the ``forkserver`` or ``spawn`` start method (the default).  For more information, see Python's 
-                `multiprocessing guidelines <https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods>`_.
+				When using ``SubprocVecEnv``, users must wrap the code in an ``if __name__ == "__main__":`` if using the ``forkserver`` or ``spawn`` start method (default on Windows).
+				On Linux, the default start method is ``fork`` which is not thread safe and can create deadlocks.
+
+				For more information, see Python's `multiprocessing guidelines <https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods>`_.
 
 
 DummyVecEnv

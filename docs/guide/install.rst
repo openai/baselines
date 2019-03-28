@@ -39,7 +39,7 @@ We recommend using `Anaconda <https://conda.io/docs/user-guide/install/windows.h
 
 1. Install `MPI for Windows <https://www.microsoft.com/en-us/download/details.aspx?id=57467>`_ (you need to download and install ``msmpisetup.exe``)
 
-2. Clone Stable-Baselines Github repo and replace this line ``gym[atari,classic_control]>=0.10.9`` by this one ``gym[classic_control]>=0.10.9``
+2. Clone Stable-Baselines Github repo and replace the line ``gym[atari,classic_control]>=0.10.9`` in ``setup.py`` by this one: ``gym[classic_control]>=0.10.9``
 
 3. Install Stable-Baselines from source, inside the folder, run ``pip install -e .``
 

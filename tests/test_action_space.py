@@ -1,12 +1,9 @@
 import pytest
 import numpy as np
 
-from stable_baselines.a2c import A2C
-from stable_baselines.ppo1 import PPO1
-from stable_baselines.ppo2 import PPO2
-from stable_baselines.trpo_mpi import TRPO
+from stable_baselines import A2C, PPO1, PPO2, TRPO
 from stable_baselines.common.identity_env import IdentityEnvMultiBinary, IdentityEnvMultiDiscrete
-from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from stable_baselines.common.vec_env import DummyVecEnv
 
 MODEL_LIST = [
     A2C,

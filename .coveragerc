@@ -6,7 +6,9 @@ omit =
     stable_baselines/ppo1/run_humanoid.py
     stable_baselines/ppo1/run_robotics.py
     # HER requires mpi and Mujoco
-    stable_baselines/her/experiment/
+    stable_baselines/her/experiment/*
+    tests/*
+    setup.py
 
 [report]
 exclude_lines =

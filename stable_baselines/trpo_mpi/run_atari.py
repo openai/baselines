@@ -4,12 +4,10 @@ import os
 from mpi4py import MPI
 
 from stable_baselines.common import set_global_seeds
-from stable_baselines import bench, logger
+from stable_baselines import bench, logger, TRPO
 from stable_baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from stable_baselines.common.cmd_util import atari_arg_parser
 from stable_baselines.common.policies import CnnPolicy
-# from stable_baselines.trpo_mpi.nosharing_cnn_policy import CnnPolicy
-from stable_baselines.trpo_mpi import TRPO
 
 
 def train(env_id, num_timesteps, seed):
@@ -31,9 +29,6 @@ def train(env_id, num_timesteps, seed):
     set_global_seeds(workerseed)
     env = make_atari(env_id)
 
-    # def policy_fn(name, ob_space, ac_space, sess=None, placeholders=None):  # pylint: disable=W0613
-    #     return CnnPolicy(name=name, ob_space=ob_space, ac_space=ac_space, sess=sess, placeholders=placeholders)
-
     env = bench.Monitor(env, logger.get_dir() and os.path.join(logger.get_dir(), str(rank)))
     env.seed(workerseed)
 
@@ -44,6 +39,8 @@ def train(env_id, num_timesteps, seed):
                  gamma=0.98, lam=1, vf_iters=3, vf_stepsize=1e-4)
     model.learn(total_timesteps=int(num_timesteps * 1.1))
     env.close()
+    # Free memory
+    del env
 
 
 def main():

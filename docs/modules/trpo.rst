@@ -21,7 +21,7 @@ Notes
 Can I use?
 ----------
 
--  Recurrent policies: ✔️
+-  Recurrent policies: ❌
 -  Multi processing: ✔️  (using MPI)
 -  Gym spaces:
 
@@ -43,7 +43,7 @@ Example
 
   import gym
 
-  from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy
+  from stable_baselines.common.policies import MlpPolicy
   from stable_baselines.common.vec_env import DummyVecEnv
   from stable_baselines import TRPO
 

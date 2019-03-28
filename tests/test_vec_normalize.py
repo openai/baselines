@@ -8,7 +8,7 @@ from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from stable_baselines.common.vec_env.vec_normalize import VecNormalize
 from .test_common import _assert_eq
 
-ENV_ID = 'BreakoutNoFrameskip-v4'
+ENV_ID = 'Pendulum-v0'
 
 
 def test_runningmeanstd():

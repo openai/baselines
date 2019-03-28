@@ -5,14 +5,29 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Pre-release 2.4.2a (WIP)
-------------------------
+Pre-Release 2.5.0a0 (WIP)
+--------------------------
 
+**Working GAIL and hotfix for A2C with continuous actions**
+
+- fixed various bugs in GAIL
+- added scripts to generate dataset for gail
+- added tests for GAIL + data for Pendulum-v0
+- removed unused ``utils`` file in DQN folder
+- fixed a bug in A2C where actions were cast to ``int32`` even in the continuous case
+- added addional logging to A2C when Monitor wrapper is used
+- changed logging for PPO2: do not display NaN when reward info is not present
+- change default value of A2C lr schedule
+- removed behavior cloning script
+- added ``pretrain`` method to base class, in order to use behavior cloning on all models
+- fixed ``close()`` method for DummyVecEnv.
 - added support for Dict spaces in DummyVecEnv and SubprocVecEnv. (@AdamGleave)
-- made SubprocVecEnv thread-safe by default; support arbitrary multiprocessing start methods. (@AdamGleave)
+- added support for arbitrary multiprocessing start methods and added a warning about SubprocVecEnv that are not thread-safe by default.  (@AdamGleave)
+- added support for Discrete actions for GAIL
+- fixed deprecation warning for tf: replaces ``tf.to_float()`` by ``tf.cast()``
 - fixed bug in saving and loading ddpg model when using normalization of obs or returns (@tperol)
 - changed DDPG default buffer size from 100 to 50000.
-- fixed a bug in ``ddpg.py`` in ``combined_stats`` for eval. Computed mean on ``eval_episode_rewards`` and ``eval_qs``
+- fixed a bug in ``ddpg.py`` in ``combined_stats`` for eval. Computed mean on ``eval_episode_rewards`` and ``eval_qs`` (@keshaviyengar)
 - fixed a bug in ``setup.py`` that would error on non-GPU systems without TensorFlow installed
 
 

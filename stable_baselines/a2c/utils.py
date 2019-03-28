@@ -8,6 +8,8 @@ import tensorflow as tf
 def sample(logits):
     """
     Creates a sampling Tensor for non deterministic policies
+    when using categorical distribution.
+    It uses the Gumbel-max trick: http://amid.fish/humble-gumbel
 
     :param logits: (TensorFlow Tensor) The input probability for each action
     :return: (TensorFlow Tensor) The sampled action

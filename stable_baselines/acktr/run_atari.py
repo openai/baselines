@@ -1,5 +1,4 @@
-from stable_baselines import logger
-from stable_baselines.acktr import ACKTR
+from stable_baselines import logger, ACKTR
 from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
 from stable_baselines.common.vec_env.vec_frame_stack import VecFrameStack
 from stable_baselines.common.policies import CnnPolicy

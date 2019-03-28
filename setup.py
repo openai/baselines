@@ -108,7 +108,6 @@ setup(name='stable_baselines',
           'joblib',
           'zmq',
           'dill',
-          'progressbar2',
           'mpi4py',
           'cloudpickle>=0.5.5',
           'click',
@@ -139,7 +138,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version="2.4.1",
+      version="2.5.0a0",
       )
 
 # python setup.py sdist

@@ -46,6 +46,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
    guide/custom_policy
    guide/tensorboard
    guide/rl_zoo
+   guide/pretrain
 
 
 .. toctree::

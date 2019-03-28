@@ -122,6 +122,8 @@ def check_vecenv_spaces(vec_env_class, space, obs_assert):
         obs_assert(obs)
     vec_env.close()
 
+    vec_env.close()
+
 
 def check_vecenv_obs(obs, space):
     """Helper method to check observations from multiple environments each belong to

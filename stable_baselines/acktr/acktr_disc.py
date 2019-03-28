@@ -3,10 +3,11 @@ Discrete acktr
 """
 
 import time
+from collections import deque
 
 import tensorflow as tf
 import numpy as np
-from gym.spaces import Box
+from gym.spaces import Box, Discrete
 
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
@@ -15,6 +16,7 @@ from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc
     total_episode_reward_logger
 from stable_baselines.acktr import kfac
 from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
+from stable_baselines.ppo2.ppo2 import safe_mean
 
 
 class ACKTR(ActorCriticRLModel):
@@ -99,6 +101,12 @@ class ACKTR(ActorCriticRLModel):
 
         if _init_setup_model:
             self.setup_model()
+
+    def _get_pretrain_placeholders(self):
+        policy = self.train_model
+        if isinstance(self.action_space, Discrete):
+            return policy.obs_ph, self.action_ph, policy.policy
+        raise NotImplementedError("WIP: ACKTR does not support Continuous actions yet.")
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
@@ -289,9 +297,13 @@ class ACKTR(ActorCriticRLModel):
             else:
                 enqueue_threads = []
 
+            # Training stats (when using Monitor wrapper)
+            ep_info_buf = deque(maxlen=100)
+
             for update in range(1, total_timesteps // self.n_batch + 1):
                 # true_reward is the reward without discount
-                obs, states, rewards, masks, actions, values, true_reward = runner.run()
+                obs, states, rewards, masks, actions, values, ep_infos, true_reward = runner.run()
+                ep_info_buf.extend(ep_infos)
                 policy_loss, value_loss, policy_entropy = self._train_step(obs, states, rewards, masks, actions, values,
                                                                            self.num_timesteps // (self.n_batch + 1),
                                                                            writer)
@@ -319,6 +331,9 @@ class ACKTR(ActorCriticRLModel):
                     logger.record_tabular("policy_loss", float(policy_loss))
                     logger.record_tabular("value_loss", float(value_loss))
                     logger.record_tabular("explained_variance", float(explained_var))
+                    if len(ep_info_buf) > 0 and len(ep_info_buf[0]) > 0:
+                        logger.logkv('ep_reward_mean', safe_mean([ep_info['r'] for ep_info in ep_info_buf]))
+                        logger.logkv('ep_len_mean', safe_mean([ep_info['l'] for ep_info in ep_info_buf]))
                     logger.dump_tabular()
 
                 self.num_timesteps += self.n_batch + 1

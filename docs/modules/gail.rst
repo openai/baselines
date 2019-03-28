@@ -6,7 +6,12 @@
 GAIL
 ====
 
-`Generative Adversarial Imitation Learning (GAIL) <https://arxiv.org/abs/1606.03476>`_
+The `Generative Adversarial Imitation Learning (GAIL) <https://arxiv.org/abs/1606.03476>`_ uses expert trajectories
+to recover a cost function and then learn a policy.
+
+Learning a cost function from expert demonstrations is called Inverse Reinforcement Learning (IRL).
+The connection between GAIL and Generative Adversarial Networks (GANs) is that it uses a discriminator that tries
+to seperate expert trajectory from trajectories of the learned policy, which has the role of the generator here.
 
 
 Notes
@@ -14,50 +19,49 @@ Notes
 
 - Original paper: https://arxiv.org/abs/1606.03476
 
+.. warning::
+
+    Images are not yet handled properly by the current implementation
+
+
+
 If you want to train an imitation learning agent
 ------------------------------------------------
 
-.. _step-1:-download-expert-data:
 
-Step 1: Download expert data
+Step 1: Generate expert data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Download the expert data into ``./data``, `download link`_
+You can either train a RL algorithm in a classic setting, use another controller (e.g. a PID controller)
+or human demonstrations.
 
-.. _step-2:-run-gail:
+We recommend you to take a look at :ref:`pre-training <pretrain>` section
+or directly look at ``stable_baselines/gail/dataset/`` folder to learn more about the expected format for the dataset.
+
+Here is an example of training a Soft Actor-Critic model to generate expert trajectories for GAIL:
+
+
+.. code-block:: python
+
+  from stable_baselines import SAC
+  from stable_baselines.gail import generate_expert_traj
+
+  # Generate expert trajectories (train expert)
+  model = SAC('MlpPolicy', 'Pendulum-v0', verbose=1)
+  # Train for 60000 timesteps and record 10 trajectories
+  # all the data will be saved in 'expert_pendulum.npz' file
+  generate_expert_traj(model, 'expert_pendulum', n_timesteps=60000, n_episodes=10)
+
+
 
 Step 2: Run GAIL
 ~~~~~~~~~~~~~~~~
 
-Run with single thread:
-
-.. code:: bash
-
-   python -m stable_baselines.gail.run_mujoco
-
-Run with multiple threads:
-
-.. code:: bash
-
-   mpirun -np 16 python -m stable_baselines.gail.run_mujoco
-
-See help (``-h``) for more options.
-
-.. _in-case-you-want-to-run-behavior-cloning-(bc):
 
 **In case you want to run Behavior Cloning (BC)**
 
-.. code:: bash
+Use the ``.pretrain()`` method (cf guide).
 
-   python -m stable_baselines.gail.behavior_clone
-
-See help (``-h``) for more options.
-
-
-OpenAI Maintainers:
-
--  Yuan-Hong Liao, andrewliao11_at_gmail_dot_com
--  Ryan Julian, ryanjulian_at_gmail_dot_com
 
 **Others**
 
@@ -66,14 +70,11 @@ Thanks to the open source:
 -  @openai/imitation
 -  @carpedm20/deep-rl-tensorflow
 
-.. _download link: https://drive.google.com/drive/folders/1h3H4AY_ZBx08hz-Ct0Nxxus-V1melu1U?usp=sharing
-
-
 
 Can I use?
 ----------
 
--  Recurrent policies: ✔️
+-  Recurrent policies: ❌
 -  Multi processing: ✔️ (using MPI)
 -  Gym spaces:
 
@@ -81,11 +82,45 @@ Can I use?
 ============= ====== ===========
 Space         Action Observation
 ============= ====== ===========
-Discrete      ❌      ✔️
+Discrete      ✔️       ✔️
 Box           ✔️       ✔️
 MultiDiscrete ❌      ✔️
 MultiBinary   ❌      ✔️
 ============= ====== ===========
+
+
+Example
+-------
+
+.. code-block:: python
+
+  import gym
+
+  from stable_baselines import GAIL, SAC
+  from stable_baselines.gail import ExpertDataset, generate_expert_traj
+
+  # Generate expert trajectories (train expert)
+  model = SAC('MlpPolicy', 'Pendulum-v0', verbose=1)
+  generate_expert_traj(model, 'expert_pendulum', n_timesteps=100, n_episodes=10)
+
+  # Load the expert dataset
+  dataset = ExpertDataset(expert_path='expert_pendulum.npz', traj_limitation=10, verbose=1)
+
+  model = GAIL("MlpPolicy", 'Pendulum-v0', dataset, verbose=1)
+  # Note: in practice, you need to train for 1M steps to have a working policy
+  model.learn(total_timesteps=1000)
+  model.save("gail_pendulum")
+
+  del model # remove to demonstrate saving and loading
+
+  model = GAIL.load("gail_pendulum")
+
+  env = gym.make('Pendulum-v0')
+  obs = env.reset()
+  while True:
+    action, _states = model.predict(obs)
+    obs, rewards, dones, info = env.step(action)
+    env.render()
 
 
 Parameters

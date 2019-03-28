@@ -4,11 +4,10 @@ import os
 from mpi4py import MPI
 
 from stable_baselines.common import set_global_seeds
-from stable_baselines import bench, logger
+from stable_baselines import bench, logger, PPO1
 from stable_baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from stable_baselines.common.cmd_util import atari_arg_parser
 from stable_baselines.common.policies import CnnPolicy
-from stable_baselines.ppo1 import PPO1
 
 
 def train(env_id, num_timesteps, seed):
@@ -40,6 +39,7 @@ def train(env_id, num_timesteps, seed):
                  optim_stepsize=1e-3, optim_batchsize=64, gamma=0.99, lam=0.95, schedule='linear', verbose=2)
     model.learn(total_timesteps=num_timesteps)
     env.close()
+    del env
 
 
 def main():

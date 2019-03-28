@@ -29,7 +29,7 @@ def test_identity(model_class):
             obs, _, _, _ = env.step(action)
 
     # Free memory
-    del model, env
+    del model, env0, env1
 
 
 @pytest.mark.slow
@@ -54,7 +54,7 @@ def test_identity_box(model_class):
             obs, _, _, _ = env.step(action)
 
     # Free memory
-    del model, env
+    del model, env0, env1
 
 
 @pytest.mark.slow
@@ -79,7 +79,7 @@ def test_identity_multi_binary(model_class):
             obs, _, _, _ = env.step(action)
 
     # Free memory
-    del model, env
+    del model, env0, env1
 
 
 @pytest.mark.slow
@@ -104,4 +104,4 @@ def test_identity_multi_discrete(model_class):
             obs, _, _, _ = env.step(action)
 
     # Free memory
-    del model, env
+    del model, env0, env1

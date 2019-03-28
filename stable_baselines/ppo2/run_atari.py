@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
-from stable_baselines import logger
+from stable_baselines import PPO2, logger
 from stable_baselines.common.cmd_util import make_atari_env, atari_arg_parser
-from stable_baselines.common.vec_env.vec_frame_stack import VecFrameStack
-from stable_baselines.ppo2 import PPO2
+from stable_baselines.common.vec_env import VecFrameStack
 from stable_baselines.common.policies import CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy, MlpPolicy
 
 
@@ -28,6 +26,9 @@ def train(env_id, num_timesteps, seed, policy,
                  lam=0.95, gamma=0.99, noptepochs=4, ent_coef=.01,
                  learning_rate=lambda f: f * 2.5e-4, cliprange=lambda f: f * 0.1, verbose=1)
     model.learn(total_timesteps=num_timesteps)
+
+    env.close()
+    # Free memory
     del model
 
 def main():

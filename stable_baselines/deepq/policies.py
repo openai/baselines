@@ -142,6 +142,7 @@ class FeedForwardPolicy(DQNPolicy):
         else:
             # Unefficient sampling
             # TODO: replace the loop
+            # maybe with Gumbel-max trick ? (http://amid.fish/humble-gumbel)
             actions = np.zeros((len(obs),), dtype=np.int64)
             for action_idx in range(len(obs)):
                 actions[action_idx] = np.random.choice(self.n_actions, p=actions_proba[action_idx])

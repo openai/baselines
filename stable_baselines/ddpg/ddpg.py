@@ -269,6 +269,12 @@ class DDPG(OffPolicyRLModel):
         if _init_setup_model:
             self.setup_model()
 
+    def _get_pretrain_placeholders(self):
+        policy = self.policy_tf
+        # Rescale
+        deterministic_action = self.actor_tf * np.abs(self.action_space.low)
+        return policy.obs_ph, self.actions, deterministic_action
+
     def setup_model(self):
         with SetVerbosity(self.verbose):
 
