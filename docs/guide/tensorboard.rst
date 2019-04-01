@@ -12,14 +12,9 @@ To use Tensorboard with the rl baselines, you simply need to define a log locati
 
     import gym
 
-    from stable_baselines.common.policies import MlpPolicy
-    from stable_baselines.common.vec_env import DummyVecEnv
     from stable_baselines import A2C
 
-    env = gym.make('CartPole-v1')
-    env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
-
-    model = A2C(MlpPolicy, env, verbose=1, tensorboard_log="./a2c_cartpole_tensorboard/")
+    model = A2C('MlpPolicy', 'CartPole-v1', verbose=1, tensorboard_log="./a2c_cartpole_tensorboard/")
     model.learn(total_timesteps=10000)
 
 
@@ -45,17 +40,14 @@ You can also define custom logging name when training (by default it is the algo
 
     import gym
 
-    from stable_baselines.common.vec_env import DummyVecEnv
-    from stable_baselines.common.policies import MlpPolicy
     from stable_baselines import A2C
 
-    env = gym.make('CartPole-v1')
-    env = DummyVecEnv([lambda: env])  # The algorithms require a vectorized environment to run
-
-    model = A2C(MlpPolicy, env, verbose=1, tensorboard_log="./a2c_cartpole_tensorboard/")
+    model = A2C('MlpPolicy', 'CartPole-v1', verbose=1, tensorboard_log="./a2c_cartpole_tensorboard/")
     model.learn(total_timesteps=10000, tb_log_name="first_run")
-    model.learn(total_timesteps=10000, tb_log_name="second_run")
-    model.learn(total_timesteps=10000, tb_log_name="thrid_run")
+    # Pass reset_num_timesteps=False to continue the training curve in tensorboard
+    # By default, it will create a new curve
+    model.learn(total_timesteps=10000, tb_log_name="second_run", reset_num_timesteps=False)
+    model.learn(total_timesteps=10000, tb_log_name="thrid_run", reset_num_timesteps=False)
 
 
 Once the learn function is called, you can monitor the RL agent during or after the training, with the following bash command:

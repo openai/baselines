@@ -54,6 +54,8 @@ In the following example, we will train, save and load an A2C model on the Lunar
   env = gym.make('LunarLander-v2')
   env = DummyVecEnv([lambda: env])
 
+  # Alternatively, you can directly use:
+  # model = A2C('MlpPolicy', 'LunarLander-v2', ent_coef=0.1, verbose=1)
   model = A2C(MlpPolicy, env, ent_coef=0.1, verbose=1)
   # Train the agent
   model.learn(total_timesteps=100000)

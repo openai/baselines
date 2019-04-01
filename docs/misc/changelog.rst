@@ -5,6 +5,12 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
+Pre-Release 2.5.1a0 (WIP)
+--------------------------
+
+- doc update (fix example of result plotter + improve doc)
+
+
 Release 2.5.0 (2019-03-28)
 --------------------------
 

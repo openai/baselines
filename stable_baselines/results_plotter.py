@@ -116,12 +116,12 @@ def plot_results(dirs, num_timesteps, xaxis, task_name):
 def main():
     """
     Example usage in jupyter-notebook
-    
+
     .. code-block:: python
 
-        from stable_baselines import log_viewer
+        from stable_baselines import results_plotter
         %matplotlib inline
-        log_viewer.plot_results(["./log"], 10e6, log_viewer.X_TIMESTEPS, "Breakout")
+        results_plotter.plot_results(["./log"], 10e6, log_viewer.X_TIMESTEPS, "Breakout")
 
     Here ./log is a directory containing the monitor.csv files
     """
