@@ -53,7 +53,7 @@ class HumanOutputFormat(KVWriter, SeqWriter):
             self.file = open(filename_or_file, 'wt')
             self.own_file = True
         else:
-            assert hasattr(filename_or_file, 'read'), 'expected file or str, got %s' % filename_or_file
+            assert hasattr(filename_or_file, 'write'), 'Expected file or str, got {}'.format(filename_or_file)
             self.file = filename_or_file
             self.own_file = False
 
