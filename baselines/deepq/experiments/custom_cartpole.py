@@ -23,7 +23,7 @@ def model(inpt, num_actions, scope, reuse=False):
 
 
 if __name__ == '__main__':
-    with U.make_session(8):
+    with U.make_session(num_cpu=8):
         # Create the environment
         env = gym.make("CartPole-v0")
         # Create all the functions necessary to train the model
