@@ -177,7 +177,7 @@ def profile_tf_runningmeanstd():
     outfile = '/tmp/timeline.json'
     with open(outfile, 'wt') as f:
         f.write(chrome_trace)
-    print(f'Successfully saved profile to {outfile}. Exiting.')
+    print('Successfully saved profile to {}. Exiting.'.format(outfile))
     exit(0)
     '''
 
