@@ -7,7 +7,8 @@ class Dataset(object):
         self.enable_shuffle = shuffle
         self.n = next(iter(data_map.values())).shape[0]
         self._next_id = 0
-        self.shuffle()
+        if shuffle:
+            self.shuffle()
 
     def shuffle(self):
         if self.deterministic:
