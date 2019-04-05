@@ -1,7 +1,5 @@
 from . import VecEnvWrapper
-from baselines.common.running_mean_std import RunningMeanStd
 import numpy as np
-
 
 class VecNormalize(VecEnvWrapper):
     """
@@ -11,6 +9,7 @@ class VecNormalize(VecEnvWrapper):
 
     def __init__(self, venv, ob=True, ret=True, clipob=10., cliprew=10., gamma=0.99, epsilon=1e-8):
         VecEnvWrapper.__init__(self, venv)
+        from baselines.common.running_mean_std import RunningMeanStd
         self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if ob else None
         self.ret_rms = RunningMeanStd(shape=()) if ret else None
         self.clipob = clipob

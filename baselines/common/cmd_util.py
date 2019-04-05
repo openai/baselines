@@ -17,9 +17,11 @@ from baselines.common.atari_wrappers import make_atari, wrap_deepmind
 from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common import retro_wrappers
+from baselines.common.wrappers import ClipActionsWrapper
 
 def make_vec_env(env_id, env_type, num_env, seed,
                  wrapper_kwargs=None,
+                 env_kwargs=None,
                  start_index=0,
                  reward_scale=1.0,
                  flatten_dict_observations=True,
@@ -28,6 +30,7 @@ def make_vec_env(env_id, env_type, num_env, seed,
     Create a wrapped, monitored SubprocVecEnv for Atari and MuJoCo.
     """
     wrapper_kwargs = wrapper_kwargs or {}
+    env_kwargs = env_kwargs or {}
     mpi_rank = MPI.COMM_WORLD.Get_rank() if MPI else 0
     seed = seed + 10000 * mpi_rank if seed is not None else None
     logger_dir = logger.get_dir()
@@ -42,6 +45,7 @@ def make_vec_env(env_id, env_type, num_env, seed,
             gamestate=gamestate,
             flatten_dict_observations=flatten_dict_observations,
             wrapper_kwargs=wrapper_kwargs,
+            env_kwargs=env_kwargs,
             logger_dir=logger_dir
         )
 
@@ -52,8 +56,15 @@ def make_vec_env(env_id, env_type, num_env, seed,
         return DummyVecEnv([make_thunk(start_index)])
 
 
-def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.0, gamestate=None, flatten_dict_observations=True, wrapper_kwargs=None, logger_dir=None):
+def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.0, gamestate=None, flatten_dict_observations=True, wrapper_kwargs=None, env_kwargs=None, logger_dir=None):
     wrapper_kwargs = wrapper_kwargs or {}
+    env_kwargs = env_kwargs or {}
+    if ':' in env_id:
+        import re
+        import importlib
+        module_name = re.sub(':.*','',env_id)
+        env_id = re.sub('.*:', '', env_id)
+        importlib.import_module(module_name)
     if env_type == 'atari':
         env = make_atari(env_id)
     elif env_type == 'retro':
@@ -61,7 +72,7 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
         gamestate = gamestate or retro.State.DEFAULT
         env = retro_wrappers.make_retro(game=env_id, max_episode_steps=10000, use_restricted_actions=retro.Actions.DISCRETE, state=gamestate)
     else:
-        env = gym.make(env_id)
+        env = gym.make(env_id, **env_kwargs)
 
     if flatten_dict_observations and isinstance(env.observation_space, gym.spaces.Dict):
         keys = env.observation_space.spaces.keys()
@@ -72,12 +83,16 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
                   logger_dir and os.path.join(logger_dir, str(mpi_rank) + '.' + str(subrank)),
                   allow_early_resets=True)
 
+
     if env_type == 'atari':
         env = wrap_deepmind(env, **wrapper_kwargs)
     elif env_type == 'retro':
         if 'frame_stack' not in wrapper_kwargs:
             wrapper_kwargs['frame_stack'] = 1
         env = retro_wrappers.wrap_deepmind_retro(env, **wrapper_kwargs)
+
+    if isinstance(env.action_space, gym.spaces.Box):
+        env = ClipActionsWrapper(env)
 
     if reward_scale != 1:
         env = retro_wrappers.RewardScaler(env, reward_scale)
