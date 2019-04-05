@@ -215,7 +215,8 @@ def wrap_deepmind_retro(env, scale=True, frame_stack=4):
     """
     env = WarpFrame(env)
     env = ClipRewardEnv(env)
-    env = FrameStack(env, frame_stack)
+    if frame_stack > 1:
+        env = FrameStack(env, frame_stack)
     if scale:
         env = ScaledFloatFrame(env)
     return env
