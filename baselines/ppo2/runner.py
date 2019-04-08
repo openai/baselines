@@ -14,14 +14,7 @@ class Runner(AbstractEnvRunner):
     """
 
     def __init__(self, *, env, model, nsteps, gamma, ob_space, lam):
-        self.env = env
-        self.model = model
-        self.nenv = nenv = env.num_envs if hasattr(env, 'num_envs') else 1
-        self.batch_ob_shape = (nenv * nsteps,) + env.observation_space.shape
-        self.observations = np.zeros((nenv,) + env.observation_space.shape, dtype=env.observation_space.dtype.name)
-        self.observations = env.reset()
-        self.nsteps = nsteps
-        self.dones = np.array([False for _ in range(self.nenv)])
+        super().__init__(env=env, model=model, nsteps=nsteps)
 
         self.lam = lam  # Lambda used in GAE (General Advantage Estimation)
         self.gamma = gamma  # Discount rate for rewards
@@ -38,7 +31,7 @@ class Runner(AbstractEnvRunner):
         }
 
         data_type = {
-            "observations": self.observations.dtype,
+            "observations": self.obs.dtype,
             "actions": np.float32,
             "rewards": np.float32,
             "values": np.float32,
@@ -46,13 +39,13 @@ class Runner(AbstractEnvRunner):
             "neglogpacs": np.float32,
         }
 
-        prev_transition = {}
+        prev_transition = {'next_states': self.model.initial_state}
         epinfos = []
 
         # For n in range number of steps
         for _ in range(self.nsteps):
             transitions = {}
-            transitions['observations'] = self.observations.copy()
+            transitions['observations'] = self.obs.copy()
             transitions['dones'] = self.dones
             if 'next_states' in prev_transition:
                 transitions['states'] = prev_transition['next_states']
@@ -60,7 +53,7 @@ class Runner(AbstractEnvRunner):
 
             # Take actions in env and look the results
             # Infos contains a ton of useful informations
-            self.observations, transitions['rewards'], self.dones, infos = self.env.step(transitions['actions'])
+            self.obs, transitions['rewards'], self.dones, infos = self.env.step(transitions['actions'])
             self.dones = np.array(self.dones, dtype=np.float)
 
             for info in infos:
@@ -78,7 +71,7 @@ class Runner(AbstractEnvRunner):
             dtype = data_type[key] if key in data_type else np.float
             minibatch[key] = np.array(minibatch[key], dtype=dtype)
 
-        transitions['observations'] = self.observations.copy()
+        transitions['observations'] = self.obs.copy()
         transitions['dones'] = self.dones
         if 'states' in transitions:
             transitions['states'] = transitions.pop('next_states')

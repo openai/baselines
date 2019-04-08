@@ -1,6 +1,7 @@
 import functools
 
 import tensorflow as tf
+
 from baselines.common.tf_util import get_session, save_variables, load_variables
 
 try:
@@ -34,7 +35,6 @@ class Model(object):
             sess = get_session()
         self.sess = sess
         self.name = name
-        self.initial_state = None
 
         with tf.variable_scope(name) as scope:
             self.scope = scope
@@ -125,6 +125,7 @@ class Model(object):
 
                 self.train_model = train_model
                 self.act_model = act_model
+                self.initial_state = act_model.initial_state
 
                 self.save = functools.partial(save_variables, sess=sess)
                 self.load = functools.partial(load_variables, sess=sess)
@@ -139,10 +140,9 @@ class Model(object):
     def step_as_dict(self, **kwargs):
         return self.act_model.step(**kwargs)
 
-    def step(self, observation, done=None, **kwargs):
+    def step(self, observation, done, **kwargs):
         kwargs.update({'observations': observation})
-        if done is not None:
-            kwargs.update({'dones': done})
+        kwargs.update({'dones': done})
         transition = self.act_model.step(**kwargs)
         states = transition['states'] if 'states' in transition else None
         return transition['actions'], transition['values'], states, transition['neglogpacs']

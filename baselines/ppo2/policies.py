@@ -76,9 +76,12 @@ class PolicyWithValue(object):
             'neglogpacs': self.neglogp,
         }
         if self.states:
+            self.initial_state = np.zeros(self.states['current'].get_shape())
             self.step_input.update({'states': self.states['current']})
             self.step_output.update({'states': self.states['current'],
                                      'next_states': self.states['next']})
+        else:
+            self.initial_state = None
 
     def feed_dict(self, **kwargs):
         feed_dict = {}
@@ -120,11 +123,10 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
         ob_space = env.observation_space
         X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space,
                                                                                               batch_size=nbatch)
-        dones = tf.placeholder_with_default(np.zeros([X.shape[0]]), [X.shape[0]], name='dones')
-
+        dones = tf.placeholder(tf.float32, shape=[X.shape[0]], name='dones')
         encoded_x = encode_observation(ob_space, X)
 
-        with tf.variable_scope('load_rnn_memory'):
+        with tf.variable_scope('current_rnn_memory'):
             if isinstance(policy_network, RNN):
                 policy_state, policy_network_ = policy_network(encoded_x, dones)
             else:
@@ -145,7 +147,7 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
             if policy_state or value_state:
                 states_list = [state for state in [policy_state, value_state] if state]
                 states = tf.concat(states_list, axis=1)
-                state_placeholder = tf.placeholder_with_default(states, states.get_shape())
+                state_placeholder = tf.placeholder(dtype=tf.float32, shape=states.get_shape(), name='states')
                 index = 0
                 for state in states_list:
                     assert state.get_shape().ndims == 2
@@ -171,33 +173,24 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
             else:
                 value_latent = value_network_(encoded_x)
 
-        with tf.name_scope("save_rnn_memory"):
+        with tf.name_scope("next_rnn_memory"):
             if policy_state or value_state:
                 next_states = tf.concat(next_states_list, axis=1)
                 state_info = {'current': state_placeholder,
                               'next': next_states, }
-                update_op = []
-                index = 0
-                for state in [state for state in [policy_state, value_state] if state]:
-                    size = int(state.get_shape()[1])
-                    update_op.append(state.assign(next_states[:, index:index + size]))
-                    index += size
-                update_op = tf.group(update_op)
             else:
                 state_info = None
-                update_op = tf.no_op()
 
-        with tf.control_dependencies([update_op]):
-            policy = PolicyWithValue(
-                env=env,
-                observations=X,
-                dones=dones,
-                latent=policy_latent,
-                vf_latent=value_latent,
-                states=state_info,
-                sess=sess,
-                estimate_q=estimate_q,
-            )
+        policy = PolicyWithValue(
+            env=env,
+            observations=X,
+            dones=dones,
+            latent=policy_latent,
+            vf_latent=value_latent,
+            states=state_info,
+            sess=sess,
+            estimate_q=estimate_q,
+        )
         return policy
 
     return policy_fn
