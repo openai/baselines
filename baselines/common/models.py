@@ -20,8 +20,9 @@ def register(name, is_rnn=False):
 
 
 class RNN(object):
-    def __init__(self, func):
+    def __init__(self, func, memory_size=None):
         self._func = func
+        self.memory_size = memory_size
 
     def __call__(self, *args, **kwargs):
         return self._func(*args, **kwargs)

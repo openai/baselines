@@ -116,8 +116,6 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
     def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
         next_states_list = []
         state_map = {}
-        value_state = None
-        policy_state = None
         state_placeholder = None
 
         ob_space = env.observation_space
@@ -127,11 +125,6 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
         encoded_x = encode_observation(ob_space, X)
 
         with tf.variable_scope('current_rnn_memory'):
-            if isinstance(policy_network, RNN):
-                policy_state, policy_network_ = policy_network(encoded_x, dones)
-            else:
-                policy_network_ = policy_network
-
             if value_network == 'shared':
                 value_network_ = value_network
             else:
@@ -141,40 +134,39 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
                     assert callable(value_network)
                     value_network_ = value_network
 
-                if isinstance(value_network_, RNN):
-                    value_state, value_network_ = value_network_(encoded_x, dones)
+            policy_memory_size = policy_network.memory_size if isinstance(policy_network, RNN) else 0
+            value_memory_size = value_network_.memory_size if isinstance(value_network_, RNN) else 0
+            state_size = policy_memory_size + value_memory_size
 
-            if policy_state or value_state:
-                states_list = [state for state in [policy_state, value_state] if state]
-                states = tf.concat(states_list, axis=1)
-                state_placeholder = tf.placeholder(dtype=tf.float32, shape=states.get_shape(), name='states')
-                index = 0
-                for state in states_list:
-                    assert state.get_shape().ndims == 2
-                    size = int(state.get_shape()[1])
-                    state_map[state] = state_placeholder[:, index:index + size]
-                    index += size
+            if state_size > 0:
+                state_placeholder = tf.placeholder(dtype=tf.float32, shape=(nbatch, state_size),
+                                                   name='states')
+
+                state_map['policy'] = state_placeholder[:, 0:policy_memory_size]
+                state_map['value'] = state_placeholder[:, policy_memory_size:]
 
         with tf.variable_scope('policy_latent', reuse=tf.AUTO_REUSE):
-            if isinstance(policy_network_, RNN):
+            if isinstance(policy_network, RNN):
+                assert policy_memory_size > 0
                 policy_latent, next_policy_state = \
-                    policy_network_(encoded_x, dones, state_map[policy_state])
+                    policy_network(encoded_x, dones, state_map['policy'])
                 next_states_list.append(next_policy_state)
             else:
-                policy_latent = policy_network_(encoded_x)
+                policy_latent = policy_network(encoded_x)
 
         with tf.variable_scope('value_latent', reuse=tf.AUTO_REUSE):
             if value_network_ == 'shared':
                 value_latent = policy_latent
             elif isinstance(value_network_, RNN):
+                assert value_memory_size > 0
                 value_latent, next_value_state = \
-                    value_network_(encoded_x, dones, state_map[value_state])
+                    value_network_(encoded_x, dones, state_map['value'])
                 next_states_list.append(next_value_state)
             else:
                 value_latent = value_network_(encoded_x)
 
         with tf.name_scope("next_rnn_memory"):
-            if policy_state or value_state:
+            if state_size > 0:
                 next_states = tf.concat(next_states_list, axis=1)
                 state_info = {'current': state_placeholder,
                               'next': next_states, }
