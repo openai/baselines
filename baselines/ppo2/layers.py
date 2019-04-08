@@ -6,9 +6,9 @@ from baselines.common.models import register, nature_cnn, RNN
 
 
 @register("ppo_lstm", is_rnn=True)
-def ppo_lstm(nlstm=128, layer_norm=False):
+def ppo_lstm(num_units=128, layer_norm=False):
     def network_fn(input, mask):
-        memory_size = nlstm * 2
+        memory_size = num_units * 2
         nbatch = input.shape[0]
         mask.get_shape().assert_is_compatible_with([nbatch])
         state = tf.Variable(np.zeros([nbatch, memory_size]),
@@ -22,9 +22,9 @@ def ppo_lstm(nlstm=128, layer_norm=False):
             mask = tf.to_float(mask)
 
             if layer_norm:
-                h, next_state = lnlstm(input, mask, state, scope='lnlstm', nh=nlstm)
+                h, next_state = lnlstm(input, mask, state, scope='lnlstm', nh=num_units)
             else:
-                h, next_state = lstm(input, mask, state, scope='lstm', nh=nlstm)
+                h, next_state = lstm(input, mask, state, scope='lstm', nh=num_units)
             return h, next_state
 
         return state, RNN(_network_fn)
@@ -33,9 +33,9 @@ def ppo_lstm(nlstm=128, layer_norm=False):
 
 
 @register("ppo_cnn_lstm", is_rnn=True)
-def ppo_cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
+def ppo_cnn_lstm(num_units=128, layer_norm=False, **conv_kwargs):
     def network_fn(input, mask):
-        memory_size = nlstm * 2
+        memory_size = num_units * 2
         nbatch = input.shape[0]
         mask.get_shape().assert_is_compatible_with([nbatch])
         state = tf.Variable(np.zeros([nbatch, memory_size]),
@@ -53,9 +53,9 @@ def ppo_cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
             h = tf.layers.dense(h, units=512, activation=tf.nn.relu, kernel_initializer=initializer)
 
             if layer_norm:
-                h, next_state = lnlstm(h, mask, state, scope='lnlstm', nh=nlstm)
+                h, next_state = lnlstm(h, mask, state, scope='lnlstm', nh=num_units)
             else:
-                h, next_state = lstm(h, mask, state, scope='lstm', nh=nlstm)
+                h, next_state = lstm(h, mask, state, scope='lstm', nh=num_units)
             return h, next_state
 
         return state, RNN(_network_fn)
@@ -64,14 +64,14 @@ def ppo_cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
 
 
 @register("ppo_cnn_lnlstm", is_rnn=True)
-def ppo_cnn_lnlstm(nlstm=128, **conv_kwargs):
-    return ppo_cnn_lstm(nlstm, layer_norm=True, **conv_kwargs)
+def ppo_cnn_lnlstm(num_units=128, **conv_kwargs):
+    return ppo_cnn_lstm(num_units, layer_norm=True, **conv_kwargs)
 
 
 @register("ppo_gru", is_rnn=True)
-def ppo_gru(nlstm=128):
+def ppo_gru(num_units=128):
     def network_fn(input, mask):
-        memory_size = nlstm
+        memory_size = num_units
         nbatch = input.shape[0]
         mask.get_shape().assert_is_compatible_with([nbatch])
         state = tf.Variable(np.zeros([nbatch, memory_size]),
@@ -84,7 +84,7 @@ def ppo_gru(nlstm=128):
             input = tf.layers.flatten(input)
             mask = tf.to_float(mask)
 
-            h, next_state = gru(input, mask, state, nh=nlstm)
+            h, next_state = gru(input, mask, state, nh=num_units)
             return h, next_state
 
         return state, RNN(_network_fn)
@@ -93,9 +93,9 @@ def ppo_gru(nlstm=128):
 
 
 @register("ppo_lstm_mlp", is_rnn=True)
-def ppo_lstm_mlp(nlstm=128, layer_norm=False):
+def ppo_lstm_mlp(num_units=128, layer_norm=False):
     def network_fn(input, mask):
-        memory_size = nlstm * 2
+        memory_size = num_units * 2
         nbatch = input.shape[0]
         mask.get_shape().assert_is_compatible_with([nbatch])
         state = tf.Variable(np.zeros([nbatch, memory_size]),
@@ -108,7 +108,7 @@ def ppo_lstm_mlp(nlstm=128, layer_norm=False):
             input = tf.layers.flatten(input)
             mask = tf.to_float(mask)
 
-            h, next_state = lstm(input, mask, state, scope='lstm', nh=nlstm)
+            h, next_state = lstm(input, mask, state, scope='lstm', nh=num_units)
 
             num_layers = 2
             num_hidden = 64
@@ -124,9 +124,9 @@ def ppo_lstm_mlp(nlstm=128, layer_norm=False):
 
 
 @register("ppo_gru_mlp", is_rnn=True)
-def ppo_gru_mlp(nlstm=128):
+def ppo_gru_mlp(num_units=128):
     def network_fn(input, mask):
-        memory_size = nlstm
+        memory_size = num_units
         nbatch = input.shape[0]
         mask.get_shape().assert_is_compatible_with([nbatch])
         state = tf.Variable(np.zeros([nbatch, memory_size]),
@@ -139,7 +139,7 @@ def ppo_gru_mlp(nlstm=128):
             input = tf.layers.flatten(input)
             mask = tf.to_float(mask)
 
-            h, next_state = gru(input, mask, state, nh=nlstm)
+            h, next_state = gru(input, mask, state, nh=num_units)
 
             num_layers = 2
             num_hidden = 64
