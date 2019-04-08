@@ -1,4 +1,5 @@
 import sys
+import re
 import multiprocessing
 import os.path as osp
 import gym
@@ -138,6 +139,8 @@ def get_env_type(args):
             if env_id in e:
                 env_type = g
                 break
+        if ':' in env_id:
+            env_type = re.sub(r':.*', '', env_id)
         assert env_type is not None, 'env_id {} is not recognized in env types'.format(env_id, _game_envs.keys())
 
     return env_type, env_id
@@ -197,9 +200,6 @@ def main(args):
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
-
-    if args.extra_import is not None:
-        import_module(args.extra_import)
 
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
         rank = 0

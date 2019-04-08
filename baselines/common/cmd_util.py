@@ -75,6 +75,8 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
     if env_type == 'atari':
         env = wrap_deepmind(env, **wrapper_kwargs)
     elif env_type == 'retro':
+        if 'frame_stack' not in wrapper_kwargs:
+            wrapper_kwargs['frame_stack'] = 1
         env = retro_wrappers.wrap_deepmind_retro(env, **wrapper_kwargs)
 
     if reward_scale != 1:
@@ -148,7 +150,6 @@ def common_arg_parser():
     parser.add_argument('--save_video_interval', help='Save video every x steps (0 = disabled)', default=0, type=int)
     parser.add_argument('--save_video_length', help='Length of recorded video. Default: 200', default=200, type=int)
     parser.add_argument('--play', default=False, action='store_true')
-    parser.add_argument('--extra_import', help='Extra module to import to access external environments', type=str, default=None)
     return parser
 
 def robotics_arg_parser():
