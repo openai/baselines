@@ -2,10 +2,10 @@ import numpy as np
 import tensorflow as tf
 
 from baselines.a2c.utils import ortho_init, fc
-from baselines.common.models import register
+from baselines.common.models import register, nature_cnn, RNN
 
 
-@register("ppo_lstm")
+@register("ppo_lstm", is_rnn=True)
 def ppo_lstm(nlstm=128, layer_norm=False):
     def network_fn(input, mask):
         memory_size = nlstm * 2
@@ -27,13 +27,13 @@ def ppo_lstm(nlstm=128, layer_norm=False):
                 h, next_state = lstm(input, mask, state, scope='lstm', nh=nlstm)
             return h, next_state
 
-        return state, _network_fn
+        return state, RNN(_network_fn)
 
-    return network_fn
+    return RNN(network_fn)
 
 
-@register("ppo_cnn_lstm")
-def ppo_cnn_lstm(nlstm=128, layer_norm=False, pad='VALID', **conv_kwargs):
+@register("ppo_cnn_lstm", is_rnn=True)
+def ppo_cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
     def network_fn(input, mask):
         memory_size = nlstm * 2
         nbatch = input.shape[0]
@@ -48,27 +48,7 @@ def ppo_cnn_lstm(nlstm=128, layer_norm=False, pad='VALID', **conv_kwargs):
             mask = tf.to_float(mask)
             initializer = ortho_init(np.sqrt(2))
 
-            h = tf.contrib.layers.conv2d(input,
-                                         num_outputs=32,
-                                         kernel_size=8,
-                                         stride=4,
-                                         padding=pad,
-                                         weights_initializer=initializer,
-                                         **conv_kwargs)
-            h = tf.contrib.layers.conv2d(h,
-                                         num_outputs=64,
-                                         kernel_size=4,
-                                         stride=2,
-                                         padding=pad,
-                                         weights_initializer=initializer,
-                                         **conv_kwargs)
-            h = tf.contrib.layers.conv2d(h,
-                                         num_outputs=64,
-                                         kernel_size=3,
-                                         stride=1,
-                                         padding=pad,
-                                         weights_initializer=initializer,
-                                         **conv_kwargs)
+            h = nature_cnn(input, **conv_kwargs)
             h = tf.layers.flatten(h)
             h = tf.layers.dense(h, units=512, activation=tf.nn.relu, kernel_initializer=initializer)
 
@@ -78,17 +58,17 @@ def ppo_cnn_lstm(nlstm=128, layer_norm=False, pad='VALID', **conv_kwargs):
                 h, next_state = lstm(h, mask, state, scope='lstm', nh=nlstm)
             return h, next_state
 
-        return state, _network_fn
+        return state, RNN(_network_fn)
 
-    return network_fn
+    return RNN(network_fn)
 
 
-@register("ppo_cnn_lnlstm")
+@register("ppo_cnn_lnlstm", is_rnn=True)
 def ppo_cnn_lnlstm(nlstm=128, **conv_kwargs):
     return ppo_cnn_lstm(nlstm, layer_norm=True, **conv_kwargs)
 
 
-@register("ppo_gru")
+@register("ppo_gru", is_rnn=True)
 def ppo_gru(nlstm=128):
     def network_fn(input, mask):
         memory_size = nlstm
@@ -107,12 +87,12 @@ def ppo_gru(nlstm=128):
             h, next_state = gru(input, mask, state, nh=nlstm)
             return h, next_state
 
-        return state, _network_fn
+        return state, RNN(_network_fn)
 
-    return network_fn
+    return RNN(network_fn)
 
 
-@register("ppo_lstm_mlp")
+@register("ppo_lstm_mlp", is_rnn=True)
 def ppo_lstm_mlp(nlstm=128, layer_norm=False):
     def network_fn(input, mask):
         memory_size = nlstm * 2
@@ -138,12 +118,12 @@ def ppo_lstm_mlp(nlstm=128, layer_norm=False):
                 h = activation(h)
             return h, next_state
 
-        return state, _network_fn
+        return state, RNN(_network_fn)
 
-    return network_fn
+    return RNN(network_fn)
 
 
-@register("ppo_gru_mlp")
+@register("ppo_gru_mlp", is_rnn=True)
 def ppo_gru_mlp(nlstm=128):
     def network_fn(input, mask):
         memory_size = nlstm
@@ -170,9 +150,9 @@ def ppo_gru_mlp(nlstm=128):
 
             return h, next_state
 
-        return state, _network_fn
+        return state, RNN(_network_fn)
 
-    return network_fn
+    return RNN(network_fn)
 
 
 def lstm(x, m, s, scope, nh, init_scale=1.0):

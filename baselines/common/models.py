@@ -1,17 +1,31 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.layers as layers
+
 from baselines.a2c import utils
 from baselines.a2c.utils import conv, fc, conv_to_fc, batch_to_seq, seq_to_batch
 from baselines.common.mpi_running_mean_std import RunningMeanStd
-import tensorflow.contrib.layers as layers
 
 mapping = {}
 
-def register(name):
+
+def register(name, is_rnn=False):
     def _thunk(func):
+        if is_rnn:
+            func = RNN(func)
         mapping[name] = func
         return func
+
     return _thunk
+
+
+class RNN(object):
+    def __init__(self, func):
+        self._func = func
+
+    def __call__(self, *args, **kwargs):
+        return self._func(*args, **kwargs)
+
 
 def nature_cnn(unscaled_images, **conv_kwargs):
     """
@@ -46,6 +60,7 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
 
     function that builds fully connected network with a given input tensor / placeholder
     """
+
     def network_fn(X):
         h = tf.layers.flatten(X)
         for i in range(num_layers):
@@ -63,6 +78,7 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
 def cnn(**conv_kwargs):
     def network_fn(X):
         return nature_cnn(X, **conv_kwargs)
+
     return network_fn
 
 
@@ -77,10 +93,11 @@ def cnn_small(**conv_kwargs):
         h = conv_to_fc(h)
         h = activ(fc(h, 'fc1', nh=128, init_scale=np.sqrt(2)))
         return h
+
     return network_fn
 
 
-@register("lstm")
+@register("lstm", is_rnn=True)
 def lstm(nlstm=128, layer_norm=False):
     """
     Builds LSTM (Long-Short Term Memory) network to be used in a policy.
@@ -116,8 +133,8 @@ def lstm(nlstm=128, layer_norm=False):
 
         h = tf.layers.flatten(X)
 
-        M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
-        S = tf.placeholder(tf.float32, [nenv, 2*nlstm]) #states
+        M = tf.placeholder(tf.float32, [nbatch])  # mask (done t-1)
+        S = tf.placeholder(tf.float32, [nenv, 2 * nlstm])  # states
 
         xs = batch_to_seq(h, nenv, nsteps)
         ms = batch_to_seq(M, nenv, nsteps)
@@ -130,12 +147,12 @@ def lstm(nlstm=128, layer_norm=False):
         h = seq_to_batch(h5)
         initial_state = np.zeros(S.shape.as_list(), dtype=float)
 
-        return h, {'S':S, 'M':M, 'state':snew, 'initial_state':initial_state}
+        return h, {'S': S, 'M': M, 'state': snew, 'initial_state': initial_state}
 
     return network_fn
 
 
-@register("cnn_lstm")
+@register("cnn_lstm", is_rnn=True)
 def cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
     def network_fn(X, nenv=1):
         nbatch = X.shape[0]
@@ -143,8 +160,8 @@ def cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
 
         h = nature_cnn(X, **conv_kwargs)
 
-        M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
-        S = tf.placeholder(tf.float32, [nenv, 2*nlstm]) #states
+        M = tf.placeholder(tf.float32, [nbatch])  # mask (done t-1)
+        S = tf.placeholder(tf.float32, [nenv, 2 * nlstm])  # states
 
         xs = batch_to_seq(h, nenv, nsteps)
         ms = batch_to_seq(M, nenv, nsteps)
@@ -157,12 +174,12 @@ def cnn_lstm(nlstm=128, layer_norm=False, **conv_kwargs):
         h = seq_to_batch(h5)
         initial_state = np.zeros(S.shape.as_list(), dtype=float)
 
-        return h, {'S':S, 'M':M, 'state':snew, 'initial_state':initial_state}
+        return h, {'S': S, 'M': M, 'state': snew, 'initial_state': initial_state}
 
     return network_fn
 
 
-@register("cnn_lnlstm")
+@register("cnn_lnlstm", is_rnn=True)
 def cnn_lnlstm(nlstm=128, **conv_kwargs):
     return cnn_lstm(nlstm, layer_norm=True, **conv_kwargs)
 
@@ -195,7 +212,9 @@ def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
                                            **conv_kwargs)
 
         return out
+
     return network_fn
+
 
 def _normalize_clip_observation(x, clip_range=[-5.0, 5.0]):
     rms = RunningMeanStd(shape=x.shape[1:])

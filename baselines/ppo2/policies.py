@@ -1,12 +1,12 @@
-import inspect
-
 import gym
 import numpy as np
 import tensorflow as tf
+
 from baselines.a2c.utils import fc
 from baselines.common import tf_util
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_placeholder, encode_observation
+from baselines.common.models import RNN
 from baselines.common.models import get_network_builder
 from baselines.common.tf_util import adjust_shape
 
@@ -125,7 +125,7 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
         encoded_x = encode_observation(ob_space, X)
 
         with tf.variable_scope('load_rnn_memory'):
-            if is_rnn_network(policy_network):
+            if isinstance(policy_network, RNN):
                 policy_state, policy_network_ = policy_network(encoded_x, dones)
             else:
                 policy_network_ = policy_network
@@ -139,7 +139,7 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
                     assert callable(value_network)
                     value_network_ = value_network
 
-                if is_rnn_network(value_network_):
+                if isinstance(value_network_, RNN):
                     value_state, value_network_ = value_network_(encoded_x, dones)
 
             if policy_state or value_state:
@@ -154,7 +154,7 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
                     index += size
 
         with tf.variable_scope('policy_latent', reuse=tf.AUTO_REUSE):
-            if is_rnn_network(policy_network_):
+            if isinstance(policy_network_, RNN):
                 policy_latent, next_policy_state = \
                     policy_network_(encoded_x, dones, state_map[policy_state])
                 next_states_list.append(next_policy_state)
@@ -164,7 +164,7 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
         with tf.variable_scope('value_latent', reuse=tf.AUTO_REUSE):
             if value_network_ == 'shared':
                 value_latent = policy_latent
-            elif is_rnn_network(value_network_):
+            elif isinstance(value_network_, RNN):
                 value_latent, next_value_state = \
                     value_network_(encoded_x, dones, state_map[value_state])
                 next_states_list.append(next_value_state)
@@ -201,7 +201,3 @@ def build_ppo_policy(env, policy_network, value_network=None, estimate_q=False, 
         return policy
 
     return policy_fn
-
-
-def is_rnn_network(network):
-    return 'mask' in inspect.getfullargspec(network).args
