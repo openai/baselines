@@ -140,11 +140,13 @@ class Model(object):
     def step_as_dict(self, **kwargs):
         return self.act_model.step(**kwargs)
 
-    def step(self, observation, done, **kwargs):
-        kwargs.update({'observations': observation})
-        kwargs.update({'dones': done})
+    def step(self, obs, M=None, S=None, **kwargs):
+        kwargs.update({'observations': obs})
+        if M is not None and S is not None:
+            kwargs.update({'dones': M})
+            kwargs.update({'states': S})
         transition = self.act_model.step(**kwargs)
-        states = transition['states'] if 'states' in transition else None
+        states = transition['next_states'] if 'next_states' in transition else None
         return transition['actions'], transition['values'], states, transition['neglogpacs']
 
     def train(self,

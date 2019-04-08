@@ -39,7 +39,7 @@ class Runner(AbstractEnvRunner):
             "neglogpacs": np.float32,
         }
 
-        prev_transition = {'next_states': self.model.initial_state}
+        prev_transition = {'next_states': self.model.initial_state} if self.model.initial_state is not None else {}
         epinfos = []
 
         # For n in range number of steps
