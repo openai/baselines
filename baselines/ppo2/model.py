@@ -137,7 +137,7 @@ class Model(object):
                 if MPI is not None:
                     sync_from_root(sess, global_variables)  # pylint: disable=E1101
 
-    def step_as_dict(self, **kwargs):
+    def step_with_dict(self, **kwargs):
         return self.act_model.step(**kwargs)
 
     def step(self, obs, M=None, S=None, **kwargs):
