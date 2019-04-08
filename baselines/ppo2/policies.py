@@ -6,9 +6,9 @@ from baselines.a2c.utils import fc
 from baselines.common import tf_util
 from baselines.common.distributions import make_pdtype
 from baselines.common.input import observation_placeholder, encode_observation
-from baselines.common.models import RNN
 from baselines.common.models import get_network_builder
 from baselines.common.tf_util import adjust_shape
+from baselines.ppo2.layers import RNN
 
 
 class PolicyWithValue(object):
