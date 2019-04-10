@@ -127,6 +127,9 @@ class A2C(ActorCriticRLModel):
                     self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
                     self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
                     self.vf_loss = mse(tf.squeeze(train_model._value), self.rewards_ph)
+                    # https://arxiv.org/pdf/1708.04782.pdf#page=9, https://arxiv.org/pdf/1602.01783.pdf#page=4
+                    # and https://github.com/dennybritz/reinforcement-learning/issues/34
+                    # suggest to add an entropy component in order to improve exploration.
                     loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
 
                     tf.summary.scalar('entropy_loss', self.entropy)
