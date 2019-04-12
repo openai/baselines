@@ -5,7 +5,6 @@ from multiprocessing import Queue, Process
 import cv2
 import numpy as np
 from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
 
 from stable_baselines import logger
 
@@ -155,6 +154,9 @@ class ExpertDataset(object):
         """
         Show histogram plotting of the episode returns
         """
+        # Isolate dependency since it is only used for plotting and also since
+        # different matplotlib backends have further dependencies themselves.
+        import matplotlib.pyplot as plt
         plt.hist(self.returns)
         plt.show()
 

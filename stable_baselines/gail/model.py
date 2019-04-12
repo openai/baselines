@@ -1,9 +1,7 @@
-from stable_baselines.common import ActorCriticRLModel
-from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.trpo_mpi import TRPO
 
 
-class GAIL(ActorCriticRLModel):
+class GAIL(TRPO):
     """
     Generative Adversarial Imitation Learning (GAIL)
 
@@ -38,68 +36,19 @@ class GAIL(ActorCriticRLModel):
                  hidden_size_adversary=100, adversary_entcoeff=1e-3,
                  g_step=3, d_step=1, d_stepsize=3e-4, verbose=0,
                  _init_setup_model=True, **kwargs):
-        super().__init__(policy=policy, env=env, verbose=verbose, requires_vec_env=False,
-                         _init_setup_model=_init_setup_model)
-
-        self.trpo = TRPO(policy, env, verbose=verbose, _init_setup_model=False, **kwargs)
-        self.trpo.using_gail = True
-        self.trpo.expert_dataset = expert_dataset
-        self.trpo.g_step = g_step
-        self.trpo.d_step = d_step
-        self.trpo.d_stepsize = d_stepsize
-        self.trpo.hidden_size_adversary = hidden_size_adversary
-        self.trpo.adversary_entcoeff = adversary_entcoeff
-        self.env = self.trpo.env
+        super().__init__(policy, env, verbose=verbose, _init_setup_model=False, **kwargs)
+        self.using_gail = True
+        self.expert_dataset = expert_dataset
+        self.g_step = g_step
+        self.d_step = d_step
+        self.d_stepsize = d_stepsize
+        self.hidden_size_adversary = hidden_size_adversary
+        self.adversary_entcoeff = adversary_entcoeff
 
         if _init_setup_model:
             self.setup_model()
 
-    def _get_pretrain_placeholders(self):
-        pass
-
-    def pretrain(self, dataset, n_epochs=10, learning_rate=1e-4,
-                 adam_epsilon=1e-8, val_interval=None):
-        self.trpo.pretrain(dataset, n_epochs=n_epochs, learning_rate=learning_rate,
-                           adam_epsilon=adam_epsilon, val_interval=val_interval)
-        return self
-
-    def set_env(self, env):
-        self.trpo.set_env(env)
-        self.env = self.trpo.env
-
-    def setup_model(self):
-        assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the GAIL model must be an " \
-                                                           "instance of common.policies.ActorCriticPolicy."
-        self.trpo.setup_model()
-
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="GAIL",
               reset_num_timesteps=True):
-        assert self.trpo.expert_dataset is not None, "You must pass an expert dataset to GAIL for training"
-        self.trpo.learn(total_timesteps, callback, seed, log_interval, tb_log_name, reset_num_timesteps)
-        return self
-
-    def predict(self, observation, state=None, mask=None, deterministic=False):
-        return self.trpo.predict(observation, state=state, mask=mask, deterministic=deterministic)
-
-    def action_probability(self, observation, state=None, mask=None, actions=None):
-        return self.trpo.action_probability(observation, state=state, mask=mask, actions=actions)
-
-    def save(self, save_path):
-        self.trpo.save(save_path)
-
-    @classmethod
-    def load(cls, load_path, env=None, **kwargs):
-        data, params = cls._load_from_file(load_path)
-
-        model = cls(policy=data["policy"], env=None, _init_setup_model=False)
-        model.trpo.__dict__.update(data)
-        model.trpo.__dict__.update(kwargs)
-        model.set_env(env)
-        model.setup_model()
-
-        restores = []
-        for param, loaded_p in zip(model.trpo.params, params):
-            restores.append(param.assign(loaded_p))
-        model.trpo.sess.run(restores)
-
-        return model
+        assert self.expert_dataset is not None, "You must pass an expert dataset to GAIL for training"
+        return super().learn(total_timesteps, callback, seed, log_interval, tb_log_name, reset_num_timesteps)
