@@ -2,14 +2,16 @@ import collections
 import functools
 import itertools
 import multiprocessing
+
 import pytest
 import gym
 import numpy as np
 
-from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize, VecFrameStack
 
 N_ENVS = 3
 VEC_ENV_CLASSES = [DummyVecEnv, SubprocVecEnv]
+VEC_ENV_WRAPPERS = [None, VecNormalize, VecFrameStack]
 
 
 class CustomGymEnv(gym.Env):
@@ -54,12 +56,20 @@ class CustomGymEnv(gym.Env):
 
 
 @pytest.mark.parametrize('vec_env_class', VEC_ENV_CLASSES)
-def test_vecenv_custom_calls(vec_env_class):
+@pytest.mark.parametrize('vec_env_wrapper', VEC_ENV_WRAPPERS)
+def test_vecenv_custom_calls(vec_env_class, vec_env_wrapper):
     """Test access to methods/attributes of vectorized environments"""
     def make_env():
-        return CustomGymEnv(gym.spaces.Discrete(2))
+        return CustomGymEnv(gym.spaces.Box(low=np.zeros(2), high=np.ones(2)))
     vec_env = vec_env_class([make_env for _ in range(N_ENVS)])
-    env_method_results = vec_env.env_method('custom_method', 1, dim_1=2)
+
+    if vec_env_wrapper is not None:
+        if vec_env_wrapper == VecFrameStack:
+            vec_env = vec_env_wrapper(vec_env, n_stack=2)
+        else:
+            vec_env = vec_env_wrapper(vec_env)
+
+    env_method_results = vec_env.env_method('custom_method', 1, indices=None, dim_1=2)
     setattr_results = []
     # Set current_step to an arbitrary value
     for env_idx in range(N_ENVS):
@@ -73,28 +83,39 @@ def test_vecenv_custom_calls(vec_env_class):
 
     for env_idx in range(N_ENVS):
         assert (env_method_results[env_idx] == np.ones((1, 2))).all()
-        assert setattr_results[env_idx][0] is None
+        assert setattr_results[env_idx] is None
         assert getattr_results[env_idx] == env_idx
+
+    # Call env_method on a subset of the VecEnv
+    env_method_subset = vec_env.env_method('custom_method', 1, indices=[0, 2], dim_1=3)
+    assert (env_method_subset[0] == np.ones((1, 3))).all()
+    assert (env_method_subset[1] == np.ones((1, 3))).all()
+    assert len(env_method_subset) == 2
+
 
     # Test to change value for all the environments
     setattr_result = vec_env.set_attr('current_step', 42, indices=None)
     getattr_result = vec_env.get_attr('current_step')
-    assert setattr_result == [None for _ in range(N_ENVS)]
+    assert setattr_result is None
     assert getattr_result == [42 for _ in range(N_ENVS)]
 
     # Additional tests for setattr that does not affect all the environments
     vec_env.reset()
     setattr_result = vec_env.set_attr('current_step', 12, indices=[0, 1])
     getattr_result = vec_env.get_attr('current_step')
-    assert setattr_result == [None for _ in range(2)]
+    getattr_result_subset = vec_env.get_attr('current_step', indices=[0, 1])
+    assert setattr_result is None
     assert getattr_result == [12 for _ in range(2)] + [0 for _ in range(N_ENVS - 2)]
+    assert getattr_result_subset == [12, 12]
+    assert vec_env.get_attr('current_step', indices=[0, 2]) == [12, 0]
 
     vec_env.reset()
     # Change value only for first and last environment
     setattr_result = vec_env.set_attr('current_step', 12, indices=[0, -1])
     getattr_result = vec_env.get_attr('current_step')
-    assert setattr_result == [None for _ in range(2)]
+    assert setattr_result is None
     assert getattr_result == [12] + [0 for _ in range(N_ENVS - 2)] + [12]
+    assert vec_env.get_attr('current_step', indices=[-1]) == [12]
 
     vec_env.close()
 
@@ -120,8 +141,6 @@ def check_vecenv_spaces(vec_env_class, space, obs_assert):
         actions = [vec_env.action_space.sample() for _ in range(N_ENVS)]
         obs, _rews, dones, _infos = vec_env.step(actions)
         obs_assert(obs)
-    vec_env.close()
-
     vec_env.close()
 
 

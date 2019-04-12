@@ -141,52 +141,38 @@ class SubprocVecEnv(VecEnv):
         imgs = [pipe.recv() for pipe in self.remotes]
         return imgs
 
-    def env_method(self, method_name, *method_args, **method_kwargs):
-        """
-        Provides an interface to call arbitrary class methods of vectorized environments
-
-        :param method_name: (str) The name of the env class method to invoke
-        :param method_args: (tuple) Any positional arguments to provide in the call
-        :param method_kwargs: (dict) Any keyword arguments to provide in the call
-        :return: (list) List of items retured by each environment's method call
-        """
-
-        for remote in self.remotes:
-            remote.send(('env_method', (method_name, method_args, method_kwargs)))
-        return [remote.recv() for remote in self.remotes]
-
-    def get_attr(self, attr_name):
-        """
-        Provides a mechanism for getting class attribues from vectorized environments
-        (note: attribute value returned must be picklable)
-
-        :param attr_name: (str) The name of the attribute whose value to return
-        :return: (list) List of values of 'attr_name' in all environments
-        """
-
-        for remote in self.remotes:
+    def get_attr(self, attr_name, indices=None):
+        """Return attribute from vectorized environment (see base class)."""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
             remote.send(('get_attr', attr_name))
-        return [remote.recv() for remote in self.remotes]
+        return [remote.recv() for remote in target_remotes]
 
     def set_attr(self, attr_name, value, indices=None):
-        """
-        Provides a mechanism for setting arbitrary class attributes inside vectorized environments
-        (note:  this is a broadcast of a single value to all instances)
-        (note:  the value must be picklable)
-
-        :param attr_name: (str) Name of attribute to assign new value
-        :param value: (obj) Value to assign to 'attr_name'
-        :param indices: (list,tuple) Iterable containing indices of envs whose attr to set
-        :return: (list) in case env access methods might return something, they will be returned in a list
-        """
-
-        if indices is None:
-            indices = range(len(self.remotes))
-        elif isinstance(indices, int):
-            indices = [indices]
-        for remote in [self.remotes[i] for i in indices]:
+        """Set attribute inside vectorized environments (see base class)."""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
             remote.send(('set_attr', (attr_name, value)))
-        return [remote.recv() for remote in [self.remotes[i] for i in indices]]
+        for remote in target_remotes:
+            remote.recv()
+
+    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
+            remote.send(('env_method', (method_name, method_args, method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
+
+    def _get_target_remotes(self, indices):
+        """
+        Get the connection object needed to communicate with the wanted
+        envs that are in subprocesses.
+
+        :param indices: (None,int,Iterable) refers to indices of envs.
+        :return: ([multiprocessing.Connection]) Connection object to communicate between processes.
+        """
+        indices = self._get_indices(indices)
+        return [self.remotes[i] for i in indices]
 
 
 def _flatten_obs(obs, space):

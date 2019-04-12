@@ -83,6 +83,42 @@ class VecEnv(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_attr(self, attr_name, indices=None):
+        """
+        Return attribute from vectorized environment.
+
+        :param attr_name: (str) The name of the attribute whose value to return
+        :param indices: (list,int) Indices of envs to get attribute from
+        :return: (list) List of values of 'attr_name' in all environments
+        """
+        pass
+
+    @abstractmethod
+    def set_attr(self, attr_name, value, indices=None):
+        """
+        Set attribute inside vectorized environments.
+
+        :param attr_name: (str) The name of attribute to assign new value
+        :param value: (obj) Value to assign to `attr_name`
+        :param indices: (list,int) Indices of envs to assign value
+        :return: (NoneType)
+        """
+        pass
+
+    @abstractmethod
+    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
+        """
+        Call instance methods of vectorized environments.
+
+        :param method_name: (str) The name of the environment method to invoke.
+        :param indices: (list,int) Indices of envs whose method to call
+        :param method_args: (tuple) Any positional arguments to provide in the call
+        :param method_kwargs: (dict) Any keyword arguments to provide in the call
+        :return: (list) List of items returned by the environment's method call
+        """
+        pass
+
     def step(self, actions):
         """
         Step the environments with the given action
@@ -113,6 +149,19 @@ class VecEnv(ABC):
             return self.venv.unwrapped
         else:
             return self
+
+    def _get_indices(self, indices):
+        """
+        Convert a flexibly-typed reference to environment indices to an implied list of indices.
+
+        :param indices: (None,int,Iterable) refers to indices of envs.
+        :return: (list) the implied list of indices.
+        """
+        if indices is None:
+            indices = range(self.num_envs)
+        elif isinstance(indices, int):
+            indices = [indices]
+        return indices
 
 
 class VecEnvWrapper(VecEnv):
@@ -148,6 +197,15 @@ class VecEnvWrapper(VecEnv):
 
     def get_images(self):
         return self.venv.get_images()
+
+    def get_attr(self, attr_name, indices=None):
+        return self.venv.get_attr(attr_name, indices)
+
+    def set_attr(self, attr_name, value, indices=None):
+        return self.venv.set_attr(attr_name, value, indices)
+
+    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
+        return self.venv.env_method(method_name, *method_args, indices=indices, **method_kwargs)
 
 
 class CloudpickleWrapper(object):
