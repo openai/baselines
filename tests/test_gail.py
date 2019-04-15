@@ -38,15 +38,25 @@ def test_gail(expert_env):
             obs = env.reset()
     del dataset, model
 
+@pytest.mark.parametrize("generate_env", [
+                                            (SAC, 'MlpPolicy', 'Pendulum-v0', 1, 10),
+                                            (DQN, 'MlpPolicy', 'CartPole-v1', 1, 10),
+                                            (A2C, 'MlpLstmPolicy', 'Pendulum-v0', 1, 10),
+                                            (A2C, 'MlpLstmPolicy', 'CartPole-v1', 1, 10),
+                                            (A2C, 'CnnPolicy', 'BreakoutNoFrameskip-v4', 8, 1),
+                                          ])
 
-def test_generate_pendulum():
-    model = SAC('MlpPolicy', 'Pendulum-v0', verbose=0)
-    generate_expert_traj(model, 'expert_pendulum', n_timesteps=1000, n_episodes=10)
+def test_generate(generate_env):
+    model, policy, env_name, n_env, n_episodes = generate_env
 
+    if n_env > 1:
+        env = make_atari_env(env_name, num_env=n_env, seed=0)
+        model = model(policy, env, verbose=0)
+    else:
+        model = model(policy, env_name, verbose=0)
 
-def test_generate_cartpole():
-    model = DQN('MlpPolicy', 'CartPole-v1', verbose=0)
-    generate_expert_traj(model, 'expert_cartpole', n_timesteps=1000, n_episodes=10)
+    generate_expert_traj(model, 'expert', n_timesteps=1000, n_episodes=n_episodes,
+                             image_folder='test_recorded_images')
 
 
 def test_generate_callable():

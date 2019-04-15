@@ -10,9 +10,11 @@ Pre-Release 2.5.1a0 (WIP)
 
 - doc update (fix example of result plotter + improve doc)
 - fixed logger issues when stdout lacks ``read`` function
+- added support for multi env recording to ``generate_expert_traj`` (@XMaster96)
+- added support for LSTM model recording to ``generate_expert_traj`` (@XMaster96)
 - ``GAIL``: remove mandatory matplotlib dependency and refactor as subclass of ``TRPO`` (@kantneel and @AdamGleave)
 - added ``get_attr()``, ``env_method()`` and ``set_attr()`` methods for all VecEnv. 
-  Those methods now all accept ``indices`` keyword to select a subset of envs. 
+  Those methods now all accept ``indices`` keyword to select a subset of envs.
   ``set_attr`` now returns ``None`` rather than a list of ``None``. (@kantneel)
 
 
@@ -276,4 +278,4 @@ In random order...
 
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
 @EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn @AdamGleave @keshaviyengar @tperol
-@kantneel
+@XMaster96 @kantneel

@@ -7,6 +7,7 @@ from gym import spaces
 
 from stable_baselines.common.base_class import BaseRLModel
 from stable_baselines.common.vec_env import VecEnv, VecFrameStack
+from stable_baselines.common.base_class import _UnvecWrapper
 
 
 def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
@@ -36,9 +37,10 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
     assert env is not None, "You must set the env in the model or pass it to the function."
 
     is_vec_env = False
-    if isinstance(env, VecEnv):
+    if isinstance(env, VecEnv) and not isinstance(env, _UnvecWrapper):
         is_vec_env = True
-        assert env.num_envs == 1, 'You must use only one env to record expert data'
+        if env.num_envs > 1:
+            warnings.warn("You are using multiple envs, only the data from the first one will be recorded.")
 
     # Sanity check
     assert (isinstance(env.observation_space, spaces.Box) or
@@ -87,6 +89,12 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
     episode_starts.append(True)
     reward_sum = 0.0
     idx = 0
+    # state and mask for recurrent policies
+    state, mask = None, None
+
+    if is_vec_env:
+        mask = [True for _ in range(env.num_envs)]
+
     while ep_idx < n_episodes:
         if record_images:
             image_path = os.path.join(image_folder, "{}.{}".format(idx, image_ext))
@@ -101,11 +109,18 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
             observations.append(obs)
 
         if isinstance(model, BaseRLModel):
-            action, _ = model.predict(obs)
+            action, state = model.predict(obs, state=state, mask=mask)
         else:
             action = model(obs)
 
         obs, reward, done, _ = env.step(action)
+
+        # Use only first env
+        if is_vec_env:
+            mask = [done[0] for _ in range(env.num_envs)]
+            action = np.array([action[0]])
+            reward = np.array([reward[0]])
+            done = np.array([done[0]])
 
         actions.append(action)
         rewards.append(reward)
@@ -113,7 +128,11 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
         reward_sum += reward
         idx += 1
         if done:
-            obs = env.reset()
+            if not is_vec_env:
+                obs = env.reset()
+                # Reset the state in case of a recurrent policy
+                state = None
+
             episode_returns[ep_idx] = reward_sum
             reward_sum = 0.0
             ep_idx += 1
@@ -147,3 +166,5 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
         print(key, val.shape)
 
     np.savez(save_path, **numpy_dict)
+
+    env.close()
