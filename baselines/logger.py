@@ -38,8 +38,8 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         # Create strings for printing
         key2str = {}
         for (key, val) in sorted(kvs.items()):
-            if isinstance(val, float):
-                valstr = '%-8.3g' % (val,)
+            if hasattr(val, '__float__'):
+                valstr = '%-8.3g' % val
             else:
                 valstr = str(val)
             key2str[self._truncate(key)] = self._truncate(valstr)
@@ -361,6 +361,15 @@ class Logger(object):
             if isinstance(fmt, SeqWriter):
                 fmt.writeseq(map(str, args))
 
+def get_rank_without_mpi_import():
+    # check environment variables here instead of importing mpi4py
+    # to avoid calling MPI_Init() when this module is imported
+    for varname in ['PMI_RANK', 'OMPI_COMM_WORLD_RANK']:
+        if varname in os.environ:
+            return int(os.environ[varname])
+    return 0
+
+
 def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
     """
     If comm is provided, average all numerical stats across that comm
@@ -373,12 +382,7 @@ def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
     assert isinstance(dir, str)
     os.makedirs(dir, exist_ok=True)
 
-    rank = 0
-    # check environment variables here instead of importing mpi4py
-    # to avoid calling MPI_Init() when this module is imported
-    for varname in ['PMI_RANK', 'OMPI_COMM_WORLD_RANK']:
-        if varname in os.environ:
-            rank = int(os.environ[varname])
+    rank = get_rank_without_mpi_import()
     if rank > 0:
         log_suffix = log_suffix + "-rank%03i" % rank
 
