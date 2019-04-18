@@ -64,10 +64,10 @@ def make_env(env_id, env_type, mpi_rank=0, subrank=0, seed=None, reward_scale=1.
         import retro
         gamestate = gamestate or retro.State.DEFAULT
         env = retro_wrappers.make_retro(game=env_id, max_episode_steps=10000, use_restricted_actions=retro.Actions.DISCRETE, state=gamestate)
-    elif env_type == 'custom' and 'worker_id' in kwargs.keys():
-        env = gym.make(env_id, worker_id=kwargs['worker_id'])
-    else:
+    elif env_type == 'custom':
         env = gym.make(env_id, **kwargs)
+    else:
+        env = gym.make(env_id)
 
     if flatten_dict_observations and isinstance(env.observation_space, gym.spaces.Dict):
         keys = env.observation_space.spaces.keys()

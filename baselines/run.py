@@ -112,7 +112,7 @@ def build_env(args):
         flatten_dict_observations = alg not in {'her'}
         env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
 
-        if env_type == 'mujoco' or 'custom':
+        if env_type in ['mujoco', 'custom']:
             env = VecNormalize(env)
 
     return env
