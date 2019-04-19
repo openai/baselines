@@ -403,9 +403,11 @@ class TRPO(ActorCriticRLModel):
 
                         with self.timed("vf"):
                             for _ in range(self.vf_iters):
+                                # NOTE: for recurrent policies, use shuffle=False?
                                 for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                                                                          include_final_partial_batch=False,
-                                                                         batch_size=128):
+                                                                         batch_size=128,
+                                                                         shuffle=True):
                                     grad = self.allmean(self.compute_vflossandgrad(mbob, mbob, mbret, sess=self.sess))
                                     self.vfadam.update(grad, self.vf_stepsize)
 
@@ -424,9 +426,11 @@ class TRPO(ActorCriticRLModel):
 
                         # NOTE: uses only the last g step for observation
                         d_losses = []  # list of tuples, each of which gives the loss for a minibatch
+                        # NOTE: for recurrent policies, use shuffle=False?
                         for ob_batch, ac_batch in dataset.iterbatches((observation, action),
                                                                       include_final_partial_batch=False,
-                                                                      batch_size=batch_size):
+                                                                      batch_size=batch_size,
+                                                                      shuffle=True):
                             ob_expert, ac_expert = self.expert_dataset.get_next_batch()
                             # update running mean/std for reward_giver
                             if self.reward_giver.normalize:

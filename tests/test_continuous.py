@@ -16,7 +16,7 @@ from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.identity_env import IdentityEnvBox
-from stable_baselines.ddpg import AdaptiveParamNoiseSpec
+from stable_baselines.ddpg import AdaptiveParamNoiseSpec, NormalActionNoise
 from tests.test_common import _assert_eq
 
 
@@ -193,3 +193,15 @@ def test_ddpg_normalization():
 
     if os.path.exists("./test_ddpg"):
         os.remove("./test_ddpg")
+
+
+def test_ddpg_popart():
+    """
+    Test DDPG with pop-art normalization
+    """
+    n_actions = 1
+    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    model = DDPG('MlpPolicy', 'Pendulum-v0', memory_limit=50000, normalize_observations=True,
+                 normalize_returns=True, nb_rollout_steps=128, nb_train_steps=1,
+                 batch_size=64, action_noise=action_noise, enable_popart=True)
+    model.learn(1000)

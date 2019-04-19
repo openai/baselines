@@ -473,7 +473,7 @@ class DDPG(OffPolicyRLModel):
         self.critic_loss = tf.reduce_mean(tf.square(self.normalized_critic_tf - normalized_critic_target_tf))
         if self.critic_l2_reg > 0.:
             critic_reg_vars = [var for var in tf_util.get_trainable_vars('model/qf/')
-                               if 'bias' not in var.name and 'output' not in var.name and 'b' not in var.name]
+                               if 'bias' not in var.name and 'qf_output' not in var.name and 'b' not in var.name]
             if self.verbose >= 2:
                 for var in critic_reg_vars:
                     logger.info('  regularizing: {}'.format(var.name))
@@ -506,8 +506,8 @@ class DDPG(OffPolicyRLModel):
         new_mean = self.ret_rms.mean
 
         self.renormalize_q_outputs_op = []
-        for out_vars in [[var for var in tf_util.get_trainable_vars('model/qf/') if 'output' in var.name],
-                         [var for var in tf_util.get_trainable_vars('target/qf/') if 'output' in var.name]]:
+        for out_vars in [[var for var in tf_util.get_trainable_vars('model/qf/') if 'qf_output' in var.name],
+                         [var for var in tf_util.get_trainable_vars('target/qf/') if 'qf_output' in var.name]]:
             assert len(out_vars) == 2
             # wieght and bias of the last layer
             weight, bias = out_vars

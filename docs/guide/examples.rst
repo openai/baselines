@@ -227,7 +227,6 @@ and multiprocessing for you.
 .. code-block:: python
 
   from stable_baselines.common.cmd_util import make_atari_env
-  from stable_baselines.common.policies import CnnPolicy
   from stable_baselines.common.vec_env import VecFrameStack
   from stable_baselines import ACER
 
@@ -238,7 +237,7 @@ and multiprocessing for you.
   # Frame-stacking with 4 frames
   env = VecFrameStack(env, n_stack=4)
 
-  model = ACER(CnnPolicy, env, verbose=1)
+  model = ACER('CnnPolicy', env, verbose=1)
   model.learn(total_timesteps=25000)
 
   obs = env.reset()
@@ -305,13 +304,50 @@ However, you can also easily define a custom architecture for the policy network
                                              net_arch=[dict(pi=[128, 128, 128], vf=[128, 128, 128])],
                                              feature_extraction="mlp")
 
-  # Create and wrap the environment
-  env = gym.make('LunarLander-v2')
-  env = DummyVecEnv([lambda: env])
-
-  model = A2C(CustomPolicy, env, verbose=1)
+  model = A2C(CustomPolicy, 'LunarLander-v2', verbose=1)
   # Train the agent
   model.learn(total_timesteps=100000)
+
+
+Recurrent Policies
+------------------
+
+This example demonstrate how to train a recurrent policy and how to test it properly.
+
+.. warning::
+
+  One current limitation of recurrent policies is that you must test them
+  with the same number of environments they have been trained on.
+
+
+.. code-block:: python
+
+  from stable_baselines import PPO2
+
+  # For recurrent policies, with PPO2, the number of environments run in parallel
+  # should be a multiple of nminibatches.
+  model = PPO2('MlpLstmPolicy', 'CartPole-v1', nminibatches=1, verbose=1)
+  model.learn(50000)
+
+  # Retrieve the env
+  env = model.get_env()
+
+  obs = env.reset()
+  # Passing state=None to the predict function means
+  # it is the initial state
+  state = None
+  # When using VecEnv, done is a vector
+  done = [False for _ in range(env.num_envs)]
+  for _ in range(1000):
+      # We need to pass the previous state and a mask for recurrent policies
+      # to reset lstm state when a new episode begin
+      action, state = model.predict(obs, state=state, mask=done)
+      obs, reward , done, _ = env.step(action)
+      # Note: with VecEnv, env.reset() is automatically called
+
+      # Show the env
+      env.render()
+
 
 
 Continual Learning
@@ -323,14 +359,13 @@ You can also move from learning on one environment to another for `continual lea
 .. code-block:: python
 
   from stable_baselines.common.cmd_util import make_atari_env
-  from stable_baselines.common.policies import CnnPolicy
   from stable_baselines import PPO2
 
   # There already exists an environment generator
   # that will make and wrap atari environments correctly
   env = make_atari_env('DemonAttackNoFrameskip-v4', num_env=8, seed=0)
 
-  model = PPO2(CnnPolicy, env, verbose=1)
+  model = PPO2('CnnPolicy', env, verbose=1)
   model.learn(total_timesteps=10000)
 
   obs = env.reset()

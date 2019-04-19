@@ -10,6 +10,8 @@ Pre-Release 2.5.1a0 (WIP)
 
 - doc update (fix example of result plotter + improve doc)
 - fixed logger issues when stdout lacks ``read`` function
+- fixed a bug in ``common.dataset.Dataset`` where shuffling was not disabled properly (it affects only PPO1 with recurrent policies)
+- fixed output layer name for DDPG q function, used in pop-art normalization and l2 regularization of the critic
 - added support for multi env recording to ``generate_expert_traj`` (@XMaster96)
 - added support for LSTM model recording to ``generate_expert_traj`` (@XMaster96)
 - ``GAIL``: remove mandatory matplotlib dependency and refactor as subclass of ``TRPO`` (@kantneel and @AdamGleave)

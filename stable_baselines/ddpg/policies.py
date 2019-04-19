@@ -163,7 +163,8 @@ class FeedForwardPolicy(DDPGPolicy):
                 if i == 0:
                     qf_h = tf.concat([qf_h, action], axis=-1)
 
-            qvalue_fn = tf.layers.dense(qf_h, 1, name=scope,
+            # the name attribute is used in pop-art normalization
+            qvalue_fn = tf.layers.dense(qf_h, 1, name='qf_output',
                                         kernel_initializer=tf.random_uniform_initializer(minval=-3e-3,
                                                                                          maxval=3e-3))
 
