@@ -1,0 +1,26 @@
+version: '2'
+services:
+  terminal:
+    privileged: true
+    image: dhiman/baselines
+    build:
+      context: .
+      args:
+        USER: "${USER}"
+        HOME: "${HOME}"
+        PWD: "${PWD}"
+        UID: "${UID}"
+    volumes:
+      - "${HOME}:${HOME}:rw"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/tmp/.docker.xauth:/tmp/.docker.xauth"
+      - "/tmp/.X11-unix:/tmp/.X11-unix"
+      - "/run/udev:/run/udev"
+      - "/root:/root"
+    environment:
+      QT_X11_NO_MITSHM: 1
+      XAUTHORITY: /tmp/.docker.xauth
+      DISPLAY: "${DISPLAY}"
+      TERM: "${TERM}"
+    stdin_open: true
+    tty: true
