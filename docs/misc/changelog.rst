@@ -18,6 +18,8 @@ Pre-Release 2.5.1a0 (WIP)
 - added ``get_attr()``, ``env_method()`` and ``set_attr()`` methods for all VecEnv. 
   Those methods now all accept ``indices`` keyword to select a subset of envs.
   ``set_attr`` now returns ``None`` rather than a list of ``None``. (@kantneel)
+- ``GAIL``: ``gail.dataset.ExpertDataset` supports loading from memory rather than file, and
+  ``gail.dataset.record_expert`` supports returning in-memory rather than saving to file.
 
 
 Release 2.5.0 (2019-03-28)

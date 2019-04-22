@@ -10,7 +10,7 @@ from stable_baselines.common.vec_env import VecEnv, VecFrameStack
 from stable_baselines.common.base_class import _UnvecWrapper
 
 
-def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
+def generate_expert_traj(model, save_path=None, env=None, n_timesteps=0,
                          n_episodes=100, image_folder='recorded_images'):
     """
     Train expert controller (if needed) and record expert trajectories.
@@ -21,13 +21,16 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
 
     :param model: (RL model or callable) The expert model, if it needs to be trained,
         then you need to pass ``n_timesteps > 0``.
-    :param save_path: (str) Path without the extension where the
-        expert dataset will be saved (ex: 'expert_cartpole' -> creates 'expert_cartpole.npz')
+    :param save_path: (str) Path without the extension where the expert dataset will be saved
+        (ex: 'expert_cartpole' -> creates 'expert_cartpole.npz').
+        If not specified, it will not save, and just return the generated expert trajectories.
+        This parameter must be specified for image-based environments.
     :param env: (gym.Env) The environment, if not defined then it tries to use the model
         environment.
     :param n_timesteps: (int) Number of training timesteps
     :param n_episodes: (int) Number of trajectories (episodes) to record
     :param image_folder: (str) When using images, folder that will be used to record images.
+    :return: (dict) the generated expert trajectories.
     """
 
     # Retrieve the environment using the RL model
@@ -53,6 +56,10 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
     obs_space = env.observation_space
     record_images = len(obs_space.shape) == 3 and obs_space.shape[-1] in [1, 3, 4] \
                     and obs_space.dtype == np.uint8
+    if record_images and save_path is None:
+        warnings.warn("Observations are images but no save path was specified, so will save in numpy archive; "
+                      "this can lead to higher memory usage.")
+        record_images = False
 
     if not record_images and len(obs_space.shape) == 3 and obs_space.dtype == np.uint8:
         warnings.warn("The observations looks like images (shape = {}) "
@@ -165,6 +172,9 @@ def generate_expert_traj(model, save_path, env=None, n_timesteps=0,
     for key, val in numpy_dict.items():
         print(key, val.shape)
 
-    np.savez(save_path, **numpy_dict)
+    if save_path is not None:
+        np.savez(save_path, **numpy_dict)
 
     env.close()
+
+    return numpy_dict
