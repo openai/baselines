@@ -30,8 +30,17 @@ def build_impala_cnn(unscaled_images, depths=[16,32,32], **conv_kwargs):
     Model used in the paper "IMPALA: Scalable Distributed Deep-RL with
     Importance Weighted Actor-Learner Architectures" https://arxiv.org/abs/1802.01561
     """
+
+    layer_num = 0
+
+    def get_layer_num_str():
+        nonlocal layer_num
+        num_str = str(layer_num)
+        layer_num += 1
+        return num_str
+
     def conv_layer(out, depth):
-        return tf.layers.conv2d(out, depth, 3, padding='same')
+        return tf.layers.conv2d(out, depth, 3, padding='same', name='layer_' + get_layer_num_str())
 
     def residual_block(inputs):
         depth = inputs.get_shape()[-1].value
@@ -57,7 +66,7 @@ def build_impala_cnn(unscaled_images, depths=[16,32,32], **conv_kwargs):
 
     out = tf.layers.flatten(out)
     out = tf.nn.relu(out)
-    out = tf.layers.dense(out, 256, activation=tf.nn.relu)
+    out = tf.layers.dense(out, 256, activation=tf.nn.relu, name='layer_' + get_layer_num_str())
 
     return out
 
