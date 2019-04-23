@@ -37,7 +37,7 @@ MODEL_LIST = [
 
 @pytest.mark.slow
 @pytest.mark.parametrize("model_class", MODEL_LIST)
-def test_model_manipulation(model_class):
+def test_model_manipulation(request, model_class):
     """
     Test if the algorithm can be loaded and saved without any issues, the environment switching
     works and that the action prediction works
@@ -62,12 +62,13 @@ def test_model_manipulation(model_class):
         acc_reward = sum(acc_reward) / N_TRIALS
 
         # saving
-        model.save("./test_model")
+        model_fname = './test_model_{}.pkl'.format(request.node.name)
+        model.save(model_fname)
 
         del model, env
 
         # loading
-        model = model_class.load("./test_model")
+        model = model_class.load(model_fname)
 
         # changing environment (note: this can be done at loading)
         env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
@@ -179,9 +180,9 @@ def test_ddpg_normalization():
     model.learn(1000)
     obs_rms_params = model.sess.run(model.obs_rms_params)
     ret_rms_params = model.sess.run(model.ret_rms_params)
-    model.save('./test_ddpg')
+    model.save('./test_ddpg.pkl')
 
-    loaded_model = DDPG.load("test_ddpg")
+    loaded_model = DDPG.load('./test_ddpg.pkl')
     obs_rms_params_2 = loaded_model.sess.run(loaded_model.obs_rms_params)
     ret_rms_params_2 = loaded_model.sess.run(loaded_model.ret_rms_params)
 
@@ -191,8 +192,8 @@ def test_ddpg_normalization():
 
     del model, loaded_model
 
-    if os.path.exists("./test_ddpg"):
-        os.remove("./test_ddpg")
+    if os.path.exists("./test_ddpg.pkl"):
+        os.remove("./test_ddpg.pkl")
 
 
 def test_ddpg_popart():

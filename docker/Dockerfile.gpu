@@ -27,6 +27,8 @@ RUN \
     pip install pandas && \
     pip install pytest==3.5.1 && \
     pip install pytest-cov && \
+    pip install pytest-env && \
+    pip install pytest-xdist && \
     pip install matplotlib && \
     pip install seaborn && \
     pip install glob2 && \

@@ -39,7 +39,9 @@ LSTM_POLICIES = [MlpLstmPolicy, CustomLSTMPolicy1, CustomLSTMPolicy2, CustomLSTM
 
 @pytest.mark.parametrize("model_class", MODELS)
 @pytest.mark.parametrize("policy", LSTM_POLICIES)
-def test_lstm_policy(model_class, policy):
+def test_lstm_policy(request, model_class, policy):
+    model_fname = './test_model_{}.pkl'.format(request.node.name)
+
     try:
         # create and train
         if model_class == PPO2:
@@ -55,11 +57,11 @@ def test_lstm_policy(model_class, policy):
             action, _ = model.predict(obs)
             obs, _, _, _ = env.step(action)
         # saving
-        model.save("./test_model")
+        model.save(model_fname)
         del model, env
         # loading
-        _ = model_class.load("./test_model", policy=policy)
+        _ = model_class.load(model_fname, policy=policy)
 
     finally:
-        if os.path.exists("./test_model"):
-            os.remove("./test_model")
+        if os.path.exists(model_fname):
+            os.remove(model_fname)
