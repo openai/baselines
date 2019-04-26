@@ -1,28 +1,35 @@
 import os
-import time
-import numpy as np
 import os.path as osp
-from baselines import logger
+import time
 from collections import deque
-from baselines.common import explained_variance, set_global_seeds
-from baselines.common.policies import build_policy
+
+import numpy as np
+import tensorflow as tf
+from baselines import logger
+from baselines.common import explained_variance
+from baselines.common import set_global_seeds
+from baselines.common.tf_util import display_var_info
+from baselines.ppo2.policies import build_ppo_policy
+from baselines.ppo2.runner import Runner
+
 try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
-from baselines.ppo2.runner import Runner
 
 
 def constfn(val):
     def f(_):
         return val
+
     return f
 
-def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
-            vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
-            log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-            save_interval=0, load_path=None, model_fn=None, **network_kwargs):
-    '''
+
+def learn(*, network, env, total_timesteps, eval_env=None, seed=None, nsteps=128, ent_coef=0.0, lr=3e-4,
+          vf_coef=0.5, max_grad_norm=0.5, gamma=0.99, lam=0.95,
+          log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
+          save_interval=10, load_path=None, model_fn=None, **network_kwargs):
+    """
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
 
     Parameters:
@@ -52,7 +59,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     max_grad_norm: float or None      gradient norm clipping coefficient
 
-    gamma: float                      discounting factor
+    gamma: float                      discounting factor for rewards
 
     lam: float                        advantage estimation discounting factor (lambda in the paper)
 
@@ -72,20 +79,21 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     **network_kwargs:                 keyword arguments to the policy / network builder. See baselines.common/policies.py/build_policy and arguments to a particular type of network
                                       For instance, 'mlp' network architecture has arguments num_hidden and num_layers.
-
-
-
-    '''
+    """
 
     set_global_seeds(seed)
 
-    if isinstance(lr, float): lr = constfn(lr)
-    else: assert callable(lr)
-    if isinstance(cliprange, float): cliprange = constfn(cliprange)
-    else: assert callable(cliprange)
+    if isinstance(lr, float):
+        lr = constfn(lr)
+    else:
+        assert callable(lr)
+    if isinstance(cliprange, float):
+        cliprange = constfn(cliprange)
+    else:
+        assert callable(cliprange)
     total_timesteps = int(total_timesteps)
 
-    policy = build_policy(env, network, **network_kwargs)
+    policy = build_ppo_policy(env, network, **network_kwargs)
 
     # Get the nb of env
     nenvs = env.num_envs
@@ -104,15 +112,19 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         model_fn = Model
 
     model = model_fn(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
-                    nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
-                    max_grad_norm=max_grad_norm)
+                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef, max_grad_norm=max_grad_norm)
 
     if load_path is not None:
         model.load(load_path)
+
+    allvars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=model.name)
+    display_var_info(allvars)
+
     # Instantiate the runner object
-    runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
+    runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, ob_space=ob_space, lam=lam)
+
     if eval_env is not None:
-        eval_runner = Runner(env = eval_env, model = model, nsteps = nsteps, gamma = gamma, lam= lam)
+        eval_runner = Runner(env=eval_env, model=model, nsteps=nsteps, gamma=gamma, ob_space=ob_space, lam=lam)
 
     epinfobuf = deque(maxlen=100)
     if eval_env is not None:
@@ -120,9 +132,9 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     # Start total timer
     tfirststart = time.perf_counter()
+    nupdates = total_timesteps // nbatch
 
-    nupdates = total_timesteps//nbatch
-    for update in range(1, nupdates+1):
+    for update in range(1, nupdates + 1):
         assert nbatch % nminibatches == 0
         # Start timer
         tstart = time.perf_counter()
@@ -131,44 +143,40 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         lrnow = lr(frac)
         # Calculate the cliprange
         cliprangenow = cliprange(frac)
-        # Get minibatch
-        obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run() #pylint: disable=E0632
-        if eval_env is not None:
-            eval_obs, eval_returns, eval_masks, eval_actions, eval_values, eval_neglogpacs, eval_states, eval_epinfos = eval_runner.run() #pylint: disable=E0632
 
-        epinfobuf.extend(epinfos)
+        # Get minibatch
+        minibatch = runner.run()
+
+        if eval_env is not None:
+            eval_minibatch = eval_runner.run()
+            _eval_obs = eval_minibatch['observations']  # noqa: F841
+            _eval_returns = eval_minibatch['returns']   # noqa: F841
+            _eval_masks = eval_minibatch['masks']       # noqa: F841
+            _eval_actions = eval_minibatch['actions']   # noqa: F841
+            _eval_values = eval_minibatch['values']     # noqa: F841
+            _eval_neglogpacs = eval_minibatch['neglogpacs'] # noqa: F841
+            _eval_states = eval_minibatch['state']      # noqa: F841
+            eval_epinfos = eval_minibatch['epinfos']
+
+        epinfobuf.extend(minibatch.pop('epinfos'))
         if eval_env is not None:
             eval_epinfobuf.extend(eval_epinfos)
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
-        if states is None: # nonrecurrent version
-            # Index of each element of batch_size
-            # Create the indices array
-            inds = np.arange(nbatch)
-            for _ in range(noptepochs):
-                # Randomize the indexes
-                np.random.shuffle(inds)
-                # 0 to batch_size with batch_train_size step
-                for start in range(0, nbatch, nbatch_train):
-                    end = start + nbatch_train
-                    mbinds = inds[start:end]
-                    slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices))
-        else: # recurrent version
-            assert nenvs % nminibatches == 0
-            envsperbatch = nenvs // nminibatches
-            envinds = np.arange(nenvs)
-            flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
-            for _ in range(noptepochs):
-                np.random.shuffle(envinds)
-                for start in range(0, nenvs, envsperbatch):
-                    end = start + envsperbatch
-                    mbenvinds = envinds[start:end]
-                    mbflatinds = flatinds[mbenvinds].ravel()
-                    slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mbstates = states[mbenvinds]
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
+
+        # Index of each element of batch_size
+        # Create the indices array
+        inds = np.arange(nbatch)
+        for _ in range(noptepochs):
+            # Randomize the indexes
+            np.random.shuffle(inds)
+            # 0 to batch_size with batch_train_size step
+            for start in range(0, nbatch, nbatch_train):
+                end = start + nbatch_train
+                mbinds = inds[start:end]
+                slices = {key: minibatch[key][mbinds] for key in minibatch}
+                mblossvals.append(model.train(lrnow, cliprangenow, **slices))
 
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
@@ -179,32 +187,36 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         if update % log_interval == 0 or update == 1:
             # Calculates if value function is a good predicator of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
-            ev = explained_variance(values, returns)
-            logger.logkv("serial_timesteps", update*nsteps)
+            ev = explained_variance(minibatch['values'], minibatch['returns'])
+            logger.logkv("serial_timesteps", update * nsteps)
             logger.logkv("nupdates", update)
-            logger.logkv("total_timesteps", update*nbatch)
+            logger.logkv("total_timesteps", update * nbatch)
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(ev))
             logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
             logger.logkv('eplenmean', safemean([epinfo['l'] for epinfo in epinfobuf]))
+            logger.logkv('rewards_per_step', safemean(minibatch['rewards']))
+            logger.logkv('advantages_per_step', safemean(minibatch['advs']))
+
             if eval_env is not None:
-                logger.logkv('eval_eprewmean', safemean([epinfo['r'] for epinfo in eval_epinfobuf]) )
-                logger.logkv('eval_eplenmean', safemean([epinfo['l'] for epinfo in eval_epinfobuf]) )
+                logger.logkv('eval_eprewmean', safemean([epinfo['r'] for epinfo in eval_epinfobuf]))
+                logger.logkv('eval_eplenmean', safemean([epinfo['l'] for epinfo in eval_epinfobuf]))
             logger.logkv('time_elapsed', tnow - tfirststart)
             for (lossval, lossname) in zip(lossvals, model.loss_names):
                 logger.logkv(lossname, lossval)
             if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
                 logger.dumpkvs()
-        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir() and (MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
+        if save_interval and (update % save_interval == 0 or update == 1) and logger.get_dir() and (
+            MPI is None or MPI.COMM_WORLD.Get_rank() == 0):
             checkdir = osp.join(logger.get_dir(), 'checkpoints')
             os.makedirs(checkdir, exist_ok=True)
-            savepath = osp.join(checkdir, '%.5i'%update)
+            savepath = osp.join(checkdir, '%.5i' % update)
             print('Saving to', savepath)
             model.save(savepath)
+        del minibatch
     return model
+
+
 # Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
-
-
-
