@@ -3,6 +3,7 @@ import gym
 
 from baselines.run import get_learn_function
 from baselines.common.tests.util import reward_per_episode_test
+from baselines.common.tests import mark_slow
 
 common_kwargs = dict(
     total_timesteps=30000,
@@ -20,7 +21,7 @@ learn_kwargs = {
     'trpo_mpi': {}
 }
 
-@pytest.mark.slow
+@mark_slow
 @pytest.mark.parametrize("alg", learn_kwargs.keys())
 def test_cartpole(alg):
     '''
