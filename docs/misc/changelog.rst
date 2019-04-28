@@ -20,6 +20,8 @@ Pre-Release 2.5.1a0 (WIP)
   ``set_attr`` now returns ``None`` rather than a list of ``None``. (@kantneel)
 - ``GAIL``: ``gail.dataset.ExpertDataset` supports loading from memory rather than file, and
   ``gail.dataset.record_expert`` supports returning in-memory rather than saving to file.
+- fixed bug where result plotter would crash on very short runs (@Pastafarianist)
+- added option to not trim output of result plotter by number of timesteps (@Pastafarianist)
 
 
 Release 2.5.0 (2019-03-28)
@@ -282,4 +284,4 @@ In random order...
 
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
 @EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn @AdamGleave @keshaviyengar @tperol
-@XMaster96 @kantneel
+@XMaster96 @kantneel @Pastafarianist
