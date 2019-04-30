@@ -35,6 +35,9 @@ If you need more control on the policy architecture, you can also create a custo
 Base Classes
 ------------
 
+.. autoclass:: BasePolicy
+  :members:
+
 .. autoclass:: ActorCriticPolicy
   :members:
 

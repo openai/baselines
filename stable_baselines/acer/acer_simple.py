@@ -10,7 +10,7 @@ from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, fi
 from stable_baselines.acer.buffer import Buffer
 from stable_baselines.common import ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
+from stable_baselines.common.policies import ActorCriticPolicy, RecurrentActorCriticPolicy
 
 
 def strip(var, n_envs, n_steps, flat=False):
@@ -187,7 +187,7 @@ class ACER(ActorCriticRLModel):
                 self.sess = tf_util.make_session(num_cpu=self.num_procs, graph=self.graph)
 
                 n_batch_step = None
-                if issubclass(self.policy, LstmPolicy):
+                if issubclass(self.policy, RecurrentActorCriticPolicy):
                     n_batch_step = self.n_envs
                 n_batch_train = self.n_envs * (self.n_steps + 1)
 
@@ -229,7 +229,7 @@ class ACER(ActorCriticRLModel):
                     # (var)_i = variable index by action at step i
                     # shape is [n_envs * (n_steps + 1)]
                     if continuous:
-                        value = train_model.value_fn[:, 0]
+                        value = train_model.value_flat
                     else:
                         value = tf.reduce_sum(train_model.policy_proba * train_model.q_value, axis=-1)
 
@@ -436,9 +436,9 @@ class ACER(ActorCriticRLModel):
 
         if states is not None:
             td_map[self.train_model.states_ph] = states
-            td_map[self.train_model.masks_ph] = masks
+            td_map[self.train_model.dones_ph] = masks
             td_map[self.polyak_model.states_ph] = states
-            td_map[self.polyak_model.masks_ph] = masks
+            td_map[self.polyak_model.dones_ph] = masks
 
         if writer is not None:
             # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)

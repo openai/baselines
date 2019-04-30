@@ -10,7 +10,7 @@ import tensorflow as tf
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
+from stable_baselines.common.policies import ActorCriticPolicy, RecurrentActorCriticPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
@@ -116,7 +116,7 @@ class PPO2(ActorCriticRLModel):
 
                 n_batch_step = None
                 n_batch_train = None
-                if issubclass(self.policy, LstmPolicy):
+                if issubclass(self.policy, RecurrentActorCriticPolicy):
                     assert self.n_envs % self.nminibatches == 0, "For recurrent policies, "\
                         "the number of environments run in parallel should be a multiple of nminibatches."
                     n_batch_step = self.n_envs
@@ -142,9 +142,9 @@ class PPO2(ActorCriticRLModel):
                     neglogpac = train_model.proba_distribution.neglogp(self.action_ph)
                     self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
 
-                    vpred = train_model._value
+                    vpred = train_model.value_flat
                     vpredclipped = self.old_vpred_ph + tf.clip_by_value(
-                        train_model._value - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
+                        train_model.value_flat - self.old_vpred_ph, - self.clip_range_ph, self.clip_range_ph)
                     vf_losses1 = tf.square(vpred - self.rewards_ph)
                     vf_losses2 = tf.square(vpredclipped - self.rewards_ph)
                     self.vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
@@ -235,7 +235,7 @@ class PPO2(ActorCriticRLModel):
                   self.old_neglog_pac_ph: neglogpacs, self.old_vpred_ph: values}
         if states is not None:
             td_map[self.train_model.states_ph] = states
-            td_map[self.train_model.masks_ph] = masks
+            td_map[self.train_model.dones_ph] = masks
 
         if states is None:
             update_fac = self.n_batch // self.nminibatches // self.noptepochs + 1

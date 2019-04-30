@@ -7,7 +7,7 @@ import tensorflow as tf
 
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, tf_util, ActorCriticRLModel, SetVerbosity, TensorboardWriter
-from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
+from stable_baselines.common.policies import ActorCriticPolicy, RecurrentActorCriticPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
 from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse, \
     total_episode_reward_logger
@@ -105,7 +105,7 @@ class A2C(ActorCriticRLModel):
 
                 n_batch_step = None
                 n_batch_train = None
-                if issubclass(self.policy, LstmPolicy):
+                if issubclass(self.policy, RecurrentActorCriticPolicy):
                     n_batch_step = self.n_envs
                     n_batch_train = self.n_envs * self.n_steps
 
@@ -126,7 +126,7 @@ class A2C(ActorCriticRLModel):
                     neglogpac = train_model.proba_distribution.neglogp(self.actions_ph)
                     self.entropy = tf.reduce_mean(train_model.proba_distribution.entropy())
                     self.pg_loss = tf.reduce_mean(self.advs_ph * neglogpac)
-                    self.vf_loss = mse(tf.squeeze(train_model._value), self.rewards_ph)
+                    self.vf_loss = mse(tf.squeeze(train_model.value_flat), self.rewards_ph)
                     # https://arxiv.org/pdf/1708.04782.pdf#page=9, https://arxiv.org/pdf/1602.01783.pdf#page=4
                     # and https://github.com/dennybritz/reinforcement-learning/issues/34
                     # suggest to add an entropy component in order to improve exploration.
@@ -194,7 +194,7 @@ class A2C(ActorCriticRLModel):
                   self.rewards_ph: rewards, self.learning_rate_ph: cur_lr}
         if states is not None:
             td_map[self.train_model.states_ph] = states
-            td_map[self.train_model.masks_ph] = masks
+            td_map[self.train_model.dones_ph] = masks
 
         if writer is not None:
             # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)

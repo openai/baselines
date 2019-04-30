@@ -132,7 +132,6 @@ class FeedForwardPolicy(DQNPolicy):
                 q_out = action_scores
 
         self.q_values = q_out
-        self.initial_state = None
         self._setup_init()
 
     def step(self, obs, state=None, mask=None, deterministic=True):

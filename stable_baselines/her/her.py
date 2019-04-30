@@ -3,7 +3,7 @@ import numpy as np
 import gym
 
 from stable_baselines.common import BaseRLModel, SetVerbosity
-from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
+from stable_baselines.common.policies import ActorCriticPolicy
 
 
 def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
@@ -88,7 +88,7 @@ class HER(BaseRLModel):
 
             assert isinstance(self.action_space, gym.spaces.Box), \
                 "Error: HER cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
-            assert not issubclass(self.policy, LstmPolicy), "Error: cannot use a recurrent policy for the HER model."
+            assert not self.policy.recurrent, "Error: cannot use a recurrent policy for the HER model."
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the HER model must be an " \
                                                                "instance of common.policies.ActorCriticPolicy."
 

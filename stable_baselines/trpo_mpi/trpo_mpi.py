@@ -147,7 +147,7 @@ class TRPO(ActorCriticRLModel):
                     meanent = tf.reduce_mean(ent)
                     entbonus = self.entcoeff * meanent
 
-                    vferr = tf.reduce_mean(tf.square(self.policy_pi.value_fn[:, 0] - ret))
+                    vferr = tf.reduce_mean(tf.square(self.policy_pi.value_flat - ret))
 
                     # advantage * pnew / pold
                     ratio = tf.exp(self.policy_pi.proba_distribution.logp(action) -

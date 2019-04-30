@@ -9,7 +9,7 @@ import gym
 import tensorflow as tf
 
 from stable_baselines.common import set_global_seeds
-from stable_baselines.common.policies import LstmPolicy, get_policy_from_name, ActorCriticPolicy
+from stable_baselines.common.policies import get_policy_from_name, ActorCriticPolicy
 from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
 from stable_baselines import logger
 
@@ -98,7 +98,7 @@ class BaseRLModel(ABC):
             assert isinstance(env, VecEnv), \
                 "Error: the environment passed is not a vectorized environment, however {} requires it".format(
                     self.__class__.__name__)
-            assert not issubclass(self.policy, LstmPolicy) or self.n_envs == env.num_envs, \
+            assert not self.policy.recurrent or self.n_envs == env.num_envs, \
                 "Error: the environment passed must have the same number of environments as the model was trained on." \
                 "This is due to the Lstm policy not being capable of changing the number of environments."
             self.n_envs = env.num_envs

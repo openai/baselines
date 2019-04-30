@@ -22,6 +22,8 @@ Pre-Release 2.5.1a0 (WIP)
   ``gail.dataset.record_expert`` supports returning in-memory rather than saving to file.
 - fixed bug where result plotter would crash on very short runs (@Pastafarianist)
 - added option to not trim output of result plotter by number of timesteps (@Pastafarianist)
+- clarified the public interface of ``BasePolicy`` and ``ActorCriticPolicy``. **Breaking change** when using custom policies: ``masks_ph`` is now called ``dones_ph``.
+- support for custom stateful policies.
 
 
 Release 2.5.0 (2019-03-28)

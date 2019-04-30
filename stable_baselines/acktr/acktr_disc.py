@@ -15,7 +15,7 @@ from stable_baselines.a2c.a2c import A2CRunner
 from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse, \
     total_episode_reward_logger
 from stable_baselines.acktr import kfac
-from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
+from stable_baselines.common.policies import ActorCriticPolicy, RecurrentActorCriticPolicy
 from stable_baselines.ppo2.ppo2 import safe_mean
 
 
@@ -123,7 +123,7 @@ class ACKTR(ActorCriticRLModel):
 
                 n_batch_step = None
                 n_batch_train = None
-                if issubclass(self.policy, LstmPolicy):
+                if issubclass(self.policy, RecurrentActorCriticPolicy):
                     n_batch_step = self.n_envs
                     n_batch_train = self.n_envs * self.n_steps
 
@@ -229,7 +229,7 @@ class ACKTR(ActorCriticRLModel):
                   self.pg_lr_ph: cur_lr}
         if states is not None:
             td_map[self.train_model.states_ph] = states
-            td_map[self.train_model.masks_ph] = masks
+            td_map[self.train_model.dones_ph] = masks
 
         if writer is not None:
             # run loss backprop with summary, but once every 10 runs save the metadata (memory, compute time, ...)

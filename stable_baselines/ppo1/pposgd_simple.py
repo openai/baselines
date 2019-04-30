@@ -10,7 +10,7 @@ from stable_baselines.common import Dataset, explained_variance, fmt_row, zipsam
     TensorboardWriter
 from stable_baselines import logger
 import stable_baselines.common.tf_util as tf_util
-from stable_baselines.common.policies import LstmPolicy, ActorCriticPolicy
+from stable_baselines.common.policies import ActorCriticPolicy
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.mpi_moments import mpi_moments
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
@@ -137,7 +137,7 @@ class PPO1(ActorCriticRLModel):
 
                     # PPO's pessimistic surrogate (L^CLIP)
                     pol_surr = - tf.reduce_mean(tf.minimum(surr1, surr2))
-                    vf_loss = tf.reduce_mean(tf.square(self.policy_pi.value_fn[:, 0] - ret))
+                    vf_loss = tf.reduce_mean(tf.square(self.policy_pi.value_flat - ret))
                     total_loss = pol_surr + pol_entpen + vf_loss
                     losses = [pol_surr, pol_entpen, vf_loss, meankl, meanent]
                     self.loss_names = ["pol_surr", "pol_entpen", "vf_loss", "kl", "ent"]
@@ -254,7 +254,7 @@ class PPO1(ActorCriticRLModel):
                     # standardized advantage function estimate
                     atarg = (atarg - atarg.mean()) / atarg.std()
                     dataset = Dataset(dict(ob=obs_ph, ac=action_ph, atarg=atarg, vtarg=tdlamret),
-                                      shuffle=not issubclass(self.policy, LstmPolicy))
+                                      shuffle=not self.policy.recurrent)
                     optim_batchsize = self.optim_batchsize or obs_ph.shape[0]
 
                     # set old parameter values to new parameter values
