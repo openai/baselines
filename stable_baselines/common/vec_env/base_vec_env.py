@@ -150,6 +150,18 @@ class VecEnv(ABC):
         else:
             return self
 
+    def getattr_depth_check(self, name, already_found):
+        """Check if an attribute reference is being hidden in a recursive call to __getattr__
+
+        :param name: (str) name of attribute to check for
+        :param already_found: (bool) whether this attribute has already been found in a wrapper
+        :return: (str or None) name of module whose attribute is being shadowed, if any.
+        """
+        if hasattr(self, name) and already_found:
+            return "{0}.{1}".format(type(self).__module__, type(self).__name__)
+        else:
+            return None
+
     def _get_indices(self, indices):
         """
         Convert a flexibly-typed reference to environment indices to an implied list of indices.
@@ -206,6 +218,54 @@ class VecEnvWrapper(VecEnv):
 
     def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
         return self.venv.env_method(method_name, *method_args, indices=indices, **method_kwargs)
+
+    def __getattr__(self, name):
+        """Find attribute from wrapped venv(s) if this wrapper does not have it.
+        Useful for accessing attributes from venvs which are wrapped with multiple wrappers
+        which have unique attributes of interest.
+        """
+        blocked_class = self.getattr_depth_check(name, already_found=False)
+        if blocked_class is not None:
+            own_class = "{0}.{1}".format(type(self).__module__, type(self).__name__)
+            format_str = ("Error: Recursive attribute lookup for {0} from {1} is "
+                          "ambiguous and hides attribute from {2}")
+            raise AttributeError(format_str.format(name, own_class, blocked_class))
+
+        return self.getattr_recursive(name)
+
+    def getattr_recursive(self, name):
+        """Recursively check wrappers to find attribute.
+
+        :param name (str) name of attribute to look for
+        :return: (object) attribute
+        """
+        if name in self.__dict__:  # attribute is present in this wrapper
+            attr = self.__dict__[name]
+        elif hasattr(self.venv, 'getattr_recursive'):
+            # Attribute not present, child is wrapper. Call getattr_recursive rather than getattr
+            # to avoid a duplicate call to getattr_depth_check.
+            attr = self.venv.getattr_recursive(name)
+        else:  # attribute not present, child is an unwrapped VecEnv
+            attr = getattr(self.venv, name)
+
+        return attr
+
+    def getattr_depth_check(self, name, already_found):
+        """See base class.
+
+        :return: (str or None) name of module whose attribute is being shadowed, if any.
+        """
+        if name in self.__dict__ and already_found:
+            # this venv's attribute is being hidden because of a higher venv.
+            shadowed_wrapper_class = "{0}.{1}".format(type(self).__module__, type(self).__name__)
+        elif name in self.__dict__ and not already_found:
+            # we have found the first reference to the attribute. Now check for duplicates.
+            shadowed_wrapper_class = self.venv.getattr_depth_check(name, True)
+        else:
+            # this wrapper does not have the attribute. Keep searching.
+            shadowed_wrapper_class = self.venv.getattr_depth_check(name, already_found)
+
+        return shadowed_wrapper_class
 
 
 class CloudpickleWrapper(object):

@@ -15,11 +15,14 @@ Pre-Release 2.5.1a0 (WIP)
 - added support for multi env recording to ``generate_expert_traj`` (@XMaster96)
 - added support for LSTM model recording to ``generate_expert_traj`` (@XMaster96)
 - ``GAIL``: remove mandatory matplotlib dependency and refactor as subclass of ``TRPO`` (@kantneel and @AdamGleave)
-- added ``get_attr()``, ``env_method()`` and ``set_attr()`` methods for all VecEnv. 
+- added ``get_attr()``, ``env_method()`` and ``set_attr()`` methods for all VecEnv.
   Those methods now all accept ``indices`` keyword to select a subset of envs.
   ``set_attr`` now returns ``None`` rather than a list of ``None``. (@kantneel)
 - ``GAIL``: ``gail.dataset.ExpertDataset` supports loading from memory rather than file, and
   ``gail.dataset.record_expert`` supports returning in-memory rather than saving to file.
+- added support in ``VecEnvWrapper`` for accessing attributes of arbitrarily deeply nested 
+  instances of ``VecEnvWrapper`` and ``VecEnv``. This is allowed as long as the attribute belongs 
+  to exactly one of the nested instances i.e. it must be unambiguous. (@kantneel)
 - fixed bug where result plotter would crash on very short runs (@Pastafarianist)
 - added option to not trim output of result plotter by number of timesteps (@Pastafarianist)
 - clarified the public interface of ``BasePolicy`` and ``ActorCriticPolicy``. **Breaking change** when using custom policies: ``masks_ph`` is now called ``dones_ph``.

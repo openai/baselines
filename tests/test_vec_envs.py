@@ -212,3 +212,32 @@ def test_subproc_start_method():
     with pytest.raises(ValueError, match="cannot find context for 'illegal_method'"):
         vec_env_class = functools.partial(SubprocVecEnv, start_method='illegal_method')
         check_vecenv_spaces(vec_env_class, space, obs_assert)
+
+
+class CustomWrapperA(VecNormalize):
+    def __init__(self, venv):
+        VecNormalize.__init__(self, venv)
+        self.var_a = 'a'
+
+
+class CustomWrapperB(VecNormalize):
+    def __init__(self, venv):
+        VecNormalize.__init__(self, venv)
+        self.var_b = 'b'
+
+
+def test_vecenv_wrapper_getattr():
+    def make_env():
+        return CustomGymEnv(gym.spaces.Box(low=np.zeros(2), high=np.ones(2)))
+    vec_env = DummyVecEnv([make_env for _ in range(N_ENVS)])
+    wrapped = CustomWrapperA(CustomWrapperB(vec_env))
+    assert wrapped.var_b == 'b'
+    assert wrapped.var_a == 'a'
+
+    double_wrapped = CustomWrapperA(CustomWrapperB(wrapped))
+    dummy = double_wrapped.var_a  # should not raise as it is directly defined here
+    with pytest.raises(AttributeError):  # should raise due to ambiguity
+        dummy = double_wrapped.var_b
+    with pytest.raises(AttributeError):  # should raise as does not exist
+        dummy = double_wrapped.nonexistent_attribute
+    del dummy  # keep linter happy
