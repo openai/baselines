@@ -12,7 +12,8 @@ extras = {
         'filelock',
         'pytest',
         'pytest-forked',
-        'atari-py'
+        'atari-py',
+        'matplotlib',
     ],
     'mpi': [
         'mpi4py'
