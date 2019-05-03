@@ -7,11 +7,16 @@ class VecNormalize(VecEnvWrapper):
     and returns from an environment.
     """
 
-    def __init__(self, venv, ob=True, ret=True, clipob=10., cliprew=10., gamma=0.99, epsilon=1e-8):
+    def __init__(self, venv, ob=True, ret=True, clipob=10., cliprew=10., gamma=0.99, epsilon=1e-8, use_tf=False):
         VecEnvWrapper.__init__(self, venv)
-        from baselines.common.running_mean_std import RunningMeanStd
-        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if ob else None
-        self.ret_rms = RunningMeanStd(shape=()) if ret else None
+        if use_tf:
+            from baselines.common.running_mean_std import TfRunningMeanStd
+            self.ob_rms = TfRunningMeanStd(shape=self.observation_space.shape, scope='ob_rms') if ob else None
+            self.ret_rms = TfRunningMeanStd(shape=(), scope='ret_rms') if ret else None
+        else:
+            from baselines.common.running_mean_std import RunningMeanStd
+            self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if ob else None
+            self.ret_rms = RunningMeanStd(shape=()) if ret else None
         self.clipob = clipob
         self.cliprew = cliprew
         self.ret = np.zeros(self.num_envs)
