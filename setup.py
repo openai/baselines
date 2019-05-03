@@ -14,6 +14,7 @@ extras = {
         'pytest-forked',
         'atari-py',
         'matplotlib',
+        'pandas'
     ],
     'mpi': [
         'mpi4py'

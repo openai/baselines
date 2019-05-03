@@ -5,7 +5,6 @@ try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
-    
 
 @with_mpi()
 def test_mpi_weighted_mean():
