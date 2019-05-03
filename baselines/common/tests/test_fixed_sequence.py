@@ -33,8 +33,7 @@ def test_fixed_sequence(alg, rnn):
     kwargs = learn_kwargs[alg]
     kwargs.update(common_kwargs)
 
-    episode_len = 5
-    env_fn = lambda: FixedSequenceEnv(10, episode_len=episode_len)
+    env_fn = lambda: FixedSequenceEnv(n_actions=10, episode_len=5)
     learn = lambda e: get_learn_function(alg)(
         env=e,
         network=rnn,

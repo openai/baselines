@@ -1,25 +1,11 @@
- # flake8: noqa F403, F405
-from .atari_wrappers import *
+from collections import deque
+import cv2
+cv2.ocl.setUseOpenCL(False)
+from .atari_wrappers import WarpFrame, ClipRewardEnv, FrameStack, ScaledFloatFrame
+from .wrappers import TimeLimit
 import numpy as np
 import gym
 
-class TimeLimit(gym.Wrapper):
-    def __init__(self, env, max_episode_steps=None):
-        super(TimeLimit, self).__init__(env)
-        self._max_episode_steps = max_episode_steps
-        self._elapsed_steps = 0
-
-    def step(self, ac):
-        observation, reward, done, info = self.env.step(ac)
-        self._elapsed_steps += 1
-        if self._elapsed_steps >= self._max_episode_steps:
-            done = True
-            info['TimeLimit.truncated'] = True
-        return observation, reward, done, info
-
-    def reset(self, **kwargs):
-        self._elapsed_steps = 0
-        return self.env.reset(**kwargs)
 
 class StochasticFrameSkip(gym.Wrapper):
     def __init__(self, env, n, stickprob):
@@ -99,7 +85,7 @@ class Downsample(gym.ObservationWrapper):
         gym.ObservationWrapper.__init__(self, env)
         (oldh, oldw, oldc) = env.observation_space.shape
         newshape = (oldh//ratio, oldw//ratio, oldc)
-        self.observation_space = spaces.Box(low=0, high=255,
+        self.observation_space = gym.spaces.Box(low=0, high=255,
             shape=newshape, dtype=np.uint8)
 
     def observation(self, frame):
@@ -116,7 +102,7 @@ class Rgb2gray(gym.ObservationWrapper):
         """
         gym.ObservationWrapper.__init__(self, env)
         (oldh, oldw, _oldc) = env.observation_space.shape
-        self.observation_space = spaces.Box(low=0, high=255,
+        self.observation_space = gym.spaces.Box(low=0, high=255,
             shape=(oldh, oldw, 1), dtype=np.uint8)
 
     def observation(self, frame):
@@ -213,8 +199,10 @@ class StartDoingRandomActionsWrapper(gym.Wrapper):
                 self.some_random_steps()
         return self.last_obs, rew, done, info
 
-def make_retro(*, game, state, max_episode_steps, **kwargs):
+def make_retro(*, game, state=None, max_episode_steps=4500, **kwargs):
     import retro
+    if state is None:
+        state = retro.State.DEFAULT
     env = retro.make(game, state, **kwargs)
     env = StochasticFrameSkip(env, n=4, stickprob=0.25)
     if max_episode_steps is not None:
@@ -227,7 +215,8 @@ def wrap_deepmind_retro(env, scale=True, frame_stack=4):
     """
     env = WarpFrame(env)
     env = ClipRewardEnv(env)
-    env = FrameStack(env, frame_stack)
+    if frame_stack > 1:
+        env = FrameStack(env, frame_stack)
     if scale:
         env = ScaledFloatFrame(env)
     return env

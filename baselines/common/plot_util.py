@@ -248,7 +248,7 @@ def plot_results(
     figsize=None,
     legend_outside=False,
     resample=0,
-    smooth_step=1.0,
+    smooth_step=1.0
 ):
     '''
     Plot multiple Results objects

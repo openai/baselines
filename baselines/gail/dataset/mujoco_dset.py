@@ -50,8 +50,12 @@ class Mujoco_Dset(object):
         # obs, acs: shape (N, L, ) + S where N = # episodes, L = episode length
         # and S is the environment observation/action space.
         # Flatten to (N * L, prod(S))
-        self.obs = np.reshape(obs, [-1, np.prod(obs.shape[2:])])
-        self.acs = np.reshape(acs, [-1, np.prod(acs.shape[2:])])
+        if len(obs.shape) > 2:
+            self.obs = np.reshape(obs, [-1, np.prod(obs.shape[2:])])
+            self.acs = np.reshape(acs, [-1, np.prod(acs.shape[2:])])
+        else:
+            self.obs = np.vstack(obs)
+            self.acs = np.vstack(acs)
 
         self.rets = traj_data['ep_rets'][:traj_limitation]
         self.avg_ret = sum(self.rets)/len(self.rets)

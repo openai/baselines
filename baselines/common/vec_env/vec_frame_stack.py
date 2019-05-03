@@ -1,4 +1,4 @@
-from . import VecEnvWrapper
+from .vec_env import VecEnvWrapper
 import numpy as np
 from gym import spaces
 

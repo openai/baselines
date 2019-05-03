@@ -1,9 +1,16 @@
 from collections import defaultdict
-from mpi4py import MPI
 import os, numpy as np
 import platform
 import shutil
 import subprocess
+import warnings
+import sys
+
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
+
 
 def sync_from_root(sess, variables, comm=None):
     """
@@ -13,15 +20,10 @@ def sync_from_root(sess, variables, comm=None):
       variables: all parameter variables including optimizer's
     """
     if comm is None: comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    for var in variables:
-        if rank == 0:
-            comm.Bcast(sess.run(var))
-        else:
-            import tensorflow as tf
-            returned_var = np.empty(var.shape, dtype='float32')
-            comm.Bcast(returned_var)
-            sess.run(tf.assign(var, returned_var))
+    import tensorflow as tf
+    values = comm.bcast(sess.run(variables))
+    sess.run([tf.assign(var, val)
+        for (var, val) in zip(variables, values)])
 
 def gpu_count():
     """
@@ -34,13 +36,15 @@ def gpu_count():
 
 def setup_mpi_gpus():
     """
-    Set CUDA_VISIBLE_DEVICES using MPI.
+    Set CUDA_VISIBLE_DEVICES to MPI rank if not already set
     """
-    num_gpus = gpu_count()
-    if num_gpus == 0:
-        return
-    local_rank, _ = get_local_rank_size(MPI.COMM_WORLD)
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(local_rank % num_gpus)
+    if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+        if sys.platform == 'darwin': # This Assumes if you're on OSX you're just
+            ids = []                 # doing a smoke test and don't want GPUs
+        else:
+            lrank, _lsize = get_local_rank_size(MPI.COMM_WORLD)
+            ids = [lrank]
+        os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, ids))
 
 def get_local_rank_size(comm):
     """
@@ -81,6 +85,9 @@ def share_file(comm, path):
     comm.Barrier()
 
 def dict_gather(comm, d, op='mean', assert_all_have_data=True):
+    """
+    Perform a reduction operation over dicts
+    """
     if comm is None: return d
     alldicts = comm.allgather(d)
     size = comm.size
@@ -99,3 +106,28 @@ def dict_gather(comm, d, op='mean', assert_all_have_data=True):
         else:
             assert 0, op
     return result
+
+def mpi_weighted_mean(comm, local_name2valcount):
+    """
+    Perform a weighted average over dicts that are each on a different node
+    Input: local_name2valcount: dict mapping key -> (value, count)
+    Returns: key -> mean
+    """
+    all_name2valcount = comm.gather(local_name2valcount)
+    if comm.rank == 0:
+        name2sum = defaultdict(float)
+        name2count = defaultdict(float)
+        for n2vc in all_name2valcount:
+            for (name, (val, count)) in n2vc.items():
+                try:
+                    val = float(val)
+                except ValueError:
+                    if comm.rank == 0:
+                        warnings.warn('WARNING: tried to compute mean on non-float {}={}'.format(name, val))
+                else:
+                    name2sum[name] += val * count
+                    name2count[name] += count
+        return {name : name2sum[name] / name2count[name] for name in name2sum}
+    else:
+        return {}
+

@@ -12,13 +12,13 @@ Download the expert data into `./data`, [download link](https://drive.google.com
 
 ### Step 2: Run GAIL
 
-Run with single thread:
+Run with single rank:
 
 ```bash
 python -m baselines.gail.run_mujoco
 ```
 
-Run with multiple threads:
+Run with multiple ranks:
 
 ```bash
 mpirun -np 16 python -m baselines.gail.run_mujoco

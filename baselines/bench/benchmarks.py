@@ -20,7 +20,7 @@ def register_benchmark(benchmark):
     if 'tasks' in benchmark:
         for t in benchmark['tasks']:
             if 'desc' not in t:
-                t['desc'] = remove_version_re.sub('', t['env_id'])
+                t['desc'] = remove_version_re.sub('', t.get('env_id', t.get('id')))
     _BENCHMARKS.append(benchmark)
 
 

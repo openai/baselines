@@ -41,7 +41,7 @@ def test_mnist(alg):
 
     learn = get_learn_function(alg)
     learn_fn = lambda e: learn(env=e, **learn_kwargs)
-    env_fn = lambda: MnistEnv(seed=0, episode_len=100)
+    env_fn = lambda: MnistEnv(episode_len=100)
 
     simple_test(env_fn, learn_fn, 0.6)
 
