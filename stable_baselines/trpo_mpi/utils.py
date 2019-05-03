@@ -36,6 +36,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
 
     cur_ep_ret = 0  # return in current episode
     current_it_len = 0  # len of current iteration
+    current_ep_len = 0 # len of current episode
     cur_ep_true_ret = 0
     ep_true_rets = []
     ep_rets = []  # returns of completed episodes in this segment
@@ -59,12 +60,6 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if step > 0 and step % horizon == 0:
-            # Fix to avoid "mean of empty slice" warning when there is only one episode
-            if len(ep_rets) == 0:
-                current_it_timesteps = current_it_len
-            else:
-                current_it_timesteps = sum(ep_lens) + current_it_len
-
             yield {
                     "ob": observations,
                     "rew": rews,
@@ -77,7 +72,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
                     "ep_rets": ep_rets,
                     "ep_lens": ep_lens,
                     "ep_true_rets": ep_true_rets,
-                    "total_timestep": current_it_timesteps
+                    "total_timestep": current_it_len
             }
             _, vpred, _, _ = policy.step(observation.reshape(-1, *observation.shape))
             # Be careful!!! if you change the downstream algorithm to aggregate
@@ -85,7 +80,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
             ep_rets = []
             ep_true_rets = []
             ep_lens = []
-            # make sure current_it_timesteps increments correctly
+            # Reset current iteration length
             current_it_len = 0
         i = step % horizon
         observations[i] = observation
@@ -111,13 +106,14 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
         cur_ep_ret += rew
         cur_ep_true_ret += true_rew
         current_it_len += 1
+        current_ep_len += 1
         if done:
             ep_rets.append(cur_ep_ret)
             ep_true_rets.append(cur_ep_true_ret)
-            ep_lens.append(current_it_len)
+            ep_lens.append(current_ep_len)
             cur_ep_ret = 0
             cur_ep_true_ret = 0
-            current_it_len = 0
+            current_ep_len = 0
             if not isinstance(env, VecEnv):
                 observation = env.reset()
         step += 1

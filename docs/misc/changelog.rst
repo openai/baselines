@@ -27,6 +27,7 @@ Pre-Release 2.5.1a0 (WIP)
 - added option to not trim output of result plotter by number of timesteps (@Pastafarianist)
 - clarified the public interface of ``BasePolicy`` and ``ActorCriticPolicy``. **Breaking change** when using custom policies: ``masks_ph`` is now called ``dones_ph``.
 - support for custom stateful policies.
+- fixed episode length recording in ``trpo_mpi.utils.traj_segment_generator`` (@GerardMaggiolino)
 
 
 Release 2.5.0 (2019-03-28)
@@ -289,4 +290,4 @@ In random order...
 
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
 @EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn @AdamGleave @keshaviyengar @tperol
-@XMaster96 @kantneel @Pastafarianist
+@XMaster96 @kantneel @Pastafarianist @GerardMaggiolino
