@@ -11,4 +11,4 @@ install:
 
 script:
     - flake8 . --show-source --statistics
-    - docker run baselines-test pytest -v .
+    - docker run -e RUNSLOW=1 baselines-test pytest -v .

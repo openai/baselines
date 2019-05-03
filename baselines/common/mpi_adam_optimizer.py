@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from baselines.common import tf_util as U
 from baselines.common.tests.test_with_mpi import with_mpi
+from baselines import logger
 try:
     from mpi4py import MPI
 except ImportError:
@@ -9,22 +10,34 @@ except ImportError:
 
 class MpiAdamOptimizer(tf.train.AdamOptimizer):
     """Adam optimizer that averages gradients across mpi processes."""
-    def __init__(self, comm, **kwargs):
+    def __init__(self, comm, grad_clip=None, mpi_rank_weight=1, **kwargs):
         self.comm = comm
+        self.grad_clip = grad_clip
+        self.mpi_rank_weight = mpi_rank_weight
         tf.train.AdamOptimizer.__init__(self, **kwargs)
     def compute_gradients(self, loss, var_list, **kwargs):
         grads_and_vars = tf.train.AdamOptimizer.compute_gradients(self, loss, var_list, **kwargs)
         grads_and_vars = [(g, v) for g, v in grads_and_vars if g is not None]
-        flat_grad = tf.concat([tf.reshape(g, (-1,)) for g, v in grads_and_vars], axis=0)
+        flat_grad = tf.concat([tf.reshape(g, (-1,)) for g, v in grads_and_vars], axis=0) * self.mpi_rank_weight
         shapes = [v.shape.as_list() for g, v in grads_and_vars]
         sizes = [int(np.prod(s)) for s in shapes]
-        num_tasks = self.comm.Get_size()
+
+        total_weight = np.zeros(1, np.float32)
+        self.comm.Allreduce(np.array([self.mpi_rank_weight], dtype=np.float32), total_weight, op=MPI.SUM)
+        total_weight = total_weight[0]
+
         buf = np.zeros(sum(sizes), np.float32)
         countholder = [0] # Counts how many times _collect_grads has been called
         stat = tf.reduce_sum(grads_and_vars[0][1]) # sum of first variable
         def _collect_grads(flat_grad, np_stat):
+            if self.grad_clip is not None:
+                gradnorm = np.linalg.norm(flat_grad)
+                if gradnorm > 1:
+                    flat_grad /= gradnorm
+                logger.logkv_mean('gradnorm', gradnorm)
+                logger.logkv_mean('gradclipfrac', float(gradnorm > 1))
             self.comm.Allreduce(flat_grad, buf, op=MPI.SUM)
-            np.divide(buf, float(num_tasks), out=buf)
+            np.divide(buf, float(total_weight), out=buf)
             if countholder[0] % 100 == 0:
                 check_synced(np_stat, self.comm)
             countholder[0] += 1
@@ -51,8 +64,8 @@ def check_synced(localval, comm=None):
     comm = comm or MPI.COMM_WORLD
     vals = comm.gather(localval)
     if comm.rank == 0:
-        assert all(val==vals[0] for val in vals[1:])
-
+        assert all(val==vals[0] for val in vals[1:]),\
+            f'MpiAdamOptimizer detected that different workers have different weights: {vals}'
 
 @with_mpi(timeout=5)
 def test_nonfreeze():

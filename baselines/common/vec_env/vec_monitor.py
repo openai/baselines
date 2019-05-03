@@ -33,7 +33,7 @@ class VecMonitor(VecEnvWrapper):
         self.eprets += rews
         self.eplens += 1
 
-        newinfos = infos[:]
+        newinfos = list(infos[:])
         for i in range(len(dones)):
             if dones[i]:
                 info = infos[i].copy()

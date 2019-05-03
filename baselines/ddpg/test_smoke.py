@@ -1,10 +1,6 @@
-from multiprocessing import Process
-import baselines.run
-
+from baselines.common.tests.util import smoketest
 def _run(argstr):
-    p = Process(target=baselines.run.main, args=('--alg=ddpg --env=Pendulum-v0 --num_timesteps=0 ' + argstr).split(' '))
-    p.start()
-    p.join()
+    smoketest('--alg=ddpg --env=Pendulum-v0 --num_timesteps=0 ' + argstr)
 
 def test_popart():
     _run('--normalize_returns=True --popart=True')
