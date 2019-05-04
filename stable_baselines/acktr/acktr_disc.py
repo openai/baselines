@@ -33,7 +33,7 @@ class ACKTR(ActorCriticRLModel):
     :param vf_fisher_coef: (float) The weight for the fisher loss on the value function
     :param learning_rate: (float) The initial learning rate for the RMS prop optimizer
     :param max_grad_norm: (float) The clipping value for the maximum gradient
-    :param kfac_clip: (float) gradient clipping for Kullback leiber
+    :param kfac_clip: (float) gradient clipping for Kullback-Leibler
     :param lr_schedule: (str) The type of scheduler for the learning rate update ('linear', 'constant',
                         'double_linear_con', 'middle_drop' or 'double_middle_drop')
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug

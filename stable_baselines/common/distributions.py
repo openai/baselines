@@ -39,7 +39,7 @@ class ProbabilityDistribution(object):
 
     def kl(self, other):
         """
-        Calculates the Kullback-Leiber divergence from the given probabilty distribution
+        Calculates the Kullback-Leibler divergence from the given probabilty distribution
 
         :param other: ([float]) the distibution to compare with
         :return: (float) the KL divergence of the two distributions

@@ -22,7 +22,7 @@ class KfacOptimizer:
 
         :param learning_rate: (float) The learning rate
         :param momentum: (float) The momentum value for the TensorFlow momentum optimizer
-        :param clip_kl: (float) gradient clipping for Kullback leiber
+        :param clip_kl: (float) gradient clipping for Kullback-Leibler
         :param kfac_update: (int) update kfac after kfac_update steps
         :param stats_accum_iter: (int) how may steps to accumulate stats
         :param full_stats_init: (bool) whether or not to fully initalize stats

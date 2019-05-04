@@ -89,6 +89,14 @@ For that, you need to define several environment variables:
   export OPENAI_LOG_FORMAT='stdout,log,csv,tensorboard'
   export OPENAI_LOGDIR=path/to/tensorboard/data
 
+and to configure the logger using:
+
+.. code-block:: python
+
+  from stable_baselines.logger import configure
+
+  configure()
+
 
 Then start tensorboard with:
 

@@ -143,7 +143,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version="2.5.1a0",
+      version="2.5.1",
       )
 
 # python setup.py sdist

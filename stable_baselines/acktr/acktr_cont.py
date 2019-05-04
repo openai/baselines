@@ -72,7 +72,7 @@ def learn(env, policy, value_fn, gamma, lam, timesteps_per_batch, num_timesteps,
     :param num_timesteps: (int) the total number of timesteps to run
     :param animate: (bool) if render env
     :param callback: (function) called every step, used for logging and saving
-    :param desired_kl: (float) the Kullback leibler weight for the loss
+    :param desired_kl: (float) the Kullback-Leibler weight for the loss
     """
     obfilter = ZFilter(env.observation_space.shape)
 

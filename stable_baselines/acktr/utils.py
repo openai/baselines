@@ -33,12 +33,12 @@ def dense(input_tensor, size, name, weight_init=None, bias_init=0, weight_loss_d
 
 def kl_div(action_dist1, action_dist2, action_size):
     """
-    Kullback leiber divergence
+    Kullback-Leibler divergence
     
     :param action_dist1: ([TensorFlow Tensor]) action distribution 1
     :param action_dist2: ([TensorFlow Tensor]) action distribution 2
     :param action_size: (int) the shape of an action
-    :return: (float) Kullback leiber divergence
+    :return: (float) Kullback-Leibler divergence
     """
     mean1, std1 = action_dist1[:, :action_size], action_dist1[:, action_size:]
     mean2, std2 = action_dist2[:, :action_size], action_dist2[:, action_size:]

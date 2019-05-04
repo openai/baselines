@@ -145,7 +145,7 @@ class PPO1(ActorCriticRLModel):
                     tf.summary.scalar('entropy_loss', pol_entpen)
                     tf.summary.scalar('policy_gradient_loss', pol_surr)
                     tf.summary.scalar('value_function_loss', vf_loss)
-                    tf.summary.scalar('approximate_kullback-leiber', meankl)
+                    tf.summary.scalar('approximate_kullback-leibler', meankl)
                     tf.summary.scalar('clip_factor', clip_param)
                     tf.summary.scalar('loss', total_loss)
 
