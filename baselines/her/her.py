@@ -11,12 +11,16 @@ from baselines.common.mpi_moments import mpi_moments
 import baselines.her.experiment.config as config
 from baselines.her.rollout import RolloutWorker
 
-def mpi_average(value):
+def mpi_average(value, dtype=np.float32):
     if not isinstance(value, list):
         value = [value]
     if not any(value):
         value = [0.]
-    return mpi_moments(np.array(value))[0]
+
+    if hasattr(value[0], "dtype"):
+        dtype = value[0].dtype
+
+    return mpi_moments(np.array(value, dtype=dtype))[0]
 
 
 def train(*, policy, rollout_worker, evaluator,

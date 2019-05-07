@@ -18,7 +18,7 @@ USER $USER
 ARG PWD
 WORKDIR $PWD
 ENV CODE_DIR $PWD
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/home/vdhiman/.mujoco/mujoco200/bin
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:$HOME/.mujoco/mujoco200/bin
 
 # Clean up pycache and pyc files
 RUN sudo pip install tensorflow mpi4py opencv-python click cloudpickle
