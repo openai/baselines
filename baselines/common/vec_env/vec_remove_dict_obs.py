@@ -1,6 +1,5 @@
 from .vec_env import VecEnvObservationWrapper
 
-
 class VecExtractDictObs(VecEnvObservationWrapper):
     def __init__(self, venv, key):
         self.key = key

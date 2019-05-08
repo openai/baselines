@@ -2,6 +2,7 @@ import pytest
 from baselines.common.tests.envs.identity_env import DiscreteIdentityEnv, BoxIdentityEnv, MultiDiscreteIdentityEnv
 from baselines.run import get_learn_function
 from baselines.common.tests.util import simple_test
+from baselines.common.tests import mark_slow
 
 common_kwargs = dict(
     total_timesteps=30000,
@@ -24,7 +25,7 @@ algos_disc = ['a2c', 'acktr', 'deepq', 'ppo2', 'trpo_mpi']
 algos_multidisc = ['a2c', 'acktr', 'ppo2', 'trpo_mpi']
 algos_cont = ['a2c', 'acktr', 'ddpg',  'ppo2', 'trpo_mpi']
 
-@pytest.mark.slow
+@mark_slow
 @pytest.mark.parametrize("alg", algos_disc)
 def test_discrete_identity(alg):
     '''
@@ -39,7 +40,7 @@ def test_discrete_identity(alg):
     env_fn = lambda: DiscreteIdentityEnv(10, episode_len=100)
     simple_test(env_fn, learn_fn, 0.9)
 
-@pytest.mark.slow
+@mark_slow
 @pytest.mark.parametrize("alg", algos_multidisc)
 def test_multidiscrete_identity(alg):
     '''
@@ -54,7 +55,7 @@ def test_multidiscrete_identity(alg):
     env_fn = lambda: MultiDiscreteIdentityEnv((3,3), episode_len=100)
     simple_test(env_fn, learn_fn, 0.9)
 
-@pytest.mark.slow
+@mark_slow
 @pytest.mark.parametrize("alg", algos_cont)
 def test_continuous_identity(alg):
     '''
