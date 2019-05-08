@@ -49,7 +49,7 @@ def impala_cnn(layout=[(16, 2), (32, 2), (32, 2)], num_hidden=256, activation=tf
             h = activ(fc(h, 'fc1', nh=num_hidden, init_scale=np.sqrt(2)))
 
         return h
-    
+
     return network_fn
 
 
