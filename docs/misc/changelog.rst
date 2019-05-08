@@ -5,6 +5,12 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
+Release 2.5.2a0 (WIP)
+--------------------
+
+- Bugfix for ``VecEnvWrapper.__getattr__`` which enables access to class attributes inherited from parent classes.
+
+
 Release 2.5.1 (2019-05-04)
 --------------------------
 

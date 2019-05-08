@@ -225,14 +225,27 @@ class CustomWrapperB(VecNormalize):
         VecNormalize.__init__(self, venv)
         self.var_b = 'b'
 
+    def func_b(self):
+        return self.var_b
+
+    def name_test(self):
+        return self.__class__
+
+class CustomWrapperBB(CustomWrapperB):
+    def __init__(self, venv):
+        CustomWrapperB.__init__(self, venv)
+        self.var_bb = 'bb'
 
 def test_vecenv_wrapper_getattr():
     def make_env():
         return CustomGymEnv(gym.spaces.Box(low=np.zeros(2), high=np.ones(2)))
     vec_env = DummyVecEnv([make_env for _ in range(N_ENVS)])
-    wrapped = CustomWrapperA(CustomWrapperB(vec_env))
-    assert wrapped.var_b == 'b'
+    wrapped = CustomWrapperA(CustomWrapperBB(vec_env))
     assert wrapped.var_a == 'a'
+    assert wrapped.var_b == 'b'
+    assert wrapped.var_bb == 'bb'
+    assert wrapped.func_b() == 'b'
+    assert wrapped.name_test() == CustomWrapperBB
 
     double_wrapped = CustomWrapperA(CustomWrapperB(wrapped))
     dummy = double_wrapped.var_a  # should not raise as it is directly defined here
