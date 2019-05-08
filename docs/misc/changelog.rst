@@ -9,6 +9,7 @@ Release 2.5.2a0 (WIP)
 --------------------
 
 - Bugfix for ``VecEnvWrapper.__getattr__`` which enables access to class attributes inherited from parent classes.
+- Removed ``get_available_gpus`` function which hadn't been used anywhere (@Pastafarianist)
 
 
 Release 2.5.1 (2019-05-04)

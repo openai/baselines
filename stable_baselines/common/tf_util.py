@@ -437,18 +437,6 @@ def display_var_info(_vars):
     logger.info("Total model parameters: %0.2f million" % (count_params * 1e-6))
 
 
-def get_available_gpus():
-    """
-    Return a list of all the available GPUs
-
-    :return: ([str]) the GPUs available
-    """
-    # recipe from here:
-    # https://stackoverflow.com/questions/38559755/how-to-get-current-available-gpus-in-tensorflow?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
-    local_device_protos = device_lib.list_local_devices()
-    return [x.name for x in local_device_protos if x.device_type == 'GPU']
-
-
 # ================================================================
 # Saving variables
 # ================================================================
