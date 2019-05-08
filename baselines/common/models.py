@@ -38,7 +38,7 @@ def impala_cnn(layout=[(16, 2), (32, 2), (32, 2)], num_hidden=256, activation=tf
         with tf.variable_scope("impala_net"):
             for i, (num_ch, num_blocks) in enumerate(layout, 1):
                 h = conv(h, 'c11_{}'.format(i), nf=num_ch, rf=3, stride=1, init_scale=np.sqrt(2), pad='SAME', **conv_kwargs)
-                h = layers.max_pool2d(h, kernel_size=3, stride=2, padding='SAME', scope='maxpool_{}'.format(i))
+                h = tf.contrib.layers.max_pool2d(h, kernel_size=3, stride=2, padding='SAME', scope='maxpool_{}'.format(i))
                 for j in range(num_blocks):
                     res_block_input = h
                     h = activ(h)
