@@ -26,6 +26,30 @@ def nature_cnn(unscaled_images, **conv_kwargs):
     h3 = conv_to_fc(h3)
     return activ(fc(h3, 'fc1', nh=512, init_scale=np.sqrt(2)))
 
+@register("impala_cnn")
+def impala_cnn(layout=[(16, 2), (32, 2), (32, 2)], num_hidden=256, activation=tf.nn.relu, **conv_kwargs):
+    """
+    CNN from IMPALA paper.
+    """
+    def network_fn(unscaled_images):
+        h = tf.cast(unscaled_images, tf.float32) / 255.
+        activ = tf.nn.relu
+        with tf.variable_scope("impala_net"):
+            for i, (num_ch, num_blocks) in enumerate(layout, 1):
+                h = conv(h, 'c11_{}'.format(i), nf=num_ch, rf=3, stride=1, init_scale=np.sqrt(2), pad='SAME', **conv_kwargs)
+                h = layers.max_pool2d(h, kernel_size=3, stride=2, padding='SAME', scope='maxpool_{}'.format(i))
+                for j in range(num_blocks):
+                    res_block_input = h
+                    h = activ(h)
+                    h = activ(conv(h, 'c21_{}{}'.format(i,j), nf=num_ch, rf=3, stride=1, init_scale=np.sqrt(2), pad='SAME', **conv_kwargs))
+                    h = conv(h, 'c22_{}{}'.format(i,j), nf=num_ch, rf=3, stride=1, init_scale=np.sqrt(2), pad='SAME', **conv_kwargs)
+                    h += res_block_input
+            h = activ(conv_to_fc(h))
+            h = fc(h, 'fc1', nh=num_hidden, init_scale=np.sqrt(2))
+
+        return h
+    
+    return network_fn
 
 @register("mlp")
 def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
