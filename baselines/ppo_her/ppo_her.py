@@ -10,7 +10,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
-from baselines.ppo2.runner import Runner
+from baselines.ppo_her.runner import Runner
 
 
 def constfn(val):
