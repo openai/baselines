@@ -10,6 +10,7 @@ Release 2.5.2a0 (WIP)
 
 - Bugfix for ``VecEnvWrapper.__getattr__`` which enables access to class attributes inherited from parent classes.
 - Removed ``get_available_gpus`` function which hadn't been used anywhere (@Pastafarianist)
+- Fixed path splitting in ``TensorboardWriter._get_latest_run_id()`` on Windows machines (@PatrickWalter214)
 
 
 Release 2.5.1 (2019-05-04)
@@ -299,4 +300,4 @@ In random order...
 
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
 @EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn @AdamGleave @keshaviyengar @tperol
-@XMaster96 @kantneel @Pastafarianist @GerardMaggiolino
+@XMaster96 @kantneel @Pastafarianist @GerardMaggiolino @PatrickWalter214
