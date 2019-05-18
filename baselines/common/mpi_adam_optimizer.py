@@ -65,7 +65,7 @@ def check_synced(localval, comm=None):
     vals = comm.gather(localval)
     if comm.rank == 0:
         assert all(val==vals[0] for val in vals[1:]),\
-            f'MpiAdamOptimizer detected that different workers have different weights: {vals}'
+            'MpiAdamOptimizer detected that different workers have different weights:'.format(vals)
 
 @with_mpi(timeout=5)
 def test_nonfreeze():
