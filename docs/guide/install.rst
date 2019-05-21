@@ -21,7 +21,7 @@ Mac OS X
 ~~~~~~~~
 
 Installation of system packages on Mac requires `Homebrew`_. With
-Homebrew installed, run the follwing:
+Homebrew installed, run the following:
 
 .. code-block:: bash
 
