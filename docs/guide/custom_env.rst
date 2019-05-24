@@ -44,7 +44,7 @@ Then you can define and train a RL agent with:
   model = A2C(CnnPolicy, env).learn(total_timesteps=1000)
 
 
-You can find a `complete guide online <https://github.com/openai/gym/tree/master/gym/envs#how-to-create-new-environments-for-gym>`_
+You can find a `complete guide online <https://github.com/openai/gym/blob/master/docs/creating-environments.md>`_
 on creating a custom Gym environment.
 
 
