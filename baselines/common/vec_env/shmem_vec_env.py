@@ -70,9 +70,11 @@ class ShmemVecEnv(VecEnv):
         assert len(actions) == len(self.parent_pipes)
         for pipe, act in zip(self.parent_pipes, actions):
             pipe.send(('step', act))
+        self.waiting_step = True
 
     def step_wait(self):
         outs = [pipe.recv() for pipe in self.parent_pipes]
+        self.waiting_step = False
         obs, rews, dones, infos = zip(*outs)
         return self._decode_obses(obs), np.array(rews), np.array(dones), infos
 
