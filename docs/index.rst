@@ -13,7 +13,7 @@ Github repository: https://github.com/hill-a/stable-baselines
 
 RL Baselines Zoo (collection of pre-trained agents): https://github.com/araffin/rl-baselines-zoo
 
-RL Baselines zoo also offers a simple interface to train and evaluate agents.
+RL Baselines zoo also offers a simple interface to train, evaluate agents and do hyperparameter tuning.
 
 You can read a detailed presentation of Stable Baselines in the
 Medium article: `link <https://medium.com/@araffin/stable-baselines-a-fork-of-openai-baselines-reinforcement-learning-made-easy-df87c4b2fc82>`_

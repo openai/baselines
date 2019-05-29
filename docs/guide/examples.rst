@@ -13,6 +13,7 @@ notebooks:
 -  `Monitor Training and Plotting`_
 -  `Atari Games`_
 -  `Breakout`_ (trained agent included)
+-  `RL Baselines zoo`_
 
 .. _Getting Started: https://colab.research.google.com/drive/1_1H5bjWKYBVKbbs-Kj83dsfuZieDNcFU
 .. _Training, Saving, Loading: https://colab.research.google.com/drive/1KoAQ1C_BNtGV3sVvZCnNZaER9rstmy0s
@@ -20,6 +21,7 @@ notebooks:
 .. _Monitor Training and Plotting: https://colab.research.google.com/drive/1L_IMo6v0a0ALK8nefZm6PqPSy0vZIWBT
 .. _Atari Games: https://colab.research.google.com/drive/1iYK11yDzOOqnrXi1Sfjm1iekZr4cxLaN
 .. _Breakout: https://colab.research.google.com/drive/14NwwEHwN4hdNgGzzySjxQhEVDff-zr7O
+.. _RL Baselines zoo: https://colab.research.google.com/drive/1cPGK3XrCqEs3QLqiijsfib9OFht3kObX
 
 .. |colab| image:: ../_static/img/colab.svg
 

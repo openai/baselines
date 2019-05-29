@@ -42,12 +42,11 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 
 Documentation is available online: [https://stable-baselines.readthedocs.io/](https://stable-baselines.readthedocs.io/)
 
-## RL Baselines Zoo: A Collection of 70+ Trained RL Agents
+## RL Baselines Zoo: A Collection of 100+ Trained RL Agents
 
-[RL Baselines Zoo](https://github.com/araffin/rl-baselines-zoo). is a collection of pre-trained Reinforcement Learning agents using
-Stable-Baselines.
+[RL Baselines Zoo](https://github.com/araffin/rl-baselines-zoo). is a collection of pre-trained Reinforcement Learning agents using Stable-Baselines.
 
-It also provides basic scripts for training, evaluating agents and recording videos.
+It also provides basic scripts for training, evaluating agents, tuning hyperparameters and recording videos.
 
 Goals of this repository:
 

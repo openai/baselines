@@ -7,6 +7,13 @@ To use the rl baselines with custom environments, they just need to follow the *
 That is to say, your environment must implement the following methods (and inherits from OpenAI Gym Class):
 
 
+.. note::
+
+	 If you are using images as input, the input values must be in [0, 255] as the observation
+   is normalized (dividing by 255 to have values in [0, 1]) when using CNN policies.
+
+
+
 .. code-block:: python
 
   import gym

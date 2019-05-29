@@ -6,7 +6,7 @@ RL Baselines Zoo
 
 `RL Baselines Zoo <https://github.com/araffin/rl-baselines-zoo>`_. is a collection of pre-trained Reinforcement Learning agents using
 Stable-Baselines.
-It also provides basic scripts for training, evaluating agents and recording videos.
+It also provides basic scripts for training, evaluating agents, tuning hyperparameters and recording videos.
 
 Goals of this repository:
 
@@ -22,7 +22,7 @@ Installation
 ::
 
    apt-get install swig cmake libopenmpi-dev zlib1g-dev ffmpeg
-   pip install stable-baselines>=2.2.1 box2d box2d-kengz pyyaml pybullet==2.1.0 pytablewriter
+   pip install stable-baselines box2d box2d-kengz pyyaml pybullet optuna pytablewriter
 
 2. Clone the repository:
 
@@ -79,6 +79,27 @@ For example, enjoy A2C on Breakout during 5000 timesteps:
 ::
 
   python enjoy.py --algo a2c --env BreakoutNoFrameskip-v4 --folder trained_agents/ -n 5000
+
+
+Hyperparameter Optimization
+---------------------------
+
+We use `Optuna <https://optuna.org/>`_ for optimizing the hyperparameters.
+
+
+Tune the hyperparameters for PPO2, using a random sampler and median pruner, 2 parallels jobs,
+with a budget of 1000 trials and a maximum of 50000 steps:
+
+::
+
+  python -m train.py --algo ppo2 --env MountainCar-v0 -n 50000 -optimize --n-trials 1000 --n-jobs 2 \
+    --sampler random --pruner median
+
+
+Colab Notebook: Try it Online!
+------------------------------
+
+You can train agents online using Google `colab notebook <https://colab.research.google.com/drive/1cPGK3XrCqEs3QLqiijsfib9OFht3kObX>`_.
 
 
 .. note::
