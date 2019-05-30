@@ -192,6 +192,12 @@ def parse_cmdline_kwargs(args):
     return {k: parse(v) for k,v in parse_unknown_args(args).items()}
 
 
+def configure_logger(log_path, **kwargs):
+    if log_path is not None:
+        logger.configure(log_path)
+    else:
+        logger.configure(**kwargs)
+
 
 def main(args):
     # configure logger, disable logging in child MPI processes (with rank > 0)
@@ -202,10 +208,10 @@ def main(args):
 
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
         rank = 0
-        logger.configure()
+        configure_logger(args.log_path)
     else:
-        logger.configure(format_strs=[])
         rank = MPI.COMM_WORLD.Get_rank()
+        configure_logger(args.log_path, format_strs=[])
 
     model, env = train(args, extra_args)
 
