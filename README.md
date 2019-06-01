@@ -113,16 +113,17 @@ python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=0 --
 
 *NOTE:* Mujoco environments require normalization to work properly, so we wrap them with VecNormalize wrapper. Currently, to ensure the models are saved with normalization (so that trained models can be restored and run without further training) the normalization coefficients are saved as tensorflow variables. This can decrease the performance somewhat, so if you require high-throughput steps with Mujoco and do not need saving/restoring the models, it may make sense to use numpy normalization instead. To do that, set 'use_tf=False` in [baselines/run.py](baselines/run.py#L116). 
 
-### Loading and vizualizing learning curves and other training metrics
-By default, all summary data, including progress, standard output, is saved to a unique directory specified by a call to Python's [tempfile.gettempdir()](https://docs.python.org/3/library/tempfile.html#tempfile.gettempdir).
-The directory can be changed with the `--log_path` command-line option. 
+### Logging and vizualizing learning curves and other training metrics
+By default, all summary data, including progress, standard output, is saved to a unique directory in a temp folder, specified by a call to Python's [tempfile.gettempdir()](https://docs.python.org/3/library/tempfile.html#tempfile.gettempdir).
+The directory can be changed with the `--log_path` command-line option.
 ```bash
 python -m baselines.run --alg=ppo2 --env=PongNoFrameskip-v4 --num_timesteps=2e7 --save_path=~/models/pong_20M_ppo2 --log_path=~/logs/Pong/
 ```
-Please be aware that the logger will overwrite files of the same name in an existing directory, thus it's recommended that folder names be given a unique timestamp to prevent overwritten logs.
+*NOTE:* Please be aware that the logger will overwrite files of the same name in an existing directory, thus it's recommended that folder names be given a unique timestamp to prevent overwritten logs.
 
-Another way the directory can be changed is through the use of the `$OPENAI_LOGDIR` environment variable.
-See [here](docs/viz/viz.ipynb) for instructions on how to load and display the training data. 
+Another way the temp directory can be changed is through the use of the `$OPENAI_LOGDIR` environment variable.
+
+For examples on how to load and display the training data, see [here](docs/viz/viz.ipynb).
 
 ## Subpackages
 
