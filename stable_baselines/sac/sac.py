@@ -495,6 +495,10 @@ class SAC(OffPolicyRLModel):
 
         return actions, None
 
+    def get_parameter_list(self):
+        return (self.params +
+                self.target_params)
+
     def save(self, save_path):
         data = {
             "learning_rate": self.learning_rate,
@@ -519,10 +523,9 @@ class SAC(OffPolicyRLModel):
             "policy_kwargs": self.policy_kwargs
         }
 
-        params = self.sess.run(self.params)
-        target_params = self.sess.run(self.target_params)
+        params_to_save = self.get_parameters()
 
-        self._save_to_file(save_path, data=data, params=params + target_params)
+        self._save_to_file(save_path, data=data, params=params_to_save)
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
@@ -539,9 +542,6 @@ class SAC(OffPolicyRLModel):
         model.set_env(env)
         model.setup_model()
 
-        restores = []
-        for param, loaded_p in zip(model.params + model.target_params, params):
-            restores.append(param.assign(loaded_p))
-        model.sess.run(restores)
+        model.load_parameters(params)
 
         return model

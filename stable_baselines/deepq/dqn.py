@@ -310,6 +310,9 @@ class DQN(OffPolicyRLModel):
 
         return actions_proba
 
+    def get_parameter_list(self):
+        return self.params
+
     def save(self, save_path):
         # params
         data = {
@@ -338,9 +341,9 @@ class DQN(OffPolicyRLModel):
             "policy_kwargs": self.policy_kwargs
         }
 
-        params = self.sess.run(self.params)
+        params_to_save = self.get_parameters()
 
-        self._save_to_file(save_path, data=data, params=params)
+        self._save_to_file(save_path, data=data, params=params_to_save)
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
@@ -357,9 +360,6 @@ class DQN(OffPolicyRLModel):
         model.set_env(env)
         model.setup_model()
 
-        restores = []
-        for param, loaded_p in zip(model.params, params):
-            restores.append(param.assign(loaded_p))
-        model.sess.run(restores)
+        model.load_parameters(params)
 
         return model

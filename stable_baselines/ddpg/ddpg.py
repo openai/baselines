@@ -988,6 +988,12 @@ class DDPG(OffPolicyRLModel):
         warnings.warn("Warning: action probability is meaningless for DDPG. Returning None")
         return None
 
+    def get_parameter_list(self):
+        return (self.params +
+                self.target_params +
+                self.obs_rms_params +
+                self.ret_rms_params)
+
     def save(self, save_path):
         data = {
             "observation_space": self.observation_space,
@@ -1020,19 +1026,11 @@ class DDPG(OffPolicyRLModel):
             "policy_kwargs": self.policy_kwargs
         }
 
-        params = self.sess.run(self.params)
-        target_params = self.sess.run(self.target_params)
-        norm_obs_params = self.sess.run(self.obs_rms_params)
-        norm_ret_params = self.sess.run(self.ret_rms_params)
+        params_to_save = self.get_parameters()
 
-        params_to_save = params \
-            + target_params \
-            + norm_obs_params \
-            + norm_ret_params
         self._save_to_file(save_path,
                            data=data,
                            params=params_to_save)
-
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
@@ -1049,13 +1047,6 @@ class DDPG(OffPolicyRLModel):
         model.set_env(env)
         model.setup_model()
 
-        restores = []
-        params_to_load = model.params \
-            + model.target_params \
-            + model.obs_rms_params \
-            + model.ret_rms_params
-        for param, loaded_p in zip(params_to_load, params):
-            restores.append(param.assign(loaded_p))
-        model.sess.run(restores)
+        model.load_parameters(params)
 
         return model
