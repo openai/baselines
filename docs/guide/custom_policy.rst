@@ -216,19 +216,18 @@ If your task requires even more granular control over the policy architecture, y
               value_fn = tf.layers.dense(vf_h, 1, name='vf')
               vf_latent = vf_h
 
-              self.proba_distribution, self.policy, self.q_value = \
+              self._proba_distribution, self._policy, self.q_value = \
                   self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent, init_scale=0.01)
 
-          self.value_fn = value_fn
-          self.initial_state = None
+          self._value_fn = value_fn
           self._setup_init()
 
       def step(self, obs, state=None, mask=None, deterministic=False):
           if deterministic:
-              action, value, neglogp = self.sess.run([self.deterministic_action, self._value, self.neglogp],
+              action, value, neglogp = self.sess.run([self.deterministic_action, self.value_flat, self.neglogp],
                                                      {self.obs_ph: obs})
           else:
-              action, value, neglogp = self.sess.run([self.action, self._value, self.neglogp],
+              action, value, neglogp = self.sess.run([self.action, self.value_flat, self.neglogp],
                                                      {self.obs_ph: obs})
           return action, value, self.initial_state, neglogp
 
@@ -236,12 +235,11 @@ If your task requires even more granular control over the policy architecture, y
           return self.sess.run(self.policy_proba, {self.obs_ph: obs})
 
       def value(self, obs, state=None, mask=None):
-          return self.sess.run(self._value, {self.obs_ph: obs})
+          return self.sess.run(self.value_flat, {self.obs_ph: obs})
 
 
   # Create and wrap the environment
-  env = gym.make('Breakout-v0')
-  env = DummyVecEnv([lambda: env])
+  env = DummyVecEnv([lambda: gym.make('Breakout-v0')])
 
   model = A2C(CustomPolicy, env, verbose=1)
   # Train the agent

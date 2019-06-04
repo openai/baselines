@@ -11,34 +11,31 @@ along with some useful characteristics: support for recurrent policies, discrete
 .. A2C   ✔️
 .. ===== ======================== ========= ======= ============ ================= =============== ================
 
-.. There is an issue with Read The Docs for building the table when the "HER" row is present:
-.. Apparently a problem of spacing
-.. HER [#f3]_   ❌ [#f5]_                ❌        ✔️           ❌           ❌
-
 
 ============ ======================== ========= =========== ============ ================
 Name         Refactored [#f1]_        Recurrent ``Box``     ``Discrete`` Multi Processing
 ============ ======================== ========= =========== ============ ================
 A2C          ✔️                        ✔️         ✔️           ✔️            ✔️
-ACER         ✔️                        ✔️         ❌ [#f5]_   ✔️            ✔️
-ACKTR        ✔️                        ✔️         ❌ [#f5]_   ✔️            ✔️
-DDPG         ✔️                        ❌        ✔️           ❌           ❌
+ACER         ✔️                        ✔️         ❌ [#f4]_   ✔️            ✔️
+ACKTR        ✔️                        ✔️         ❌ [#f4]_   ✔️            ✔️
+DDPG         ✔️                        ❌        ✔️           ❌           ✔️ [#f3]_
 DQN          ✔️                        ❌        ❌          ✔️            ❌
-GAIL [#f2]_  ✔️                        ✔️         ✔️           ✔️            ✔️ [#f4]_
-PPO1         ✔️                        ❌        ✔️           ✔️            ✔️ [#f4]_
+HER          ✔️                        ❌        ✔️           ✔️            ❌
+GAIL [#f2]_  ✔️                        ✔️         ✔️           ✔️            ✔️ [#f3]_
+PPO1         ✔️                        ❌        ✔️           ✔️            ✔️ [#f3]_
 PPO2         ✔️                        ✔️         ✔️           ✔️            ✔️
 SAC          ✔️                        ❌        ✔️           ❌           ❌
-TRPO         ✔️                        ❌        ✔️           ✔️            ✔️ [#f4]_
+TRPO         ✔️                        ❌        ✔️           ✔️            ✔️ [#f3]_
 ============ ======================== ========= =========== ============ ================
 
 .. [#f1] Whether or not the algorithm has be refactored to fit the ``BaseRLModel`` class.
 .. [#f2] Only implemented for TRPO.
-.. [#f3] Only implemented for DDPG.
-.. [#f4] Multi Processing with `MPI`_.
-.. [#f5] TODO, in project scope.
+.. [#f3] Multi Processing with `MPI`_.
+.. [#f4] TODO, in project scope.
 
 .. note::
-    Non-array spaces such as `Dict` or `Tuple` are not currently supported by any algorithm.
+    Non-array spaces such as `Dict` or `Tuple` are not currently supported by any algorithm,
+    except HER for dict when working with gym.GoalEnv
 
 Actions ``gym.spaces``:
 

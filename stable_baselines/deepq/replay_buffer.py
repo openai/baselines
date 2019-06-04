@@ -8,7 +8,7 @@ from stable_baselines.common.segment_tree import SumSegmentTree, MinSegmentTree
 class ReplayBuffer(object):
     def __init__(self, size):
         """
-        Create Replay buffer.
+        Implements a ring buffer (FIFO).
 
         :param size: (int)  Max number of transitions to store in the buffer. When the buffer overflows the old
             memories are dropped.
@@ -19,6 +19,24 @@ class ReplayBuffer(object):
 
     def __len__(self):
         return len(self._storage)
+
+    @property
+    def storage(self):
+        """[(np.ndarray, float, float, np.ndarray, bool)]: content of the replay buffer"""
+        return self._storage
+
+    @property
+    def buffer_size(self):
+        """float: Max capacity of the buffer"""
+        return self._maxsize
+
+    def is_full(self):
+        """
+        Check whether the replay buffer is full or not.
+
+        :return: (bool)
+        """
+        return len(self) == self.buffer_size
 
     def add(self, obs_t, action, reward, obs_tp1, done):
         """

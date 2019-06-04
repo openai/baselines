@@ -43,7 +43,7 @@ class TransitionClassifier(object):
         :param hidden_size: ([int]) the hidden dimension for the MLP
         :param entcoeff: (float) the entropy loss weight
         :param scope: (str) tensorflow variable scope
-        :param normalize: (bool) Wether to normalize the reward or not
+        :param normalize: (bool) Whether to normalize the reward or not
         """
         # TODO: support images properly (using a CNN)
         self.scope = scope

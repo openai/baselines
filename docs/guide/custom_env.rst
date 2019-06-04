@@ -8,9 +8,8 @@ That is to say, your environment must implement the following methods (and inher
 
 
 .. note::
-
-	 If you are using images as input, the input values must be in [0, 255] as the observation
-   is normalized (dividing by 255 to have values in [0, 1]) when using CNN policies.
+	If you are using images as input, the input values must be in [0, 255] as the observation
+	is normalized (dividing by 255 to have values in [0, 1]) when using CNN policies.
 
 
 

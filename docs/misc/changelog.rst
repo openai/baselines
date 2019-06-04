@@ -5,23 +5,56 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
-Release 2.5.2a0 (WIP)
---------------------
 
+Pre-Release 2.6.0a0 (WIP)
+-------------------------
+
+**Hindsight Experience Replay (HER) - Reloaded**
+
+- revamped HER implementation: clean re-implementation from scratch, now supports DQN, SAC and DDPG
+- **deprecated** ``memory_limit`` and ``memory_policy`` in DDPG, please use ``buffer_size`` instead. (will be removed in v3.x.x)
+- **breaking change** removed ``stable_baselines.ddpg.memory`` in favor of ``stable_baselines.deepq.replay_buffer`` (see fix below)
+- add ``action_noise`` param for SAC, it helps exploration for problem with deceptive reward
+- removed unused dependencies (tdqm, dill, progressbar2, seaborn, glob2, click)
 - Bugfix for ``VecEnvWrapper.__getattr__`` which enables access to class attributes inherited from parent classes.
 - Removed ``get_available_gpus`` function which hadn't been used anywhere (@Pastafarianist)
 - Fixed path splitting in ``TensorboardWriter._get_latest_run_id()`` on Windows machines (@PatrickWalter214)
 - The parameter ``filter_size`` of the function ``conv`` in A2C utils now supports passing a list/tuple of two integers (height and width), in order to have non-squared kernel matrix. (@yutingsz)
+- add ``random_exploration`` parameter for DDPG and SAC, it may be useful when using HER + DDPG/SAC
+  this hack was present in the original OpenAI Baselines DDPG + HER implementation.
 - fixed a bug where initial learning rate is logged instead of its placeholder in ``A2C.setup_model`` (@sc420)
 - fixed a bug where number of timesteps is incorrectly updated and logged in ``A2C.learn`` and ``A2C._train_step`` (@sc420)
-- added ``load_parameters`` and ``get_parameters`` for most learning algorithms.
+- added ``load_parameters`` and ``get_parameters`` to base RL class.
   With these methods, users are able to load and get parameters to/from existing model, without touching tensorflow. (@Miffyli)
 - **important change** switched to using dictionaries rather than lists when storing parameters, with tensorflow Variable names being the keys. (@Miffyli)
+
+**Breaking Change:** DDPG replay buffer was unified with DQN/SAC replay buffer. As a result,
+when loading a DDPG model trained with stable_baselines<2.6.0, it throws an import error.
+You can fix that using:
+
+.. code-block:: python
+
+  import sys
+  import pkg_resources
+
+  import stable_baselines
+
+  # Fix for breaking change for DDPG buffer in v2.6.0
+  if pkg_resources.get_distribution("stable_baselines").version >= "2.6.0":
+      sys.modules['stable_baselines.ddpg.memory'] = stable_baselines.deepq.replay_buffer
+      stable_baselines.deepq.replay_buffer.Memory = stable_baselines.deepq.replay_buffer.ReplayBuffer
+
+
+We recommend you to save again the model afterward, so the fix won't be needed the next time the trained agent is loaded.
+
+
 
 Release 2.5.1 (2019-05-04)
 --------------------------
 
 **Bug fixes + improvements in the VecEnv**
+
+**Warning: breaking changes when using custom policies**
 
 - doc update (fix example of result plotter + improve doc)
 - fixed logger issues when stdout lacks ``read`` function
@@ -40,7 +73,8 @@ Release 2.5.1 (2019-05-04)
   to exactly one of the nested instances i.e. it must be unambiguous. (@kantneel)
 - fixed bug where result plotter would crash on very short runs (@Pastafarianist)
 - added option to not trim output of result plotter by number of timesteps (@Pastafarianist)
-- clarified the public interface of ``BasePolicy`` and ``ActorCriticPolicy``. **Breaking change** when using custom policies: ``masks_ph`` is now called ``dones_ph``.
+- clarified the public interface of ``BasePolicy`` and ``ActorCriticPolicy``. **Breaking change** when using custom policies: ``masks_ph`` is now called ``dones_ph``,
+  and most placeholders were made private: e.g. ``self.value_fn`` is now ``self._value_fn``
 - support for custom stateful policies.
 - fixed episode length recording in ``trpo_mpi.utils.traj_segment_generator`` (@GerardMaggiolino)
 

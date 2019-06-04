@@ -36,7 +36,7 @@ Can I use?
 ----------
 
 -  Recurrent policies: ❌
--  Multi processing: ❌
+-  Multi processing: ✔️ (using MPI)
 -  Gym spaces:
 
 

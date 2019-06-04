@@ -53,6 +53,11 @@ class SAC(OffPolicyRLModel):
     :param target_update_interval: (int) update the target network every `target_network_update_freq` steps.
     :param gradient_steps: (int) How many gradient update after each step
     :param target_entropy: (str or float) target entropy when learning ent_coef (ent_coef = 'auto')
+    :param action_noise: (ActionNoise) the action noise type (None by default), this can help
+        for hard exploration problem. Cf DDPG for the different action noise type.
+    :param random_exploration: (float) Probability of taking a random action (as in an epsilon-greedy strategy)
+        This is not needed for SAC normally but can help exploring when using HER + SAC.
+        This hack was present in the original OpenAI Baselines repo (DDPG + HER)
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param tensorboard_log: (str) the log location for tensorboard (if None, no logging)
     :param _init_setup_model: (bool) Whether or not to build the network at the creation of the instance
@@ -64,7 +69,8 @@ class SAC(OffPolicyRLModel):
     def __init__(self, policy, env, gamma=0.99, learning_rate=3e-4, buffer_size=50000,
                  learning_starts=100, train_freq=1, batch_size=64,
                  tau=0.005, ent_coef='auto', target_update_interval=1,
-                 gradient_steps=1, target_entropy='auto', verbose=0, tensorboard_log=None,
+                 gradient_steps=1, target_entropy='auto', action_noise=None,
+                 random_exploration=0.0, verbose=0, tensorboard_log=None,
                  _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False):
 
         super(SAC, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose,
@@ -86,6 +92,8 @@ class SAC(OffPolicyRLModel):
         self.target_update_interval = target_update_interval
         self.gradient_steps = gradient_steps
         self.gamma = gamma
+        self.action_noise = action_noise
+        self.random_exploration = random_exploration
 
         self.value_fn = None
         self.graph = None
@@ -352,9 +360,12 @@ class SAC(OffPolicyRLModel):
         return policy_loss, qf1_loss, qf2_loss, value_loss, entropy
 
     def learn(self, total_timesteps, callback=None, seed=None,
-              log_interval=4, tb_log_name="SAC", reset_num_timesteps=True):
+              log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, replay_wrapper=None):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+
+        if replay_wrapper is not None:
+            self.replay_buffer = replay_wrapper(self.replay_buffer)
 
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
                 as writer:
@@ -368,6 +379,9 @@ class SAC(OffPolicyRLModel):
 
             start_time = time.time()
             episode_rewards = [0.0]
+            episode_successes = []
+            if self.action_noise is not None:
+                self.action_noise.reset()
             obs = self.env.reset()
             self.episode_reward = np.zeros((1,))
             ep_info_buf = deque(maxlen=100)
@@ -383,13 +397,18 @@ class SAC(OffPolicyRLModel):
 
                 # Before training starts, randomly sample actions
                 # from a uniform distribution for better exploration.
-                # Afterwards, use the learned policy.
-                if self.num_timesteps < self.learning_starts:
-                    action = self.env.action_space.sample()
+                # Afterwards, use the learned policy
+                # if random_exploration is set to 0 (normal setting)
+                if (self.num_timesteps < self.learning_starts
+                    or np.random.rand() < self.random_exploration):
                     # No need to rescale when sampling random action
-                    rescaled_action = action
+                    rescaled_action = action = self.env.action_space.sample()
                 else:
                     action = self.policy_tf.step(obs[None], deterministic=False).flatten()
+                    # Add noise to the action (improve exploration,
+                    # not needed in general)
+                    if self.action_noise is not None:
+                        action = np.clip(action + self.action_noise(), -1, 1)
                     # Rescale from [-1, 1] to the correct bounds
                     rescaled_action = action * np.abs(self.action_space.low)
 
@@ -435,9 +454,15 @@ class SAC(OffPolicyRLModel):
 
                 episode_rewards[-1] += reward
                 if done:
+                    if self.action_noise is not None:
+                        self.action_noise.reset()
                     if not isinstance(self.env, VecEnv):
                         obs = self.env.reset()
                     episode_rewards.append(0.0)
+
+                    maybe_is_success = info.get('is_success')
+                    if maybe_is_success is not None:
+                        episode_successes.append(float(maybe_is_success))
 
                 if len(episode_rewards[-101:-1]) == 0:
                     mean_reward = -np.inf
@@ -458,6 +483,8 @@ class SAC(OffPolicyRLModel):
                     logger.logkv("current_lr", current_lr)
                     logger.logkv("fps", fps)
                     logger.logkv('time_elapsed', int(time.time() - start_time))
+                    if len(episode_successes) > 0:
+                        logger.logkv("success rate", np.mean(episode_successes[-100:]))
                     if len(infos_values) > 0:
                         for (name, val) in zip(self.infos_names, infos_values):
                             logger.logkv(name, val)
@@ -519,6 +546,8 @@ class SAC(OffPolicyRLModel):
             "action_space": self.action_space,
             "policy": self.policy,
             "n_envs": self.n_envs,
+            "action_noise": self.action_noise,
+            "random_exploration": self.random_exploration,
             "_vectorize_action": self._vectorize_action,
             "policy_kwargs": self.policy_kwargs
         }

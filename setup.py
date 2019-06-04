@@ -107,19 +107,13 @@ setup(name='stable_baselines',
       install_requires=[
           'gym[atari,classic_control]>=0.10.9',
           'scipy',
-          'tqdm',
           'joblib',
-          'zmq',
-          'dill',
           'mpi4py',
           'cloudpickle>=0.5.5',
-          'click',
           'opencv-python',
           'numpy',
           'pandas',
-          'matplotlib',
-          'seaborn',
-          'glob2'
+          'matplotlib'
       ] + tf_dependency,
       extras_require={
         'tests': [
@@ -143,7 +137,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version="2.5.1",
+      version="2.6.0a0",
       )
 
 # python setup.py sdist

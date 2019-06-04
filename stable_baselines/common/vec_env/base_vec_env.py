@@ -36,6 +36,9 @@ class VecEnv(ABC):
     :param observation_space: (Gym Space) the observation space
     :param action_space: (Gym Space) the action space
     """
+    metadata = {
+        'render.modes': ['human', 'rgb_array']
+    }
 
     def __init__(self, num_envs, observation_space, action_space):
         self.num_envs = num_envs

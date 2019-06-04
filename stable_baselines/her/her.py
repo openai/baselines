@@ -1,117 +1,163 @@
-import tensorflow as tf
-import numpy as np
-import gym
+import functools
 
-from stable_baselines.common import BaseRLModel, SetVerbosity
-from stable_baselines.common.policies import ActorCriticPolicy
-
-
-def make_sample_her_transitions(replay_strategy, replay_k, reward_fun):
-    """
-    Creates a sample function that can be used for HER experience replay.
-
-    :param replay_strategy: (str) the HER replay strategy; if set to 'none', regular DDPG experience replay is used
-        (can be 'future' or 'none').
-    :param replay_k: (int) the ratio between HER replays and regular replays (e.g. k = 4 -> 4 times
-            as many HER replays as regular replays are used)
-    :param reward_fun: (function (dict, dict): float) function to re-compute the reward with substituted goals
-    """
-    if replay_strategy == 'future':
-        future_p = 1 - (1. / (1 + replay_k))
-    else:  # 'replay_strategy' == 'none'
-        future_p = 0
-
-    def _sample_her_transitions(episode_batch, batch_size_in_transitions):
-        """episode_batch is {key: array(buffer_size x T x dim_key)}
-        """
-        time_horizon = episode_batch['u'].shape[1]
-        rollout_batch_size = episode_batch['u'].shape[0]
-        batch_size = batch_size_in_transitions
-
-        # Select which episodes and time steps to use.
-        episode_idxs = np.random.randint(0, rollout_batch_size, batch_size)
-        t_samples = np.random.randint(time_horizon, size=batch_size)
-        transitions = {key: episode_batch[key][episode_idxs, t_samples].copy()
-                       for key in episode_batch.keys()}
-
-        # Select future time indexes proportional with probability future_p. These
-        # will be used for HER replay by substituting in future goals.
-        her_indexes = np.where(np.random.uniform(size=batch_size) < future_p)
-        future_offset = np.random.uniform(size=batch_size) * (time_horizon - t_samples)
-        future_offset = future_offset.astype(int)
-        future_t = (t_samples + 1 + future_offset)[her_indexes]
-
-        # Replace goal with achieved goal but only for the previously-selected
-        # HER transitions (as defined by her_indexes). For the other transitions,
-        # keep the original goal.
-        future_ag = episode_batch['ag'][episode_idxs[her_indexes], future_t]
-        transitions['g'][her_indexes] = future_ag
-
-        # Reconstruct info dictionary for reward  computation.
-        info = {}
-        for key, value in transitions.items():
-            if key.startswith('info_'):
-                info[key.replace('info_', '')] = value
-
-        # Re-compute reward since we may have substituted the goal.
-        reward_params = {k: transitions[k] for k in ['ag_2', 'g']}
-        reward_params['info'] = info
-        transitions['r'] = reward_fun(**reward_params)
-
-        transitions = {k: transitions[k].reshape(batch_size, *transitions[k].shape[1:])
-                       for k in transitions.keys()}
-
-        assert transitions['u'].shape[0] == batch_size_in_transitions
-
-        return transitions
-
-    return _sample_her_transitions
+from stable_baselines.common import BaseRLModel
+from stable_baselines.common import OffPolicyRLModel
+from stable_baselines.common.base_class import _UnvecWrapper
+from stable_baselines.common.vec_env import VecEnvWrapper
+from .replay_buffer import HindsightExperienceReplayWrapper, KEY_TO_GOAL_STRATEGY
+from .utils import HERGoalEnvWrapper
 
 
 class HER(BaseRLModel):
-    def __init__(self, policy, env, verbose=0, _init_setup_model=True):
-        super().__init__(policy=policy, env=env, verbose=verbose, policy_base=ActorCriticPolicy, requires_vec_env=False)
+    """
+    Hindsight Experience Replay (HER) https://arxiv.org/abs/1707.01495
 
-        self.policy = policy
+    :param policy: (BasePolicy or str) The policy model to use (MlpPolicy, CnnPolicy, CnnLstmPolicy, ...)
+    :param env: (Gym environment or str) The environment to learn from (if registered in Gym, can be str)
+    :param model_class: (OffPolicyRLModel) The off policy RL model to apply Hindsight Experience Replay
+        currently supported: DQN, DDPG, SAC
+    :param n_sampled_goal: (int)
+    :param goal_selection_strategy: (GoalSelectionStrategy or str)
+    """
 
-        self.sess = None
-        self.graph = None
+    def __init__(self, policy, env, model_class, n_sampled_goal=4,
+                 goal_selection_strategy='future', *args, **kwargs):
 
-        if _init_setup_model:
-            self.setup_model()
+        assert not isinstance(env, VecEnvWrapper), "HER does not support VecEnvWrapper"
+
+        super().__init__(policy=policy, env=env, verbose=kwargs.get('verbose', 0),
+                         policy_base=None, requires_vec_env=False)
+
+        self.model_class = model_class
+        self.replay_wrapper = None
+        # Save dict observation space (used for checks at loading time)
+        if env is not None:
+            self.observation_space = env.observation_space
+            self.action_space = env.action_space
+
+        # Convert string to GoalSelectionStrategy object
+        if isinstance(goal_selection_strategy, str):
+            assert goal_selection_strategy in KEY_TO_GOAL_STRATEGY.keys(), "Unknown goal selection strategy"
+            goal_selection_strategy = KEY_TO_GOAL_STRATEGY[goal_selection_strategy]
+
+        self.n_sampled_goal = n_sampled_goal
+        self.goal_selection_strategy = goal_selection_strategy
+
+        if self.env is not None:
+            self._create_replay_wrapper(self.env)
+
+        assert issubclass(model_class, OffPolicyRLModel), \
+            "Error: HER only works with Off policy model (such as DDPG, SAC and DQN)."
+
+        self.model = self.model_class(policy, self.env, *args, **kwargs)
+        # Patch to support saving/loading
+        self.model._save_to_file = self._save_to_file
+
+    def _create_replay_wrapper(self, env):
+        """
+        Wrap the environment in a HERGoalEnvWrapper
+        if needed and create the replay buffer wrapper.
+        """
+        if not isinstance(env, HERGoalEnvWrapper):
+            env = HERGoalEnvWrapper(env)
+
+        self.env = env
+        # NOTE: we cannot do that check directly with VecEnv
+        # maybe we can try calling `compute_reward()` ?
+        # assert isinstance(self.env, gym.GoalEnv), "HER only supports gym.GoalEnv"
+
+        self.replay_wrapper = functools.partial(HindsightExperienceReplayWrapper,
+                                                n_sampled_goal=self.n_sampled_goal,
+                                                goal_selection_strategy=self.goal_selection_strategy,
+                                                wrapped_env=self.env)
+
+    def set_env(self, env):
+        assert not isinstance(env, VecEnvWrapper), "HER does not support VecEnvWrapper"
+        super().set_env(env)
+        self._create_replay_wrapper(self.env)
+        self.model.set_env(self.env)
+
+    def get_env(self):
+        return self.env
+
+    def get_parameter_list(self):
+        return self.model.get_parameter_list()
+
+    def __getattr__(self, attr):
+        """
+        Wrap the RL model.
+
+        :param attr: (str)
+        :return: (Any)
+        """
+        if attr in self.__dict__:
+            return getattr(self, attr)
+        return getattr(self.model, attr)
+
+    def __set_attr__(self, attr, value):
+        if attr in self.__dict__:
+            setattr(self, attr, value)
+        else:
+            setattr(self.model, attr, value)
 
     def _get_pretrain_placeholders(self):
-        raise NotImplementedError()
+        return self.model._get_pretrain_placeholders()
 
     def setup_model(self):
-        with SetVerbosity(self.verbose):
-
-            assert isinstance(self.action_space, gym.spaces.Box), \
-                "Error: HER cannot output a {} action space, only spaces.Box is supported.".format(self.action_space)
-            assert not self.policy.recurrent, "Error: cannot use a recurrent policy for the HER model."
-            assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the HER model must be an " \
-                                                               "instance of common.policies.ActorCriticPolicy."
-
-            self.graph = tf.Graph()
-            with self.graph.as_default():
-                pass
+        pass
 
     def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="HER",
               reset_num_timesteps=True):
-        with SetVerbosity(self.verbose):
-            self._setup_learn(seed)
+        return self.model.learn(total_timesteps, callback=callback, seed=seed, log_interval=log_interval,
+                                tb_log_name=tb_log_name, reset_num_timesteps=reset_num_timesteps,
+                                replay_wrapper=self.replay_wrapper)
 
-        return self
+    def _check_obs(self, observation):
+        if isinstance(observation, dict):
+            if self.env is not None:
+                if len(observation['observation'].shape) > 1:
+                    observation = _UnvecWrapper.unvec_obs(observation)
+                    return [self.env.convert_dict_to_obs(observation)]
+                return self.env.convert_dict_to_obs(observation)
+            else:
+                raise ValueError("You must either pass an env to HER or wrap your env using HERGoalEnvWrapper")
+        return observation
 
-    def predict(self, observation, state=None, mask=None, deterministic=False):
-        pass
+    def predict(self, observation, state=None, mask=None, deterministic=True):
+        return self.model.predict(self._check_obs(observation), state, mask, deterministic)
 
     def action_probability(self, observation, state=None, mask=None, actions=None):
-        pass
+        return self.model.action_probability(self._check_obs(observation), state, mask, actions)
+
+    def _save_to_file(self, save_path, data=None, params=None):
+        # HACK to save the replay wrapper
+        # or better to save only the replay strategy and its params?
+        # it will not work with VecEnv
+        data['n_sampled_goal'] = self.n_sampled_goal
+        data['goal_selection_strategy'] = self.goal_selection_strategy
+        data['model_class'] = self.model_class
+        data['her_obs_space'] = self.observation_space
+        data['her_action_space'] = self.action_space
+        super()._save_to_file(save_path, data, params)
 
     def save(self, save_path):
-        pass
+        self.model.save(save_path)
 
     @classmethod
     def load(cls, load_path, env=None, **kwargs):
-        pass
+        data, _ = cls._load_from_file(load_path)
+
+        if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
+            raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "
+                             "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
+                                                                              kwargs['policy_kwargs']))
+
+        model = cls(policy=data["policy"], env=env, model_class=data['model_class'],
+                    n_sampled_goal=data['n_sampled_goal'],
+                    goal_selection_strategy=data['goal_selection_strategy'],
+                    _init_setup_model=False)
+        model.__dict__['observation_space'] = data['her_obs_space']
+        model.__dict__['action_space'] = data['her_action_space']
+        model.model = data['model_class'].load(load_path, model.get_env(), **kwargs)
+        model.model._save_to_file = model._save_to_file
+        return model

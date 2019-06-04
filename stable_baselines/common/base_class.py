@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from collections import OrderedDict
 import os
 import glob
 import warnings
+from collections import OrderedDict
 
 import cloudpickle
 import numpy as np
@@ -28,7 +28,7 @@ class BaseRLModel(ABC):
     """
 
     def __init__(self, policy, env, verbose=0, *, requires_vec_env, policy_base, policy_kwargs=None):
-        if isinstance(policy, str):
+        if isinstance(policy, str) and policy_base is not None:
             self.policy = get_policy_from_name(policy_base, policy)
         else:
             self.policy = policy
@@ -702,7 +702,7 @@ class OffPolicyRLModel(BaseRLModel):
 
     @abstractmethod
     def learn(self, total_timesteps, callback=None, seed=None,
-              log_interval=100, tb_log_name="run", reset_num_timesteps=True):
+              log_interval=100, tb_log_name="run", reset_num_timesteps=True, replay_wrapper=None):
         pass
 
     @abstractmethod
@@ -733,15 +733,43 @@ class _UnvecWrapper(VecEnvWrapper):
         super().__init__(venv)
         assert venv.num_envs == 1, "Error: cannot unwrap a environment wrapper that has more than one environment."
 
+    def __getattr__(self, attr):
+        if attr in self.__dict__:
+            return getattr(self, attr)
+        return getattr(self.venv, attr)
+
+    def __set_attr__(self, attr, value):
+        if attr in self.__dict__:
+            setattr(self, attr, value)
+        else:
+            setattr(self.venv, attr, value)
+
+    def compute_reward(self, achieved_goal, desired_goal, _info):
+        return float(self.venv.env_method('compute_reward', achieved_goal, desired_goal, _info)[0])
+
+    @staticmethod
+    def unvec_obs(obs):
+        """
+        :param obs: (Union[np.ndarray, dict])
+        :return: (Union[np.ndarray, dict])
+        """
+        if not isinstance(obs, dict):
+            return obs[0]
+        obs_ = OrderedDict()
+        for key in obs.keys():
+            obs_[key] = obs[key][0]
+        del obs
+        return obs_
+
     def reset(self):
-        return self.venv.reset()[0]
+        return self.unvec_obs(self.venv.reset())
 
     def step_async(self, actions):
         self.venv.step_async([actions])
 
     def step_wait(self):
-        actions, values, states, information = self.venv.step_wait()
-        return actions[0], float(values[0]), states[0], information[0]
+        obs, rewards, dones, information = self.venv.step_wait()
+        return self.unvec_obs(obs), float(rewards[0]), dones[0], information[0]
 
     def render(self, mode='human'):
         return self.venv.render(mode=mode)

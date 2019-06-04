@@ -23,7 +23,7 @@ class A2C(ActorCriticRLModel):
     :param n_steps: (int) The number of steps to run for each environment per update
         (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)
     :param vf_coef: (float) Value function coefficient for the loss calculation
-    :param ent_coef: (float) Entropy coefficient for the loss caculation
+    :param ent_coef: (float) Entropy coefficient for the loss calculation
     :param max_grad_norm: (float) The maximum value for the gradient clipping
     :param learning_rate: (float) The learning rate
     :param alpha: (float)  RMSProp decay parameter (default: 0.99)
