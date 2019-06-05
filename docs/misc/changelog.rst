@@ -9,7 +9,7 @@ For download links, please look at `Github release page <https://github.com/hill
 Pre-Release 2.6.0a0 (WIP)
 -------------------------
 
-**Hindsight Experience Replay (HER) - Reloaded**
+**Hindsight Experience Replay (HER) - Reloaded | get/load parameters**
 
 - revamped HER implementation: clean re-implementation from scratch, now supports DQN, SAC and DDPG
 - **deprecated** ``memory_limit`` and ``memory_policy`` in DDPG, please use ``buffer_size`` instead. (will be removed in v3.x.x)
@@ -27,6 +27,8 @@ Pre-Release 2.6.0a0 (WIP)
 - added ``load_parameters`` and ``get_parameters`` to base RL class.
   With these methods, users are able to load and get parameters to/from existing model, without touching tensorflow. (@Miffyli)
 - **important change** switched to using dictionaries rather than lists when storing parameters, with tensorflow Variable names being the keys. (@Miffyli)
+- added specific hyperparameter for PPO2 to clip the value function (``cliprange_vf``)
+- fixed ``num_timesteps`` (total_timesteps) variable in PPO2 that was wrongly computed.
 
 **Breaking Change:** DDPG replay buffer was unified with DQN/SAC replay buffer. As a result,
 when loading a DDPG model trained with stable_baselines<2.6.0, it throws an import error.
