@@ -436,7 +436,10 @@ class SAC(OffPolicyRLModel):
                     mb_infos_vals = []
                     # Update policy, critics and target networks
                     for grad_step in range(self.gradient_steps):
-                        if self.num_timesteps < self.batch_size or self.num_timesteps < self.learning_starts:
+                        # Break if the warmup phase is not over
+                        # or if there are not enough samples in the replay buffer
+                        if not self.replay_buffer.can_sample(self.batch_size) \
+                           or self.num_timesteps < self.learning_starts:
                             break
                         n_updates += 1
                         # Compute current learning_rate

@@ -45,6 +45,28 @@ def test_her(model_class, goal_selection_strategy, discrete_obs_space):
     model.learn(1000)
 
 
+@pytest.mark.parametrize('model_class', [DDPG, SAC, DQN])
+def test_long_episode(model_class):
+    """
+    Check that the model does not break when the replay buffer is still empty
+    after the first rollout (because the episode is not over).
+    """
+    # n_bits > nb_rollout_steps
+    n_bits = 10
+    env = BitFlippingEnv(n_bits, continuous=model_class in [DDPG, SAC],
+                         max_steps=n_bits)
+    kwargs = {}
+    if model_class == DDPG:
+        kwargs['nb_rollout_steps'] = 9  # < n_bits
+    elif model_class in [DQN, SAC]:
+        kwargs['batch_size'] = 8  # < n_bits
+        kwargs['learning_starts'] = 0
+
+    model = HER('MlpPolicy', env, model_class, n_sampled_goal=4, goal_selection_strategy='future',
+                verbose=0, **kwargs)
+    model.learn(200)
+
+
 @pytest.mark.parametrize('goal_selection_strategy', [list(KEY_TO_GOAL_STRATEGY.keys())[0]])
 @pytest.mark.parametrize('model_class', [DQN, SAC, DDPG])
 def test_model_manipulation(model_class, goal_selection_strategy):

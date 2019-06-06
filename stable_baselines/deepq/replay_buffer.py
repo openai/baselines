@@ -30,6 +30,16 @@ class ReplayBuffer(object):
         """float: Max capacity of the buffer"""
         return self._maxsize
 
+    def can_sample(self, n_samples):
+        """
+        Check if n_samples samples can be sampled
+        from the buffer.
+
+        :param n_samples: (int)
+        :return: (bool)
+        """
+        return len(self) >= n_samples
+
     def is_full(self):
         """
         Check whether the replay buffer is full or not.

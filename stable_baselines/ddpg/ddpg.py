@@ -914,6 +914,10 @@ class DDPG(OffPolicyRLModel):
                         epoch_critic_losses = []
                         epoch_adaptive_distances = []
                         for t_train in range(self.nb_train_steps):
+                            # Not enough samples in the replay buffer
+                            if not self.replay_buffer.can_sample(self.batch_size):
+                                break
+
                             # Adapt param noise, if necessary.
                             if len(self.replay_buffer) >= self.batch_size and \
                                     t_train % self.param_noise_adaption_interval == 0:

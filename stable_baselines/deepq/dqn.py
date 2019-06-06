@@ -229,7 +229,11 @@ class DQN(OffPolicyRLModel):
                     episode_rewards.append(0.0)
                     reset = True
 
-                if self.num_timesteps > self.learning_starts and self.num_timesteps % self.train_freq == 0:
+                # Do not train if the warmup phase is not over
+                # or if there are not enough samples in the replay buffer
+                can_sample = self.replay_buffer.can_sample(self.batch_size)
+                if can_sample and self.num_timesteps > self.learning_starts \
+                    and self.num_timesteps % self.train_freq == 0:
                     # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
                     if self.prioritized_replay:
                         experience = self.replay_buffer.sample(self.batch_size,
@@ -261,7 +265,7 @@ class DQN(OffPolicyRLModel):
                         new_priorities = np.abs(td_errors) + self.prioritized_replay_eps
                         self.replay_buffer.update_priorities(batch_idxes, new_priorities)
 
-                if self.num_timesteps > self.learning_starts and \
+                if can_sample and self.num_timesteps > self.learning_starts and \
                         self.num_timesteps % self.target_network_update_freq == 0:
                     # Update target network periodically.
                     self.update_target(sess=self.sess)

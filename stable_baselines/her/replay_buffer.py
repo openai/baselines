@@ -82,8 +82,19 @@ class HindsightExperienceReplayWrapper(object):
     def sample(self, *args, **kwargs):
         return self.replay_buffer.sample(*args, **kwargs)
 
+    def can_sample(self, n_samples):
+        """
+        Check if n_samples samples can be sampled
+        from the buffer.
+
+        :param n_samples: (int)
+        :return: (bool)
+        """
+        return self.replay_buffer.can_sample(n_samples)
+
     def __len__(self):
         return len(self.replay_buffer)
+
 
     def _sample_achieved_goal(self, episode_transitions, transition_idx):
         """
