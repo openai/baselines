@@ -67,6 +67,24 @@ def test_vec_env(klass, dtype):  # pylint: disable=R0914
     assert_venvs_equal(env1, env2, num_steps=num_steps)
 
 
+@pytest.mark.parametrize('dtype', ('uint8', 'float32'))
+def test_sync_sampling(dtype):
+    num_envs = 4
+    num_envs_in_series = 2
+    num_steps = 100
+    shape = (3, 8)
+
+    def make_fn(seed):
+        """
+        Get an environment constructor with a seed.
+        """
+        return lambda: SimpleEnv(seed, shape, dtype)
+    fns = [make_fn(i) for i in range(num_envs)]
+    env1 = DummyVecEnv(fns)
+    env2 = SubprocVecEnv(fns, in_series=num_envs_in_series)
+    assert_venvs_equal(env1, env2, num_steps=num_steps)
+
+
 class SimpleEnv(gym.Env):
     """
     An environment with a pre-determined observation space
