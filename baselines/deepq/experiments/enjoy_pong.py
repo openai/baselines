@@ -11,7 +11,8 @@ def main():
         convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
         hiddens=[256],
         dueling=True,
-        total_timesteps=0
+        total_timesteps=0,
+        load_path="pong_model.pkl",
     )
 
     while True:
@@ -19,10 +20,11 @@ def main():
         episode_rew = 0
         while not done:
             env.render()
-            obs, rew, done, _ = env.step(model(obs[None])[0])
+            action, _, _, _ = model.step(obs)
+            obs, rew, done, _ = env.step(action)
             episode_rew += rew
         print("Episode reward", episode_rew)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
