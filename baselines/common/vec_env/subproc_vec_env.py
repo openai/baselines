@@ -5,27 +5,23 @@ from .vec_env import VecEnv, CloudpickleWrapper, clear_mpi_env_vars
 
 
 def worker(remote, parent_remote, env_fn_wrappers):
+    def step_env(env, action):
+        ob, reward, done, info = env.step(action)
+        if done:
+            ob = env.reset()
+        return ob, reward, done, info
+
     parent_remote.close()
     envs = [env_fn_wrapper() for env_fn_wrapper in env_fn_wrappers.x]
-    nenvs = len(envs)
     try:
         while True:
-            buf = [None for _ in range(nenvs)]
             cmd, data = remote.recv()
             if cmd == 'step':
-                for i, env in enumerate(envs):
-                    buf[i] = list(env.step(data[i]))
-                    if buf[i][2]:  # check if done
-                        buf[i][0] = env.reset()
-                remote.send(buf)
+                remote.send([step_env(env, action) for env, action in zip(envs, data)])
             elif cmd == 'reset':
-                for i, env in enumerate(envs):
-                    buf[i] = env.reset()
-                remote.send(buf)
+                remote.send([env.reset() for env in envs])
             elif cmd == 'render':
-                for i, env in enumerate(envs):
-                    buf[i] = env.render(mode='rgb_array')
-                remote.send(buf)
+                remote.send([env.render(mode='rgb_array') for env in envs])
             elif cmd == 'close':
                 remote.close()
                 break
@@ -50,6 +46,8 @@ class SubprocVecEnv(VecEnv):
         Arguments:
 
         env_fns: iterable of callables -  functions that create environments to run in subprocesses. Need to be cloud-pickleable
+        in_series: number of environments to run in series in a single process
+        (e.g. when len(env_fns) == 12 and in_series == 3, it will run 4 processes, each running 3 envs in series)
         """
         self.waiting = False
         self.closed = False
