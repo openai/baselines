@@ -68,13 +68,13 @@ def test_vec_env(klass, dtype):  # pylint: disable=R0914
 
 
 @pytest.mark.parametrize('dtype', ('uint8', 'float32'))
-def test_sync_sampling(dtype):
+@pytest.mark.parametrize('num_envs_in_series', (3, 4, 6))
+def test_sync_sampling(dtype, num_envs_in_series):
     """
     Test that a SubprocVecEnv running with envs in series
     outputs the same as DummyVecEnv.
     """
-    num_envs = 4
-    num_envs_in_series = 2
+    num_envs = 12
     num_steps = 100
     shape = (3, 8)
 
@@ -90,13 +90,13 @@ def test_sync_sampling(dtype):
 
 
 @pytest.mark.parametrize('dtype', ('uint8', 'float32'))
-def test_sync_sampling_sanity(dtype):
+@pytest.mark.parametrize('num_envs_in_series', (3, 4, 6))
+def test_sync_sampling_sanity(dtype, num_envs_in_series):
     """
     Test that a SubprocVecEnv running with envs in series
     outputs the same as SubprocVecEnv without running in series.
     """
-    num_envs = 4
-    num_envs_in_series = 2
+    num_envs = 12
     num_steps = 100
     shape = (3, 8)
 
