@@ -6,7 +6,7 @@ Changelog
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
 
-Pre-Release 2.6.0a0 (WIP)
+Pre-Release 2.6.0a1 (WIP)
 -------------------------
 
 **Hindsight Experience Replay (HER) - Reloaded | get/load parameters**
@@ -35,6 +35,9 @@ Pre-Release 2.6.0a0 (WIP)
   ``find_trainable_params`` was returning all trainable variables, discarding the scope argument.
   This bug was causing the model to save duplicated parameters (for DDPG and SAC)
   but did not affect the performance.
+- added guide for managing ``NaN`` and ``inf``
+- added ``VecCheckNan`` wrapper
+- updated ven_env doc
 
 **Breaking Change:** DDPG replay buffer was unified with DQN/SAC replay buffer. As a result,
 when loading a DDPG model trained with stable_baselines<2.6.0, it throws an import error.

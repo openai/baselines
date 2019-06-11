@@ -5,8 +5,8 @@
 Vectorized Environments
 =======================
 
-Vectorized Environments are a method for multiprocess training. Instead of training an RL agent
-on 1 environment, it allows us to train it on `n` environments using `n` processes.
+Vectorized Environments are a method for stacking multiple independent environments into a single environment.
+Instead of training an RL agent on 1 environment per step, it allows us to train it on `n` environments per step.
 Because of this, `actions` passed to the environment are now a vector (of dimension `n`).
 It is the same for `observations`, `rewards` and end of episode signals (`dones`).
 In the case of non-array observation spaces such as `Dict` or `Tuple`, where different sub-spaces
@@ -68,4 +68,11 @@ VecVideoRecorder
 ~~~~~~~~~~~~~~~~
 
 .. autoclass:: VecVideoRecorder
+  :members:
+
+
+VecCheckNan
+~~~~~~~~~~~~~~~~
+
+.. autoclass:: VecCheckNan
   :members:
