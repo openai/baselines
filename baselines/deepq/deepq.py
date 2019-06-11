@@ -143,7 +143,7 @@ def learn(env,
     train_freq: int
         update the model every `train_freq` steps.
     batch_size: int
-        size of a batched sampled from replay buffer for training
+        size of a batch sampled from replay buffer for training
     print_freq: int
         how often to print out training progress
         set to None to disable printing
