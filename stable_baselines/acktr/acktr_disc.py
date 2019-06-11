@@ -12,7 +12,7 @@ from gym.spaces import Box, Discrete
 from stable_baselines import logger
 from stable_baselines.common import explained_variance, ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
 from stable_baselines.a2c.a2c import A2CRunner
-from stable_baselines.a2c.utils import Scheduler, find_trainable_variables, calc_entropy, mse, \
+from stable_baselines.a2c.utils import Scheduler, calc_entropy, mse, \
     total_episode_reward_logger
 from stable_baselines.acktr import kfac
 from stable_baselines.common.policies import ActorCriticPolicy, RecurrentActorCriticPolicy
@@ -130,7 +130,7 @@ class ACKTR(ActorCriticRLModel):
                 self.model = step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs,
                                                       1, n_batch_step, reuse=False, **self.policy_kwargs)
 
-                self.params = params = find_trainable_variables("model")
+                self.params = params = tf_util.get_trainable_vars("model")
 
                 with tf.variable_scope("train_model", reuse=True,
                                        custom_getter=tf_util.outer_scope_getter("train_model")):

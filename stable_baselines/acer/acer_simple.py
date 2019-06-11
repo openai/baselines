@@ -5,7 +5,7 @@ import tensorflow as tf
 from gym.spaces import Discrete, Box
 
 from stable_baselines import logger
-from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, find_trainable_variables, EpisodeStats, \
+from stable_baselines.a2c.utils import batch_to_seq, seq_to_batch, Scheduler, EpisodeStats, \
     get_by_index, check_shape, avg_norm, gradient_add, q_explained_variance, total_episode_reward_logger
 from stable_baselines.acer.buffer import Buffer
 from stable_baselines.common import ActorCriticRLModel, tf_util, SetVerbosity, TensorboardWriter
@@ -194,7 +194,7 @@ class ACER(ActorCriticRLModel):
                 step_model = self.policy(self.sess, self.observation_space, self.action_space, self.n_envs, 1,
                                          n_batch_step, reuse=False, **self.policy_kwargs)
 
-                self.params = find_trainable_variables("model")
+                self.params = tf_util.get_trainable_vars("model")
 
                 with tf.variable_scope("train_model", reuse=True,
                                        custom_getter=tf_util.outer_scope_getter("train_model")):

@@ -9,7 +9,7 @@ from stable_baselines import logger
 from stable_baselines.common import explained_variance, tf_util, ActorCriticRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.policies import ActorCriticPolicy, RecurrentActorCriticPolicy
 from stable_baselines.common.runners import AbstractEnvRunner
-from stable_baselines.a2c.utils import discount_with_dones, Scheduler, find_trainable_variables, mse, \
+from stable_baselines.a2c.utils import discount_with_dones, Scheduler, mse, \
     total_episode_reward_logger
 from stable_baselines.ppo2.ppo2 import safe_mean
 
@@ -137,7 +137,7 @@ class A2C(ActorCriticRLModel):
                     tf.summary.scalar('value_function_loss', self.vf_loss)
                     tf.summary.scalar('loss', loss)
 
-                    self.params = find_trainable_variables("model")
+                    self.params = tf_util.get_trainable_vars("model")
                     grads = tf.gradients(loss, self.params)
                     if self.max_grad_norm is not None:
                         grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)

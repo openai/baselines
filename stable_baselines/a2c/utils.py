@@ -308,18 +308,6 @@ def discount_with_dones(rewards, dones, gamma):
         discounted.append(ret)
     return discounted[::-1]
 
-
-def find_trainable_variables(key):
-    """
-    Returns the trainable variables within a given scope
-
-    :param key: (str) The variable scope
-    :return: ([TensorFlow Tensor]) the trainable variables
-    """
-    with tf.variable_scope(key):
-        return tf.trainable_variables()
-
-
 def make_path(path):
     """
     For a given path, create the folders if they do not exist

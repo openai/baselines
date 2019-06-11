@@ -10,7 +10,7 @@ from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.common.schedules import LinearSchedule
 from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from stable_baselines.deepq.policies import DQNPolicy
-from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
+from stable_baselines.a2c.utils import total_episode_reward_logger
 
 
 class DQN(OffPolicyRLModel):
@@ -134,7 +134,7 @@ class DQN(OffPolicyRLModel):
                     full_tensorboard_log=self.full_tensorboard_log
                 )
                 self.proba_step = self.step_model.proba_step
-                self.params = find_trainable_variables("deepq")
+                self.params = tf_util.get_trainable_vars("deepq")
 
                 # Initialize the parameters and copy them to the target network.
                 tf_util.initialize(self.sess)

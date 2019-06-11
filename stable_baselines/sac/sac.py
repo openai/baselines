@@ -7,7 +7,7 @@ import warnings
 import numpy as np
 import tensorflow as tf
 
-from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
+from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
 from stable_baselines.common.vec_env import VecEnv
 from stable_baselines.deepq.replay_buffer import ReplayBuffer
@@ -311,8 +311,8 @@ class SAC(OffPolicyRLModel):
                     tf.summary.scalar('learning_rate', tf.reduce_mean(self.learning_rate_ph))
 
                 # Retrieve parameters that must be saved
-                self.params = find_trainable_variables("model")
-                self.target_params = find_trainable_variables("target/values_fn/vf")
+                self.params = get_vars("model")
+                self.target_params = get_vars("target/values_fn/vf")
 
                 # Initialize Variables and target network
                 with self.sess.as_default():

@@ -14,7 +14,7 @@ from stable_baselines import logger
 from stable_baselines.common.mpi_adam import MpiAdam
 from stable_baselines.common.cg import conjugate_gradient
 from stable_baselines.common.policies import ActorCriticPolicy
-from stable_baselines.a2c.utils import find_trainable_variables, total_episode_reward_logger
+from stable_baselines.a2c.utils import total_episode_reward_logger
 from stable_baselines.trpo_mpi.utils import traj_segment_generator, add_vtarg_and_adv, flatten_lists
 
 
@@ -250,7 +250,7 @@ class TRPO(ActorCriticRLModel):
                 self.proba_step = self.policy_pi.proba_step
                 self.initial_state = self.policy_pi.initial_state
 
-                self.params = find_trainable_variables("model")
+                self.params = tf_util.get_trainable_vars("model") + tf_util.get_trainable_vars("oldpi")
                 if self.using_gail:
                     self.params.extend(self.reward_giver.get_trainable_variables())
 
