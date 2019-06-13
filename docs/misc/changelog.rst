@@ -6,38 +6,16 @@ Changelog
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
 
-Pre-Release 2.6.0a1 (WIP)
--------------------------
+Release 2.6.0 (2019-06-12)
+--------------------------
 
 **Hindsight Experience Replay (HER) - Reloaded | get/load parameters**
 
-- revamped HER implementation: clean re-implementation from scratch, now supports DQN, SAC and DDPG
-- **deprecated** ``memory_limit`` and ``memory_policy`` in DDPG, please use ``buffer_size`` instead. (will be removed in v3.x.x)
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+
 - **breaking change** removed ``stable_baselines.ddpg.memory`` in favor of ``stable_baselines.deepq.replay_buffer`` (see fix below)
-- add ``action_noise`` param for SAC, it helps exploration for problem with deceptive reward
-- removed unused dependencies (tdqm, dill, progressbar2, seaborn, glob2, click)
-- Bugfix for ``VecEnvWrapper.__getattr__`` which enables access to class attributes inherited from parent classes.
-- Removed ``get_available_gpus`` function which hadn't been used anywhere (@Pastafarianist)
-- Fixed path splitting in ``TensorboardWriter._get_latest_run_id()`` on Windows machines (@PatrickWalter214)
-- The parameter ``filter_size`` of the function ``conv`` in A2C utils now supports passing a list/tuple of two integers (height and width), in order to have non-squared kernel matrix. (@yutingsz)
-- add ``random_exploration`` parameter for DDPG and SAC, it may be useful when using HER + DDPG/SAC
-  this hack was present in the original OpenAI Baselines DDPG + HER implementation.
-- fixed a bug where initial learning rate is logged instead of its placeholder in ``A2C.setup_model`` (@sc420)
-- fixed a bug where number of timesteps is incorrectly updated and logged in ``A2C.learn`` and ``A2C._train_step`` (@sc420)
-- added ``load_parameters`` and ``get_parameters`` to base RL class.
-  With these methods, users are able to load and get parameters to/from existing model, without touching tensorflow. (@Miffyli)
-- **important change** switched to using dictionaries rather than lists when storing parameters, with tensorflow Variable names being the keys. (@Miffyli)
-- added specific hyperparameter for PPO2 to clip the value function (``cliprange_vf``)
-- fixed ``num_timesteps`` (total_timesteps) variable in PPO2 that was wrongly computed.
-- fixed a bug in DDPG/DQN/SAC, when there were the number of samples in the replay buffer was lesser than the batch size
-  (thanks to @dwiel for spotting the bug)
-- **removed** ``a2c.utils.find_trainable_params`` please use ``common.tf_util.get_trainable_vars`` instead.
-  ``find_trainable_params`` was returning all trainable variables, discarding the scope argument.
-  This bug was causing the model to save duplicated parameters (for DDPG and SAC)
-  but did not affect the performance.
-- added guide for managing ``NaN`` and ``inf``
-- added ``VecCheckNan`` wrapper
-- updated ven_env doc
+
 
 **Breaking Change:** DDPG replay buffer was unified with DQN/SAC replay buffer. As a result,
 when loading a DDPG model trained with stable_baselines<2.6.0, it throws an import error.
@@ -59,6 +37,51 @@ You can fix that using:
 We recommend you to save again the model afterward, so the fix won't be needed the next time the trained agent is loaded.
 
 
+New Features:
+^^^^^^^^^^^^^
+
+- **revamped HER implementation**: clean re-implementation from scratch, now supports DQN, SAC and DDPG
+- add ``action_noise`` param for SAC, it helps exploration for problem with deceptive reward
+- The parameter ``filter_size`` of the function ``conv`` in A2C utils now supports passing a list/tuple of two integers (height and width), in order to have non-squared kernel matrix. (@yutingsz)
+- add ``random_exploration`` parameter for DDPG and SAC, it may be useful when using HER + DDPG/SAC. This hack was present in the original OpenAI Baselines DDPG + HER implementation.
+- added ``load_parameters`` and ``get_parameters`` to base RL class. With these methods, users are able to load and get parameters to/from existing model, without touching tensorflow. (@Miffyli)
+- added specific hyperparameter for PPO2 to clip the value function (``cliprange_vf``)
+- added ``VecCheckNan`` wrapper
+
+Bug Fixes:
+^^^^^^^^^^
+
+- bugfix for ``VecEnvWrapper.__getattr__`` which enables access to class attributes inherited from parent classes.
+- fixed path splitting in ``TensorboardWriter._get_latest_run_id()`` on Windows machines (@PatrickWalter214)
+- fixed a bug where initial learning rate is logged instead of its placeholder in ``A2C.setup_model`` (@sc420)
+- fixed a bug where number of timesteps is incorrectly updated and logged in ``A2C.learn`` and ``A2C._train_step`` (@sc420)
+- fixed ``num_timesteps`` (total_timesteps) variable in PPO2 that was wrongly computed.
+- fixed a bug in DDPG/DQN/SAC, when there were the number of samples in the replay buffer was lesser than the batch size
+  (thanks to @dwiel for spotting the bug)
+- **removed** ``a2c.utils.find_trainable_params`` please use ``common.tf_util.get_trainable_vars`` instead.
+  ``find_trainable_params`` was returning all trainable variables, discarding the scope argument.
+  This bug was causing the model to save duplicated parameters (for DDPG and SAC)
+  but did not affect the performance.
+
+Deprecations:
+^^^^^^^^^^^^^
+
+- **deprecated** ``memory_limit`` and ``memory_policy`` in DDPG, please use ``buffer_size`` instead. (will be removed in v3.x.x)
+
+Others:
+^^^^^^^
+
+- **important change** switched to using dictionaries rather than lists when storing parameters, with tensorflow Variable names being the keys. (@Miffyli)
+- removed unused dependencies (tdqm, dill, progressbar2, seaborn, glob2, click)
+- removed ``get_available_gpus`` function which hadn't been used anywhere (@Pastafarianist)
+
+Documentation:
+^^^^^^^^^^^^^^
+
+- added guide for managing ``NaN`` and ``inf``
+- updated ven_env doc
+- misc doc updates
+
 
 Release 2.5.1 (2019-05-04)
 --------------------------
@@ -77,7 +100,7 @@ Release 2.5.1 (2019-05-04)
 - added ``get_attr()``, ``env_method()`` and ``set_attr()`` methods for all VecEnv.
   Those methods now all accept ``indices`` keyword to select a subset of envs.
   ``set_attr`` now returns ``None`` rather than a list of ``None``. (@kantneel)
-- ``GAIL``: ``gail.dataset.ExpertDataset` supports loading from memory rather than file, and
+- ``GAIL``: ``gail.dataset.ExpertDataset`` supports loading from memory rather than file, and
   ``gail.dataset.record_expert`` supports returning in-memory rather than saving to file.
 - added support in ``VecEnvWrapper`` for accessing attributes of arbitrarily deeply nested
   instances of ``VecEnvWrapper`` and ``VecEnv``. This is allowed as long as the attribute belongs
