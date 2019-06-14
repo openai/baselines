@@ -146,6 +146,12 @@ class DDPG(object):
 
         self.initial_state = None # recurrent architectures not supported yet
 
+    def save(self, path):
+        U.save_variables(path, sess=self.sess)
+
+    def load(self, path):
+        U.load_variables(path, sess=self.sess)
+
     def setup_target_network_updates(self):
         actor_init_updates, actor_soft_updates = get_target_updates(self.actor.vars, self.target_actor.vars, self.tau)
         critic_init_updates, critic_soft_updates = get_target_updates(self.critic.vars, self.target_critic.vars, self.tau)
