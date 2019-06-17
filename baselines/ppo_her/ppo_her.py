@@ -11,6 +11,7 @@ try:
 except ImportError:
     MPI = None
 from baselines.ppo_her.runner import Runner
+from baselines.ppo_her.replay_buffer import ReplayBuffer
 
 
 def constfn(val):
@@ -110,10 +111,11 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     if load_path is not None:
         model.load(load_path)
     # Instantiate the runner object
-    runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)
+    runner = Runner(env=env, model=model, nsteps=nsteps)
     if eval_env is not None:
-        eval_runner = Runner(env = eval_env, model = model, nsteps = nsteps, gamma = gamma, lam= lam)
+        eval_runner = Runner(env = eval_env, model = model, nsteps = nsteps)
 
+    # Instantiate the buffer object
     epinfobuf = deque(maxlen=100)
     if eval_env is not None:
         eval_epinfobuf = deque(maxlen=100)
@@ -131,14 +133,23 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         lrnow = lr(frac)
         # Calculate the cliprange
         cliprangenow = cliprange(frac)
-        # Get minibatch
-        obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run() #pylint: disable=E0632
-        if eval_env is not None:
-            eval_obs, eval_returns, eval_masks, eval_actions, eval_values, eval_neglogpacs, eval_states, eval_epinfos = eval_runner.run() #pylint: disable=E0632
 
-        epinfobuf.extend(epinfos)
+        # Collect new trajectories here
+        trajs = runner.run() #pylint: disable=E0632
         if eval_env is not None:
-            eval_epinfobuf.extend(eval_epinfos)
+            eval_trajs = eval_runner.run() #pylint: disable=E0632
+
+        # Sample some old trajectories here
+        trajs_old =
+        trajs += trajs_old
+
+        # use goal sampling heuristics to sample new goals
+        # compute reward, neglogpac, value
+        # create minibatch
+
+        epinfobuf.extend(trajs['epinfos'])
+        if eval_env is not None:
+            eval_epinfobuf.extend(eval_trajs['epinfos'])
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
