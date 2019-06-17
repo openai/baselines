@@ -101,3 +101,15 @@ The Proximal Policy Optimization (PPO) algorithm is applied.
 | Email: 6guelden@informatik.uni-hamburg.de
 | Video: https://www.youtube.com/watch?v=laGrLaMaeT4
 | GitHub: https://github.com/RGring/drl_local_planner_ros_stable_baselines
+
+Adversarial Policies: Attacking Deep Reinforcement Learning
+-----------------------------------------------------------
+
+Uses Stable Baselines to train *adversarial policies* that attack pre-trained victim policies in a zero-sum multi-agent environments.
+May be useful as an example of how to integrate Stable Baselines with `Ray <https://github.com/ray-project/ray>`_ to perform distributed experiments and `Sacred <https://github.com/IDSIA/sacred>`_ for experiment configuration and monitoring.
+
+| Authors: Adam Gleave, Michael Dennis, Neel Kant, Cody Wild
+| Email: adam@gleave.me
+| GitHub: https://github.com/HumanCompatibleAI/adversarial-policies
+| Paper: https://arxiv.org/abs/1905.10615
+| Website: https://adversarialpolicies.github.io
