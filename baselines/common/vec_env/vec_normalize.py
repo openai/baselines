@@ -1,6 +1,7 @@
 from . import VecEnvWrapper
 from baselines.common.running_mean_std import RunningMeanStd
 import numpy as np
+from gym.spaces import Dict
 
 
 class VecNormalize(VecEnvWrapper):
@@ -11,7 +12,12 @@ class VecNormalize(VecEnvWrapper):
 
     def __init__(self, venv, ob=True, ret=True, clipob=10., cliprew=10., gamma=0.99, epsilon=1e-8):
         VecEnvWrapper.__init__(self, venv)
-        self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if ob else None
+        if isinstance(self.observation_space, Dict):
+            self.ob_rms = {}
+            for key in self.observation_space.spaces.keys():
+                self.ob_rms[key] = RunningMeanStd(shape=self.observation_space.spaces[key].shape) if ob else None
+        else:
+            self.ob_rms = RunningMeanStd(shape=self.observation_space.shape) if ob else None
         self.ret_rms = RunningMeanStd(shape=()) if ret else None
         self.clipob = clipob
         self.cliprew = cliprew
@@ -30,12 +36,21 @@ class VecNormalize(VecEnvWrapper):
         return obs, rews, news, infos
 
     def _obfilt(self, obs):
-        if self.ob_rms:
-            self.ob_rms.update(obs)
-            obs = np.clip((obs - self.ob_rms.mean) / np.sqrt(self.ob_rms.var + self.epsilon), -self.clipob, self.clipob)
-            return obs
+        def _obfilt(obs, ob_rms):
+            if ob_rms:
+                ob_rms.update(obs)
+                obs = np.clip((obs - ob_rms.mean) / np.sqrt(ob_rms.var + self.epsilon), -self.clipob, self.clipob)
+                return obs
+            else:
+                return obs
+
+        if isinstance(self.ob_rms, dict):
+            for key in self.ob_rms:
+                obs[key] = _obfilt(obs[key], self.ob_rms[key])
         else:
-            return obs
+            obs = _obfilt(obs, self.ob_rms)
+
+        return obs
 
     def reset(self):
         self.ret = np.zeros(self.num_envs)
