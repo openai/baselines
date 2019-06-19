@@ -92,7 +92,7 @@ with a budget of 1000 trials and a maximum of 50000 steps:
 
 ::
 
-  python -m train.py --algo ppo2 --env MountainCar-v0 -n 50000 -optimize --n-trials 1000 --n-jobs 2 \
+  python train.py --algo ppo2 --env MountainCar-v0 -n 50000 -optimize --n-trials 1000 --n-jobs 2 \
     --sampler random --pruner median
 
 

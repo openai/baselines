@@ -11,6 +11,8 @@ You can read a detailed presentation of Stable Baselines in the [Medium article]
 
 These algorithms will make it easier for the research community and industry to replicate, refine, and identify new ideas, and will create good baselines to build projects on top of. We expect these tools will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. We also hope that the simplicity of these tools will allow beginners to experiment with a more advanced toolset, without being buried in implementation details.
 
+**Note: despite its simplicity of use, Stable Baselines (SB) assumes you have some knowledge about Reinforcement Learning (RL).** You should not utilize this library without some practice. To that extent, we provide good resources in the [documentation](https://stable-baselines.readthedocs.io/en/master/guide/rl.html) to get started with RL.
+
 ## Main differences with OpenAI Baselines
 
 This toolset is a fork of OpenAI Baselines, with a major structural refactoring, and code cleanups:
@@ -204,6 +206,9 @@ To cite this repository in publications:
 ## Maintainers
 
 Stable-Baselines is currently maintained by [Ashley Hill](https://github.com/hill-a) (aka @hill-a), [Antonin Raffin](https://araffin.github.io/) (aka [@araffin](https://github.com/araffin)), [Maximilian Ernestus](https://github.com/erniejunior) (aka @erniejunior) and [Adam Gleave](https://github.com/adamgleave) (@AdamGleave).
+
+**Important Note: We do not do technical support, nor consulting** and don't answer personal questions per email.
+
 
 ## How To Contribute
 
