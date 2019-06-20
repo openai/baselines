@@ -35,9 +35,10 @@ class ShmemVecEnv(VecEnv):
             with logger.scoped_configure(format_strs=[]):
                 dummy = env_fns[0]()
                 observation_space, action_space = dummy.observation_space, dummy.action_space
+                compute_reward = getattr(dummy, 'compute_reward', None)
                 dummy.close()
                 del dummy
-        VecEnv.__init__(self, len(env_fns), observation_space, action_space)
+        VecEnv.__init__(self, len(env_fns), observation_space, action_space, compute_reward)
         self.obs_keys, self.obs_shapes, self.obs_dtypes = obs_space_info(observation_space)
         self.obs_bufs = [
             {k: ctx.Array(_NP_TO_CT[self.obs_dtypes[k].type], int(np.prod(self.obs_shapes[k]))) for k in self.obs_keys}

@@ -17,7 +17,8 @@ class DummyVecEnv(VecEnv):
         """
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]
-        VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space)
+        VecEnv.__init__(self, len(env_fns), env.observation_space, env.action_space,
+                        getattr(env, 'compute_reward', None))
         obs_space = env.observation_space
         self.keys, shapes, dtypes = obs_space_info(obs_space)
 

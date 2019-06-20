@@ -24,7 +24,7 @@ def worker(remote, parent_remote, env_fn_wrapper):
                 remote.close()
                 break
             elif cmd == 'get_spaces_spec':
-                remote.send((env.observation_space, env.action_space, env.spec))
+                remote.send((env.observation_space, env.action_space, env.spec, getattr(env, 'compute_reward', None)))
             else:
                 raise NotImplementedError
     except KeyboardInterrupt:
@@ -59,9 +59,9 @@ class SubprocVecEnv(VecEnv):
             remote.close()
 
         self.remotes[0].send(('get_spaces_spec', None))
-        observation_space, action_space, self.spec = self.remotes[0].recv()
+        observation_space, action_space, self.spec, compute_reward = self.remotes[0].recv()
         self.viewer = None
-        VecEnv.__init__(self, len(env_fns), observation_space, action_space)
+        VecEnv.__init__(self, len(env_fns), observation_space, action_space, compute_reward)
 
     def step_async(self, actions):
         self._assert_not_closed()

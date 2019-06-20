@@ -40,10 +40,12 @@ class VecEnv(ABC):
         'render.modes': ['human', 'rgb_array']
     }
 
-    def __init__(self, num_envs, observation_space, action_space):
+    def __init__(self, num_envs, observation_space, action_space, compute_reward=None):
         self.num_envs = num_envs
         self.observation_space = observation_space
         self.action_space = action_space
+        if compute_reward is not None:
+            self.compute_reward = compute_reward
 
     @abstractmethod
     def reset(self):
@@ -148,7 +150,8 @@ class VecEnvWrapper(VecEnv):
         VecEnv.__init__(self,
                         num_envs=venv.num_envs,
                         observation_space=observation_space or venv.observation_space,
-                        action_space=action_space or venv.action_space)
+                        action_space=action_space or venv.action_space,
+                        compute_reward=getattr(venv, 'compute_reward', None))
 
     def step_async(self, actions):
         self.venv.step_async(actions)
