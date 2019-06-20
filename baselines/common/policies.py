@@ -2,7 +2,7 @@ import tensorflow as tf
 from baselines.common import tf_util
 from baselines.a2c.utils import fc
 from baselines.common.distributions import make_pdtype
-from baselines.common.input import observation_placeholder, encode_observation
+from baselines.common.input import observation_placeholder, encode_observation, action_placeholder
 from baselines.common.tf_util import adjust_shape
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.common.models import get_network_builder
@@ -54,6 +54,9 @@ class PolicyWithValue(object):
         # Calculate the neg log of our probability
         self.neglogp = self.pd.neglogp(self.action)
         self.sess = sess or tf.get_default_session()
+
+        # Calculate the neg log probability of actions
+        self._neglogpac = self.pd.neglogp(self.actions)
 
         if estimate_q:
             assert isinstance(env.action_space, gym.spaces.Discrete)
@@ -112,6 +115,21 @@ class PolicyWithValue(object):
         """
         return self._evaluate(self.vf, ob, *args, **kwargs)
 
+    def neglogpac(self, ob, *args, **kwargs):
+        """
+        Compute the negative log probability of action(s) given the action(s) and the observations(s)
+        Parameters:
+        ----------
+        observation     action (either single or a batch)
+
+        **extra_feed    additional data such as state or mask (names of the arguments should match the ones in constructor, see __init__)
+
+        Returns:
+        -------
+        neg log probability of action
+        """
+        return self._evaluate(self._neglogpac, ob, *args, **kwargs)
+
     def save(self, save_path):
         tf_util.save_state(save_path, sess=self.sess)
 
@@ -125,6 +143,7 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
 
     def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
         ob_space = env.observation_space
+        act_space = env.action_space
 
         X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space, batch_size=nbatch)
 
@@ -165,9 +184,12 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
                 # TODO recurrent architectures are not supported with value_network=copy yet
                 vf_latent = _v_net(encoded_x)
 
+        extra_tensors['A'] = A = action_placeholder(act_space, batch_size=nbatch)
+
         policy = PolicyWithValue(
             env=env,
             observations=X,
+            actions=A,
             latent=policy_latent,
             vf_latent=vf_latent,
             sess=sess,

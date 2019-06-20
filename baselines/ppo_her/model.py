@@ -117,6 +117,7 @@ class Model(object):
         self.act_model = act_model
         self.step = act_model.step
         self.value = act_model.value
+        self.neglogpac = act_model.neglogpac
         self.initial_state = act_model.initial_state
 
         self.save = functools.partial(save_variables, sess=sess)
