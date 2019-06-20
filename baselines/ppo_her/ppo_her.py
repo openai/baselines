@@ -12,7 +12,7 @@ except ImportError:
     MPI = None
 from baselines.ppo_her.runner import Runner
 from baselines.ppo_her.replay_buffer import ReplayBuffer
-
+from gym.spaces.dict import Dict
 
 def constfn(val):
     def f(_):
@@ -93,6 +93,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     # Get state_space and action_space
     ob_space = env.observation_space
+    assert isinstance(ob_space, Dict), 'ppo_her requires Dict observation space'
     ac_space = env.action_space
 
     # Calculate the batch_size
@@ -101,19 +102,18 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     # Instantiate the model object (that creates act_model and train_model)
     if model_fn is None:
-        from baselines.ppo2.model import Model
+        from baselines.ppo_her.model import Model
         model_fn = Model
 
     model = model_fn(policy=policy, ob_space=ob_space, ac_space=ac_space, nbatch_act=nenvs, nbatch_train=nbatch_train,
-                    nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef,
-                    max_grad_norm=max_grad_norm)
+                     nsteps=nsteps, ent_coef=ent_coef, vf_coef=vf_coef, max_grad_norm=max_grad_norm)
 
     if load_path is not None:
         model.load(load_path)
     # Instantiate the runner object
     runner = Runner(env=env, model=model, nsteps=nsteps)
     if eval_env is not None:
-        eval_runner = Runner(env = eval_env, model = model, nsteps = nsteps)
+        eval_runner = Runner(env=eval_env, model=model, nsteps=nsteps)
 
     # Instantiate the buffer object
     epinfobuf = deque(maxlen=100)
@@ -135,21 +135,37 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         cliprangenow = cliprange(frac)
 
         # Collect new trajectories here
-        trajs = runner.run() #pylint: disable=E0632
+        trajs_obs, trajs_actions, trajs_dones = runner.run() #pylint: disable=E0632
         if eval_env is not None:
-            eval_trajs = eval_runner.run() #pylint: disable=E0632
+            eval_trajs_obs, eval_trajs_actions, eval_trajs_dones = eval_runner.run() #pylint: disable=E0632
 
         # Sample some old trajectories here
-        trajs_old =
-        trajs += trajs_old
 
-        # use goal sampling heuristics to sample new goals
+
+
+        # Use goal sampling heuristics to sample new goals
+
+
+
         # compute reward, neglogpac, value
+        trajs_rewards, trajs_neglogpacs, trajs_values = [], [], []
+        for i in range(len(trajs_actions)):
+            obs, actions, obs_next = trajs_obs[i], trajs_actions[i], trajs_obs[i+1]
+            rewards = runner.env.compute_reward(achieved_goal=obs_next['achieved_goal'],
+                                                desired_goal=obs_next['desired_goal'],
+                                                info={'action': actions})
+            values = model.value(runner.obsasarray(obs))
+            neglogpacs = model.neglogpac(runner.obsasarray(obs), A=actions)
+            trajs_rewards.append(rewards)
+            trajs_neglogpacs.append(neglogpacs)
+            trajs_values.append(values)
+
+
         # create minibatch
 
-        epinfobuf.extend(trajs['epinfos'])
-        if eval_env is not None:
-            eval_epinfobuf.extend(eval_trajs['epinfos'])
+        # epinfobuf.extend(trajs['epinfos'])
+        # if eval_env is not None:
+        #     eval_epinfobuf.extend(eval_trajs['epinfos'])
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []

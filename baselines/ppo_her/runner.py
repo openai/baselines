@@ -1,19 +1,7 @@
 import numpy as np
-from baselines.common.runners import AbstractEnvRunner
-from collections import namedtuple
+from gym.core import GoalEnv
 
-class Trajectory(object):
-    def __init__(self):
-        self.obs = []
-        self.actions = []
-        self.dones = []
-
-    def append(self, obs, action, done):
-        self.obs.append(obs)
-        self.actions.append(action)
-        self.dones.append(done)
-
-class Runner(AbstractEnvRunner):
+class Runner(object):
     """
     We use this object to make a mini batch of experiences
     __init__:
@@ -23,38 +11,44 @@ class Runner(AbstractEnvRunner):
     - Make a mini batch
     """
     def __init__(self, *, env, model, nsteps):
-        super().__init__(env=env, model=model, nsteps=nsteps)
+        self.env = env  # env must be a GoalEnv
+        self.model = model
+        self.nenv = nenv = env.num_envs if hasattr(env, 'num_envs') else 1
+        self.obs = env.reset()
+        self.nsteps = nsteps
+        self.states = model.initial_state
+        self.dones = [False for _ in range(nenv)]
+
+    def obsasarray(self, obs_dict):
+        obs = []
+        for key in self.env.observation_space.spaces.keys():
+            obs.append(obs_dict[key])
+        return np.concatenate(obs, axis=1)
 
     def run(self):
         # Here, we init the lists that will contain the trajectories
-        trajectory = Trajectory()
+        trajs_obs = []
+        trajs_actions = []
+        trajs_dones = []
         epinfos = []
         # For n in range number of steps
-        for _ in range(self.nsteps):
-            # We already have self.obs because Runner superclass run self.obs[:] = env.reset() on init
-            actions, _ , self.states, _ = self.model.step(self.obs, S=self.states, M=self.dones)
-
-            # self.model.step - retuns
-
-            trajectory.obs.append(self.c)
-            trajs['obs'].append(self.obs.copy())
-            trajs['actions'].append(actions)
-            trajs['dones'].append(self.dones)
+        for n in range(self.nsteps):
+            # We already have self.obs because Runner superclass run self.obs = env.reset() on init
+            # For reference: actions, values, states, neglogpacs = model.step()
+            actions, _, self.states, _ = self.model.step(self.obsasarray(self.obs), S=self.states, M=self.dones)
+            trajs_obs.append(self.obs.copy())
+            trajs_actions.append(actions)
+            trajs_dones.append(self.dones)
 
             # Take actions in env and look the results
             # Infos contains a ton of useful informations
-            self.obs[:], rewards, self.dones, infos = self.env.step(actions)
+            self.obs, rewards, self.dones, infos = self.env.step(actions)
             for info in infos:
                 maybeepinfo = info.get('episode')
                 if maybeepinfo: epinfos.append(maybeepinfo)
+        trajs_obs.append(self.obs.copy())   # need the final obs to compute reward
 
-        #batch of steps to batch of rollouts
-        #TODO: converting to np.array might not be needed
-        trajs['obs'] = np.asarray(trajs['obs'], dtype=self.obs.dtype)
-        trajs['actions'] = np.asarray(trajs['actions'])
-        trajs['dones'] = np.asarray(trajs['dones'], dtype=np.bool)
-        trajs['epinfos'] = epinfos
+        return trajs_obs, trajs_actions, trajs_dones
 
-        return trajs
 
 
