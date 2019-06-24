@@ -27,6 +27,7 @@ class Runner(object):
         trajectories_obs = []
         trajectories_actions = []
         trajectories_dones = []
+        trajectories_rewards = []
         epinfos = []
         # For n in range number of steps
         obsasarray = self.env.observation_space.to_array  # maintains key order while concatenation
@@ -44,41 +45,53 @@ class Runner(object):
             for info in infos:
                 maybeepinfo = info.get('episode')
                 if maybeepinfo: epinfos.append(maybeepinfo)
-        trajectories_obs.append(self.obs.copy())   # need the final obs to compute reward
-        trajectories_dones.append(self.dones)      # needed compute last value
+            trajectories_rewards.append(rewards)
+        trajectories_obs.append(self.obs.copy())
+        trajectories_dones.append(self.dones)
 
         # Here, we collect trajectories by appropriately splitting the sequence for each env
+        # In a trajectory num_obs = num_actions + 1, for non-terminating episode the final obs is required in
+        # calcualting last value for GAE
         trajectories = []
-        for env_index in range(self.nenv):
-            new_trajectory = True
-            for step in range(self.nsteps):
-                obs, action, nextobs, nextterminal =\
-                    transition(trajectories_obs, trajectories_actions, trajectories_dones, env_index, step)
-                if new_trajectory:
-                    trajectory = Trajectory()
-                    new_trajectory = False
+        for env_idx in range(self.nenv):
+            trajectory = Trajectory()
+            for t in range(self.nsteps):
+                obs, action, nextobs, rewards, nextterminal =\
+                    step(trajectories_obs, trajectories_actions, trajectories_rewards, trajectories_dones,
+                         env_idx, t)
                 trajectory.obs.append(obs)
                 trajectory.actions.append(action)
+                trajectory.rewards.append(rewards)
                 if nextterminal:
                     trajectory.obs.append(nextobs)
-                    new_trajectory = True
                     trajectories.append(trajectory)
+                    trajectory.done = True
+                    trajectory = Trajectory()
+            if not nextterminal:    # add last trajectory if it is non-terminal
+                trajectory.obs.append(nextobs)
+                trajectory.done = False
+                trajectories.append(trajectory)
         return trajectories, epinfos
 
 
-def transition(trajectories_obs, trajectories_actions, trajectories_dones, env_idx, i):
+def step(trajectories_obs, trajectories_actions, trajectories_rewards, trajectories_dones, env_idx, t):
     """ helper function to return the transition tuple """
 
-    def get_obs(i):
+    def get_obs(t):
+        if t not in range(len(trajectories_obs)):
+            return None
         obs = {}
-        for key in trajectories_obs[i].keys():
-            obs[key] = trajectories_obs[i][key][env_idx]
+        for key in trajectories_obs[t].keys():
+            obs[key] = trajectories_obs[t][key][env_idx:env_idx+1, :]
         return obs
 
-    def get_action(i):
-        return trajectories_actions[i][env_idx]
+    def get_action(t):
+        return trajectories_actions[t][env_idx:env_idx+1, :]
 
-    def get_done(i):
-        return trajectories_dones[i][env_idx]
+    def get_reward(t):
+        return trajectories_rewards[t][env_idx]
 
-    return get_obs(i), get_action(i), get_obs(i + 1), get_done(i + 1)
+    def get_done(t):
+        return trajectories_dones[t][env_idx]
+
+    return get_obs(t), get_action(t), get_obs(t + 1), get_reward(t), get_done(t + 1)
