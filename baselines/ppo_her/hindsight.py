@@ -14,7 +14,7 @@ class Hindsight(object):
     def add(self, trajectories):
 
         # Note: The reward for the last transiton of the trajectory cannot be computed as the obs after
-        # last action  is not available. We can ignore this last step and consider the step before it
+        # last action is not available. We can ignore this last step and consider the step before it
         # as the last - resulting in a trajectory shorter by a step.
 
         trajectories = deepcopy(trajectories)

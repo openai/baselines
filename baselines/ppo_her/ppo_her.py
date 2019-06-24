@@ -121,7 +121,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         eval_epinfobuf = deque(maxlen=100)
 
     # Instantiate the buffer object
-    trajectories_buffer = TrajectoriesBuffer()
+    trajectories_buffer = TrajectoriesBuffer(size=100)
 
     # Instantiate Hindsight
     hindsight = Hindsight(env.compute_reward, strategy='final')
@@ -206,7 +206,8 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
 
 def minibatch(env, model, gamma, lam, trajectories):
-    """ compute values, neglogpacs and returns for trajectories using the model """
+    """ compute values and neglogpacs, estimate advs using GAE for each trajectory
+        join trajectories end to end to create minibatch and return """
 
     obsasarray = env.observation_space.to_array
 
@@ -234,7 +235,7 @@ def minibatch(env, model, gamma, lam, trajectories):
             trajectory.advs.append(lastgaelam)
         trajectory.advs.reverse()
 
-    # join end to end
+    # join trajectories end to end
     mb_obs, mb_actions, mb_rewards, mb_values, mb_neglogpacs, mb_advs, mb_dones = [], [], [], [], [], [], []
     done = False
     for trajectory in trajectories:

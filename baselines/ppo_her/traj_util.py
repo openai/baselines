@@ -36,7 +36,8 @@ class Trajectory(object):
 
 class TrajectoriesBuffer(object):
 
-    def __init__(self):
+    def __init__(self, size):
+        self.size = size
         self.trajectories = []
 
     def __len__(self):
@@ -48,6 +49,8 @@ class TrajectoriesBuffer(object):
                 assert isinstance(trajectory, Trajectory)
             random.shuffle(trajectories)
             self.trajectories.extend(trajectories)
+        if len(self) > self.size:
+            self.trajectories = self.trajectories[-self.size:]
 
     def sample(self, k):
         k = k if len(self) > k else len(self)
