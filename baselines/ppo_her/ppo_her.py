@@ -11,7 +11,8 @@ try:
 except ImportError:
     MPI = None
 from baselines.ppo_her.runner import Runner
-from baselines.ppo_her.replay_buffer import ReplayBuffer
+from baselines.ppo_her.traj_util import TrajectoriesBuffer
+from baselines.ppo_her.hindsight import Hindsight
 from gym.spaces.dict import Dict
 
 def constfn(val):
@@ -115,10 +116,15 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     if eval_env is not None:
         eval_runner = Runner(env=eval_env, model=model, nsteps=nsteps)
 
-    # Instantiate the buffer object
     epinfobuf = deque(maxlen=100)
     if eval_env is not None:
         eval_epinfobuf = deque(maxlen=100)
+
+    # Instantiate the buffer object
+    trajectories_buffer = TrajectoriesBuffer()
+
+    # Instantiate Hindsight
+    hindsight = Hindsight(env.compute_reward, strategy='final')
 
     # Start total timer
     tfirststart = time.perf_counter()
@@ -135,67 +141,35 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         cliprangenow = cliprange(frac)
 
         # Collect new trajectories here
-        trajs_obs, trajs_actions, trajs_dones = runner.run() #pylint: disable=E0632
+        trajectories,  epinfos = runner.run()   #pylint: disable=E0632
         if eval_env is not None:
-            eval_trajs_obs, eval_trajs_actions, eval_trajs_dones = eval_runner.run() #pylint: disable=E0632
+            eval_trajectories,  eval_epinfos = eval_runner.run() #pylint: disable=E0632
+        epinfobuf.extend(epinfos)
+        if eval_env is not None:
+            eval_epinfobuf.extend('epinfos')
 
-        # Sample some old trajectories here
+        old_trajectories = trajectories_buffer.sample(0)
+        trajectories_buffer.add(trajectories)
+        trajectories.extend(old_trajectories)
+        hindsight_trajectories = hindsight.add(trajectories)
+        trajectories.extend(hindsight_trajectories)
 
-
-
-        # Use goal sampling heuristics to sample new goals
-
-
-
-        # compute reward, neglogpac, value
-        trajs_rewards, trajs_neglogpacs, trajs_values = [], [], []
-        for i in range(len(trajs_actions)):
-            obs, actions, obs_next = trajs_obs[i], trajs_actions[i], trajs_obs[i+1]
-            rewards = runner.env.compute_reward(achieved_goal=obs_next['achieved_goal'],
-                                                desired_goal=obs_next['desired_goal'],
-                                                info={'action': actions})
-            values = model.value(runner.obsasarray(obs))
-            neglogpacs = model.neglogpac(runner.obsasarray(obs), A=actions)
-            trajs_rewards.append(rewards)
-            trajs_neglogpacs.append(neglogpacs)
-            trajs_values.append(values)
-
-
-        # create minibatch
-
-        # epinfobuf.extend(trajs['epinfos'])
-        # if eval_env is not None:
-        #     eval_epinfobuf.extend(eval_trajs['epinfos'])
+        obs, returns, masks, actions, values, neglogpacs = minibatch(env, model, gamma, lam, trajectories)
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
-        if states is None: # nonrecurrent version
-            # Index of each element of batch_size
-            # Create the indices array
-            inds = np.arange(nbatch)
-            for _ in range(noptepochs):
-                # Randomize the indexes
-                np.random.shuffle(inds)
-                # 0 to batch_size with batch_train_size step
-                for start in range(0, nbatch, nbatch_train):
-                    end = start + nbatch_train
-                    mbinds = inds[start:end]
-                    slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices))
-        else: # recurrent version
-            assert nenvs % nminibatches == 0
-            envsperbatch = nenvs // nminibatches
-            envinds = np.arange(nenvs)
-            flatinds = np.arange(nenvs * nsteps).reshape(nenvs, nsteps)
-            for _ in range(noptepochs):
-                np.random.shuffle(envinds)
-                for start in range(0, nenvs, envsperbatch):
-                    end = start + envsperbatch
-                    mbenvinds = envinds[start:end]
-                    mbflatinds = flatinds[mbenvinds].ravel()
-                    slices = (arr[mbflatinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
-                    mbstates = states[mbenvinds]
-                    mblossvals.append(model.train(lrnow, cliprangenow, *slices, mbstates))
+        # Index of each element of batch_size
+        # Create the indices array
+        inds = np.arange(nbatch)
+        for _ in range(noptepochs):
+            # Randomize the indexes
+            np.random.shuffle(inds)
+            # 0 to batch_size with batch_train_size step
+            for start in range(0, nbatch, nbatch_train):
+                end = start + nbatch_train
+                mbinds = inds[start:end]
+                slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))
+                mblossvals.append(model.train(lrnow, cliprangenow, *slices))
 
         # Feedforward --> get losses --> update
         lossvals = np.mean(mblossvals, axis=0)
@@ -229,9 +203,71 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             print('Saving to', savepath)
             model.save(savepath)
     return model
+
+
+def minibatch(env, model, gamma, lam, trajectories):
+    """ compute values, neglogpacs and returns for trajectories using the model """
+
+    obsasarray = env.observation_space.to_array
+
+    for trajectory in trajectories:
+        trajectory.values = []
+        trajectory.neglogpacs = []
+        trajectory.advs = []
+        n = len(trajectory)
+        for i in range(n):
+            obs, action = obsasarray(trajectory.obs[i]), trajectory.actions[i]
+            _obs = np.repeat(obs, env.num_envs, axis=0)
+            _action = np.repeat(action, env.num_envs, axis=0)
+            value, neglogpac = model.value(_obs)[0], model.neglogpac(_obs, A=_action)[0]
+            trajectory.values.append(value)
+            trajectory.neglogpacs.append(neglogpac)
+        # GAE
+        rewards = trajectory.rewards
+        values = trajectory.values
+        nextvalue = 0.0 if trajectory.done else \
+            model.value(np.repeat(obsasarray(trajectory.obs[-1]), env.num_envs, axis=0))[0]
+        lastgaelam = 0.0
+        for t in reversed(range(n)):
+            delta = rewards[t] + gamma * nextvalue - values[t]
+            lastgaelam = delta + gamma * lam * lastgaelam
+            trajectory.advs.append(lastgaelam)
+        trajectory.advs.reverse()
+
+    # join end to end
+    mb_obs, mb_actions, mb_rewards, mb_values, mb_neglogpacs, mb_advs, mb_dones = [], [], [], [], [], [], []
+    done = False
+    for trajectory in trajectories:
+        mb_obs.extend([obsasarray(trajectory.obs[i]) for i in range(len(trajectory))])
+        mb_actions.extend(trajectory.actions)
+        mb_rewards.extend(trajectory.rewards)
+        mb_values.extend(trajectory.values)
+        mb_neglogpacs.extend(trajectory.neglogpacs)
+        mb_advs.extend(trajectory.advs)
+        mb_dones.extend([done] + [False for _ in range(len(trajectory) - 1)])
+        done = True
+
+    mb_obs = np.asarray(mb_obs)
+    mb_actions = np.asarray(mb_actions)
+    mb_values = np.asarray(mb_values, dtype=np.float32)
+    mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
+    mb_advs = np.asarray(mb_advs, dtype=np.float32)
+    mb_dones = np.asarray(mb_dones, dtype=np.bool)
+    mb_returns = mb_advs + mb_values
+    mb_obs, mb_actions = map(sf01, (mb_obs, mb_actions))
+    return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs
+
+
+def sf01(arr):
+    """
+    swap and then flatten axes 0 and 1
+    """
+    s = arr.shape
+    return arr.swapaxes(0, 1).reshape(s[0] * s[1], *s[2:])
+
+
 # Avoid division error when calculate the mean (in our case if epinfo is empty returns np.nan, not return an error)
 def safemean(xs):
     return np.nan if len(xs) == 0 else np.mean(xs)
-
 
 
