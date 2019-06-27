@@ -23,7 +23,8 @@ def constfn(val):
 def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2048, ent_coef=0.0, lr=3e-4,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-            save_interval=0, load_path=None, model_fn=None, exp_ratio=0, hs_strategy='none', **network_kwargs):
+            save_interval=0, load_path=None, model_fn=None, buffer_age=1, exp_ratio=0, hs_strategy='none',
+          **network_kwargs):
     '''
     Learn policy using PPO algorithm (https://arxiv.org/abs/1707.06347)
 
@@ -121,7 +122,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         eval_epinfobuf = deque(maxlen=100)
 
     # Instantiate the buffer object
-    trajectories_buffer = TrajectoriesBuffer(size=100)
+    trajectories_buffer = TrajectoriesBuffer(size=100)  # size of the buffer will be set dynamically later
 
     # Instantiate Hindsight
     hindsight = Hindsight(env.compute_reward, strategy=hs_strategy)
@@ -149,6 +150,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             eval_epinfobuf.extend('epinfos')
 
         old_trajectories = trajectories_buffer.sample(int(exp_ratio*len(trajectories)))
+        trajectories_buffer.size = buffer_age*len(trajectories)
         trajectories_buffer.add(trajectories)
         trajectories.extend(old_trajectories)
         hindsight_trajectories = hindsight.add(trajectories)
