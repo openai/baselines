@@ -3,11 +3,17 @@ from copy import deepcopy
 
 class Hindsight(object):
 
-    def __init__(self, compute_reward, strategy='final'):
+    def __init__(self, compute_reward, strategy='none'):
         if callable(compute_reward):
             self.compute_reward = compute_reward
-        if strategy == 'final':
+        if strategy == 'none':
+            self._get_hindsight_trajectories = self._strategy_none
+        elif strategy == 'final':
             self._get_hindsight_trajectories = self._strategy_final
+        elif strategy == 'future':
+            self._get_hindsight_trajectories = self._strategy_future
+        elif strategy == 'random':
+            self._get_hindsight_trajectories = self._strategy_random
         else:
             raise ValueError('unknown strategy {}')
 
@@ -24,6 +30,9 @@ class Hindsight(object):
 
         return hs_trajectories
 
+    def _strategy_none(self, trajectory):
+        return []
+
     def _strategy_final(self, trajectory):
         trajectory.pop()   # remove last step as the last obs is not useful in computing reward
         # change the desired goal to last obs' achieved_goal
@@ -32,6 +41,8 @@ class Hindsight(object):
         return [trajectory]
 
     def _strategy_future(self, trajectory):
+        raise NotImplementedError
 
+    def _strategy_random(self, trajectory):
         raise NotImplementedError
 
