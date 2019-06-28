@@ -99,8 +99,8 @@ class DiagGaussianPdType(PdType):
     def pdclass(self):
         return DiagGaussianPd
 
-    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
-        mean = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0, activation=None):
+        mean = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias, activation=activation)
         logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         return self.pdfromflat(pdparam), mean
@@ -348,8 +348,11 @@ def validate_probtype(probtype, pdparam):
     print('ok on', probtype, pdparam)
 
 
-def _matching_fc(tensor, name, size, init_scale, init_bias):
+def _matching_fc(tensor, name, size, init_scale, init_bias, activation=None):
     if tensor.shape[-1] == size:
         return tensor
     else:
-        return fc(tensor, name, size, init_scale=init_scale, init_bias=init_bias)
+        h = fc(tensor, name, size, init_scale=init_scale, init_bias=init_bias)
+        if activation:
+            h = activation(h)
+        return h
