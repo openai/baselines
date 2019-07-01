@@ -2,7 +2,7 @@ import tensorflow as tf
 from baselines.common import tf_util
 from baselines.a2c.utils import fc
 from baselines.common.distributions import make_pdtype
-from baselines.common.input import observation_placeholder, encode_observation, action_placeholder
+from baselines.common.input import observation_placeholder, encode_observation
 from baselines.common.tf_util import adjust_shape
 from baselines.common.mpi_running_mean_std import RunningMeanStd
 from baselines.common.models import get_network_builder
@@ -56,7 +56,8 @@ class PolicyWithValue(object):
         self.sess = sess or tf.get_default_session()
 
         # Calculate the neg log probability of actions
-        self._neglogpac = self.pd.neglogp(self.actions)
+        self.A = self.pdtype.sample_placeholder([None])
+        self._neglogpac = self.pd.neglogp(self.A)
 
         if estimate_q:
             assert isinstance(env.action_space, gym.spaces.Discrete)
@@ -136,6 +137,7 @@ class PolicyWithValue(object):
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
 
+
 def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, **policy_kwargs):
     if isinstance(policy_network, str):
         network_type = policy_network
@@ -143,7 +145,6 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
 
     def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
         ob_space = env.observation_space
-        act_space = env.action_space
 
         X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space, batch_size=nbatch)
 
@@ -184,12 +185,9 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
                 # TODO recurrent architectures are not supported with value_network=copy yet
                 vf_latent = _v_net(encoded_x)
 
-        extra_tensors['A'] = A = action_placeholder(act_space, batch_size=nbatch)
-
         policy = PolicyWithValue(
             env=env,
             observations=X,
-            actions=A,
             latent=policy_latent,
             vf_latent=vf_latent,
             sess=sess,
