@@ -50,8 +50,8 @@ class Runner(object):
         trajectories_dones.append(self.dones)
 
         # Here, we collect trajectories by appropriately splitting the sequence for each env
-        # In a trajectory num_obs = num_actions + 1, for non-terminating episode the final obs is required in
-        # calcualting last value for GAE
+        # In a trajectory num_obs = num_actions + 1 (for non-terminating episode the final obs is required in
+        # calcualting last value for GAE)
         trajectories = []
         for env_idx in range(self.nenv):
             trajectory = Trajectory()

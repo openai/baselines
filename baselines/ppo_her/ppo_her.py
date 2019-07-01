@@ -158,6 +158,13 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
         obs, returns, masks, actions, values, neglogpacs = minibatch(env, model, gamma, lam, trajectories)
 
+        # Debug
+        # data = [obs, returns, masks, actions, values, neglogpacs, [epinfo['r'] for epinfo in epinfobuf]]
+        # names = ['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs', 'rewards']
+        # for data, name in zip(data, names):
+        #     print(name)
+        #     print('{} \n {} \n {} \n {}'.format(np.min(data), np.mean(data), np.max(data), np.sum(data)))
+
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
         # Index of each element of batch_size
