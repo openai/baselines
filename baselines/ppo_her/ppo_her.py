@@ -212,7 +212,6 @@ def minibatch(env, model, gamma, lam, trajectories):
         join trajectories end to end to create minibatch and return """
 
     obsasarray = env.observation_space.to_array
-
     for trajectory in trajectories:
         trajectory.values = []
         trajectory.neglogpacs = []
@@ -235,6 +234,7 @@ def minibatch(env, model, gamma, lam, trajectories):
             delta = rewards[t] + gamma * nextvalue - values[t]
             lastgaelam = delta + gamma * lam * lastgaelam
             trajectory.advs.append(lastgaelam)
+            nextvalue = values[t]
         trajectory.advs.reverse()
 
     # join trajectories end to end
@@ -248,7 +248,7 @@ def minibatch(env, model, gamma, lam, trajectories):
         mb_neglogpacs.extend(trajectory.neglogpacs)
         mb_advs.extend(trajectory.advs)
         mb_dones.extend([done] + [False for _ in range(len(trajectory) - 1)])
-        done = True
+        done = trajectory.done
 
     mb_obs = np.asarray(mb_obs)
     mb_actions = np.asarray(mb_actions)
