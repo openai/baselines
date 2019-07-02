@@ -11,8 +11,8 @@ try:
 except ImportError:
     MPI = None
 from baselines.ppo_her.runner import Runner
-from baselines.ppo_her.traj_util import TrajectoriesBuffer
-from baselines.ppo_her.hindsight import Hindsight
+from baselines.ppo_her.replay_buffer import ReplayBuffer
+from baselines.ppo_her.hsg import get_hsg
 from gym.spaces.dict import Dict
 
 def constfn(val):
@@ -98,7 +98,11 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     assert isinstance(ob_space, Dict), 'ppo_her requires Dict observation space'
     ac_space = env.action_space
 
-    # Calculate the batch_size
+    # Instantiate the buffer and hindsight generator
+    replay_buffer = ReplayBuffer()  # size of the buffer will be set dynamically later
+    hsg = get_hsg(strategy=hs_strategy, reward_fn=env.compute_reward)
+
+    # Calculate the batch_size, nbatch is a rough approximation
     nbatch = nenvs * nsteps
     nbatch_train = nbatch // nminibatches
 
@@ -121,18 +125,11 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
     if eval_env is not None:
         eval_epinfobuf = deque(maxlen=100)
 
-    # Instantiate the buffer object
-    trajectories_buffer = TrajectoriesBuffer(size=100)  # size of the buffer will be set dynamically later
-
-    # Instantiate Hindsight
-    hindsight = Hindsight(env.compute_reward, strategy=hs_strategy)
-
     # Start total timer
     tfirststart = time.perf_counter()
 
     nupdates = total_timesteps//nbatch
     for update in range(1, nupdates+1):
-        assert nbatch % nminibatches == 0
         # Start timer
         tstart = time.perf_counter()
         frac = 1.0 - (update - 1.0) / nupdates
@@ -142,22 +139,22 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         cliprangenow = cliprange(frac)
 
         # Collect new trajectories here
-        trajectories,  epinfos = runner.run()   #pylint: disable=E0632
+        trajs,  epinfos = runner.run()   #pylint: disable=E0632
         if eval_env is not None:
             eval_trajectories,  eval_epinfos = eval_runner.run() #pylint: disable=E0632
         epinfobuf.extend(epinfos)
         if eval_env is not None:
             eval_epinfobuf.extend('epinfos')
 
-        old_trajectories = trajectories_buffer.sample(int(exp_ratio*len(trajectories)))
-        trajectories_buffer.size = buffer_age*len(trajectories)
-        trajectories_buffer.add(trajectories)
-        trajectories.extend(old_trajectories)
-        hindsight_trajectories = hindsight.add(trajectories)
-        trajectories.extend(hindsight_trajectories)
+        trajs_old = replay_buffer.sample(int(exp_ratio*len(trajs)))
+        replay_buffer.size = buffer_age*len(trajs)
+        replay_buffer.add(trajs)
+        trajs.extend(trajs_old)
+        trajs_hs = hsg.get(trajs)
+        trajs.extend(trajs_hs)
 
-        obs, returns, masks, actions, values, neglogpacs = minibatch(env, model, gamma, lam, trajectories)
-
+        obs, returns, masks, actions, values, neglogpacs = minibatch(env, model, gamma, lam, trajs)
+        _nbatch = (len(obs) // nbatch_train) * nbatch_train
         # Debug
         # data = [obs, returns, masks, actions, values, neglogpacs, [epinfo['r'] for epinfo in epinfobuf]]
         # names = ['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs', 'rewards']
@@ -169,12 +166,12 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
         mblossvals = []
         # Index of each element of batch_size
         # Create the indices array
-        inds = np.arange(nbatch)
+        inds = np.arange(_nbatch)
         for _ in range(noptepochs):
             # Randomize the indexes
             np.random.shuffle(inds)
             # 0 to batch_size with batch_train_size step
-            for start in range(0, nbatch, nbatch_train):
+            for start in range(0, _nbatch, nbatch_train):
                 end = start + nbatch_train
                 mbinds = inds[start:end]
                 slices = (arr[mbinds] for arr in (obs, returns, masks, actions, values, neglogpacs))

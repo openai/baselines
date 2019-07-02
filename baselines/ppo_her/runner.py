@@ -1,6 +1,6 @@
 import numpy as np
 from gym.core import GoalEnv
-from baselines.ppo_her.traj_util import Trajectory
+from baselines.ppo_her.trajectory import Trajectory
 
 
 class Runner(object):
