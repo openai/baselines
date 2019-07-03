@@ -21,8 +21,8 @@ class Trajectory(object):
         return self.obs.pop(), self.actions.pop(), self.rewards.pop()
 
     def update_obs(self, key, value):
-        for obs in self.obs:
-            obs[key] = value
+        for t in range(len(self.obs)):
+            self.obs[t][key] = value
 
     def update_rewards(self, compute_reward):
         assert callable(compute_reward)
@@ -30,5 +30,19 @@ class Trajectory(object):
             action, obs = self.actions[t], self.obs[t+1]
             self.rewards[t] = compute_reward(obs['achieved_goal'], obs['desired_goal'], {'action': action})[0]
 
+    def split(self, k):
+        T = len(self)//k
+        trajs = []
+        i = 0
+        traj = Trajectory()
+        while i < len(self):
+            traj.append((self.obs[i], self.actions[i], self.rewards[i]))
+            if (i+1) % T == 0 or i == (len(self)-1):
+                traj.obs.append(self.obs[i+1])
+                traj.done = True
+                trajs.append(traj)
+                traj = Trajectory()
+            i += 1
+        return trajs
 
 

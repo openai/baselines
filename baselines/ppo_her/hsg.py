@@ -1,4 +1,4 @@
-from copy import deepcopy
+from copy import copy, deepcopy
 
 
 class HSG(object):
@@ -56,6 +56,24 @@ class HSGRandom(HSG):
         raise NotImplementedError
 
 
+class HSGSplit(HSG):
+    def __init__(self, reward_fn, splits=2, *args, **kwargs):
+        HSG.__init__(self, reward_fn, *args, **kwargs)
+        self.multiplier = 1
+        self.k = splits
+
+    def _get(self, trajectory):
+        """ split the trajectory into k pieces """
+        k = self.k
+        if len(trajectory) < k:
+            return [trajectory]
+        trajs = trajectory.split(k)
+        for traj in trajs:
+            traj.update_obs('desired_goal', traj.obs[-1]['achieved_goal'].copy())
+            traj.update_rewards(self.compute_reward)
+        return trajs
+
+
 def get_hsg(strategy='none', reward_fn=None):
     assert callable(reward_fn)
     if strategy == 'none':
@@ -66,6 +84,8 @@ def get_hsg(strategy='none', reward_fn=None):
         return HSGFuture(reward_fn)
     elif strategy == 'random':
         return HSGRandom(reward_fn)
+    elif 'split' in strategy:
+        return HSGSplit(reward_fn, int(copy(strategy).replace('split', '')))
     else:
         raise ValueError('unknwon reward function')
 

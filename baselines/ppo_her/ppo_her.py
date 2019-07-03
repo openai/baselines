@@ -104,6 +104,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     # Calculate the batch_size, nbatch is a rough approximation
     nbatch = nenvs * nsteps
+    # nbatch_train = nenvs * nsteps * (1 + exp_ratio) * (1 + hsg.multiplier) // nminibatches
     nbatch_train = nbatch // nminibatches
 
     # Instantiate the model object (that creates act_model and train_model)
@@ -127,7 +128,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
     # Start total timer
     tfirststart = time.perf_counter()
-
+    her_timesteps = 0
     nupdates = total_timesteps//nbatch
     for update in range(1, nupdates+1):
         # Start timer
@@ -155,12 +156,17 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
         obs, returns, masks, actions, values, neglogpacs = minibatch(env, model, gamma, lam, trajs)
         _nbatch = (len(obs) // nbatch_train) * nbatch_train
-        # Debug
-        # data = [obs, returns, masks, actions, values, neglogpacs, [epinfo['r'] for epinfo in epinfobuf]]
+        her_timesteps += _nbatch
+        # # Debug
+        # rewards = []
+        # for traj in trajs:
+        #     rewards.extend(traj.rewards)
+        # datas = [obs, returns, masks, actions, values, neglogpacs, rewards]
         # names = ['obs', 'returns', 'masks', 'actions', 'values', 'neglogpacs', 'rewards']
-        # for data, name in zip(data, names):
+        # for data, name in zip(datas, names):
         #     print(name)
-        #     print('{} \n {} \n {} \n {}'.format(np.min(data), np.mean(data), np.max(data), np.sum(data)))
+        #     print('{}\n {} \n {} \n {} \n {}'.format(len(data), np.min(data), np.mean(data), np.max(data),
+        #                                              np.sum(data)))
 
         # Here what we're going to do is for each minibatch calculate the loss and append it.
         mblossvals = []
@@ -190,6 +196,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
             logger.logkv("serial_timesteps", update*nsteps)
             logger.logkv("nupdates", update)
             logger.logkv("total_timesteps", update*nbatch)
+            logger.logkv("total_timesteps_her", her_timesteps)
             logger.logkv("fps", fps)
             logger.logkv("explained_variance", float(ev))
             logger.logkv('eprewmean', safemean([epinfo['r'] for epinfo in epinfobuf]))
@@ -252,7 +259,7 @@ def minibatch(env, model, gamma, lam, trajectories):
         mb_neglogpacs.extend(trajectory.neglogpacs)
         mb_advs.extend(trajectory.advs)
         mb_dones.extend([done] + [False for _ in range(len(trajectory) - 1)])
-        done = trajectory.done
+        done = True
 
     mb_obs = np.asarray(mb_obs)
     mb_actions = np.asarray(mb_actions)
