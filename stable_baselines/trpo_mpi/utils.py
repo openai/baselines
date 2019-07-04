@@ -15,12 +15,14 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
     :param gail: (bool) Whether we are using this generator for standard trpo or with gail
     :return: (dict) generator that returns a dict with the following keys:
 
-        - ob: (np.ndarray) observations
-        - rew: (numpy float) rewards (if gail is used it is the predicted reward)
+        - observations: (np.ndarray) observations
+        - rewards: (numpy float) rewards (if gail is used it is the predicted reward)
+        - true_rewards: (numpy float) if gail is used it is the original reward
         - vpred: (numpy float) action logits
-        - dones: (numpy bool) dones (is end of episode -> True if first timestep of an episode)
-        - ac: (np.ndarray) actions
-        - prevac: (np.ndarray) previous actions
+        - dones: (numpy bool) dones (is end of episode, used for logging)
+        - episode_starts: (numpy bool)
+            True if first timestep of an episode, used for GAE
+        - actions: (np.ndarray) actions
         - nextvpred: (numpy float) next action logits
         - ep_rets: (float) cumulated current episode reward
         - ep_lens: (int) the length of the current episode
@@ -44,31 +46,31 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
 
     # Initialize history arrays
     observations = np.array([observation for _ in range(horizon)])
-    true_rews = np.zeros(horizon, 'float32')
-    rews = np.zeros(horizon, 'float32')
+    true_rewards = np.zeros(horizon, 'float32')
+    rewards = np.zeros(horizon, 'float32')
     vpreds = np.zeros(horizon, 'float32')
-    dones = np.zeros(horizon, 'int32')
+    episode_starts = np.zeros(horizon, 'bool')
+    dones = np.zeros(horizon, 'bool')
     actions = np.array([action for _ in range(horizon)])
-    prev_actions = actions.copy()
     states = policy.initial_state
-    done = True  # marks if we're on first timestep of an episode
+    episode_start = True  # marks if we're on first timestep of an episode
+    done = False
 
     while True:
-        prevac = action
         action, vpred, states, _ = policy.step(observation.reshape(-1, *observation.shape), states, done)
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
         if step > 0 and step % horizon == 0:
             yield {
-                    "ob": observations,
-                    "rew": rews,
+                    "observations": observations,
+                    "rewards": rewards,
                     "dones": dones,
-                    "true_rew": true_rews,
+                    "episode_starts": episode_starts,
+                    "true_rewards": true_rewards,
                     "vpred": vpreds,
-                    "ac": actions,
-                    "prevac": prev_actions,
-                    "nextvpred": vpred[0] * (1 - done),
+                    "actions": actions,
+                    "nextvpred": vpred[0] * (1 - episode_start),
                     "ep_rets": ep_rets,
                     "ep_lens": ep_lens,
                     "ep_true_rets": ep_true_rets,
@@ -86,7 +88,7 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
         observations[i] = observation
         vpreds[i] = vpred[0]
         actions[i] = action[0]
-        prev_actions[i] = prevac
+        episode_starts[i] = episode_start
 
         clipped_action = action
         # Clip the actions to avoid out of bound error
@@ -94,20 +96,28 @@ def traj_segment_generator(policy, env, horizon, reward_giver=None, gail=False):
             clipped_action = np.clip(action, env.action_space.low, env.action_space.high)
 
         if gail:
-            rew = reward_giver.get_reward(observation, clipped_action[0])
-            observation, true_rew, done, _info = env.step(clipped_action[0])
+            reward = reward_giver.get_reward(observation, clipped_action[0])
+            observation, true_reward, done, info = env.step(clipped_action[0])
         else:
-            observation, rew, done, _info = env.step(clipped_action[0])
-            true_rew = rew
-        rews[i] = rew
-        true_rews[i] = true_rew
+            observation, reward, done, info = env.step(clipped_action[0])
+            true_reward = reward
+        rewards[i] = reward
+        true_rewards[i] = true_reward
         dones[i] = done
+        episode_start = done
 
-        cur_ep_ret += rew
-        cur_ep_true_ret += true_rew
+        cur_ep_ret += reward
+        cur_ep_true_ret += true_reward
         current_it_len += 1
         current_ep_len += 1
         if done:
+            # Retrieve unnormalized reward if using Monitor wrapper
+            maybe_ep_info = info.get('episode')
+            if maybe_ep_info is not None:
+                if not gail:
+                    cur_ep_ret = maybe_ep_info['r']
+                cur_ep_true_ret = maybe_ep_info['r']
+
             ep_rets.append(cur_ep_ret)
             ep_true_rets.append(cur_ep_true_ret)
             ep_lens.append(current_ep_len)
@@ -128,16 +138,16 @@ def add_vtarg_and_adv(seg, gamma, lam):
     :param lam: (float) GAE factor
     """
     # last element is only used for last vtarg, but we already zeroed it if last new = 1
-    new = np.append(seg["dones"], 0)
+    episode_starts = np.append(seg["episode_starts"], False)
     vpred = np.append(seg["vpred"], seg["nextvpred"])
-    rew_len = len(seg["rew"])
-    seg["adv"] = gaelam = np.empty(rew_len, 'float32')
-    rew = seg["rew"]
+    rew_len = len(seg["rewards"])
+    seg["adv"] = np.empty(rew_len, 'float32')
+    rewards = seg["rewards"]
     lastgaelam = 0
     for step in reversed(range(rew_len)):
-        nonterminal = 1 - new[step + 1]
-        delta = rew[step] + gamma * vpred[step + 1] * nonterminal - vpred[step]
-        gaelam[step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
+        nonterminal = 1 - float(episode_starts[step + 1])
+        delta = rewards[step] + gamma * vpred[step + 1] * nonterminal - vpred[step]
+        seg["adv"][step] = lastgaelam = delta + gamma * lam * nonterminal * lastgaelam
     seg["tdlamret"] = seg["adv"] + seg["vpred"]
 
 

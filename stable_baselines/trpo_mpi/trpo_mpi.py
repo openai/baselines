@@ -323,19 +323,24 @@ class TRPO(ActorCriticRLModel):
                             seg = seg_gen.__next__()
                         add_vtarg_and_adv(seg, self.gamma, self.lam)
                         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-                        observation, action, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+                        observation, action = seg["observations"], seg["actions"]
+                        atarg, tdlamret = seg["adv"], seg["tdlamret"]
+
+
                         vpredbefore = seg["vpred"]  # predicted value function before update
                         atarg = (atarg - atarg.mean()) / atarg.std()  # standardized advantage function estimate
 
                         # true_rew is the reward without discount
                         if writer is not None:
                             self.episode_reward = total_episode_reward_logger(self.episode_reward,
-                                                                              seg["true_rew"].reshape(
+                                                                              seg["true_rewards"].reshape(
                                                                                   (self.n_envs, -1)),
                                                                               seg["dones"].reshape((self.n_envs, -1)),
                                                                               writer, self.num_timesteps)
 
-                        args = seg["ob"], seg["ob"], seg["ac"], atarg
+                        args = seg["observations"], seg["observations"], seg["actions"], atarg
+                        # Subsampling: see p40-42 of John Schulman thesis
+                        # http://joschu.net/docs/thesis.pdf
                         fvpargs = [arr[::5] for arr in args]
 
                         self.assign_old_eq_new(sess=self.sess)
@@ -404,7 +409,7 @@ class TRPO(ActorCriticRLModel):
                         with self.timed("vf"):
                             for _ in range(self.vf_iters):
                                 # NOTE: for recurrent policies, use shuffle=False?
-                                for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
+                                for (mbob, mbret) in dataset.iterbatches((seg["observations"], seg["tdlamret"]),
                                                                          include_final_partial_batch=False,
                                                                          batch_size=128,
                                                                          shuffle=True):

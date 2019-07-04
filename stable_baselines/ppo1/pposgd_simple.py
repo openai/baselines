@@ -239,12 +239,13 @@ class PPO1(ActorCriticRLModel):
                     add_vtarg_and_adv(seg, self.gamma, self.lam)
 
                     # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
-                    obs_ph, action_ph, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+                    observations, actions = seg["observations"], seg["actions"]
+                    atarg, tdlamret = seg["adv"], seg["tdlamret"]
 
                     # true_rew is the reward without discount
                     if writer is not None:
                         self.episode_reward = total_episode_reward_logger(self.episode_reward,
-                                                                          seg["true_rew"].reshape((self.n_envs, -1)),
+                                                                          seg["true_rewards"].reshape((self.n_envs, -1)),
                                                                           seg["dones"].reshape((self.n_envs, -1)),
                                                                           writer, self.num_timesteps)
 
@@ -253,9 +254,9 @@ class PPO1(ActorCriticRLModel):
 
                     # standardized advantage function estimate
                     atarg = (atarg - atarg.mean()) / atarg.std()
-                    dataset = Dataset(dict(ob=obs_ph, ac=action_ph, atarg=atarg, vtarg=tdlamret),
+                    dataset = Dataset(dict(ob=observations, ac=actions, atarg=atarg, vtarg=tdlamret),
                                       shuffle=not self.policy.recurrent)
-                    optim_batchsize = self.optim_batchsize or obs_ph.shape[0]
+                    optim_batchsize = self.optim_batchsize or observations.shape[0]
 
                     # set old parameter values to new parameter values
                     self.assign_old_eq_new(sess=self.sess)
