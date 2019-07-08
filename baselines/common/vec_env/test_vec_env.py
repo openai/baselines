@@ -8,6 +8,7 @@ import pytest
 from .dummy_vec_env import DummyVecEnv
 from .shmem_vec_env import ShmemVecEnv
 from .subproc_vec_env import SubprocVecEnv
+from .threaded_vec_env import ThreadedVecEnv
 from baselines.common.tests.test_with_mpi import with_mpi
 
 
@@ -44,7 +45,7 @@ def assert_venvs_equal(venv1, venv2, num_steps):
         venv2.close()
 
 
-@pytest.mark.parametrize('klass', (ShmemVecEnv, SubprocVecEnv))
+@pytest.mark.parametrize('klass', (ShmemVecEnv, SubprocVecEnv, ThreadedVecEnv))
 @pytest.mark.parametrize('dtype', ('uint8', 'float32'))
 def test_vec_env(klass, dtype):  # pylint: disable=R0914
     """
@@ -111,4 +112,3 @@ def test_mpi_with_subprocvecenv():
     ob = venv.reset()
     venv.close()
     assert ob.shape == (nenv,) + shape
-
