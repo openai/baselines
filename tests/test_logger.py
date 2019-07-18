@@ -1,9 +1,18 @@
 import pytest
+import numpy as np
 
 from stable_baselines.logger import make_output_format, read_tb, read_csv, read_json, _demo
 
 
-KEY_VALUES = {'test': 1, 'b': -3.14, '8': 9.9}
+KEY_VALUES = {
+    "test": 1,
+    "b": -3.14,
+    "8": 9.9,
+    "l": [1, 2],
+    "a": np.array([1, 2, 3]),
+    "f": np.array(1),
+    "g": np.array([[[1]]]),
+}
 LOG_DIR = '/tmp/openai_baselines/'
 
 
