@@ -104,14 +104,15 @@ def test_model_manipulation(request, model_class):
         observations = observations.reshape((-1, 1))
         actions = np.array([env.action_space.sample() for _ in range(10)])
 
-        if model_class == DDPG:
+        if model_class in [DDPG, SAC]:
             with pytest.raises(ValueError):
                 model.action_probability(observations, actions=actions)
         else:
-            with pytest.warns(UserWarning):
-                actions_probas = model.action_probability(observations, actions=actions)
+            actions_probas = model.action_probability(observations, actions=actions)
             assert actions_probas.shape == (len(actions), 1), actions_probas.shape
-            assert np.all(actions_probas == 0.0), actions_probas
+            assert np.all(actions_probas >= 0), actions_probas
+            actions_logprobas = model.action_probability(observations, actions=actions, logp=True)
+            assert np.allclose(actions_probas, np.exp(actions_logprobas)), (actions_probas, actions_logprobas)
 
         # assert <15% diff
         assert abs(acc_reward - loaded_acc_reward) / max(acc_reward, loaded_acc_reward) < 0.15, \

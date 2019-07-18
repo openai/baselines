@@ -497,19 +497,14 @@ class SAC(OffPolicyRLModel):
                     infos_values = []
             return self
 
-    def action_probability(self, observation, state=None, mask=None, actions=None):
-        if actions is None:
-            warnings.warn("Even thought SAC has a Gaussian policy, it cannot return a distribution as it "
-                          "is squashed by an tanh before being scaled and ouputed. Therefore 'action_probability' "
-                          "will only work with the 'actions' keyword argument being used. Returning None.")
-            return None
+    def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
+        if actions is not None:
+            raise ValueError("Error: SAC does not have action probabilities.")
 
-        observation = np.array(observation)
+        warnings.warn("Even though SAC has a Gaussian policy, it cannot return a distribution as it "
+                      "is squashed by a tanh before being scaled and ouputed.")
 
-        warnings.warn("The probabilty of taken a given action is exactly zero for a continuous distribution."
-                      "See http://blog.christianperone.com/2019/01/ for a good explanation")
-
-        return np.zeros((observation.shape[0], 1), dtype=np.float32)
+        return None
 
     def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)

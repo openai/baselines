@@ -331,21 +331,19 @@ class BaseRLModel(ABC):
         pass
 
     @abstractmethod
-    def action_probability(self, observation, state=None, mask=None, actions=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
         """
-        If ``actions`` is ``None``, then get the model's action probability distribution from a given observation
+        If ``actions`` is ``None``, then get the model's action probability distribution from a given observation.
 
-        depending on the action space the output is:
+        Depending on the action space the output is:
             - Discrete: probability for each possible action
             - Box: mean and standard deviation of the action output
 
         However if ``actions`` is not ``None``, this function will return the probability that the given actions are
-        taken with the given parameters (observation, state, ...) on this model.
-
-        .. warning::
-            When working with continuous probability distribution (e.g. Gaussian distribution for continuous action)
-            the probability of taking a particular action is exactly zero.
-            See http://blog.christianperone.com/2019/01/ for a good explanation
+        taken with the given parameters (observation, state, ...) on this model. For discrete action spaces, it
+        returns the probability mass; for continuous action spaces, the probability density. This is since the
+        probability mass will always be zero in continuous spaces, see http://blog.christianperone.com/2019/01/
+        for a good explanation
 
         :param observation: (np.ndarray) the input observation
         :param state: (np.ndarray) The last states (can be None, used in recurrent policies)
@@ -353,7 +351,9 @@ class BaseRLModel(ABC):
         :param actions: (np.ndarray) (OPTIONAL) For calculating the likelihood that the given actions are chosen by
             the model for each of the given parameters. Must have the same number of actions and observations.
             (set to None to return the complete action probability distribution)
-        :return: (np.ndarray) the model's action probability
+        :param logp: (bool) (OPTIONAL) When specified with actions, returns probability in log-space.
+            This has no effect if actions is None.
+        :return: (np.ndarray) the model's (log) action probability
         """
         pass
 
@@ -592,7 +592,7 @@ class ActorCriticRLModel(BaseRLModel):
 
         return clipped_actions, states
 
-    def action_probability(self, observation, state=None, mask=None, actions=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
         if state is None:
             state = self.initial_state
         if mask is None:
@@ -609,12 +609,14 @@ class ActorCriticRLModel(BaseRLModel):
             return None
 
         if actions is not None:  # comparing the action distribution, to given actions
+            prob = None
+            logprob = None
             actions = np.array([actions])
             if isinstance(self.action_space, gym.spaces.Discrete):
                 actions = actions.reshape((-1,))
                 assert observation.shape[0] == actions.shape[0], \
                     "Error: batch sizes differ for actions and observations."
-                actions_proba = actions_proba[np.arange(actions.shape[0]), actions]
+                prob = actions_proba[np.arange(actions.shape[0]), actions]
 
             elif isinstance(self.action_space, gym.spaces.MultiDiscrete):
                 actions = actions.reshape((-1, len(self.action_space.nvec)))
@@ -622,7 +624,7 @@ class ActorCriticRLModel(BaseRLModel):
                     "Error: batch sizes differ for actions and observations."
                 # Discrete action probability, over multiple categories
                 actions = np.swapaxes(actions, 0, 1)  # swap axis for easier categorical split
-                actions_proba = np.prod([proba[np.arange(act.shape[0]), act]
+                prob = np.prod([proba[np.arange(act.shape[0]), act]
                                          for proba, act in zip(actions_proba, actions)], axis=0)
 
             elif isinstance(self.action_space, gym.spaces.MultiBinary):
@@ -630,25 +632,45 @@ class ActorCriticRLModel(BaseRLModel):
                 assert observation.shape[0] == actions.shape[0], \
                     "Error: batch sizes differ for actions and observations."
                 # Bernoulli action probability, for every action
-                actions_proba = np.prod(actions_proba * actions + (1 - actions_proba) * (1 - actions), axis=1)
+                prob = np.prod(actions_proba * actions + (1 - actions_proba) * (1 - actions), axis=1)
 
             elif isinstance(self.action_space, gym.spaces.Box):
-                warnings.warn("The probabilty of taken a given action is exactly zero for a continuous distribution."
-                              "See http://blog.christianperone.com/2019/01/ for a good explanation")
-                actions_proba = np.zeros((observation.shape[0], 1), dtype=np.float32)
+                actions = actions.reshape((-1, ) + self.action_space.shape)
+                mean, logstd = actions_proba
+                std = np.exp(logstd)
+
+                n_elts = np.prod(mean.shape[1:])  # first dimension is batch size
+                log_normalizer = n_elts/2 * np.log(2 * np.pi) + 1/2 * np.sum(logstd, axis=1)
+
+                # Diagonal Gaussian action probability, for every action
+                logprob = -np.sum(np.square(actions - mean) / (2 * std), axis=1) - log_normalizer
+
             else:
                 warnings.warn("Warning: action_probability not implemented for {} actions space. Returning None."
                               .format(type(self.action_space).__name__))
                 return None
+
+            # Return in space (log or normal) requested by user, converting if necessary
+            if logp:
+                if logprob is None:
+                    logprob = np.log(prob)
+                ret = logprob
+            else:
+                if prob is None:
+                    prob = np.exp(logprob)
+                ret = prob
+
             # normalize action proba shape for the different gym spaces
-            actions_proba = actions_proba.reshape((-1, 1))
+            ret = ret.reshape((-1, 1))
+        else:
+            ret = actions_proba
 
         if not vectorized_env:
             if state is not None:
                 raise ValueError("Error: The environment must be vectorized when using recurrent policies.")
-            actions_proba = actions_proba[0]
+            ret = ret[0]
 
-        return actions_proba
+        return ret
 
     def get_parameter_list(self):
         return self.params
@@ -710,7 +732,7 @@ class OffPolicyRLModel(BaseRLModel):
         pass
 
     @abstractmethod
-    def action_probability(self, observation, state=None, mask=None, actions=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
         pass
 
     @abstractmethod

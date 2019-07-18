@@ -303,7 +303,7 @@ class DQN(OffPolicyRLModel):
 
         return actions, None
 
-    def action_probability(self, observation, state=None, mask=None, actions=None):
+    def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
@@ -318,6 +318,8 @@ class DQN(OffPolicyRLModel):
             actions_proba = actions_proba[np.arange(actions.shape[0]), actions]
             # normalize action proba shape
             actions_proba = actions_proba.reshape((-1, 1))
+            if logp:
+                actions_proba = np.log(actions_proba)
 
         if not vectorized_env:
             if state is not None:

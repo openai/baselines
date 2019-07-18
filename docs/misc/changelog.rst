@@ -15,6 +15,10 @@ Breaking Changes:
 New Features:
 ^^^^^^^^^^^^^
 
+- Add support for continuous action spaces to `action_probability`, computing the PDF of a Gaussian
+  policy in addition to the existing support for categorical stochastic policies.
+- Add flag to `action_probability` to return log-probabilities.
+
 Bug Fixes:
 ^^^^^^^^^^
 - fixed a bug in ``traj_segment_generator`` where the ``episode_starts`` was wrongly recorded,
