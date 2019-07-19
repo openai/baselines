@@ -2,6 +2,7 @@ import numpy as np
 from .vec_env import VecEnv
 from .util import copy_obs_dict, dict_to_obs, obs_space_info
 
+
 class DummyVecEnv(VecEnv):
     """
     VecEnv that does runs multiple environments sequentially, that is,
@@ -74,6 +75,12 @@ class DummyVecEnv(VecEnv):
 
     def get_images(self):
         return [env.render(mode='rgb_array') for env in self.envs]
+
+    def get_obs(self):
+        for e in range(self.num_envs):
+            obs = self.envs[e].get_obs()
+            self._save_obs(e, obs)
+        return self._obs_from_buf()
 
     def render(self, mode='human'):
         if self.num_envs == 1:

@@ -2,6 +2,7 @@ from . import VecEnvWrapper
 from baselines.common.running_mean_std import RunningMeanStd
 import numpy as np
 from gym.spaces import Dict
+import pickle
 
 
 class VecNormalize(VecEnvWrapper):
@@ -56,3 +57,28 @@ class VecNormalize(VecEnvWrapper):
         self.ret = np.zeros(self.num_envs)
         obs = self.venv.reset()
         return self._obfilt(obs)
+
+    def save_state(self, save_path):
+        """
+        pickle and save the normalization state variables
+
+        """
+        state = {'ob_rms': self.ob_rms, 'ret_rms': self.ret_rms}
+        with open(save_path, 'wb') as f:
+            pickle.dump(state, f)
+
+    def restore_state(self, load_path):
+        """
+        unpickle and restore the normalization state variables
+
+        """
+
+        with open(load_path, 'rb') as f:
+            state = pickle.load(f)
+        self.ob_rms = state['ob_rms']
+        self.ret_rms = state['ret_rms']
+
+    def get_obs(self):
+        return self._obfilt(self.venv.get_obs())
+
+
