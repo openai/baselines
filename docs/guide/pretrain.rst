@@ -1,6 +1,7 @@
 .. _pretrain:
 
 .. automodule:: stable_baselines.gail
+   :noindex:
 
 
 Pre-Training (Behavior Cloning)
