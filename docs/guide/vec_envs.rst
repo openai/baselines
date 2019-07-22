@@ -26,6 +26,8 @@ SubprocVecEnv ✔️       ✔️           ✔️        ✔️         ✔️
 .. note::
 
 	When using vectorized environments, the environments are automatically reset at the end of each episode.
+	Thus, the observation returned for the i-th environment when ``done[i]`` is true will in fact be the first observation of the next episode, not the last observation of the episode that has just terminated.
+	You can access the "real" final observation of the terminated episode—that is, the one that accompanied the ``done`` event provided by the underlying environment—using the ``terminal_observation`` keys in the info dicts returned by the vecenv.
 
 .. warning::
 

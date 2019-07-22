@@ -19,6 +19,7 @@ New Features:
   policy in addition to the existing support for categorical stochastic policies.
 - Add flag to `action_probability` to return log-probabilities.
 - Added support for python lists and numpy arrays in ``logger.writekvs``. (@dwiel)
+- The info dicts returned by VecEnvs now include a ``terminal_observation`` key providing access to the last observation in a trajectory. (@qxcv)
 
 Bug Fixes:
 ^^^^^^^^^^
@@ -408,4 +409,4 @@ In random order...
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
 @EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn @AdamGleave @keshaviyengar @tperol
 @XMaster96 @kantneel @Pastafarianist @GerardMaggiolino @PatrickWalter214 @yutingsz @sc420 @Aaahh @billtubbs
-@Miffyli @dwiel @miguelrass
+@Miffyli @dwiel @miguelrass @qxcv

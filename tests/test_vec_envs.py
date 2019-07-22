@@ -120,6 +120,72 @@ def test_vecenv_custom_calls(vec_env_class, vec_env_wrapper):
     vec_env.close()
 
 
+class StepEnv(gym.Env):
+    def __init__(self, max_steps):
+        """Gym environment for testing that terminal observation is inserted
+        correctly."""
+        self.action_space = gym.spaces.Discrete(2)
+        self.observation_space = gym.spaces.Box(np.array([0]), np.array([999]),
+                                                dtype='int')
+        self.max_steps = max_steps
+        self.current_step = 0
+
+    def reset(self):
+        self.current_step = 0
+        return np.array([self.current_step], dtype='int')
+
+    def step(self, action):
+        prev_step = self.current_step
+        self.current_step += 1
+        done = self.current_step >= self.max_steps
+        return np.array([prev_step], dtype='int'), 0.0, done, {}
+
+
+@pytest.mark.parametrize('vec_env_class', VEC_ENV_CLASSES)
+@pytest.mark.parametrize('vec_env_wrapper', VEC_ENV_WRAPPERS)
+def test_vecenv_terminal_obs(vec_env_class, vec_env_wrapper):
+    """Test that 'terminal_observation' gets added to info dict upon
+    termination."""
+    step_nums = [i + 5 for i in range(N_ENVS)]
+    vec_env = vec_env_class([functools.partial(StepEnv, n) for n in step_nums])
+
+    if vec_env_wrapper is not None:
+        if vec_env_wrapper == VecFrameStack:
+            vec_env = vec_env_wrapper(vec_env, n_stack=2)
+        else:
+            vec_env = vec_env_wrapper(vec_env)
+
+    zero_acts = np.zeros((N_ENVS,), dtype='int')
+    prev_obs_b = vec_env.reset()
+    for step_num in range(1, max(step_nums) + 1):
+        obs_b, _, done_b, info_b = vec_env.step(zero_acts)
+        assert len(obs_b) == N_ENVS
+        assert len(done_b) == N_ENVS
+        assert len(info_b) == N_ENVS
+        env_iter = zip(prev_obs_b, obs_b, done_b, info_b, step_nums)
+        for prev_obs, obs, done, info, final_step_num in env_iter:
+            assert done == (step_num == final_step_num)
+            if not done:
+                assert 'terminal_observation' not in info
+            else:
+                terminal_obs = info['terminal_observation']
+
+                # do some rough ordering checks that should work for all
+                # wrappers, including VecNormalize
+                assert np.all(prev_obs < terminal_obs)
+                assert np.all(obs < prev_obs)
+
+                if not isinstance(vec_env, VecNormalize):
+                    # more precise tests that we can't do with VecNormalize
+                    # (which changes observation values)
+                    assert np.all(prev_obs + 1 == terminal_obs)
+                    assert np.all(obs == 0)
+
+        prev_obs_b = obs_b
+
+    vec_env.close()
+
+
 SPACES = collections.OrderedDict([
     ('discrete', gym.spaces.Discrete(2)),
     ('multidiscrete', gym.spaces.MultiDiscrete([2, 3])),
