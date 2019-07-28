@@ -50,6 +50,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 -   PEP8 compliant (unified code style)
 -   Documented functions and classes
 -   More tests & more code coverage
+-   Additional algorithms: SAC and TD3 (+ HER support for DQN, DDPG, SAC and TD3)
 
 ## Links
 
@@ -137,7 +138,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version="2.6.1a0",
+      version="2.7.0a0",
       )
 
 # python setup.py sdist

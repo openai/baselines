@@ -50,7 +50,7 @@ In the following example, we will train, save and load a DQN model on the Lunar 
   ``load`` function re-creates model from scratch on each call, which can be slow.
   If you need to e.g. evaluate same model with multiple different sets of parameters, consider
   using ``load_parameters`` instead.
-  
+
 .. code-block:: python
 
   import gym
@@ -318,7 +318,7 @@ Accessing and modifying model parameters
 ----------------------------------------
 
 You can access model's parameters via ``load_parameters`` and ``get_parameters`` functions, which
-use dictionaries that map variable names to NumPy arrays. 
+use dictionaries that map variable names to NumPy arrays.
 
 These functions are useful when you need to e.g. evaluate large set of models with same network structure,
 visualize different layers of the network or modify parameters manually.
@@ -326,7 +326,7 @@ visualize different layers of the network or modify parameters manually.
 You can access original Tensorflow Variables with function ``get_parameter_list``.
 
 Following example demonstrates reading parameters, modifying some of them and loading them to model
-by implementing `evolution strategy <http://blog.otoro.net/2017/10/29/visual-evolution-strategies/>`_ 
+by implementing `evolution strategy <http://blog.otoro.net/2017/10/29/visual-evolution-strategies/>`_
 for solving ``CartPole-v1`` environment. The initial guess for parameters is obtained by running
 A2C policy gradient updates on the model.
 
@@ -466,7 +466,7 @@ The parking env is a goal-conditioned continuous control task, in which the vehi
   import highway_env
   import numpy as np
 
-  from stable_baselines import HER, SAC, DDPG
+  from stable_baselines import HER, SAC, DDPG, TD3
   from stable_baselines.ddpg import NormalActionNoise
 
   env = gym.make("parking-v0")

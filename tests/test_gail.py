@@ -4,7 +4,8 @@ import gym
 import numpy as np
 import pytest
 
-from stable_baselines import A2C, ACER, ACKTR, GAIL, DDPG, DQN, PPO1, PPO2, TRPO, SAC
+from stable_baselines import A2C, ACER, ACKTR, GAIL, DDPG, DQN, PPO1, PPO2,\
+ TD3, TRPO, SAC
 from stable_baselines.common.cmd_util import make_atari_env
 from stable_baselines.common.vec_env import VecFrameStack
 from stable_baselines.gail import ExpertDataset, generate_expert_traj
@@ -105,7 +106,7 @@ def test_pretrain_images():
     del dataset, model, env
 
 
-@pytest.mark.parametrize("model_class", [A2C, GAIL, DDPG, PPO1, PPO2, SAC, TRPO])
+@pytest.mark.parametrize("model_class", [A2C, GAIL, DDPG, PPO1, PPO2, SAC, TD3, TRPO])
 def test_behavior_cloning_box(model_class):
     """
     Behavior cloning with continuous actions.

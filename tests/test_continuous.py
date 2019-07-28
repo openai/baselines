@@ -5,14 +5,10 @@ import gym
 import pytest
 import numpy as np
 
-from stable_baselines import A2C, SAC
+from stable_baselines import A2C, SAC, DDPG, PPO1, PPO2, TRPO, TD3
 # TODO: add support for continuous actions
 # from stable_baselines.acer import ACER
 # from stable_baselines.acktr import ACKTR
-from stable_baselines.ddpg import DDPG
-from stable_baselines.ppo1 import PPO1
-from stable_baselines.ppo2 import PPO2
-from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.identity_env import IdentityEnvBox
@@ -31,6 +27,7 @@ MODEL_LIST = [
     PPO1,
     PPO2,
     SAC,
+    TD3,
     TRPO
 ]
 
@@ -87,7 +84,7 @@ def test_model_manipulation(request, model_class):
         with pytest.warns(None) as record:
             act_prob = model.action_probability(obs)
 
-        if model_class in [DDPG, SAC]:
+        if model_class in [DDPG, SAC, TD3]:
             # check that only one warning was raised
             assert len(record) == 1, "No warning was raised for {}".format(model_class)
             assert act_prob is None, "Error: action_probability should be None for {}".format(model_class)
@@ -104,7 +101,7 @@ def test_model_manipulation(request, model_class):
         observations = observations.reshape((-1, 1))
         actions = np.array([env.action_space.sample() for _ in range(10)])
 
-        if model_class in [DDPG, SAC]:
+        if model_class in [DDPG, SAC, TD3]:
             with pytest.raises(ValueError):
                 model.action_probability(observations, actions=actions)
         else:

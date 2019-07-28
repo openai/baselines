@@ -1,8 +1,8 @@
 import pytest
 import numpy as np
 
-from stable_baselines import A2C, ACER, ACKTR, DQN, DDPG, PPO1, PPO2, TRPO
-from stable_baselines.ddpg import AdaptiveParamNoiseSpec
+from stable_baselines import A2C, ACER, ACKTR, DQN, DDPG, SAC, PPO1, PPO2, TD3, TRPO
+from stable_baselines.ddpg import NormalActionNoise
 from stable_baselines.common.identity_env import IdentityEnv, IdentityEnvBox
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common import set_global_seeds
@@ -62,17 +62,21 @@ def test_identity(model_name):
 
 
 @pytest.mark.slow
-def test_identity_ddpg():
+@pytest.mark.parametrize("model_class", [DDPG, TD3, SAC])
+def test_identity_continuous(model_class):
     """
     Test if the algorithm (with a given policy)
     can learn an identity transformation (i.e. return observation as an action)
     """
     env = DummyVecEnv([lambda: IdentityEnvBox(eps=0.5)])
 
-    std = 0.2
-    param_noise = AdaptiveParamNoiseSpec(initial_stddev=float(std), desired_action_stddev=float(std))
+    if model_class in [DDPG, TD3]:
+        n_actions = 1
+        action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
+    else:
+        action_noise = None
 
-    model = DDPG("MlpPolicy", env, gamma=0.0, param_noise=param_noise, memory_limit=int(1e6))
+    model = model_class("MlpPolicy", env, gamma=0.1, action_noise=action_noise, buffer_size=int(1e6))
     model.learn(total_timesteps=20000, seed=0)
 
     n_trials = 1000

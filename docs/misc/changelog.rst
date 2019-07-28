@@ -6,14 +6,17 @@ Changelog
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
 
-Pre-Release 2.6.1a0 (WIP)
+Pre-Release 2.7.0a0 (WIP)
 --------------------------
+
+**Twin Delayed DDPG (TD3)**
 
 Breaking Changes:
 ^^^^^^^^^^^^^^^^^
 
 New Features:
 ^^^^^^^^^^^^^
+- added Twin Delayed DDPG (TD3) algorithm, with HER support
 
 - Add support for continuous action spaces to `action_probability`, computing the PDF of a Gaussian
   policy in addition to the existing support for categorical stochastic policies.
@@ -34,6 +37,7 @@ Others:
 - renamed some keys in ``traj_segment_generator`` to be more meaningful
 - retrieve unnormalized reward when using Monitor wrapper with TRPO, PPO1 and GAIL
   to display them in the logs (mean episode reward)
+- Clean up DDPG code (renamed variables)
 
 Documentation:
 ^^^^^^^^^^^^^^

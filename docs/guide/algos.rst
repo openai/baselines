@@ -25,6 +25,7 @@ GAIL [#f2]_  ✔️                        ✔️        ✔️           ✔️
 PPO1         ✔️                        ❌        ✔️           ✔️           ✔️ [#f3]_
 PPO2         ✔️                        ✔️        ✔️           ✔️           ✔️
 SAC          ✔️                        ❌        ✔️          ❌            ❌
+TD3          ✔️                        ❌        ✔️          ❌            ❌
 TRPO         ✔️                        ❌        ✔️           ✔            ✔️ [#f3]_
 ============ ======================== ========= =========== ============ ================
 
@@ -34,8 +35,8 @@ TRPO         ✔️                        ❌        ✔️           ✔      
 .. [#f4] TODO, in project scope.
 
 .. note::
-    Non-array spaces such as `Dict` or `Tuple` are not currently supported by any algorithm,
-    except HER for dict when working with gym.GoalEnv
+    Non-array spaces such as ``Dict`` or ``Tuple`` are not currently supported by any algorithm,
+    except HER for dict when working with ``gym.GoalEnv``
 
 Actions ``gym.spaces``:
 

@@ -36,6 +36,11 @@ SubprocVecEnv ✔️       ✔️           ✔️        ✔️         ✔️
 
 				For more information, see Python's `multiprocessing guidelines <https://docs.python.org/3/library/multiprocessing.html#the-spawn-and-forkserver-start-methods>`_.
 
+VecEnv
+------
+
+.. autoclass:: VecEnv
+  :members:
 
 DummyVecEnv
 -----------

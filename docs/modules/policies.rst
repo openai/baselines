@@ -15,7 +15,7 @@ If you need more control on the policy architecture, you can also create a custo
 	CnnPolicies are for images only. MlpPolicies are made for other type of features (e.g. robot joints)
 
 .. warning::
-  For all algorithms (except DDPG and SAC), continuous actions are clipped during training and testing
+  For all algorithms (except DDPG, TD3 and SAC), continuous actions are clipped during training and testing
   (to avoid out of bound error).
 
 

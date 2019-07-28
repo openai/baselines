@@ -8,7 +8,7 @@ PPO2
 The `Proximal Policy Optimization <https://arxiv.org/abs/1707.06347>`_ algorithm combines ideas from A2C (having multiple workers)
 and TRPO (it uses a trust region to improve the actor).
 
-The main idea is that after an update, the new policy should be not too far form the `old` policy.
+The main idea is that after an update, the new policy should be not too far form the old policy.
 For that, ppo uses clipping to avoid too large update.
 
 .. note::

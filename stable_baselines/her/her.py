@@ -47,7 +47,7 @@ class HER(BaseRLModel):
             self._create_replay_wrapper(self.env)
 
         assert issubclass(model_class, OffPolicyRLModel), \
-            "Error: HER only works with Off policy model (such as DDPG, SAC and DQN)."
+            "Error: HER only works with Off policy model (such as DDPG, SAC, TD3 and DQN)."
 
         self.model = self.model_class(policy, self.env, *args, **kwargs)
         # Patch to support saving/loading

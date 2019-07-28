@@ -8,7 +8,7 @@ HER
 
 `Hindsight Experience Replay (HER) <https://arxiv.org/abs/1707.01495>`_
 
-HER is a method wrapper that works with Off policy methods (DQN, SAC and DDPG for example).
+HER is a method wrapper that works with Off policy methods (DQN, SAC, TD3 and DDPG for example).
 
 .. note::
 
@@ -39,20 +39,20 @@ Notes
 Can I use?
 ----------
 
-Please refer to the wrapped model (DQN, SAC or DDPG) for that section.
+Please refer to the wrapped model (DQN, SAC, TD3 or DDPG) for that section.
 
 Example
 -------
 
 .. code-block:: python
 
-	from stable_baselines import HER, DQN, SAC, DDPG
+	from stable_baselines import HER, DQN, SAC, DDPG, TD3
 	from stable_baselines.her import GoalSelectionStrategy, HERGoalEnvWrapper
 	from stable_baselines.common.bit_flipping_env import BitFlippingEnv
 
-	model_class = DQN  # works also with SAC and DDPG
+	model_class = DQN  # works also with SAC, DDPG and TD3
 
-	env = BitFlippingEnv(N_BITS, continuous=model_class in [DDPG, SAC], max_steps=N_BITS)
+	env = BitFlippingEnv(N_BITS, continuous=model_class in [DDPG, SAC, TD3], max_steps=N_BITS)
 
 	# Available strategies (cf paper): future, final, episode, random
 	goal_selection_strategy = 'future' # equivalent to GoalSelectionStrategy.FUTURE

@@ -30,6 +30,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
 - PEP8 compliant (unified code style)
 - Documented functions and classes
 - More tests & more code coverage
+- Additional algorithms: SAC and TD3 (+ HER support for DQN, DDPG, SAC and TD3)
 
 
 .. toctree::
@@ -66,6 +67,7 @@ This toolset is a fork of OpenAI Baselines, with a major structural refactoring,
   modules/ppo1
   modules/ppo2
   modules/sac
+  modules/td3
   modules/trpo
 
 .. toctree::
