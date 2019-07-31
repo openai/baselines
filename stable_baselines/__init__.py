@@ -11,4 +11,4 @@ from stable_baselines.td3 import TD3
 from stable_baselines.trpo_mpi import TRPO
 from stable_baselines.sac import SAC
 
-__version__ = "2.6.1a0"
+__version__ = "2.7.0"

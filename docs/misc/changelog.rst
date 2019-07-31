@@ -6,10 +6,10 @@ Changelog
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
 
-Pre-Release 2.7.0a0 (WIP)
+Release 2.7.0 (2019-07-31)
 --------------------------
 
-**Twin Delayed DDPG (TD3)**
+**Twin Delayed DDPG (TD3) and GAE bug fix (TRPO, PPO1, GAIL)**
 
 Breaking Changes:
 ^^^^^^^^^^^^^^^^^
@@ -17,18 +17,17 @@ Breaking Changes:
 New Features:
 ^^^^^^^^^^^^^
 - added Twin Delayed DDPG (TD3) algorithm, with HER support
-
-- Add support for continuous action spaces to `action_probability`, computing the PDF of a Gaussian
+- added support for continuous action spaces to `action_probability`, computing the PDF of a Gaussian
   policy in addition to the existing support for categorical stochastic policies.
-- Add flag to `action_probability` to return log-probabilities.
-- Added support for python lists and numpy arrays in ``logger.writekvs``. (@dwiel)
-- The info dicts returned by VecEnvs now include a ``terminal_observation`` key providing access to the last observation in a trajectory. (@qxcv)
+- added flag to `action_probability` to return log-probabilities.
+- added support for python lists and numpy arrays in ``logger.writekvs``. (@dwiel)
+- the info dict returned by VecEnvs now include a ``terminal_observation`` key providing access to the last observation in a trajectory. (@qxcv)
 
 Bug Fixes:
 ^^^^^^^^^^
 - fixed a bug in ``traj_segment_generator`` where the ``episode_starts`` was wrongly recorded,
   resulting in wrong calculation of Generalized Advantage Estimation (GAE), this affects TRPO, PPO1 and GAIL (thanks to @miguelrass for spotting the bug)
-- add missing property `n_batch` in `BasePolicy`.
+- added missing property `n_batch` in `BasePolicy`.
 
 Deprecations:
 ^^^^^^^^^^^^^
@@ -38,12 +37,13 @@ Others:
 - renamed some keys in ``traj_segment_generator`` to be more meaningful
 - retrieve unnormalized reward when using Monitor wrapper with TRPO, PPO1 and GAIL
   to display them in the logs (mean episode reward)
-- Clean up DDPG code (renamed variables)
+- clean up DDPG code (renamed variables)
 
 Documentation:
 ^^^^^^^^^^^^^^
 
 - doc fix for the hyperparameter tuning command in the rl zoo
+- added an example on how to log additional variable with tensorboard and a callback
 
 
 

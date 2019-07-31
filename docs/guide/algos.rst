@@ -48,3 +48,8 @@ Actions ``gym.spaces``:
 - ``MultiBinary``: A list of possible actions, where each timestep any of the actions can be used in any combination.
 
 .. _MPI: https://mpi4py.readthedocs.io/en/stable/
+
+.. note::
+
+  Some logging values (like `ep_rewmean`, `eplenmean`) are only available when using a Monitor wrapper
+  See `Issue #339 <https://github.com/hill-a/stable-baselines/issues/339>`_ for more info.

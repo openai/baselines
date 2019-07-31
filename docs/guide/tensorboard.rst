@@ -76,6 +76,42 @@ It will display information such as the model graph, the episode reward, the mod
   :width: 400
   :alt: graph
 
+
+Logging More Values
+-------------------
+
+Using a callback, you can easily log more values with TensorBoard.
+Here is a simple example on how to log both additional tensor or arbitrary scalar value:
+
+.. code-block:: python
+
+  import tensorflow as tf
+  import numpy as np
+
+  from stable_baselines import SAC
+
+  model = SAC("MlpPolicy", "Pendulum-v0", tensorboard_log="/tmp/sac/", verbose=1)
+  # Define a new property to avoid global variable
+  model.is_tb_set = False
+
+
+  def callback(locals_, globals_):
+      self_ = locals_['self']
+      # Log additional tensor
+      if not self_.is_tb_set:
+          with self_.graph.as_default():
+              tf.summary.scalar('value_target', tf.reduce_mean(self_.value_target))
+              self_.summary = tf.summary.merge_all()
+          self_.is_tb_set = True
+      # Log scalar value (here a random variable)
+      value = np.random.random()
+      summary = tf.Summary(value=[tf.Summary.Value(tag='random_value', simple_value=value)])
+      locals_['writer'].add_summary(summary, self_.num_timesteps)
+      return True
+
+
+  model.learn(50000, callback=callback)
+
 Legacy Integration
 -------------------
 

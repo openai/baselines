@@ -118,7 +118,7 @@ setup(name='stable_baselines',
       ] + tf_dependency,
       extras_require={
         'tests': [
-            'pytest==3.5.1',
+            'pytest',
             'pytest-cov',
             'pytest-env',
             'pytest-xdist',
@@ -138,7 +138,7 @@ setup(name='stable_baselines',
       license="MIT",
       long_description=long_description,
       long_description_content_type='text/markdown',
-      version="2.7.0a0",
+      version="2.7.0",
       )
 
 # python setup.py sdist
