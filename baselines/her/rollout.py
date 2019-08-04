@@ -15,8 +15,7 @@ class RolloutWorker:
         """Rollout worker generates experience by interacting with one or many environments.
 
         Args:
-            make_env (function): a factory function that creates a new instance of the environment
-                when called
+            venv: vectorized gym environments.
             policy (object): the policy that is used to act
             dims (dict of ints): the dimensions for observations (o), goals (g), and actions (u)
             logger (object): the logger that is used by the rollout worker
