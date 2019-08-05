@@ -4,7 +4,6 @@ Helpers for scripts like run_atari.py.
 
 import os
 
-from mpi4py import MPI
 import gym
 from gym.wrappers import FlattenDictWrapper
 
@@ -12,6 +11,7 @@ from stable_baselines import logger
 from stable_baselines.bench import Monitor
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.atari_wrappers import make_atari, wrap_deepmind
+from stable_baselines.common.misc_util import mpi_rank_or_zero
 from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 
@@ -60,8 +60,7 @@ def make_mujoco_env(env_id, seed, allow_early_resets=True):
     :param allow_early_resets: (bool) allows early reset of the environment
     :return: (Gym Environment) The mujoco environment
     """
-    rank = MPI.COMM_WORLD.Get_rank()
-    set_global_seeds(seed + 10000 * rank)
+    set_global_seeds(seed + 10000 * mpi_rank_or_zero())
     env = gym.make(env_id)
     env = Monitor(env, os.path.join(logger.get_dir(), str(rank)), allow_early_resets=allow_early_resets)
     env.seed(seed)

@@ -55,6 +55,22 @@ Stable Release
     pip install stable-baselines
 
 
+.. _openmpi:
+
+Stable Release with OpenMPI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GAIL, DDPG, TRPO, and PPO1 parallelize training using OpenMPI. OpenMPI has had weird
+interactions with Tensorflow in the past (see
+`Issue #430 <https://github.com/hill-a/stable-baselines/issues/430>`) and so is disabled by
+default.
+
+.. code-block:: bash
+
+    pip install stable-baselines[mpi]
+
+To disable OpenMPI, uninstall ``mpi4py`` with ``pip uninstall mpi4py``.
+
+
 Bleeding-edge version
 ---------------------
 

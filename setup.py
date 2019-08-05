@@ -109,7 +109,6 @@ setup(name='stable_baselines',
           'gym[atari,classic_control]>=0.10.9',
           'scipy',
           'joblib',
-          'mpi4py',
           'cloudpickle>=0.5.5',
           'opencv-python',
           'numpy',
@@ -117,6 +116,9 @@ setup(name='stable_baselines',
           'matplotlib'
       ] + tf_dependency,
       extras_require={
+        'mpi': [
+            'mpi4py',
+        ],
         'tests': [
             'pytest',
             'pytest-cov',

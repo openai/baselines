@@ -244,3 +244,13 @@ def pickle_load(path, compression=False):
     else:
         with open(path, "rb") as file_handler:
             return pickle.load(file_handler)
+
+def mpi_rank_or_zero():
+    """
+    Return the MPI rank if mpi is installed. Otherwise, return 0.
+    """
+    try:
+        from mpi4py import MPI
+        return MPI.COMM_WORLD.Get_rank()
+    except ImportError:
+        return 0

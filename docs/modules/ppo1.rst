@@ -9,13 +9,18 @@ PPO1
 The `Proximal Policy Optimization <https://arxiv.org/abs/1707.06347>`_ algorithm combines ideas from A2C (having multiple workers)
 and TRPO (it uses a trust region to improve the actor).
 
-The main idea is that after an update, the new policy should be not too far form the `old` policy.
+The main idea is that after an update, the new policy should be not too far from the `old` policy.
 For that, ppo uses clipping to avoid too large update.
 
 .. note::
 
-  PPO2 is the implementation of OpenAI made for GPU. For multiprocessing, it uses vectorized environments
-  compared to PPO1 which uses MPI.
+  PPO1 requires :ref:`OpenMPI <openmpi>`. If OpenMPI isn't enabled, then PPO1 isn't
+  imported into the `stable_baselines` module.
+
+.. note::
+
+  PPO1 uses MPI for multiprocessing unlike PPO2, which uses vectorized environments.
+  PPO2 is the implementation OpenAI made for GPU.
 
 Notes
 -----

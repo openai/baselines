@@ -5,6 +5,37 @@ Changelog
 
 For download links, please look at `Github release page <https://github.com/hill-a/stable-baselines/releases>`_.
 
+Pre-Release 2.7.1a0 (WIP)
+-------------------------
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- OpenMPI-dependent algorithms (PPO1, TRPO, GAIL, DDPG) are disabled in the
+  default installation of stable_baselines. `mpi4py` is now installed as an
+  extra. When `mpi4py` is not available, stable-baselines skips imports of
+  OpenMPI-dependent algorithms.
+  See :ref:`installation notes <openmpi>` and
+  `Issue #430 <https://github.com/hill-a/stable-baselines/issues/430>`.
+
+New Features:
+^^^^^^^^^^^^^
+
+Bug Fixes:
+^^^^^^^^^^
+- Skip automatic imports of OpenMPI-dependent algorithms to avoid an issue
+  where OpenMPI would cause stable-baselines to hang on Ubuntu installs.
+  See :ref:`installation notes <openmpi>` and
+  `Issue #430 <https://github.com/hill-a/stable-baselines/issues/430>`.
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+
+Documentation:
+^^^^^^^^^^^^^^
+
 
 Release 2.7.0 (2019-07-31)
 --------------------------

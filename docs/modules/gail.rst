@@ -13,6 +13,11 @@ Learning a cost function from expert demonstrations is called Inverse Reinforcem
 The connection between GAIL and Generative Adversarial Networks (GANs) is that it uses a discriminator that tries
 to seperate expert trajectory from trajectories of the learned policy, which has the role of the generator here.
 
+.. note::
+
+  GAIL requires :ref:`OpenMPI <openmpi>`. If OpenMPI isn't enabled, then GAIL isn't
+  imported into the `stable_baselines` module.
+
 
 Notes
 -----
