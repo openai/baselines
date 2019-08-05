@@ -35,6 +35,7 @@ Others:
 
 Documentation:
 ^^^^^^^^^^^^^^
+- Add WaveRL project (@jaberkow)
 
 
 Release 2.7.0 (2019-07-31)
@@ -445,4 +446,4 @@ In random order...
 Thanks to @bjmuld @iambenzo @iandanforth @r7vme @brendenpetersen @huvar @abhiskk @JohannesAck
 @EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn @AdamGleave @keshaviyengar @tperol
 @XMaster96 @kantneel @Pastafarianist @GerardMaggiolino @PatrickWalter214 @yutingsz @sc420 @Aaahh @billtubbs
-@Miffyli @dwiel @miguelrass @qxcv
+@Miffyli @dwiel @miguelrass @qxcv @jaberkow

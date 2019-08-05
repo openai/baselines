@@ -113,3 +113,12 @@ May be useful as an example of how to integrate Stable Baselines with `Ray <http
 | GitHub: https://github.com/HumanCompatibleAI/adversarial-policies
 | Paper: https://arxiv.org/abs/1905.10615
 | Website: https://adversarialpolicies.github.io
+
+WaveRL: Training RL agents to perform active damping
+----------------------------------------------------
+Reinforcement learning is used to train agents to control pistons attached to a bridge to cancel out vibrations.  The bridge is modeled as a one dimensional oscillating system and dynamics are simulated using a finite difference solver.  Agents were trained using Proximal Policy Optimization.  See presentation for environment detalis.
+
+| Authors: Jack Berkowitz
+| Email: jackberkowitz88@gmail.com
+| GitHub: https://github.com/jaberkow/WaveRL
+| Presentation: http://bit.ly/WaveRLslides
