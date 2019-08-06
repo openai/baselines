@@ -47,28 +47,27 @@ We recommend using `Anaconda <https://conda.io/docs/user-guide/install/windows.h
 (using again ``pip install -e .``)
 
 
-Stable Release
---------------
-
-.. code-block:: bash
-
-    pip install stable-baselines
-
-
 .. _openmpi:
 
-Stable Release with OpenMPI
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-GAIL, DDPG, TRPO, and PPO1 parallelize training using OpenMPI. OpenMPI has had weird
-interactions with Tensorflow in the past (see
-`Issue #430 <https://github.com/hill-a/stable-baselines/issues/430>`) and so is disabled by
-default.
+Stable Release
+~~~~~~~~~~~~~~
+To install with support for all algorithms, including those depending on OpenMPI, execute:
 
 .. code-block:: bash
 
     pip install stable-baselines[mpi]
 
-To disable OpenMPI, uninstall ``mpi4py`` with ``pip uninstall mpi4py``.
+GAIL, DDPG, TRPO, and PPO1 parallelize training using OpenMPI. OpenMPI has had weird
+interactions with Tensorflow in the past (see
+`Issue #430 <https://github.com/hill-a/stable-baselines/issues/430>`_) and so if you do not
+intend to use these algorithms we recommend installing without OpenMPI. To do this, execute:
+
+.. code-block:: bash
+
+    pip install stable-baselines
+
+If you have already installed with MPI support, you can disable MPI by uninstalling ``mpi4py``
+with ``pip uninstall mpi4py``.
 
 
 Bleeding-edge version
