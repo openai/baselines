@@ -17,11 +17,6 @@ try:
     from mpi4py import MPI
 except ImportError:
     MPI = None
-# Fix for loading Roboschool environments
-try:
-    from OpenGL import GLU
-except ImportError:
-    pass
 
 try:
     import pybullet_envs

@@ -166,7 +166,7 @@ def robotics_arg_parser():
 
 def parse_unknown_args(args):
     """
-    Parse arguments not consumed by arg parser into a dicitonary
+    Parse arguments not consumed by arg parser into a dictionary
     """
     retval = {}
     preceded_by_key = False

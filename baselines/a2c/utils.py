@@ -28,8 +28,6 @@ def fc(input_shape, scope, nh, *, init_scale=1.0, init_bias=0.0):
     with tf.name_scope(scope):
         layer = tf.keras.layers.Dense(units=nh, kernel_initializer=ortho_init(init_scale),
                                       bias_initializer=tf.keras.initializers.Constant(init_bias))
-        # layer = tf.keras.layers.Dense(units=nh, kernel_initializer=tf.keras.initializers.Constant(init_scale),
-        #                               bias_initializer=tf.keras.initializers.Constant(init_bias))
         layer.build(input_shape)
     return layer
 
@@ -61,24 +59,5 @@ class InverseLinearTimeDecay(tf.keras.optimizers.schedules.LearningRateSchedule)
         return {
             "initial_learning_rate": self.initial_learning_rate,
             "nupdates": self.nupdates,
-            "name": self.name
-        }
-
-class LinearTimeDecay(tf.keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, initial_learning_rate, name="LinearTimeDecay"):
-        super(LinearTimeDecay, self).__init__()
-        self.initial_learning_rate = initial_learning_rate
-        self.name = name
-
-    def __call__(self, step):
-        with tf.name_scope(self.name):
-            initial_learning_rate = tf.convert_to_tensor(self.initial_learning_rate, name="initial_learning_rate")
-            dtype = initial_learning_rate.dtype
-            step_t = tf.cast(step, dtype)
-            return initial_learning_rate * step_t
-
-    def get_config(self):
-        return {
-            "initial_learning_rate": self.initial_learning_rate,
             "name": self.name
         }
