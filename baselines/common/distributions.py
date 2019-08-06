@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from baselines.a2c.utils import fc
-from tensorflow.python.ops import math_ops
 
 class Pd(object):
     """

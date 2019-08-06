@@ -1,7 +1,5 @@
-import os
 import numpy as np
 import tensorflow as tf
-from collections import deque
 
 def ortho_init(scale=1.0):
     def _ortho_init(shape, dtype, partition_info=None):

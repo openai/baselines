@@ -150,7 +150,7 @@ respectively. Note that these results may be not on the latest version of the co
 To cite this repository in publications:
 
     @misc{baselines,
-      author = {Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Wu, Yuhuai and Zhokhov, Peter, and Tan, Zhenyu},
+      author = {Dhariwal, Prafulla and Hesse, Christopher and Klimov, Oleg and Nichol, Alex and Plappert, Matthias and Radford, Alec and Schulman, John and Sidor, Szymon and Tan, Zhenyu and Wu, Yuhuai and Zhokhov, Peter},
       title = {OpenAI Baselines},
       year = {2017},
       publisher = {GitHub},

@@ -1,5 +1,4 @@
 import baselines.common.tf_util as U
-import tensorflow as tf
 import numpy as np
 try:
     from mpi4py import MPI

@@ -19,7 +19,6 @@ def sync_from_root(variables, comm=None):
       variables: all parameter variables including optimizer's
     """
     if comm is None: comm = MPI.COMM_WORLD
-    import tensorflow as tf
     values = comm.bcast([var.numpy() for var in variables])
     for (var, val) in zip(variables, values):
         var.assign(val)

@@ -1,4 +1,3 @@
-from copy import copy
 from functools import reduce
 
 import numpy as np
@@ -320,7 +319,7 @@ class DDPG(tf.Module):
         return stats
 
 
-    
+
     def adapt_param_noise(self, obs0):
         try:
             from mpi4py import MPI

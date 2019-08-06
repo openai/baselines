@@ -1,10 +1,6 @@
 import numpy as np
 import tensorflow as tf  # pylint: ignore-module
 import copy
-import os
-import functools
-import collections
-import multiprocessing
 
 def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value (int or bool).
@@ -110,7 +106,6 @@ def flatgrad(grads, var_list, clip_norm=None):
 
 class SetFromFlat(object):
     def __init__(self, var_list, dtype=tf.float32):
-        assigns = []
         self.shapes = list(map(var_shape, var_list))
         self.total_size = np.sum([intprod(shape) for shape in self.shapes])
         self.var_list = var_list

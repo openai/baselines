@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from baselines.a2c import utils
 from baselines.a2c.utils import ortho_init, conv
 
 mapping = {}

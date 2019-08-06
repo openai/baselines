@@ -1,5 +1,4 @@
 import time
-import functools
 import tensorflow as tf
 
 from baselines import logger
