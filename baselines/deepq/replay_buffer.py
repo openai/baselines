@@ -32,6 +32,9 @@ class ReplayBuffer(object):
 
     def _encode_sample(self, idxes):
         obses_t, actions, rewards, obses_tp1, dones = [], [], [], [], []
+        data = self._storage[0]
+        ob_dtype = data[0].dtype
+        ac_dtype = data[1].dtype
         for i in idxes:
             data = self._storage[i]
             obs_t, action, reward, obs_tp1, done = data
@@ -40,7 +43,7 @@ class ReplayBuffer(object):
             rewards.append(reward)
             obses_tp1.append(np.array(obs_tp1, copy=False))
             dones.append(done)
-        return np.array(obses_t), np.array(actions), np.array(rewards), np.array(obses_tp1), np.array(dones)
+        return np.array(obses_t, dtype=ob_dtype), np.array(actions, dtype=ac_dtype), np.array(rewards, dtype=np.float32), np.array(obses_tp1, dtype=ob_dtype), np.array(dones, dtype=np.float32)
 
     def sample(self, batch_size):
         """Sample a batch of experiences.
@@ -162,7 +165,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             p_sample = self._it_sum[idx] / self._it_sum.sum()
             weight = (p_sample * len(self._storage)) ** (-beta)
             weights.append(weight / max_weight)
-        weights = np.array(weights)
+        weights = np.array(weights, dtype=np.float32)
         encoded_sample = self._encode_sample(idxes)
         return tuple(list(encoded_sample) + [weights, idxes])
 

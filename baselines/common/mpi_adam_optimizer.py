@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from baselines.common import tf_util as U
 from baselines.common.tests.test_with_mpi import with_mpi
 from baselines import logger
 try:
@@ -8,47 +7,41 @@ try:
 except ImportError:
     MPI = None
 
-class MpiAdamOptimizer(tf.train.AdamOptimizer):
+class MpiAdamOptimizer(tf.Module):
     """Adam optimizer that averages gradients across mpi processes."""
-    def __init__(self, comm, grad_clip=None, mpi_rank_weight=1, **kwargs):
+    def __init__(self, comm, var_list):
+        self.var_list = var_list
         self.comm = comm
-        self.grad_clip = grad_clip
-        self.mpi_rank_weight = mpi_rank_weight
-        tf.train.AdamOptimizer.__init__(self, **kwargs)
-    def compute_gradients(self, loss, var_list, **kwargs):
-        grads_and_vars = tf.train.AdamOptimizer.compute_gradients(self, loss, var_list, **kwargs)
-        grads_and_vars = [(g, v) for g, v in grads_and_vars if g is not None]
-        flat_grad = tf.concat([tf.reshape(g, (-1,)) for g, v in grads_and_vars], axis=0) * self.mpi_rank_weight
-        shapes = [v.shape.as_list() for g, v in grads_and_vars]
-        sizes = [int(np.prod(s)) for s in shapes]
+        self.beta1 = 0.9
+        self.beta2 = 0.999
+        self.epsilon = 1e-08
+        self.t = tf.Variable(0, name='step', dtype=tf.int32)
+        var_shapes = [v.shape.as_list() for v in var_list]
+        self.var_sizes = [int(np.prod(s)) for s in var_shapes]
+        self.flat_var_size = sum(self.var_sizes)
+        self.m = tf.Variable(np.zeros(self.flat_var_size, 'float32'))
+        self.v = tf.Variable(np.zeros(self.flat_var_size, 'float32'))
 
-        total_weight = np.zeros(1, np.float32)
-        self.comm.Allreduce(np.array([self.mpi_rank_weight], dtype=np.float32), total_weight, op=MPI.SUM)
-        total_weight = total_weight[0]
+    def apply_gradients(self, flat_grad, lr):
+        buf = np.zeros(self.flat_var_size, np.float32)
+        self.comm.Allreduce(flat_grad.numpy(), buf, op=MPI.SUM)
+        avg_flat_grad = np.divide(buf, float(self.comm.Get_size()))
+        self._apply_gradients(tf.constant(avg_flat_grad), lr)
+        if self.t.numpy() % 100 == 0:
+            check_synced(tf.reduce_sum(self.var_list[0]).numpy())
 
-        buf = np.zeros(sum(sizes), np.float32)
-        countholder = [0] # Counts how many times _collect_grads has been called
-        stat = tf.reduce_sum(grads_and_vars[0][1]) # sum of first variable
-        def _collect_grads(flat_grad, np_stat):
-            if self.grad_clip is not None:
-                gradnorm = np.linalg.norm(flat_grad)
-                if gradnorm > 1:
-                    flat_grad /= gradnorm
-                logger.logkv_mean('gradnorm', gradnorm)
-                logger.logkv_mean('gradclipfrac', float(gradnorm > 1))
-            self.comm.Allreduce(flat_grad, buf, op=MPI.SUM)
-            np.divide(buf, float(total_weight), out=buf)
-            if countholder[0] % 100 == 0:
-                check_synced(np_stat, self.comm)
-            countholder[0] += 1
-            return buf
+    @tf.function
+    def _apply_gradients(self, avg_flat_grad, lr):
+        self.t.assign_add(1)
+        t = tf.cast(self.t, tf.float32)
+        a = lr * tf.math.sqrt(1 - tf.math.pow(self.beta2, t)) / (1 - tf.math.pow(self.beta1, t))
+        self.m.assign(self.beta1 * self.m + (1 - self.beta1) * avg_flat_grad)
+        self.v.assign(self.beta2 * self.v + (1 - self.beta2) * tf.math.square(avg_flat_grad))
+        flat_step = (- a) * self.m / (tf.math.sqrt(self.v) + self.epsilon)
+        var_steps = tf.split(flat_step, self.var_sizes, axis=0)
+        for var_step, var in zip(var_steps, self.var_list):
+            var.assign_add(tf.reshape(var_step, var.shape))
 
-        avg_flat_grad = tf.py_func(_collect_grads, [flat_grad, stat], tf.float32)
-        avg_flat_grad.set_shape(flat_grad.shape)
-        avg_grads = tf.split(avg_flat_grad, sizes, axis=0)
-        avg_grads_and_vars = [(tf.reshape(g, v.shape), v)
-                    for g, (_, v) in zip(avg_grads, grads_and_vars)]
-        return avg_grads_and_vars
 
 def check_synced(localval, comm=None):
     """

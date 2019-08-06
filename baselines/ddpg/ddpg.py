@@ -8,9 +8,9 @@ from baselines.ddpg.models import Actor, Critic
 from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import AdaptiveParamNoiseSpec, NormalActionNoise, OrnsteinUhlenbeckActionNoise
 from baselines.common import set_global_seeds
-import baselines.common.tf_util as U
 
 from baselines import logger
+import tensorflow as tf
 import numpy as np
 
 try:
@@ -42,6 +42,7 @@ def learn(network, env,
           tau=0.01,
           eval_env=None,
           param_noise_adaption_interval=50,
+          load_path=None,
           **network_kwargs):
 
     set_global_seeds(seed)
@@ -61,8 +62,8 @@ def learn(network, env,
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
 
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
-    critic = Critic(network=network, **network_kwargs)
-    actor = Actor(nb_actions, network=network, **network_kwargs)
+    critic = Critic(nb_actions, ob_shape=env.observation_space.shape, network=network, **network_kwargs)
+    actor = Actor(nb_actions, ob_shape=env.observation_space.shape, network=network, **network_kwargs)
 
     action_noise = None
     param_noise = None
@@ -94,12 +95,18 @@ def learn(network, env,
     logger.info('Using agent with the following configuration:')
     logger.info(str(agent.__dict__.items()))
 
+    if load_path is not None:
+        load_path = osp.expanduser(load_path)
+        ckpt = tf.train.Checkpoint(model=agent)
+        manager = tf.train.CheckpointManager(ckpt, load_path, max_to_keep=None)
+        ckpt.restore(manager.latest_checkpoint)
+        print("Restoring from {}".format(manager.latest_checkpoint))
+
     eval_episode_rewards_history = deque(maxlen=100)
     episode_rewards_history = deque(maxlen=100)
-    sess = U.get_session()
+
     # Prepare everything.
-    agent.initialize(sess)
-    sess.graph.finalize()
+    agent.initialize()
 
     agent.reset()
 
@@ -133,7 +140,8 @@ def learn(network, env,
                 agent.reset()
             for t_rollout in range(nb_rollout_steps):
                 # Predict next action.
-                action, q, _, _ = agent.step(obs, apply_noise=True, compute_Q=True)
+                action, q, _, _ = agent.step(tf.constant(obs), apply_noise=True, compute_Q=True)
+                action, q = action.numpy(), q.numpy()
 
                 # Execute next action.
                 if rank == 0 and render:
@@ -170,7 +178,6 @@ def learn(network, env,
                             agent.reset()
 
 
-
             # Train.
             epoch_actor_losses = []
             epoch_critic_losses = []
@@ -178,7 +185,9 @@ def learn(network, env,
             for t_train in range(nb_train_steps):
                 # Adapt param noise, if necessary.
                 if memory.nb_entries >= batch_size and t_train % param_noise_adaption_interval == 0:
-                    distance = agent.adapt_param_noise()
+                    batch = agent.memory.sample(batch_size=batch_size)
+                    obs0 = tf.constant(batch['obs0'])
+                    distance = agent.adapt_param_noise(obs0)
                     epoch_adaptive_distances.append(distance)
 
                 cl, al = agent.train()

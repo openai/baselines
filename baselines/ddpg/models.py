@@ -2,50 +2,48 @@ import tensorflow as tf
 from baselines.common.models import get_network_builder
 
 
-class Model(object):
+class Model(tf.keras.Model):
     def __init__(self, name, network='mlp', **network_kwargs):
-        self.name = name
-        self.network_builder = get_network_builder(network)(**network_kwargs)
-
-    @property
-    def vars(self):
-        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.name)
-
-    @property
-    def trainable_vars(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
+        super(Model, self).__init__(name=name)
+        self.network = network
+        self.network_kwargs = network_kwargs
 
     @property
     def perturbable_vars(self):
-        return [var for var in self.trainable_vars if 'LayerNorm' not in var.name]
+        return [var for var in self.trainable_variables if 'layer_normalization' not in var.name]
 
 
 class Actor(Model):
-    def __init__(self, nb_actions, name='actor', network='mlp', **network_kwargs):
+    def __init__(self, nb_actions, ob_shape, name='actor', network='mlp', **network_kwargs):
         super().__init__(name=name, network=network, **network_kwargs)
         self.nb_actions = nb_actions
+        self.network_builder = get_network_builder(network)(**network_kwargs)(ob_shape)
+        self.output_layer = tf.keras.layers.Dense(units=self.nb_actions,
+                                                  activation=tf.keras.activations.tanh,
+                                                  kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
+        output = self.output_layer(self.network_builder.outputs[0])
 
-    def __call__(self, obs, reuse=False):
-        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
-            x = self.network_builder(obs)
-            x = tf.layers.dense(x, self.nb_actions, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
-            x = tf.nn.tanh(x)
-        return x
+    @tf.function
+    def call(self, obs):
+        return self.output_layer(self.network_builder(obs))
 
 
 class Critic(Model):
-    def __init__(self, name='critic', network='mlp', **network_kwargs):
+    def __init__(self, nb_actions, ob_shape, name='critic', network='mlp', **network_kwargs):
         super().__init__(name=name, network=network, **network_kwargs)
         self.layer_norm = True
+        self.network_builder = get_network_builder(network)(**network_kwargs)((ob_shape[0] + nb_actions,))
+        self.output_layer = tf.keras.layers.Dense(units=1,
+                                                  kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3),
+                                                  name='output')
+        output = self.output_layer(self.network_builder.outputs[0])
 
-    def __call__(self, obs, action, reuse=False):
-        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
-            x = tf.concat([obs, action], axis=-1) # this assumes observation and action can be concatenated
-            x = self.network_builder(x)
-            x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3), name='output')
-        return x
+    @tf.function
+    def call(self, obs, actions):
+        x = tf.concat([obs, actions], axis=-1) # this assumes observation and action can be concatenated
+        x = self.network_builder(x)
+        return self.output_layer(x)
 
     @property
     def output_vars(self):
-        output_vars = [var for var in self.trainable_vars if 'output' in var.name]
-        return output_vars
+        return self.output_layer.trainable_variables

@@ -1,8 +1,5 @@
 import tensorflow as tf
-import functools
-
-from baselines.common.tf_util import get_session, save_variables, load_variables
-from baselines.common.tf_util import initialize
+from baselines.common.policies import PolicyWithValue
 
 try:
     from baselines.common.mpi_adam_optimizer import MpiAdamOptimizer
@@ -11,7 +8,7 @@ try:
 except ImportError:
     MPI = None
 
-class Model(object):
+class Model(tf.Module):
     """
     We use this object to :
     __init__:
@@ -24,136 +21,70 @@ class Model(object):
     save/load():
     - Save load the model
     """
-    def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                nsteps, ent_coef, vf_coef, max_grad_norm, mpi_rank_weight=1, comm=None, microbatch_size=None):
-        self.sess = sess = get_session()
-
-        if MPI is not None and comm is None:
-            comm = MPI.COMM_WORLD
-
-        with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
-            # CREATE OUR TWO MODELS
-            # act_model that is used for sampling
-            act_model = policy(nbatch_act, 1, sess)
-
-            # Train model for training
-            if microbatch_size is None:
-                train_model = policy(nbatch_train, nsteps, sess)
-            else:
-                train_model = policy(microbatch_size, nsteps, sess)
-
-        # CREATE THE PLACEHOLDERS
-        self.A = A = train_model.pdtype.sample_placeholder([None])
-        self.ADV = ADV = tf.placeholder(tf.float32, [None])
-        self.R = R = tf.placeholder(tf.float32, [None])
-        # Keep track of old actor
-        self.OLDNEGLOGPAC = OLDNEGLOGPAC = tf.placeholder(tf.float32, [None])
-        # Keep track of old critic
-        self.OLDVPRED = OLDVPRED = tf.placeholder(tf.float32, [None])
-        self.LR = LR = tf.placeholder(tf.float32, [])
-        # Cliprange
-        self.CLIPRANGE = CLIPRANGE = tf.placeholder(tf.float32, [])
-
-        neglogpac = train_model.pd.neglogp(A)
-
-        # Calculate the entropy
-        # Entropy is used to improve exploration by limiting the premature convergence to suboptimal policy.
-        entropy = tf.reduce_mean(train_model.pd.entropy())
-
-        # CALCULATE THE LOSS
-        # Total loss = Policy gradient loss - entropy * entropy coefficient + Value coefficient * value loss
-
-        # Clip the value to reduce variability during Critic training
-        # Get the predicted value
-        vpred = train_model.vf
-        vpredclipped = OLDVPRED + tf.clip_by_value(train_model.vf - OLDVPRED, - CLIPRANGE, CLIPRANGE)
-        # Unclipped value
-        vf_losses1 = tf.square(vpred - R)
-        # Clipped value
-        vf_losses2 = tf.square(vpredclipped - R)
-
-        vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
-
-        # Calculate ratio (pi current policy / pi old policy)
-        ratio = tf.exp(OLDNEGLOGPAC - neglogpac)
-
-        # Defining Loss = - J is equivalent to max J
-        pg_losses = -ADV * ratio
-
-        pg_losses2 = -ADV * tf.clip_by_value(ratio, 1.0 - CLIPRANGE, 1.0 + CLIPRANGE)
-
-        # Final PG loss
-        pg_loss = tf.reduce_mean(tf.maximum(pg_losses, pg_losses2))
-        approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - OLDNEGLOGPAC))
-        clipfrac = tf.reduce_mean(tf.to_float(tf.greater(tf.abs(ratio - 1.0), CLIPRANGE)))
-
-        # Total loss
-        loss = pg_loss - entropy * ent_coef + vf_loss * vf_coef
-
-        # UPDATE THE PARAMETERS USING LOSS
-        # 1. Get the model parameters
-        params = tf.trainable_variables('ppo2_model')
-        # 2. Build our trainer
-        if comm is not None and comm.Get_size() > 1:
-            self.trainer = MpiAdamOptimizer(comm, learning_rate=LR, mpi_rank_weight=mpi_rank_weight, epsilon=1e-5)
-        else:
-            self.trainer = tf.train.AdamOptimizer(learning_rate=LR, epsilon=1e-5)
-        # 3. Calculate the gradients
-        grads_and_var = self.trainer.compute_gradients(loss, params)
-        grads, var = zip(*grads_and_var)
-
-        if max_grad_norm is not None:
-            # Clip the gradients (normalize)
-            grads, _grad_norm = tf.clip_by_global_norm(grads, max_grad_norm)
-        grads_and_var = list(zip(grads, var))
-        # zip aggregate each gradient with parameters associated
-        # For instance zip(ABCD, xyza) => Ax, By, Cz, Da
-
-        self.grads = grads
-        self.var = var
-        self._train_op = self.trainer.apply_gradients(grads_and_var)
-        self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
-        self.stats_list = [pg_loss, vf_loss, entropy, approxkl, clipfrac]
-
-
-        self.train_model = train_model
-        self.act_model = act_model
-        self.step = act_model.step
-        self.value = act_model.value
-        self.initial_state = act_model.initial_state
-
-        self.save = functools.partial(save_variables, sess=sess)
-        self.load = functools.partial(load_variables, sess=sess)
-
-        initialize()
-        global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
+    def __init__(self, *, ac_space, policy_network, value_network=None, ent_coef, vf_coef, max_grad_norm):
+        super(Model, self).__init__(name='PPO2Model')
+        self.train_model = PolicyWithValue(ac_space, policy_network, value_network, estimate_q=False)
         if MPI is not None:
-            sync_from_root(sess, global_variables, comm=comm) #pylint: disable=E1101
+          self.optimizer = MpiAdamOptimizer(MPI.COMM_WORLD, self.train_model.trainable_variables)
+        else:
+          self.optimizer = tf.keras.optimizers.Adam()
+        self.ent_coef = ent_coef
+        self.vf_coef = vf_coef
+        self.max_grad_norm = max_grad_norm
+        self.step = self.train_model.step
+        self.value = self.train_model.value
+        self.initial_state = self.train_model.initial_state
+        self.loss_names = ['policy_loss', 'value_loss', 'policy_entropy', 'approxkl', 'clipfrac']
+        if MPI is not None:
+          sync_from_root(self.variables)
 
-    def train(self, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
+    def train(self, lr, cliprange, obs, returns, masks, actions, values, neglogpac_old, states=None):
+        grads, pg_loss, vf_loss, entropy, approxkl, clipfrac = self.get_grad(
+            cliprange, obs, returns, masks, actions, values, neglogpac_old)
+        if MPI is not None:
+            self.optimizer.apply_gradients(grads, lr)
+        else:
+            self.optimizer.learning_rate = lr
+            grads_and_vars = zip(grads, self.train_model.trainable_variables)
+            self.optimizer.apply_gradients(grads_and_vars)
+
+        return pg_loss, vf_loss, entropy, approxkl, clipfrac
+
+
+    @tf.function
+    def get_grad(self, cliprange, obs, returns, masks, actions, values, neglogpac_old):
         # Here we calculate advantage A(s,a) = R + yV(s') - V(s)
         # Returns = R + yV(s')
         advs = returns - values
 
         # Normalize the advantages
-        advs = (advs - advs.mean()) / (advs.std() + 1e-8)
+        advs = (advs - tf.reduce_mean(advs)) / (tf.keras.backend.std(advs) + 1e-8)
 
-        td_map = {
-            self.train_model.X : obs,
-            self.A : actions,
-            self.ADV : advs,
-            self.R : returns,
-            self.LR : lr,
-            self.CLIPRANGE : cliprange,
-            self.OLDNEGLOGPAC : neglogpacs,
-            self.OLDVPRED : values
-        }
-        if states is not None:
-            td_map[self.train_model.S] = states
-            td_map[self.train_model.M] = masks
+        with tf.GradientTape() as tape:
+            policy_latent = self.train_model.policy_network(obs)
+            pd, _ = self.train_model.pdtype.pdfromlatent(policy_latent)
+            neglogpac = pd.neglogp(actions)
+            entropy = tf.reduce_mean(pd.entropy())
+            vpred = self.train_model.value(obs)
+            vpredclipped = values + tf.clip_by_value(vpred - values, -cliprange, cliprange)
+            vf_losses1 = tf.square(vpred - returns)
+            vf_losses2 = tf.square(vpredclipped - returns)
+            vf_loss = .5 * tf.reduce_mean(tf.maximum(vf_losses1, vf_losses2))
 
-        return self.sess.run(
-            self.stats_list + [self._train_op],
-            td_map
-        )[:-1]
+            ratio = tf.exp(neglogpac_old - neglogpac)
+            pg_losses1 = -advs * ratio
+            pg_losses2 = -advs * tf.clip_by_value(ratio, 1-cliprange, 1+cliprange)
+            pg_loss = tf.reduce_mean(tf.maximum(pg_losses1, pg_losses2))
 
+            approxkl = .5 * tf.reduce_mean(tf.square(neglogpac - neglogpac_old))
+            clipfrac = tf.reduce_mean(tf.cast(tf.greater(tf.abs(ratio - 1.0), cliprange), tf.float32))
+
+            loss = pg_loss - entropy * self.ent_coef + vf_loss * self.vf_coef
+
+        var_list = self.train_model.trainable_variables
+        grads = tape.gradient(loss, var_list)
+        if self.max_grad_norm is not None:
+            grads, _ = tf.clip_by_global_norm(grads, self.max_grad_norm)
+        if MPI is not None:
+            grads = tf.concat([tf.reshape(g, (-1,)) for g in grads], axis=0)
+        return grads, pg_loss, vf_loss, entropy, approxkl, clipfrac
