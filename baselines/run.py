@@ -10,7 +10,6 @@ import numpy as np
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, make_env
-from baselines.common.tf_util import get_session
 from baselines import logger
 from importlib import import_module
 
@@ -103,17 +102,11 @@ def build_env(args):
             env = VecFrameStack(env, frame_stack_size)
 
     else:
-        config = tf.ConfigProto(allow_soft_placement=True,
-                               intra_op_parallelism_threads=1,
-                               inter_op_parallelism_threads=1)
-        config.gpu_options.allow_growth = True
-        get_session(config=config)
-
         flatten_dict_observations = alg not in {'her'}
         env = make_vec_env(env_id, env_type, args.num_env or 1, seed, reward_scale=args.reward_scale, flatten_dict_observations=flatten_dict_observations)
 
         if env_type == 'mujoco':
-            env = VecNormalize(env, use_tf=True)
+            env = VecNormalize(env)
 
     return env
 
@@ -217,11 +210,15 @@ def main(args):
 
     if args.save_path is not None and rank == 0:
         save_path = osp.expanduser(args.save_path)
-        model.save(save_path)
+        ckpt = tf.train.Checkpoint(model=model)
+        manager = tf.train.CheckpointManager(ckpt, save_path, max_to_keep=None)
+        manager.save()
 
     if args.play:
         logger.log("Running trained model")
         obs = env.reset()
+        if not isinstance(env, VecEnv):
+            obs = np.expand_dims(np.array(obs), axis=0)
 
         state = model.initial_state if hasattr(model, 'initial_state') else None
         dones = np.zeros((1,))
@@ -229,11 +226,13 @@ def main(args):
         episode_rew = 0
         while True:
             if state is not None:
-                actions, _, state, _ = model.step(obs,S=state, M=dones)
+                actions, _, state, _ = model.step(obs)
             else:
-                actions, _, _, _ = model.step(obs)
+              actions, _, _, _ = model.step(obs)
 
-            obs, rew, done, _ = env.step(actions)
+            obs, rew, done, _ = env.step(actions.numpy())
+            if not isinstance(env, VecEnv):
+                obs = np.expand_dims(np.array(obs), axis=0)
             episode_rew += rew[0] if isinstance(env, VecEnv) else rew
             env.render()
             done = done.any() if isinstance(done, np.ndarray) else done

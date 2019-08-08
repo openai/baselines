@@ -3,13 +3,15 @@ from baselines import logger
 import baselines.common.tf_util as U
 import tensorflow as tf, numpy as np
 import time
+import os.path as osp
 from baselines.common import colorize
 from collections import deque
 from baselines.common import set_global_seeds
+from baselines.common.models import get_network_builder
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import cg
-from baselines.common.input import observation_placeholder
-from baselines.common.policies import build_policy
+from baselines.common.policies import PolicyWithValue
+from baselines.common.vec_env.vec_env import VecEnv
 from contextlib import contextmanager
 
 try:
@@ -17,13 +19,15 @@ try:
 except ImportError:
     MPI = None
 
-def traj_segment_generator(pi, env, horizon, stochastic):
+def traj_segment_generator(pi, env, horizon):
     # Initialize state variables
     t = 0
     ac = env.action_space.sample()
     new = True
     rew = 0.0
     ob = env.reset()
+    if not isinstance(env, VecEnv):
+      ob = np.expand_dims(ob, axis=0)
 
     cur_ep_ret = 0
     cur_ep_len = 0
@@ -40,7 +44,9 @@ def traj_segment_generator(pi, env, horizon, stochastic):
 
     while True:
         prevac = ac
-        ac, vpred, _, _ = pi.step(ob, stochastic=stochastic)
+        ob = tf.constant(ob)
+        ac, vpred, _, _ = pi.step(ob)
+        ac = ac.numpy()
         # Slight weirdness here because we need value function at time T
         # before returning segment [0, T-1] so we get the correct
         # terminal value
@@ -48,19 +54,21 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             yield {"ob" : obs, "rew" : rews, "vpred" : vpreds, "new" : news,
                     "ac" : acs, "prevac" : prevacs, "nextvpred": vpred * (1 - new),
                     "ep_rets" : ep_rets, "ep_lens" : ep_lens}
-            _, vpred, _, _ = pi.step(ob, stochastic=stochastic)
+            _, vpred, _, _ = pi.step(ob)
             # Be careful!!! if you change the downstream algorithm to aggregate
             # several of these batches, then be sure to do a deepcopy
             ep_rets = []
             ep_lens = []
         i = t % horizon
         obs[i] = ob
-        vpreds[i] = vpred
+        vpreds[i] = vpred.numpy()
         news[i] = new
         acs[i] = ac
         prevacs[i] = prevac
 
         ob, rew, new, _ = env.step(ac)
+        if not isinstance(env, VecEnv):
+          ob = np.expand_dims(ob, axis=0)
         rews[i] = rew
 
         cur_ep_ret += rew
@@ -71,6 +79,8 @@ def traj_segment_generator(pi, env, horizon, stochastic):
             cur_ep_ret = 0
             cur_ep_len = 0
             ob = env.reset()
+            if not isinstance(env, VecEnv):
+              ob = np.expand_dims(ob, axis=0)
         t += 1
 
 def add_vtarg_and_adv(seg, gamma, lam):
@@ -157,15 +167,6 @@ def learn(*,
         nworkers = 1
         rank = 0
 
-    cpus_per_worker = 1
-    U.get_session(config=tf.ConfigProto(
-            allow_soft_placement=True,
-            inter_op_parallelism_threads=cpus_per_worker,
-            intra_op_parallelism_threads=cpus_per_worker
-    ))
-
-
-    policy = build_policy(env, network, value_network='copy', **network_kwargs)
     set_global_seeds(seed)
 
     np.set_printoptions(precision=3)
@@ -174,63 +175,109 @@ def learn(*,
     ob_space = env.observation_space
     ac_space = env.action_space
 
-    ob = observation_placeholder(ob_space)
-    with tf.variable_scope("pi"):
-        pi = policy(observ_placeholder=ob)
-    with tf.variable_scope("oldpi"):
-        oldpi = policy(observ_placeholder=ob)
+    if isinstance(network, str):
+        network = get_network_builder(network)(**network_kwargs)
 
-    atarg = tf.placeholder(dtype=tf.float32, shape=[None]) # Target advantage function (if applicable)
-    ret = tf.placeholder(dtype=tf.float32, shape=[None]) # Empirical return
+    with tf.name_scope("pi"):
+        pi_policy_network = network(ob_space.shape)
+        pi_value_network = network(ob_space.shape)
+        pi = PolicyWithValue(ac_space, pi_policy_network, pi_value_network)
+    with tf.name_scope("oldpi"):
+        old_pi_policy_network = network(ob_space.shape)
+        old_pi_value_network = network(ob_space.shape)
+        oldpi = PolicyWithValue(ac_space, old_pi_policy_network, old_pi_value_network)
 
-    ac = pi.pdtype.sample_placeholder([None])
+    pi_var_list = pi_policy_network.trainable_variables + list(pi.pdtype.trainable_variables)
+    old_pi_var_list = old_pi_policy_network.trainable_variables + list(oldpi.pdtype.trainable_variables)
+    vf_var_list = pi_value_network.trainable_variables + pi.value_fc.trainable_variables
+    old_vf_var_list = old_pi_value_network.trainable_variables + oldpi.value_fc.trainable_variables
 
-    kloldnew = oldpi.pd.kl(pi.pd)
-    ent = pi.pd.entropy()
-    meankl = tf.reduce_mean(kloldnew)
-    meanent = tf.reduce_mean(ent)
-    entbonus = ent_coef * meanent
-
-    vferr = tf.reduce_mean(tf.square(pi.vf - ret))
-
-    ratio = tf.exp(pi.pd.logp(ac) - oldpi.pd.logp(ac)) # advantage * pnew / pold
-    surrgain = tf.reduce_mean(ratio * atarg)
-
-    optimgain = surrgain + entbonus
-    losses = [optimgain, meankl, entbonus, surrgain, meanent]
-    loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
-
-    dist = meankl
-
-    all_var_list = get_trainable_variables("pi")
-    # var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("pol")]
-    # vf_var_list = [v for v in all_var_list if v.name.split("/")[1].startswith("vf")]
-    var_list = get_pi_trainable_variables("pi")
-    vf_var_list = get_vf_trainable_variables("pi")
+    if load_path is not None:
+        load_path = osp.expanduser(load_path)
+        ckpt = tf.train.Checkpoint(model=pi)
+        manager = tf.train.CheckpointManager(ckpt, load_path, max_to_keep=None)
+        ckpt.restore(manager.latest_checkpoint)
 
     vfadam = MpiAdam(vf_var_list)
 
-    get_flat = U.GetFlat(var_list)
-    set_from_flat = U.SetFromFlat(var_list)
-    klgrads = tf.gradients(dist, var_list)
-    flat_tangent = tf.placeholder(dtype=tf.float32, shape=[None], name="flat_tan")
-    shapes = [var.get_shape().as_list() for var in var_list]
-    start = 0
-    tangents = []
-    for shape in shapes:
-        sz = U.intprod(shape)
-        tangents.append(tf.reshape(flat_tangent[start:start+sz], shape))
-        start += sz
-    gvp = tf.add_n([tf.reduce_sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)]) #pylint: disable=E1111
-    fvp = U.flatgrad(gvp, var_list)
+    get_flat = U.GetFlat(pi_var_list)
+    set_from_flat = U.SetFromFlat(pi_var_list)
+    loss_names = ["optimgain", "meankl", "entloss", "surrgain", "entropy"]
+    shapes = [var.get_shape().as_list() for var in pi_var_list]
 
-    assign_old_eq_new = U.function([],[], updates=[tf.assign(oldv, newv)
-        for (oldv, newv) in zipsame(get_variables("oldpi"), get_variables("pi"))])
 
-    compute_losses = U.function([ob, ac, atarg], losses)
-    compute_lossandgrad = U.function([ob, ac, atarg], losses + [U.flatgrad(optimgain, var_list)])
-    compute_fvp = U.function([flat_tangent, ob, ac, atarg], fvp)
-    compute_vflossandgrad = U.function([ob, ret], U.flatgrad(vferr, vf_var_list))
+    def assign_old_eq_new():
+        for pi_var, old_pi_var in zip(pi_var_list, old_pi_var_list):
+            old_pi_var.assign(pi_var)
+        for vf_var, old_vf_var in zip(vf_var_list, old_vf_var_list):
+            old_vf_var.assign(vf_var)
+
+    @tf.function
+    def compute_lossandgrad(ob, ac, atarg):
+        with tf.GradientTape() as tape:
+            old_policy_latent = oldpi.policy_network(ob)
+            old_pd, _ = oldpi.pdtype.pdfromlatent(old_policy_latent)
+            policy_latent = pi.policy_network(ob)
+            pd, _ = pi.pdtype.pdfromlatent(policy_latent)
+            kloldnew = old_pd.kl(pd)
+            ent = pd.entropy()
+            meankl = tf.reduce_mean(kloldnew)
+            meanent = tf.reduce_mean(ent)
+            entbonus = ent_coef * meanent
+            ratio = tf.exp(pd.logp(ac) - old_pd.logp(ac))
+            surrgain = tf.reduce_mean(ratio * atarg)
+            optimgain = surrgain + entbonus
+            losses = [optimgain, meankl, entbonus, surrgain, meanent]
+        gradients = tape.gradient(optimgain, pi_var_list)
+        return losses + [U.flatgrad(gradients, pi_var_list)]
+
+    @tf.function
+    def compute_losses(ob, ac, atarg):
+        old_policy_latent = oldpi.policy_network(ob)
+        old_pd, _ = oldpi.pdtype.pdfromlatent(old_policy_latent)
+        policy_latent = pi.policy_network(ob)
+        pd, _ = pi.pdtype.pdfromlatent(policy_latent)
+        kloldnew = old_pd.kl(pd)
+        ent = pd.entropy()
+        meankl = tf.reduce_mean(kloldnew)
+        meanent = tf.reduce_mean(ent)
+        entbonus = ent_coef * meanent
+        ratio = tf.exp(pd.logp(ac) - old_pd.logp(ac))
+        surrgain = tf.reduce_mean(ratio * atarg)
+        optimgain = surrgain + entbonus
+        losses = [optimgain, meankl, entbonus, surrgain, meanent]
+        return losses
+
+    #ob shape should be [batch_size, ob_dim], merged nenv
+    #ret shape should be [batch_size]
+    @tf.function
+    def compute_vflossandgrad(ob, ret):
+        with tf.GradientTape() as tape:
+            pi_vf = pi.value(ob)
+            vferr = tf.reduce_mean(tf.square(pi_vf - ret))
+        return U.flatgrad(tape.gradient(vferr, vf_var_list), vf_var_list)
+
+    @tf.function
+    def compute_fvp(flat_tangent, ob, ac, atarg):
+        with tf.GradientTape() as outter_tape:
+            with tf.GradientTape() as inner_tape:
+                old_policy_latent = oldpi.policy_network(ob)
+                old_pd, _ = oldpi.pdtype.pdfromlatent(old_policy_latent)
+                policy_latent = pi.policy_network(ob)
+                pd, _ = pi.pdtype.pdfromlatent(policy_latent)
+                kloldnew = old_pd.kl(pd)
+                meankl = tf.reduce_mean(kloldnew)
+            klgrads = inner_tape.gradient(meankl, pi_var_list)
+            start = 0
+            tangents = []
+            for shape in shapes:
+                sz = U.intprod(shape)
+                tangents.append(tf.reshape(flat_tangent[start:start+sz], shape))
+                start += sz
+            gvp = tf.add_n([tf.reduce_sum(g*tangent) for (g, tangent) in zipsame(klgrads, tangents)])
+        hessians_products = outter_tape.gradient(gvp, pi_var_list)
+        fvp = U.flatgrad(hessians_products, pi_var_list)
+        return fvp
 
     @contextmanager
     def timed(msg):
@@ -253,10 +300,6 @@ def learn(*,
 
         return out
 
-    U.initialize()
-    if load_path is not None:
-        pi.load(load_path)
-
     th_init = get_flat()
     if MPI is not None:
         MPI.COMM_WORLD.Bcast(th_init, root=0)
@@ -267,7 +310,7 @@ def learn(*,
 
     # Prepare for rollouts
     # ----------------------------------------
-    seg_gen = traj_segment_generator(pi, env, timesteps_per_batch, stochastic=True)
+    seg_gen = traj_segment_generator(pi, env, timesteps_per_batch)
 
     episodes_so_far = 0
     timesteps_so_far = 0
@@ -299,21 +342,23 @@ def learn(*,
 
         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
+        ob = sf01(ob)
         vpredbefore = seg["vpred"] # predicted value function before udpate
         atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
 
         if hasattr(pi, "ret_rms"): pi.ret_rms.update(tdlamret)
         if hasattr(pi, "ob_rms"): pi.ob_rms.update(ob) # update running mean/std for policy
 
-        args = seg["ob"], seg["ac"], atarg
+        args = ob, ac, atarg
         fvpargs = [arr[::5] for arr in args]
         def fisher_vector_product(p):
-            return allmean(compute_fvp(p, *fvpargs)) + cg_damping * p
+            return allmean(compute_fvp(p, *fvpargs).numpy()) + cg_damping * p
 
         assign_old_eq_new() # set old parameter values to new parameter values
         with timed("computegrad"):
             *lossbefore, g = compute_lossandgrad(*args)
         lossbefore = allmean(np.array(lossbefore))
+        g = g.numpy()
         g = allmean(g)
         if np.allclose(g, 0):
             logger.log("Got zero gradient. not updating")
@@ -360,7 +405,8 @@ def learn(*,
             for _ in range(vf_iters):
                 for (mbob, mbret) in dataset.iterbatches((seg["ob"], seg["tdlamret"]),
                 include_final_partial_batch=False, batch_size=64):
-                    g = allmean(compute_vflossandgrad(mbob, mbret))
+                    mbob = sf01(mbob)
+                    g = allmean(compute_vflossandgrad(mbob, mbret).numpy())
                     vfadam.update(g, vf_stepsize)
 
         logger.record_tabular("ev_tdlam_before", explained_variance(vpredbefore, tdlamret))
@@ -394,15 +440,9 @@ def learn(*,
 def flatten_lists(listoflists):
     return [el for list_ in listoflists for el in list_]
 
-def get_variables(scope):
-    return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)
-
-def get_trainable_variables(scope):
-    return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-
-def get_vf_trainable_variables(scope):
-    return [v for v in get_trainable_variables(scope) if 'vf' in v.name[len(scope):].split('/')]
-
-def get_pi_trainable_variables(scope):
-    return [v for v in get_trainable_variables(scope) if 'pi' in v.name[len(scope):].split('/')]
-
+def sf01(arr):
+    """
+    swap and then flatten axes 0 and 1
+    """
+    s = arr.shape
+    return arr.swapaxes(0, 1).reshape(s[0] * s[1], *s[2:])

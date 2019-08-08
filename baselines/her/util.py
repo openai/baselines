@@ -54,22 +54,19 @@ def flatten_grads(var_list, grads):
                       for (v, grad) in zip(var_list, grads)], 0)
 
 
-def nn(input, layers_sizes, reuse=None, flatten=False, name=""):
+def nn(input_shape, layers_sizes, name="", output_activation=None):
     """Creates a simple neural network
     """
+    print('input shape is {}'.format(input_shape))
+    x_input = tf.keras.Input(shape=input_shape)
+    h = x_input
     for i, size in enumerate(layers_sizes):
-        activation = tf.nn.relu if i < len(layers_sizes) - 1 else None
-        input = tf.layers.dense(inputs=input,
-                                units=size,
-                                kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                                reuse=reuse,
-                                name=name + '_' + str(i))
-        if activation:
-            input = activation(input)
-    if flatten:
-        assert layers_sizes[-1] == 1
-        input = tf.reshape(input, [-1])
-    return input
+        activation = 'relu' if i < len(layers_sizes) - 1 else output_activation
+        h = tf.keras.layers.Dense(
+            units=size, kernel_initializer='glorot_uniform', activation=activation,
+            name=name + '_' + str(i))(h)
+    network = tf.keras.Model(inputs=[x_input], outputs=[h])
+    return network
 
 
 def install_mpi_excepthook():
