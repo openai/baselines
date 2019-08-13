@@ -32,6 +32,11 @@ Deprecations:
 
 Others:
 ^^^^^^^
+- Implementations of noise classes (`AdaptiveParamNoiseSpec`, `NormalActionNoise`,
+  `OrnsteinUhlenbeckActionNoise`) were moved from `stable_baselines.ddpg.noise`
+  to `stable_baselines.common.noise`. The API remains backward-compatible;
+  for example `from stable_baselines.ddpg.noise import NormalActionNoise` is still
+  okay. (@shwang)
 
 Documentation:
 ^^^^^^^^^^^^^^
