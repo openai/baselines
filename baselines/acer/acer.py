@@ -6,7 +6,7 @@ from baselines import logger
 
 from baselines.common import set_global_seeds
 from baselines.common.policies import build_policy
-from baselines.common.tf_util import get_session, save_variables
+from baselines.common.tf_util import get_session, save_variables, load_variables
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
 
 from baselines.a2c.utils import batch_to_seq, seq_to_batch
@@ -216,7 +216,8 @@ class Model(object):
 
 
         self.train = train
-        self.save = functools.partial(save_variables, sess=sess, variables=params)
+        self.save = functools.partial(save_variables, sess=sess)
+        self.load = functools.partial(load_variables, sess=sess)
         self.train_model = train_model
         self.step_model = step_model
         self._step = _step
@@ -357,6 +358,9 @@ def learn(network, env, seed=None, nsteps=20, total_timesteps=int(80e6), q_coef=
                   max_grad_norm=max_grad_norm, lr=lr, rprop_alpha=rprop_alpha, rprop_epsilon=rprop_epsilon,
                   total_timesteps=total_timesteps, lrschedule=lrschedule, c=c,
                   trust_region=trust_region, alpha=alpha, delta=delta)
+
+    if load_path is not None:
+        model.load(load_path)
 
     runner = Runner(env=env, model=model, nsteps=nsteps)
     if replay_ratio > 0:
