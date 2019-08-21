@@ -40,17 +40,16 @@ class PolicyWithValue(object):
         self.initial_state = None
         self.__dict__.update(tensors)
 
-        # vf_latent = vf_latent if vf_latent is not None else latent
-
-        # vf_latent = tf.layers.flatten(vf_latent)
-        # latent = tf.layers.flatten(latent)
+        if vf_latent is not None:
+            vf_latent = tf.layers.flatten(vf_latent)
+        if pol_head is None:
+            # Not a typo. pdfromlatent will add the output layer if pol_latent has the wrong no. of outputs.
+            # If pol_latent unintentionally has the right no. of outputs then the result won't be right as you're expecting one extra layer to be added but it won't be.
+            pol_head = tf.layers.flatten(pol_latent)
 
         # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
 
-        if pol_head is None:
-            pol_head = tf.layers.flatten(pol_latent)
-            # pol_head = _matching_fc(pol_latent, 'pi', self.pdtype.size, init_scale=0.01, init_bias=0.0)
         self.pd, self.pi = self.pdtype.pdfromlatent(pol_head, init_scale=0.01)
 
         # Take an action
