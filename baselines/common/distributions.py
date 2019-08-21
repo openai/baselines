@@ -39,7 +39,7 @@ class PdType(object):
         raise NotImplementedError
     def pdfromflat(self, flat):
         return self.pdclass()(flat)
-    def pdfromlatent(self, latent_vector, init_scale, init_bias, activation=None):
+    def pdfromlatent(self, latent_vector, init_scale, init_bias):
         raise NotImplementedError
     def param_shape(self):
         raise NotImplementedError
@@ -61,8 +61,8 @@ class CategoricalPdType(PdType):
         self.ncat = ncat
     def pdclass(self):
         return CategoricalPd
-    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0, activation=None):
-        pdparam = _matching_fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias, activation=activation)
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        pdparam = _matching_fc(latent_vector, 'pi', self.ncat, init_scale=init_scale, init_bias=init_bias)
         return self.pdfromflat(pdparam), pdparam
 
     def param_shape(self):
@@ -82,8 +82,8 @@ class MultiCategoricalPdType(PdType):
     def pdfromflat(self, flat):
         return MultiCategoricalPd(self.ncats, flat)
 
-    def pdfromlatent(self, latent, init_scale=1.0, init_bias=0.0, activation=None):
-        pdparam = _matching_fc(latent, 'pi', self.ncats.sum(), init_scale=init_scale, init_bias=init_bias, activation=activation)
+    def pdfromlatent(self, latent, init_scale=1.0, init_bias=0.0):
+        pdparam = _matching_fc(latent, 'pi', self.ncats.sum(), init_scale=init_scale, init_bias=init_bias)
         return self.pdfromflat(pdparam), pdparam
 
     def param_shape(self):
@@ -99,8 +99,8 @@ class DiagGaussianPdType(PdType):
     def pdclass(self):
         return DiagGaussianPd
 
-    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0, activation=None):
-        mean = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias, activation=activation)
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        mean = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size], initializer=tf.zeros_initializer())
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
         return self.pdfromflat(pdparam), mean
@@ -123,8 +123,8 @@ class BernoulliPdType(PdType):
         return [self.size]
     def sample_dtype(self):
         return tf.int32
-    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0, activation=None):
-        pdparam = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias, activation=activation)
+    def pdfromlatent(self, latent_vector, init_scale=1.0, init_bias=0.0):
+        pdparam = _matching_fc(latent_vector, 'pi', self.size, init_scale=init_scale, init_bias=init_bias)
         return self.pdfromflat(pdparam), pdparam
 
 # WRONG SECOND DERIVATIVES
@@ -348,11 +348,9 @@ def validate_probtype(probtype, pdparam):
     print('ok on', probtype, pdparam)
 
 
-def _matching_fc(tensor, name, size, init_scale, init_bias, activation=None):
+def _matching_fc(tensor, name, size, init_scale, init_bias):
     if tensor.shape[-1] == size:
         return tensor
     else:
         h = fc(tensor, name, size, init_scale=init_scale, init_bias=init_bias)
-        if activation:
-            h = activation(h)
         return h

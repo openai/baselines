@@ -17,7 +17,7 @@ class PolicyWithValue(object):
     Encapsulates fields and methods for RL policy and value function estimation with shared parameters
     """
 
-    def __init__(self, env, observations, pol_latent, pol_head, estimate_q=False, vf_latent=None, vf_head=None, sess=None, activation=None, **tensors):
+    def __init__(self, env, observations, pol_latent, pol_head, estimate_q=False, vf_latent=None, vf_head=None, sess=None, **tensors):
         """
         Parameters:
         ----------
@@ -51,7 +51,7 @@ class PolicyWithValue(object):
         if pol_head is None:
             pol_head = tf.layers.flatten(pol_latent)
             # pol_head = _matching_fc(pol_latent, 'pi', self.pdtype.size, init_scale=0.01, init_bias=0.0)
-        self.pd, self.pi = self.pdtype.pdfromlatent(pol_head, init_scale=0.01, activation=activation)
+        self.pd, self.pi = self.pdtype.pdfromlatent(pol_head, init_scale=0.01)
 
         # Take an action
         self.action = self.pd.sample()
@@ -133,7 +133,7 @@ class PolicyWithValue(object):
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
 
-def build_policy(env, network_builder, value_network=None, normalize_observations=False, estimate_q=False, activation=None, **policy_kwargs):
+def build_policy(env, network_builder, value_network=None, normalize_observations=False, estimate_q=False, **policy_kwargs):
     is_recurrent = None # In case network_builder is a function, not str, in which case there is no way to know if it will return a recurrent network or not.
     if isinstance(network_builder, str):
         network_type = network_builder
@@ -192,7 +192,6 @@ def build_policy(env, network_builder, value_network=None, normalize_observation
             vf_head=policy['value_head'],
             sess=sess,
             estimate_q=estimate_q,
-            activation=activation,
             **extra_tensors
         )
         return policy
