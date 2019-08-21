@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import tensorflow as tf
 from baselines.common import tf_util
 from baselines.a2c.utils import fc
@@ -15,7 +17,7 @@ class PolicyWithValue(object):
     Encapsulates fields and methods for RL policy and value function estimation with shared parameters
     """
 
-    def __init__(self, env, observations, latent, estimate_q=False, vf_latent=None, sess=None, activation=None, **tensors):
+    def __init__(self, env, observations, pol_latent, pol_head, estimate_q=False, vf_latent=None, vf_head=None, sess=None, activation=None, **tensors):
         """
         Parameters:
         ----------
@@ -38,15 +40,18 @@ class PolicyWithValue(object):
         self.initial_state = None
         self.__dict__.update(tensors)
 
-        vf_latent = vf_latent if vf_latent is not None else latent
+        # vf_latent = vf_latent if vf_latent is not None else latent
 
-        vf_latent = tf.layers.flatten(vf_latent)
-        latent = tf.layers.flatten(latent)
+        # vf_latent = tf.layers.flatten(vf_latent)
+        # latent = tf.layers.flatten(latent)
 
         # Based on the action space, will select what probability distribution type
         self.pdtype = make_pdtype(env.action_space)
 
-        self.pd, self.pi = self.pdtype.pdfromlatent(latent, init_scale=0.01, activation=activation)
+        if pol_head is None:
+            pol_head = tf.layers.flatten(pol_latent)
+            # pol_head = _matching_fc(pol_latent, 'pi', self.pdtype.size, init_scale=0.01, init_bias=0.0)
+        self.pd, self.pi = self.pdtype.pdfromlatent(pol_head, init_scale=0.01, activation=activation)
 
         # Take an action
         self.action = self.pd.sample()
@@ -57,10 +62,20 @@ class PolicyWithValue(object):
 
         if estimate_q:
             assert isinstance(env.action_space, gym.spaces.Discrete)
-            self.q = fc(vf_latent, 'q', env.action_space.n)
+            if vf_head:
+                if vf_head.size[-1] != env.action_space.n:
+                    raise RuntimeError('When specifying the Q-function network head (instead of the latent representation), the size of the output must equal the no. of actions.')
+                self.q = vf_head
+            else:
+                self.q = fc(vf_latent, 'q', env.action_space.n)
             self.vf = self.q
         else:
-            self.vf = fc(vf_latent, 'vf', 1)
+            if vf_head:
+                if vf_head.size[-1] != 1:
+                    raise RuntimeError('Value function must have a single output.')
+                self.vf = vf_head
+            else:
+                self.vf = fc(vf_latent, 'vf', 1)
             self.vf = self.vf[:,0]
 
     def _evaluate(self, variables, observation, **extra_feed):
@@ -118,12 +133,15 @@ class PolicyWithValue(object):
     def load(self, load_path):
         tf_util.load_state(load_path, sess=self.sess)
 
-def build_policy(env, policy_network, value_network=None,  normalize_observations=False, estimate_q=False, activation=None, **policy_kwargs):
-    if isinstance(policy_network, str):
-        network_type = policy_network
-        policy_network = get_network_builder(network_type)(**policy_kwargs)
+def build_policy(env, network_builder, value_network=None, normalize_observations=False, estimate_q=False, activation=None, **policy_kwargs):
+    is_recurrent = None # In case network_builder is a function, not str, in which case there is no way to know if it will return a recurrent network or not.
+    if isinstance(network_builder, str):
+        network_type = network_builder
+        network_builder_dict = get_network_builder(network_type)
+        network_builder = network_builder_dict['func'](**policy_kwargs)
+        is_recurrent = network_builder_dict['is_recurrent']
 
-    def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
+    def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None, nenv=None):
         ob_space = env.observation_space
 
         X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space, batch_size=nbatch)
@@ -138,38 +156,42 @@ def build_policy(env, policy_network, value_network=None,  normalize_observation
 
         encoded_x = encode_observation(ob_space, encoded_x)
 
-        with tf.variable_scope('pi', reuse=tf.AUTO_REUSE):
-            policy_latent = policy_network(encoded_x)
-            if isinstance(policy_latent, tuple):
-                policy_latent, recurrent_tensors = policy_latent
-
-                if recurrent_tensors is not None:
-                    # recurrent architecture, need a few more steps
-                    nenv = nbatch // nsteps
-                    assert nenv > 0, 'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
-                    policy_latent, recurrent_tensors = policy_network(encoded_x, nenv)
-                    extra_tensors.update(recurrent_tensors)
-
-
-        _v_net = value_network
-
-        if _v_net is None or _v_net == 'shared':
-            vf_latent = policy_latent
+        if is_recurrent:
+            if nenv is None:
+                nenv = nbatch // nsteps
+            assert nenv > 0, 'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
+            policy = network_builder(encoded_x, 'pi', 'vf', value_network == 'copy', nenv=nenv)
         else:
-            if _v_net == 'copy':
-                _v_net = policy_network
-            else:
-                assert callable(_v_net)
+            policy = network_builder(encoded_x, 'pi', 'vf', value_network == 'copy')
+        if not isinstance(policy, dict):
+            policy = {'latent': policy}
+        policy = defaultdict(lambda: None, policy)
 
-            with tf.variable_scope('vf', reuse=tf.AUTO_REUSE):
-                # TODO recurrent architectures are not supported with value_network=copy yet
-                vf_latent = _v_net(encoded_x)
+        if policy['recurrent_tensors'] is not None and is_recurrent is None:
+            # recurrent architecture, need a few more steps
+            if nenv is None:
+                nenv = nbatch // nsteps
+            assert nenv > 0, 'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
+            policy = network_builder(encoded_x, nenv)
+            policy = defaultdict(lambda: None, policy)
+
+        if policy['recurrent_tensors'] is not None:
+            extra_tensors.update(policy['recurrent_tensors'])
+
+        if policy['policy_latent'] is None:
+            policy['policy_latent'] = policy['latent']
+
+        # TODO recurrent architectures are not supported with value_network=copy yet
+        if policy['value_latent'] is None:
+            policy['value_latent'] = policy['latent']
 
         policy = PolicyWithValue(
             env=env,
             observations=X,
-            latent=policy_latent,
-            vf_latent=vf_latent,
+            pol_latent=policy['policy_latent'],
+            pol_head=policy['policy_head'],
+            vf_latent=policy['value_latent'],
+            vf_head=policy['value_head'],
             sess=sess,
             estimate_q=estimate_q,
             activation=activation,
