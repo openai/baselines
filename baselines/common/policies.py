@@ -141,7 +141,7 @@ def build_policy(env, network_builder, value_network=None, normalize_observation
         network_builder = network_builder_dict['func'](**policy_kwargs)
         is_recurrent = network_builder_dict['is_recurrent']
 
-    def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None, nenv=None):
+    def policy_fn(nbatch=None, nsteps=None, sess=None, observ_placeholder=None):
         ob_space = env.observation_space
 
         X = observ_placeholder if observ_placeholder is not None else observation_placeholder(ob_space, batch_size=nbatch)
@@ -157,8 +157,7 @@ def build_policy(env, network_builder, value_network=None, normalize_observation
         encoded_x = encode_observation(ob_space, encoded_x)
 
         if is_recurrent:
-            if nenv is None:
-                nenv = nbatch // nsteps
+            nenv = nbatch // nsteps
             assert nenv > 0, 'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
             policy = network_builder(encoded_x, 'pi', 'vf', value_network == 'copy', nenv=nenv)
         else:
@@ -169,8 +168,7 @@ def build_policy(env, network_builder, value_network=None, normalize_observation
 
         if policy['recurrent_tensors'] is not None and is_recurrent is None:
             # recurrent architecture, need a few more steps
-            if nenv is None:
-                nenv = nbatch // nsteps
+            nenv = nbatch // nsteps
             assert nenv > 0, 'Bad input for recurrent policy: batch size {} smaller than nsteps {}'.format(nbatch, nsteps)
             policy = network_builder(encoded_x, nenv)
             policy = defaultdict(lambda: None, policy)

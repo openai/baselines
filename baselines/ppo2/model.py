@@ -38,9 +38,9 @@ class Model(object):
 
             # Train model for training
             if microbatch_size is None:
-                train_model = policy(nbatch_train, nsteps, sess, nenv=nbatch_act)
+                train_model = policy(nbatch_train, nsteps, sess)
             else:
-                train_model = policy(microbatch_size, nsteps, sess, nenv=nbatch_act)
+                train_model = policy(microbatch_size, nsteps, sess)
 
         # CREATE THE PLACEHOLDERS
         self.A = A = train_model.pdtype.sample_placeholder([None])
