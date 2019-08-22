@@ -61,7 +61,7 @@ class PolicyWithValue(object):
 
         if estimate_q:
             assert isinstance(env.action_space, gym.spaces.Discrete)
-            if vf_head:
+            if vf_head is not None:
                 if vf_head.size[-1] != env.action_space.n:
                     raise RuntimeError('When specifying the Q-function network head (instead of the latent representation), the size of the output must equal the no. of actions.')
                 self.q = vf_head
@@ -69,7 +69,7 @@ class PolicyWithValue(object):
                 self.q = fc(vf_latent, 'q', env.action_space.n)
             self.vf = self.q
         else:
-            if vf_head:
+            if vf_head is not None:
                 if vf_head.size[-1] != 1:
                     raise RuntimeError('Value function must have a single output.')
                 self.vf = vf_head
