@@ -77,6 +77,30 @@ def seq_to_batch(h, flat = False):
         return tf.reshape(tf.concat(axis=1, values=h), [-1, nh])
     else:
         return tf.reshape(tf.stack(values=h, axis=1), [-1])
+def sru_opt(input_tensor, mask_tensor , cell_state_hidden, scope, n_hidden, init_scale=1.0, layer_norm=False):
+    _, n_input = [v.value for v in input_tensor[0].get_shape()]
+    with tf.variable_scope(scope):
+        weight_x = tf.get_variable("WX", [n_input, n_hidden * 4], initializer=ortho_init(init_scale))
+        b_f = tf.get_variable("bf", [n_hidden], initializer=tf.constant_initializer(0.0))
+        b_r = tf.get_variable("bc", [n_hidden], initializer=tf.constant_initializer(0.0))
+    cell_state, _  = tf.split(axis=1, num_or_size_splits=2, value=cell_state_hidden)
+    for idx, (_input, mask) in enumerate(zip(input_tensor, mask_tensor)):
+        cell_state  = cell_state * (1 - mask)
+        w_gates     = tf.matmul(_input, weight_x)
+        x_t, f_t, r_t, con_xt = tf.split(axis=1, num_or_size_splits=4, value=w_gates)
+        # f_t = σ( W_f * x_t + b_f )
+        f_t         = tf.sigmoid(tf.add(f_t,b_f))
+        # r_t = σ( W_r * x_t + b_r )
+        r_t         = tf.sigmoid(tf.add(r_t ,b_r))
+        # c_t = f_t  ⊙ c_(t-1) + (1 - f_t) ⊙ x_t^
+        c_t         = f_t *cell_state + (1 - f_t) * x_t
+        # 线性转换
+        gct         = tf.nn.tanh(c_t)
+        # h_t= r_t  ⊙ g(c_t) + (1 - r_t) ⊙ x_t
+        h_t         = r_t *gct +(1-r_t) *con_xt
+        input_tensor[idx] = h_t
+    cell_state_hidden = tf.concat(axis=1, values=[c_t, c_t])
+    return input_tensor, cell_state_hidden
 
 def lstm(xs, ms, s, scope, nh, init_scale=1.0):
     nbatch, nin = [v.value for v in xs[0].get_shape()]
