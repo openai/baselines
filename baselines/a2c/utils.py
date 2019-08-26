@@ -77,7 +77,7 @@ def seq_to_batch(h, flat = False):
         return tf.reshape(tf.concat(axis=1, values=h), [-1, nh])
     else:
         return tf.reshape(tf.stack(values=h, axis=1), [-1])
-def sru_opt(input_tensor, mask_tensor , cell_state_hidden, scope, n_hidden, init_scale=1.0, layer_norm=False):
+def sru(input_tensor, mask_tensor , cell_state_hidden, scope, n_hidden, init_scale=1.0, layer_norm=False):
     _, n_input = [v.value for v in input_tensor[0].get_shape()]
     with tf.variable_scope(scope):
         weight_x = tf.get_variable("WX", [n_input, n_hidden * 4], initializer=ortho_init(init_scale))
