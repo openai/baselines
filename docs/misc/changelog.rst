@@ -26,6 +26,7 @@ Bug Fixes:
   where OpenMPI would cause stable-baselines to hang on Ubuntu installs.
   See :ref:`installation notes <openmpi>` and
   `Issue #430 <https://github.com/hill-a/stable-baselines/issues/430>`.
+- Fix a bug when calling `logger.configure()` with MPI enabled (@keshaviyengar)
 
 Deprecations:
 ^^^^^^^^^^^^^
