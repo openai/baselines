@@ -144,7 +144,7 @@ You can easily define a custom architecture for the policy network:
   # Custom MLP policy of three layers of size 128 each
   class CustomSACPolicy(FeedForwardPolicy):
       def __init__(self, *args, **kwargs):
-          super(CustomPolicy, self).__init__(*args, **kwargs,
+          super(CustomSACPolicy, self).__init__(*args, **kwargs,
                                              layers=[128, 128, 128],
                                              layer_norm=False,
                                              feature_extraction="mlp")
