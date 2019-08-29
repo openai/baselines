@@ -383,11 +383,6 @@ class DDPG(object):
         else:
             mean_distance = distance
 
-        if MPI is not None:
-            mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
-        else:
-            mean_distance = distance
-
         self.param_noise.adapt(mean_distance)
         return mean_distance
 

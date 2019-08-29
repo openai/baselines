@@ -379,7 +379,8 @@ def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
         dir = osp.join(tempfile.gettempdir(),
             datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
     assert isinstance(dir, str)
-    os.makedirs(dir, exist_ok=True)
+    dir = os.path.expanduser(dir)
+    os.makedirs(os.path.expanduser(dir), exist_ok=True)
 
     rank = get_rank_without_mpi_import()
     if rank > 0:
@@ -394,7 +395,8 @@ def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
     output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats, comm=comm)
-    log('Logging to %s'%dir)
+    if output_formats:
+        log('Logging to %s'%dir)
 
 def _configure_default_logger():
     configure()

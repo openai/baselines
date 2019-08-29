@@ -77,7 +77,7 @@ class Mujoco_Dset(object):
         self.log_info()
 
     def log_info(self):
-        logger.log("Total trajectorues: %d" % self.num_traj)
+        logger.log("Total trajectories: %d" % self.num_traj)
         logger.log("Total transitions: %d" % self.num_transition)
         logger.log("Average returns: %f" % self.avg_ret)
         logger.log("Std for returns: %f" % self.std_ret)
