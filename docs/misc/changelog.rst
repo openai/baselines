@@ -41,6 +41,7 @@ Others:
 Documentation:
 ^^^^^^^^^^^^^^
 - Add WaveRL project (@jaberkow)
+- Add Fenics-DRL project (@DonsetPG)
 
 
 Release 2.7.0 (2019-07-31)
