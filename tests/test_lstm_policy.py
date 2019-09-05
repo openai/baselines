@@ -74,7 +74,7 @@ LSTM_POLICIES = [MlpLstmPolicy, CustomLSTMPolicy1, CustomLSTMPolicy2, CustomLSTM
 @pytest.mark.parametrize("model_class", MODELS)
 @pytest.mark.parametrize("policy", LSTM_POLICIES)
 def test_lstm_policy(request, model_class, policy):
-    model_fname = './test_model_{}.pkl'.format(request.node.name)
+    model_fname = './test_model_{}.zip'.format(request.node.name)
 
     try:
         # create and train

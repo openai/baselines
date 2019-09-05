@@ -89,7 +89,7 @@ def test_custom_policy(request, model_name):
                 model.action_probability(obs)
             obs, _, _, _ = env.step(action)
         # saving
-        model_fname = './test_model_{}.pkl'.format(request.node.name)
+        model_fname = './test_model_{}.zip'.format(request.node.name)
         model.save(model_fname)
         del model, env
         # loading
@@ -107,7 +107,7 @@ def test_custom_policy_kwargs(request, model_name):
     :param model_name: (str) A RL model
     """
 
-    model_fname = './test_model_{}.pkl'.format(request.node.name)
+    model_fname = './test_model_{}.zip'.format(request.node.name)
 
     try:
         model_class, policy, policy_kwargs = MODEL_DICT[model_name]

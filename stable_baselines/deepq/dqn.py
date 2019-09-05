@@ -331,7 +331,7 @@ class DQN(OffPolicyRLModel):
     def get_parameter_list(self):
         return self.params
 
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         # params
         data = {
             "checkpoint_path": self.checkpoint_path,
@@ -361,4 +361,4 @@ class DQN(OffPolicyRLModel):
 
         params_to_save = self.get_parameters()
 
-        self._save_to_file(save_path, data=data, params=params_to_save)
+        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)

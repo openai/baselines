@@ -486,7 +486,7 @@ class TRPO(ActorCriticRLModel):
 
         return self
 
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         if self.using_gail and self.expert_dataset is not None:
             # Exit processes to pickle the dataset
             self.expert_dataset.prepare_pickling()
@@ -518,4 +518,4 @@ class TRPO(ActorCriticRLModel):
 
         params_to_save = self.get_parameters()
 
-        self._save_to_file(save_path, data=data, params=params_to_save)
+        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)

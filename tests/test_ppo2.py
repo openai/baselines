@@ -11,10 +11,10 @@ def test_clipping(cliprange, cliprange_vf):
     """Test the different clipping (policy and vf)"""
     model = PPO2('MlpPolicy', 'CartPole-v1',
                  cliprange=cliprange, cliprange_vf=cliprange_vf).learn(1000)
-    model.save('./ppo2_clip.pkl')
+    model.save('./ppo2_clip.zip')
     env = model.get_env()
-    model = PPO2.load('./ppo2_clip.pkl', env=env)
+    model = PPO2.load('./ppo2_clip.zip', env=env)
     model.learn(1000)
 
-    if os.path.exists('./ppo2_clip.pkl'):
-        os.remove('./ppo2_clip.pkl')
+    if os.path.exists('./ppo2_clip.zip'):
+        os.remove('./ppo2_clip.zip')

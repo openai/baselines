@@ -129,7 +129,7 @@ class HER(BaseRLModel):
     def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
         return self.model.action_probability(self._check_obs(observation), state, mask, actions, logp)
 
-    def _save_to_file(self, save_path, data=None, params=None):
+    def _save_to_file(self, save_path, data=None, params=None, cloudpickle=False):
         # HACK to save the replay wrapper
         # or better to save only the replay strategy and its params?
         # it will not work with VecEnv
@@ -138,14 +138,14 @@ class HER(BaseRLModel):
         data['model_class'] = self.model_class
         data['her_obs_space'] = self.observation_space
         data['her_action_space'] = self.action_space
-        super()._save_to_file(save_path, data, params)
+        super()._save_to_file(save_path, data, params, cloudpickle=cloudpickle)
 
-    def save(self, save_path):
-        self.model.save(save_path)
+    def save(self, save_path, cloudpickle=False):
+        self.model.save(save_path, cloudpickle=cloudpickle)
 
     @classmethod
-    def load(cls, load_path, env=None, **kwargs):
-        data, _ = cls._load_from_file(load_path)
+    def load(cls, load_path, env=None, custom_objects=None, **kwargs):
+        data, _ = cls._load_from_file(load_path, custom_objects=custom_objects)
 
         if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
             raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "

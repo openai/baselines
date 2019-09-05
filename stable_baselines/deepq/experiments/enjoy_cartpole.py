@@ -12,7 +12,7 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("CartPole-v0")
-    model = DQN.load("cartpole_model.pkl", env)
+    model = DQN.load("cartpole_model.zip", env)
 
     while True:
         obs, done = env.reset(), False

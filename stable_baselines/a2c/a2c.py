@@ -272,7 +272,7 @@ class A2C(ActorCriticRLModel):
 
         return self
 
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         data = {
             "gamma": self.gamma,
             "n_steps": self.n_steps,
@@ -294,7 +294,7 @@ class A2C(ActorCriticRLModel):
 
         params_to_save = self.get_parameters()
 
-        self._save_to_file(save_path, data=data, params=params_to_save)
+        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)
 
 
 class A2CRunner(AbstractEnvRunner):

@@ -13,7 +13,7 @@ def main(args):
     :param args: (ArgumentParser) the input arguments
     """
     env = gym.make("MountainCar-v0")
-    model = DQN.load("mountaincar_model.pkl", env)
+    model = DQN.load("mountaincar_model.zip", env)
 
     while True:
         obs, done = env.reset(), False

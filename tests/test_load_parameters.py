@@ -77,7 +77,7 @@ def test_load_parameters(request, model_class):
     # load parameters from file with load_parameters and check if original probabilities
     # are restored
     original_actions_probas = model.action_probability(observations, actions=actions)
-    model_fname = './test_model_{}.pkl'.format(request.node.name)
+    model_fname = './test_model_{}.zip'.format(request.node.name)
 
     try:
         # Save model to a file and file-like buffer

@@ -443,7 +443,7 @@ class TD3(OffPolicyRLModel):
         return (self.params +
                 self.target_params)
 
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         data = {
             "learning_rate": self.learning_rate,
             "buffer_size": self.buffer_size,
@@ -472,4 +472,4 @@ class TD3(OffPolicyRLModel):
 
         params_to_save = self.get_parameters()
 
-        self._save_to_file(save_path, data=data, params=params_to_save)
+        self._save_to_file(save_path, data=data, params=params_to_save, cloudpickle=cloudpickle)

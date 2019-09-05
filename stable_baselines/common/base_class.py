@@ -3,6 +3,8 @@ import os
 import glob
 import warnings
 from collections import OrderedDict
+import json
+import zipfile
 
 import cloudpickle
 import numpy as np
@@ -10,6 +12,9 @@ import gym
 import tensorflow as tf
 
 from stable_baselines.common import set_global_seeds
+from stable_baselines.common.save_util import (
+    is_json_serializable, data_to_json, json_to_data, params_to_bytes, bytes_to_params
+)
 from stable_baselines.common.policies import get_policy_from_name, ActorCriticPolicy
 from stable_baselines.common.vec_env import VecEnvWrapper, VecEnv, DummyVecEnv
 from stable_baselines import logger
@@ -399,8 +404,10 @@ class BaseRLModel(ABC):
                 params[param_name] = load_path_or_dict[i]
         else:
             # Assume a filepath or file-like.
-            # Use existing deserializer to load the parameters
-            _, params = BaseRLModel._load_from_file(load_path_or_dict)
+            # Use existing deserializer to load the parameters.
+            # We only need the parameters part of the file, so 
+            # only load that part.
+            _, params = BaseRLModel._load_from_file(load_path_or_dict, load_data=False)
 
         feed_dict = {}
         param_update_ops = []
@@ -422,29 +429,42 @@ class BaseRLModel(ABC):
         self.sess.run(param_update_ops, feed_dict=feed_dict)
 
     @abstractmethod
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         """
         Save the current parameters to file
 
-        :param save_path: (str or file-like object) the save location
+        :param save_path: (str or file-like) The save location
+        :param cloudpickle: (bool) Use older cloudpickle format instead of zip-archives.
         """
         raise NotImplementedError()
 
     @classmethod
     @abstractmethod
-    def load(cls, load_path, env=None, **kwargs):
+    def load(cls, load_path, env=None, custom_objects=None, **kwargs):
         """
         Load the model from file
 
         :param load_path: (str or file-like) the saved parameter location
         :param env: (Gym Envrionment) the new environment to run the loaded model on
             (can be None if you only need prediction from a trained model)
+        :param custom_objects: (dict) Dictionary of objects to replace
+            upon loading. If a variable is present in this dictionary as a
+            key, it will not be deserialized and the corresponding item
+            will be used instead. Similar to custom_objects in
+            `keras.models.load_model`. Useful when you have an object in
+            file that can not be deserialized.
         :param kwargs: extra arguments to change the model when loading
         """
         raise NotImplementedError()
 
     @staticmethod
-    def _save_to_file(save_path, data=None, params=None):
+    def _save_to_file_cloudpickle(save_path, data=None, params=None):
+        """Legacy code for saving models with cloudpickle
+
+        :param save_path: (str or file-like) Where to store the model
+        :param data: (OrderedDict) Class parameters being stored
+        :param params: (OrderedDict) Model parameters being stored
+        """
         if isinstance(save_path, str):
             _, ext = os.path.splitext(save_path)
             if ext == "":
@@ -457,7 +477,67 @@ class BaseRLModel(ABC):
             cloudpickle.dump((data, params), save_path)
 
     @staticmethod
-    def _load_from_file(load_path):
+    def _save_to_file_zip(save_path, data=None, params=None):
+        """Save model to a .zip archive
+
+        :param save_path: (str or file-like) Where to store the model
+        :param data: (OrderedDict) Class parameters being stored
+        :param params: (OrderedDict) Model parameters being stored
+        """
+        # data/params can be None, so do not
+        # try to serialize them blindly
+        if data is not None:
+            serialized_data = data_to_json(data)
+        if params is not None:
+            serialized_params = params_to_bytes(params)
+            # We also have to store list of the parameters
+            # to store the ordering for OrderedDict.
+            # We can trust these to be strings as they
+            # are taken from the Tensorflow graph.
+            serialized_param_list = json.dumps(
+                list(params.keys()),
+                indent=4
+            )
+
+        # Check postfix if save_path is a string
+        if isinstance(save_path, str):
+            _, ext = os.path.splitext(save_path)
+            if ext == "":
+                save_path += ".zip"
+
+        # Create a zip-archive and write our objects
+        # there. This works when save_path
+        # is either str or a file-like
+        with zipfile.ZipFile(save_path, "w") as file_:
+            # Do not try to save "None" elements
+            if data is not None:
+                file_.writestr("data", serialized_data)
+            if params is not None:
+                file_.writestr("parameters", serialized_params)
+                file_.writestr("parameter_list", serialized_param_list)
+
+    @staticmethod
+    def _save_to_file(save_path, data=None, params=None, cloudpickle=False):
+        """Save model to a zip archive or cloudpickle file.
+
+        :param save_path: (str or file-like) Where to store the model
+        :param data: (OrderedDict) Class parameters being stored
+        :param params: (OrderedDict) Model parameters being stored
+        :param cloudpickle: (bool) Use old cloudpickle format 
+            (stable-baselines<=2.7.0) instead of a zip archive.
+        """
+        if cloudpickle:
+            BaseRLModel._save_to_file_cloudpickle(save_path, data, params)
+        else:
+            BaseRLModel._save_to_file_zip(save_path, data, params)
+
+    @staticmethod
+    def _load_from_file_cloudpickle(load_path):
+        """Legacy code for loading older models stored with cloudpickle
+
+        :param load_path: (str or file-like) where from to load the file
+        :return: (dict, OrderedDict) Class parameters and model parameters
+        """
         if isinstance(load_path, str):
             if not os.path.exists(load_path):
                 if os.path.exists(load_path + ".pkl"):
@@ -465,11 +545,74 @@ class BaseRLModel(ABC):
                 else:
                     raise ValueError("Error: the file {} could not be found".format(load_path))
 
-            with open(load_path, "rb") as file:
-                data, params = cloudpickle.load(file)
+            with open(load_path, "rb") as file_:
+                data, params = cloudpickle.load(file_)
         else:
             # Here load_path is a file-like object, not a path
             data, params = cloudpickle.load(load_path)
+
+        return data, params
+
+    @staticmethod
+    def _load_from_file(load_path, load_data=True, custom_objects=None):
+        """Load model data from a .zip archive
+
+        :param load_path: (str or file-like) Where to load model from
+        :param load_data: (bool) Whether we should load and return data
+            (class parameters). Mainly used by `load_parameters` to 
+            only load model parameters (weights). 
+        :param custom_objects: (dict) Dictionary of objects to replace
+            upon loading. If a variable is present in this dictionary as a
+            key, it will not be deserialized and the corresponding item
+            will be used instead. Similar to custom_objects in
+            `keras.models.load_model`. Useful when you have an object in
+            file that can not be deserialized.
+        :return: (dict, OrderedDict) Class parameters and model parameters
+        """
+        # Check if file exists if load_path is
+        # a string
+        if isinstance(load_path, str):
+            if not os.path.exists(load_path):
+                if os.path.exists(load_path + ".zip"):
+                    load_path += ".zip"
+                else:
+                    raise ValueError("Error: the file {} could not be found".format(load_path))
+
+        # Open the zip archive and load data.
+        try:
+            with zipfile.ZipFile(load_path, "r") as file_:
+                namelist = file_.namelist()
+                # If data or parameters is not in the
+                # zip archive, assume they were stored
+                # as None (_save_to_file allows this).
+                data = None
+                params = None
+                if "data" in namelist and load_data:
+                    # Load class parameters and convert to string
+                    # (Required for json library in Python 3.5)
+                    json_data = file_.read("data").decode()
+                    data = json_to_data(json_data, custom_objects=custom_objects)
+
+                if "parameters" in namelist:
+                    # Load parameter list and and parameters
+                    parameter_list_json = file_.read("parameter_list").decode()
+                    parameter_list = json.loads(parameter_list_json)
+                    serialized_params = file_.read("parameters")
+                    params = bytes_to_params(
+                        serialized_params, parameter_list
+                    )
+        except zipfile.BadZipFile:
+            # load_path wasn't a zip file. Possibly a cloudpickle
+            # file. Show a warning and fall back to loading cloudpickle.
+            warnings.warn("It appears you are loading from a file with old format. " +
+                          "Older cloudpickle format has been replaced with zip-archived " +
+                          "models. Consider saving the model with new format.",
+                          DeprecationWarning)
+            # Attempt loading with the cloudpickle format.
+            # If load_path is file-like, seek back to beginning of file
+            if not isinstance(load_path, str):
+                load_path.seek(0)
+            data, params = BaseRLModel._load_from_file_cloudpickle(load_path)
 
         return data, params
 
@@ -674,20 +817,26 @@ class ActorCriticRLModel(BaseRLModel):
         return self.params
 
     @abstractmethod
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         pass
 
     @classmethod
-    def load(cls, load_path, env=None, **kwargs):
+    def load(cls, load_path, env=None, custom_objects=None, **kwargs):
         """
         Load the model from file
 
         :param load_path: (str or file-like) the saved parameter location
         :param env: (Gym Envrionment) the new environment to run the loaded model on
             (can be None if you only need prediction from a trained model)
+        :param custom_objects: (dict) Dictionary of objects to replace
+            upon loading. If a variable is present in this dictionary as a
+            key, it will not be deserialized and the corresponding item
+            will be used instead. Similar to custom_objects in
+            `keras.models.load_model`. Useful when you have an object in
+            file that can not be deserialized.
         :param kwargs: extra arguments to change the model when loading
         """
-        data, params = cls._load_from_file(load_path)
+        data, params = cls._load_from_file(load_path, custom_objects=custom_objects)
 
         if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
             raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "
@@ -743,20 +892,26 @@ class OffPolicyRLModel(BaseRLModel):
         pass
 
     @abstractmethod
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         pass
 
     @classmethod
-    def load(cls, load_path, env=None, **kwargs):
+    def load(cls, load_path, env=None, custom_objects=None, **kwargs):
         """
         Load the model from file
 
         :param load_path: (str or file-like) the saved parameter location
         :param env: (Gym Envrionment) the new environment to run the loaded model on
             (can be None if you only need prediction from a trained model)
+        :param custom_objects: (dict) Dictionary of objects to replace
+            upon loading. If a variable is present in this dictionary as a
+            key, it will not be deserialized and the corresponding item
+            will be used instead. Similar to custom_objects in
+            `keras.models.load_model`. Useful when you have an object in
+            file that can not be deserialized.
         :param kwargs: extra arguments to change the model when loading
         """
-        data, params = cls._load_from_file(load_path)
+        data, params = cls._load_from_file(load_path, custom_objects=custom_objects)
 
         if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
             raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "

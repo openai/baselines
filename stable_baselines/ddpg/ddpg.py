@@ -1059,7 +1059,7 @@ class DDPG(OffPolicyRLModel):
                 self.obs_rms_params +
                 self.ret_rms_params)
 
-    def save(self, save_path):
+    def save(self, save_path, cloudpickle=False):
         data = {
             "observation_space": self.observation_space,
             "action_space": self.action_space,
@@ -1096,11 +1096,12 @@ class DDPG(OffPolicyRLModel):
 
         self._save_to_file(save_path,
                            data=data,
-                           params=params_to_save)
+                           params=params_to_save,
+                           cloudpickle=cloudpickle)
 
     @classmethod
-    def load(cls, load_path, env=None, **kwargs):
-        data, params = cls._load_from_file(load_path)
+    def load(cls, load_path, env=None, custom_objects=None, **kwargs):
+        data, params = cls._load_from_file(load_path, custom_objects=custom_objects)
 
         if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
             raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "

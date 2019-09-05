@@ -26,8 +26,8 @@ def main(args):
     )
     model.learn(total_timesteps=args.max_timesteps)
 
-    print("Saving model to mountaincar_model.pkl")
-    model.save("mountaincar_model.pkl")
+    print("Saving model to mountaincar_model.zip")
+    model.save("mountaincar_model")
 
 
 if __name__ == '__main__':

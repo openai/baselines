@@ -40,8 +40,8 @@ def main(args):
     )
     model.learn(total_timesteps=args.max_timesteps, callback=callback)
 
-    print("Saving model to cartpole_model.pkl")
-    model.save("cartpole_model.pkl")
+    print("Saving model to cartpole_model.zip")
+    model.save("cartpole_model.zip")
 
 
 if __name__ == '__main__':

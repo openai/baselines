@@ -79,14 +79,14 @@ def test_model_manipulation(model_class, goal_selection_strategy):
 
     model_predict(model, env, n_steps=100, additional_check=None)
 
-    model.save('./test_her')
+    model.save('./test_her.zip')
     del model
 
     # NOTE: HER does not support VecEnvWrapper yet
     with pytest.raises(AssertionError):
-        model = HER.load('./test_her', env=VecNormalize(env))
+        model = HER.load('./test_her.zip', env=VecNormalize(env))
 
-    model = HER.load('./test_her')
+    model = HER.load('./test_her.zip')
 
     # Check that the model raises an error when the env
     # is not wrapped (or no env passed to the model)
@@ -115,5 +115,5 @@ def test_model_manipulation(model_class, goal_selection_strategy):
 
     assert model.n_sampled_goal == 3
 
-    if os.path.isfile('./test_her.pkl'):
-        os.remove('./test_her.pkl')
+    if os.path.isfile('./test_her.zip'):
+        os.remove('./test_her.zip')
