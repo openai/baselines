@@ -91,7 +91,7 @@ Also, when a bug fix is proposed, tests should be added to avoid regression.
 To run tests:
 
 ```
-./run_tests.sh
+./scripts/run_tests.sh
 ```
 
 ## Changelog and Documentation

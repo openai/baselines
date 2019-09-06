@@ -265,7 +265,11 @@ def test_vecenv_tuple_spaces(vec_env_class):
 
 
 def test_subproc_start_method():
-    start_methods = [None] + multiprocessing.get_all_start_methods()
+    start_methods = [None]
+    # Only test thread-safe methods. Others may deadlock tests! (gh/428)
+    safe_methods = {'forkserver', 'spawn'}
+    available_methods = multiprocessing.get_all_start_methods()
+    start_methods += list(safe_methods.intersection(available_methods))
     space = gym.spaces.Discrete(2)
 
     def obs_assert(obs):

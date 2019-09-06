@@ -72,7 +72,7 @@ def test_generate(generate_env):
         if key != 'episode_returns':
             assert val.shape[0] == n_timesteps, "inconsistent number of timesteps at '{}'".format(key)
 
-    dataset_loaded = np.load('expert.npz')
+    dataset_loaded = np.load('expert.npz', allow_pickle=True)
     assert dataset.keys() == dataset_loaded.keys()
     for key in dataset.keys():
         assert (dataset[key] == dataset_loaded[key]).all(), "different data at '{}'".format(key)

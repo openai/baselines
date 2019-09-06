@@ -2,6 +2,10 @@ language: python
 python:
   - "3.5"
 
+env:
+  global:
+    - DOCKER_IMAGE=araffin/stable-baselines-cpu:v2.7.1
+
 notifications:
   email: false
 
@@ -9,16 +13,32 @@ services:
   - docker
 
 install:
-  - docker pull araffin/stable-baselines-cpu
+  - docker pull ${DOCKER_IMAGE}
 
-matrix:
+script:
+  - ./scripts/run_tests_travis.sh "${TEST_GLOB}"
+
+jobs:
   include:
-    - name: "Unit Tests"
-      script:
-        # For pull requests from fork, Codacy token is not available, leading to build failure
-        - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then docker run -it --rm --network host --ipc=host --mount src=$(pwd),target=/root/code/stable-baselines,type=bind araffin/stable-baselines-cpu bash -c "cd /root/code/stable-baselines/ && pytest --cov-config .coveragerc --cov-report term --cov=. -v tests/"; fi'
-        - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker run -it --env CODACY_PROJECT_TOKEN=$CODACY_PROJECT_TOKEN --rm --network host --ipc=host --mount src=$(pwd),target=/root/code/stable-baselines,type=bind araffin/stable-baselines-cpu bash -c "cd /root/code/stable-baselines/ && pytest --cov-config .coveragerc --cov-report term --cov-report xml --cov=. -v tests/ && python-codacy-coverage -r coverage.xml --token=$CODACY_PROJECT_TOKEN"; fi'
+    # Big test suite. Run in parallel to decrease wall-clock time, and to avoid OOM error from leaks
+    - stage: Test
+      name: "Unit Tests a-h"
+      env: TEST_GLOB="[a-h]*"
+
+    - name: "Unit Tests i-l"
+      env: TEST_GLOB="[i-l]*"
+
+    - name: "Unit Tests m-sa"
+      env: TEST_GLOB="{[m-r]*,sa*}"
+
+    - name: "Unit Tests sb-z"
+      env: TEST_GLOB="{s[b-z]*,[t-z]*}"
 
     - name: "Sphinx Documentation"
       script:
-        - 'docker run -it --rm --mount src=$(pwd),target=/root/code/stable-baselines,type=bind araffin/stable-baselines-cpu bash -c "cd /root/code/stable-baselines/ && pip install .[docs] && pushd docs/ && make clean && make html"'
+        - 'docker run -it --rm --mount src=$(pwd),target=/root/code/stable-baselines,type=bind ${DOCKER_IMAGE} bash -c "cd /root/code/stable-baselines/ && pip install .[docs] && pushd docs/ && make clean && make html"'
+
+    - stage: Codacy Trigger
+      script:
+        # When all test coverage reports have been uploaded, instruct Codacy to start analysis.
+        - 'docker run -it --rm --network host --ipc=host --mount src=$(pwd),target=/root/code/stable-baselines,type=bind --env CODACY_PROJECT_TOKEN=${CODACY_PROJECT_TOKEN} ${DOCKER_IMAGE} bash -c "cd /root/code/stable-baselines/ && /root/code/codacy-coverage-reporter final"'

@@ -38,7 +38,7 @@ class ExpertDataset(object):
         if traj_data is None and expert_path is None:
             raise ValueError("Must specify one of 'traj_data' or 'expert_path'")
         if traj_data is None:
-            traj_data = np.load(expert_path)
+            traj_data = np.load(expert_path, allow_pickle=True)
 
         if verbose > 0:
             for key, val in traj_data.items():

@@ -16,6 +16,11 @@ Breaking Changes:
   OpenMPI-dependent algorithms.
   See :ref:`installation notes <openmpi>` and
   `Issue #430 <https://github.com/hill-a/stable-baselines/issues/430>`.
+- SubprocVecEnv now defaults to a thread-safe start method, `forkserver` when
+  available and otherwise `spawn`. This may require application code be
+  wrapped in `if __name__ == '__main__'`. You can restore previous behavior
+  by explicitly setting `start_method = 'fork'`. See
+  `PR #428 <https://github.com/hill-a/stable-baselines/pull/428>`_.
 
 New Features:
 ^^^^^^^^^^^^^
@@ -49,6 +54,34 @@ Documentation:
 - Add WaveRL project (@jaberkow)
 - Add Fenics-DRL project (@DonsetPG)
 - Fix and rename custom policy names (@eavelardev)
+
+
+
+Pre-Release 2.7.1a0 (WIP)
+--------------------------
+
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- updated dependencies: tensorflow v1.8.0 is now required
+
+New Features:
+^^^^^^^^^^^^^
+
+Bug Fixes:
+^^^^^^^^^^
+- set `allow_pickle=True` for numpy>=1.17.0 when loading expert dataset
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- docker images were updated
+
+Documentation:
+^^^^^^^^^^^^^^
+
 
 
 Release 2.7.0 (2019-07-31)
