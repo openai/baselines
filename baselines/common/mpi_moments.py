@@ -12,8 +12,9 @@ def mpi_mean(x, axis=0, comm=None, keepdims=False):
     localsum = np.zeros(n+1, x.dtype)
     localsum[:n] = xsum.ravel()
     localsum[n] = x.shape[axis]
-    globalsum = np.zeros_like(localsum)
-    comm.Allreduce(localsum, globalsum, op=MPI.SUM)
+    # globalsum = np.zeros_like(localsum)
+    # comm.Allreduce(localsum, globalsum, op=MPI.SUM)
+    globalsum = comm.allreduce(localsum, op=MPI.SUM)
     return globalsum[:n].reshape(xsum.shape) / globalsum[n], globalsum[n]
 
 def mpi_moments(x, axis=0, comm=None, keepdims=False):
