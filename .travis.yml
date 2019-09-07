@@ -39,6 +39,7 @@ jobs:
         - 'docker run -it --rm --mount src=$(pwd),target=/root/code/stable-baselines,type=bind ${DOCKER_IMAGE} bash -c "cd /root/code/stable-baselines/ && pip install .[docs] && pushd docs/ && make clean && make html"'
 
     - stage: Codacy Trigger
+      if: type != pull_request
       script:
         # When all test coverage reports have been uploaded, instruct Codacy to start analysis.
         - 'docker run -it --rm --network host --ipc=host --mount src=$(pwd),target=/root/code/stable-baselines,type=bind --env CODACY_PROJECT_TOKEN=${CODACY_PROJECT_TOKEN} ${DOCKER_IMAGE} bash -c "cd /root/code/stable-baselines/ && /root/code/codacy-coverage-reporter final"'
