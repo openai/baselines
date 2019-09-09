@@ -12,10 +12,10 @@ extras = {
         'filelock',
         'pytest',
         'pytest-forked',
-        'atari-py'
+        'atari-py~=0.2.0'
     ],
     'bullet': [
-        'pybullet',
+        'pybullet'
     ],
     'mpi': [
         'mpi4py'
@@ -32,8 +32,8 @@ setup(name='baselines',
       packages=[package for package in find_packages()
                 if package.startswith('baselines')],
       install_requires=[
-          'tf-nightly-2.0-preview',
-          'gym',
+          'tensorflow>=2.0.0a0',
+          'gym<0.14', # run.py: line 34: env_type = env._entry_point.split(':')[0].split('.')[-1]
           'scipy',
           'tqdm',
           'joblib',
