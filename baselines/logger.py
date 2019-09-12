@@ -171,7 +171,36 @@ class TensorBoardOutputFormat(KVWriter):
             self.writer.Close()
             self.writer = None
 
-def make_output_format(format, ev_dir, log_suffix=''):
+
+class WandbOutputFormat(KVWriter):
+    """
+    Uploads key/value pairs to the wandb service for logging (wandb.com).
+    """
+    def __init__(self, project_name='baselines', model_name='', args=None, **kwargs):
+        """
+        Constructor of the WandbOutputFormat logger.
+        :param project_name: Project name for the wandb service.
+        :param model_name: Name of the experiment.
+        :param args: arguments and hyperparameters to be attached to the experiment
+        """
+        import wandb
+        resume_wandb = True if args and args.wandb_resume_id is not None else False
+        wandb_resume_id = args.wandb_resume_id if resume_wandb else None
+        wandb.init(config=args, resume=resume_wandb, id=wandb_resume_id, project=project_name, name=model_name)
+        self.step = 1
+
+    def writekvs(self, kvs):
+        import wandb
+        for k, v in sorted(kvs.items()):
+            if hasattr(v, 'dtype'):
+                kvs[k] = float(v)
+        wandb.log(kvs)
+
+    def close(self):
+        pass
+
+
+def make_output_format(format, ev_dir, log_suffix='', **kwargs):
     os.makedirs(ev_dir, exist_ok=True)
     if format == 'stdout':
         return HumanOutputFormat(sys.stdout)
@@ -183,6 +212,8 @@ def make_output_format(format, ev_dir, log_suffix=''):
         return CSVOutputFormat(osp.join(ev_dir, 'progress%s.csv' % log_suffix))
     elif format == 'tensorboard':
         return TensorBoardOutputFormat(osp.join(ev_dir, 'tb%s' % log_suffix))
+    elif format == 'wandb':
+        return WandbOutputFormat(**kwargs)
     else:
         raise ValueError('Unknown format specified: %s' % (format,))
 
@@ -369,7 +400,7 @@ def get_rank_without_mpi_import():
     return 0
 
 
-def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
+def configure(dir=None, format_strs=None, comm=None, log_suffix='', **kwargs):
     """
     If comm is provided, average all numerical stats across that comm
     """
@@ -392,7 +423,7 @@ def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
         else:
             format_strs = os.getenv('OPENAI_LOG_FORMAT_MPI', 'log').split(',')
     format_strs = filter(None, format_strs)
-    output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
+    output_formats = [make_output_format(format=f, ev_dir=dir, log_suffix=log_suffix, **kwargs) for f in format_strs]
 
     Logger.CURRENT = Logger(dir=dir, output_formats=output_formats, comm=comm)
     if output_formats:
