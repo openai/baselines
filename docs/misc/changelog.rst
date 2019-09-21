@@ -21,12 +21,14 @@ Breaking Changes:
   wrapped in `if __name__ == '__main__'`. You can restore previous behavior
   by explicitly setting `start_method = 'fork'`. See
   `PR #428 <https://github.com/hill-a/stable-baselines/pull/428>`_.
-- updated dependencies: tensorflow v1.8.0 is now required
+- Updated dependencies: tensorflow v1.8.0 is now required
+- Remove `checkpoint_path` and `checkpoint_freq` argument from `DQN` that were not used
 
 New Features:
 ^^^^^^^^^^^^^
 - **important change** Switch to using zip-archived JSON and Numpy `savez` for
   storing models for better support across library/Python versions. (@Miffyli)
+- Add `double_q` argument to `DQN` constructor
 
 Bug Fixes:
 ^^^^^^^^^^

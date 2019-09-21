@@ -27,7 +27,16 @@ and its extensions (Double-DQN, Dueling-DQN, Prioritized Experience Replay).
 Notes
 -----
 
-- Original paper: https://arxiv.org/abs/1312.5602
+- DQN paper: https://arxiv.org/abs/1312.5602
+- Dueling DQN: https://arxiv.org/abs/1511.06581
+- Double-Q Learning: https://arxiv.org/abs/1509.06461
+- Prioritized Experience Replay: https://arxiv.org/abs/1511.05952
+
+.. note::
+
+    By default, the DQN class has double q learning and dueling extensions enabled.
+    See `Issue #406 <https://github.com/hill-a/stable-baselines/issues/406>`_ for disabling dueling.
+    To disable double-q learning, you can change the default value in the constructor.
 
 
 Can I use?
@@ -60,7 +69,6 @@ Example
   from stable_baselines import DQN
 
   env = gym.make('CartPole-v1')
-  env = DummyVecEnv([lambda: env])
 
   model = DQN(MlpPolicy, env, verbose=1)
   model.learn(total_timesteps=25000)
