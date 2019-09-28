@@ -55,8 +55,8 @@ class VecCheckNan(VecEnvWrapper):
 
         found = []
         for name, val in kwargs.items():
-            has_nan = any(np.isnan(val))
-            has_inf = self.check_inf and any(np.isinf(val))
+            has_nan = np.any(np.isnan(val))
+            has_inf = self.check_inf and np.any(np.isinf(val))
             if has_inf:
                 found.append((name, "inf"))
             if has_nan:
