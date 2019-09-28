@@ -32,8 +32,7 @@ setup(name='baselines',
       packages=[package for package in find_packages()
                 if package.startswith('baselines')],
       install_requires=[
-          'tensorflow>=2.0.0a0',
-          'gym<0.14', # run.py: line 34: env_type = env._entry_point.split(':')[0].split('.')[-1]
+          'gym<0.14',
           'scipy',
           'tqdm',
           'joblib',
@@ -50,3 +49,14 @@ setup(name='baselines',
       author_email='gym@openai.com',
       version='0.1.5')
 
+# ensure there is some tensorflow build with version above 2.0
+import pkg_resources
+tf_pkg = None
+for tf_pkg_name in ['tensorflow', 'tensorflow-gpu', 'tf-nightly', 'tf-nightly-gpu']:
+    try:
+        tf_pkg = pkg_resources.get_distribution(tf_pkg_name)
+    except pkg_resources.DistributionNotFound:
+        pass
+assert tf_pkg is not None, 'TensorFlow needed, of version above 2.0'
+from distutils.version import LooseVersion
+assert LooseVersion(re.sub(r'-?rc\d+$', '', tf_pkg.version)) >= LooseVersion('2.0.0')
