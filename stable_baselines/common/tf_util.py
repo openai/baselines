@@ -1,14 +1,10 @@
-import copy
 import os
-import functools
 import collections
+import functools
 import multiprocessing
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.client import device_lib
-
-from stable_baselines import logger
 
 
 def is_image(tensor):
@@ -22,43 +18,6 @@ def is_image(tensor):
     """
 
     return len(tensor.shape) == 3 and tensor.shape[-1] in [1, 3, 4]
-
-
-def switch(condition, then_expression, else_expression):
-    """
-    Switches between two operations depending on a scalar value (int or bool).
-    Note that both `then_expression` and `else_expression`
-    should be symbolic tensors of the *same shape*.
-
-    :param condition: (TensorFlow Tensor) scalar tensor.
-    :param then_expression: (TensorFlow Operation)
-    :param else_expression: (TensorFlow Operation)
-    :return: (TensorFlow Operation) the switch output
-    """
-    x_shape = copy.copy(then_expression.get_shape())
-    out_tensor = tf.cond(tf.cast(condition, 'bool'),
-                         lambda: then_expression,
-                         lambda: else_expression)
-    out_tensor.set_shape(x_shape)
-    return out_tensor
-
-
-# ================================================================
-# Extras
-# ================================================================
-
-def leaky_relu(tensor, leak=0.2):
-    """
-    Leaky ReLU
-    http://web.stanford.edu/~awni/papers/relu_hybrid_icml2013_final.pdf
-
-    :param tensor: (float) the input value
-    :param leak: (float) the leaking coeficient when the function is saturated
-    :return: (float) Leaky ReLU output
-    """
-    f_1 = 0.5 * (1 + leak)
-    f_2 = 0.5 * (1 - leak)
-    return f_1 * tensor + f_2 * abs(tensor)
 
 
 # ================================================================
@@ -148,70 +107,6 @@ def initialize(sess=None):
     new_variables = set(tf.global_variables()) - ALREADY_INITIALIZED
     sess.run(tf.variables_initializer(new_variables))
     ALREADY_INITIALIZED.update(new_variables)
-
-
-# ================================================================
-# Model components
-# ================================================================
-
-def normc_initializer(std=1.0, axis=0):
-    """
-    Return a parameter initializer for TensorFlow
-
-    :param std: (float) standard deviation
-    :param axis: (int) the axis to normalize on
-    :return: (function)
-    """
-
-    def _initializer(shape, dtype=None, partition_info=None):
-        out = np.random.randn(*shape).astype(np.float32)
-        out *= std / np.sqrt(np.square(out).sum(axis=axis, keepdims=True))
-        return tf.constant(out)
-
-    return _initializer
-
-
-def conv2d(input_tensor, num_filters, name, filter_size=(3, 3), stride=(1, 1),
-           pad="SAME", dtype=tf.float32, collections=None, summary_tag=None):
-    """
-    Creates a 2d convolutional layer for TensorFlow
-
-    :param input_tensor: (TensorFlow Tensor) The input tensor for the convolution
-    :param num_filters: (int) The number of filters
-    :param name: (str) The TensorFlow variable scope
-    :param filter_size: (tuple) The filter size
-    :param stride: (tuple) The stride of the convolution
-    :param pad: (str) The padding type ('VALID' or 'SAME')
-    :param dtype: (type) The data type for the Tensors
-    :param collections: (list) List of graph collections keys to add the Variable to
-    :param summary_tag: (str) image summary name, can be None for no image summary
-    :return: (TensorFlow Tensor) 2d convolutional layer
-    """
-    with tf.variable_scope(name):
-        stride_shape = [1, stride[0], stride[1], 1]
-        filter_shape = [filter_size[0], filter_size[1], int(input_tensor.get_shape()[3]), num_filters]
-
-        # there are "num input feature maps * filter height * filter width"
-        # inputs to each hidden unit
-        fan_in = intprod(filter_shape[:3])
-        # each unit in the lower layer receives a gradient from:
-        # "num output feature maps * filter height * filter width" /
-        #   pooling size
-        fan_out = intprod(filter_shape[:2]) * num_filters
-        # initialize weights with random weights
-        w_bound = np.sqrt(6. / (fan_in + fan_out))
-
-        weight = tf.get_variable("W", filter_shape, dtype, tf.random_uniform_initializer(-w_bound, w_bound),
-                                 collections=collections)
-        bias = tf.get_variable("b", [1, 1, 1, num_filters], initializer=tf.zeros_initializer(),
-                               collections=collections)
-
-        if summary_tag is not None:
-            tf.summary.image(summary_tag,
-                             tf.transpose(tf.reshape(weight, [filter_size[0], filter_size[1], -1, 1]), [2, 0, 1, 3]),
-                             max_outputs=10)
-
-        return tf.nn.conv2d(input_tensor, weight, stride_shape, pad) + bias
 
 
 # ================================================================
@@ -401,87 +296,6 @@ class GetFlat(object):
             return tf.get_default_session().run(self.operation)
         else:
             return self.sess.run(self.operation)
-
-
-def flattenallbut0(tensor):
-    """
-    flatten all the dimension, except from the first one
-
-    :param tensor: (TensorFlow Tensor) the input tensor
-    :return: (TensorFlow Tensor) the flattened tensor
-    """
-    return tf.reshape(tensor, [-1, intprod(tensor.get_shape().as_list()[1:])])
-
-
-# ================================================================
-# Diagnostics
-# ================================================================
-
-def display_var_info(_vars):
-    """
-    log variable information, for debug purposes
-
-    :param _vars: ([TensorFlow Tensor]) the variables
-    """
-    count_params = 0
-    for _var in _vars:
-        name = _var.name
-        if "/Adam" in name or "beta1_power" in name or "beta2_power" in name:
-            continue
-        v_params = np.prod(_var.shape.as_list())
-        count_params += v_params
-        if "/b:" in name or "/biases" in name:
-            continue  # Wx+b, bias is not interesting to look at => count params, but not print
-        logger.info("   %s%s %i params %s" % (name, " " * (55 - len(name)), v_params, str(_var.shape)))
-
-    logger.info("Total model parameters: %0.2f million" % (count_params * 1e-6))
-
-
-# ================================================================
-# Saving variables
-# ================================================================
-
-def load_state(fname, sess=None, var_list=None):
-    """
-    Load a TensorFlow saved model
-
-    :param fname: (str) the graph name
-    :param sess: (TensorFlow Session) the session, if None: get_default_session()
-    :param var_list: ([TensorFlow Tensor] or dict(str: TensorFlow Tensor)) A list of Variable/SaveableObject,
-        or a dictionary mapping names to SaveableObject`s. If ``None``, defaults to the list of all saveable objects.
-    """
-    if sess is None:
-        sess = tf.get_default_session()
-
-    # avoir crashing when loading the direct name without explicitly adding the root folder
-    if os.path.dirname(fname) == '':
-        fname = os.path.join('./', fname)
-
-    saver = tf.train.Saver(var_list=var_list)
-    saver.restore(sess, fname)
-
-
-def save_state(fname, sess=None, var_list=None):
-    """
-    Save a TensorFlow model
-
-    :param fname: (str) the graph name
-    :param sess: (TensorFlow Session) The tf session, if None, get_default_session()
-    :param var_list: ([TensorFlow Tensor] or dict(str: TensorFlow Tensor)) A list of Variable/SaveableObject,
-        or a dictionary mapping names to SaveableObject`s. If ``None``, defaults to the list of all saveable objects.
-    """
-    if sess is None:
-        sess = tf.get_default_session()
-
-    dir_name = os.path.dirname(fname)
-    # avoir crashing when saving the direct name without explicitly adding the root folder
-    if dir_name == '':
-        dir_name = './'
-        fname = os.path.join(dir_name, fname)
-    os.makedirs(dir_name, exist_ok=True)
-
-    saver = tf.train.Saver(var_list=var_list)
-    saver.save(sess, fname)
 
 
 # ================================================================

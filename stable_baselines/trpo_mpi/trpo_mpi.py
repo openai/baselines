@@ -178,6 +178,7 @@ class TRPO(ActorCriticRLModel):
                         start += var_size
                     gvp = tf.add_n([tf.reduce_sum(grad * tangent)
                                     for (grad, tangent) in zipsame(klgrads, tangents)])  # pylint: disable=E1111
+                    # Fisher vector products
                     fvp = tf_util.flatgrad(gvp, var_list)
 
                     tf.summary.scalar('entropy_loss', meanent)

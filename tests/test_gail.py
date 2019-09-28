@@ -106,7 +106,7 @@ def test_pretrain_images():
     del dataset, model, env
 
 
-@pytest.mark.parametrize("model_class", [A2C, GAIL, DDPG, PPO1, PPO2, SAC, TD3, TRPO])
+@pytest.mark.parametrize("model_class", [A2C, ACKTR, GAIL, DDPG, PPO1, PPO2, SAC, TD3, TRPO])
 def test_behavior_cloning_box(model_class):
     """
     Behavior cloning with continuous actions.

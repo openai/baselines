@@ -5,10 +5,9 @@ import gym
 import pytest
 import numpy as np
 
-from stable_baselines import A2C, SAC, DDPG, PPO1, PPO2, TRPO, TD3
+from stable_baselines import A2C, ACKTR, SAC, DDPG, PPO1, PPO2, TRPO, TD3
 # TODO: add support for continuous actions
 # from stable_baselines.acer import ACER
-# from stable_baselines.acktr import ACKTR
 from stable_baselines.common import set_global_seeds
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common.identity_env import IdentityEnvBox
@@ -22,7 +21,7 @@ NUM_TIMESTEPS = 15000
 MODEL_LIST = [
     A2C,
     # ACER,
-    # ACKTR,
+    ACKTR,
     DDPG,
     PPO1,
     PPO2,
