@@ -48,15 +48,15 @@ The master branch supports Tensorflow from version 1.4 to 1.14. For Tensorflow 2
     git clone https://github.com/openai/baselines.git
     cd baselines
     ```
-- If you don't have TensorFlow installed already, install your favourite flavor of TensorFlow. In most cases, 
+- If you don't have TensorFlow installed already, install your favourite flavor of TensorFlow. In most cases, you may use
     ```bash 
-    pip install tensorflow-gpu # if you have a CUDA-compatible gpu and proper drivers
+    pip install tensorflow-gpu==1.14 # if you have a CUDA-compatible gpu and proper drivers
     ```
     or 
     ```bash
-    pip install tensorflow
+    pip install tensorflow==1.14
     ```
-    should be sufficient. Refer to [TensorFlow installation guide](https://www.tensorflow.org/install/)
+    to install Tensorflow 1.14, which is the latest version of Tensorflow supported by the master branch. Refer to [TensorFlow installation guide](https://www.tensorflow.org/install/)
     for more details. 
 
 - Install baselines package
