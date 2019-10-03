@@ -26,6 +26,7 @@ Others:
 
 Documentation:
 ^^^^^^^^^^^^^^
+- Add Snake Game AI project (@pedrohbtp)
 
 
 Release 2.8.0 (2019-09-29)

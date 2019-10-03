@@ -136,3 +136,14 @@ Designing an autonomous robot to perform a task involves interactions between va
 | Github: https://github.com/harvard-edge/airlearning
 | Paper: https://arxiv.org/pdf/1906.00421.pdf
 | Video: https://www.youtube.com/watch?v=oakzGnh7Llw (Simulation), https://www.youtube.com/watch?v=cvO5YOzI0mg (on a CrazyFlie Nano-Drone)
+
+
+Snake Game AI
+--------------------------
+AI to play the classic snake game. 
+The game was trained using PPO2 available from stable-baselines and
+then exported to tensorflowjs to run directly on the browser
+
+| Author: Pedro Torres (@pedrohbtp)
+| Repository: https://github.com/pedrohbtp/snake-rl
+| Website: https://www.pedro-torres.com/snake-rl/
