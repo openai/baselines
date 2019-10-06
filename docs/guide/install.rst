@@ -10,6 +10,12 @@ Baselines requires python3 (>=3.5) with the development headers. You'll
 also need system packages CMake, OpenMPI and zlib. Those can be
 installed as follows
 
+.. note::
+
+	Stable-Baselines supports Tensorflow versions from 1.8.0 to 1.14.0, and does not work on
+	Tensorflow versions 2.0.0 and above. Support for Tensorflow 2 API is planned.
+
+
 Ubuntu
 ~~~~~~
 
