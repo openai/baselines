@@ -42,6 +42,7 @@ def learn(network, env,
           tau=0.01,
           eval_env=None,
           param_noise_adaption_interval=50,
+          load_path=None,
           **network_kwargs):
 
     set_global_seeds(seed)
@@ -99,6 +100,8 @@ def learn(network, env,
     sess = U.get_session()
     # Prepare everything.
     agent.initialize(sess)
+    if load_path is not None:
+        agent.load(load_path)
     sess.graph.finalize()
 
     agent.reset()
