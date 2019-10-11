@@ -34,6 +34,9 @@ jobs:
     - name: "Unit Tests sb-z"
       env: TEST_GLOB="{s[b-z]*,[t-z]*}"
 
+    - name: "Unit Tests determinism"
+      env: TEST_GLOB="0deterministic.py"
+
     - name: "Sphinx Documentation"
       script:
         - 'docker run -it --rm --mount src=$(pwd),target=/root/code/stable-baselines,type=bind ${DOCKER_IMAGE} bash -c "cd /root/code/stable-baselines/ && pip install .[docs] && pushd docs/ && make clean && make html"'

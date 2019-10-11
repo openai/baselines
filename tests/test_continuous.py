@@ -45,7 +45,7 @@ def test_model_manipulation(request, model_class):
 
         # create and train
         model = model_class(policy="MlpPolicy", env=env)
-        model.learn(total_timesteps=NUM_TIMESTEPS, seed=0)
+        model.learn(total_timesteps=NUM_TIMESTEPS)
 
         # predict and measure the acc reward
         acc_reward = 0
@@ -115,7 +115,7 @@ def test_model_manipulation(request, model_class):
             "Error: the prediction seems to have changed between loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=100, seed=0)
+        model.learn(total_timesteps=100)
 
         # validate no reset post learning
         # This test was failing from time to time for no good reason

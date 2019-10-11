@@ -30,9 +30,16 @@ class BaseRLModel(ABC):
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param requires_vec_env: (bool) Does this model require a vectorized environment
     :param policy_base: (BasePolicy) the base policy used by this method
+    :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
+    :param seed: (int) Seed for the pseudo-random generators (python, numpy, tensorflow).
+        If None (default), use random seed. Note that if you want completely deterministic
+        results, you must set `n_cpu_tf_sess` to 1.
+    :param n_cpu_tf_sess: (int) The number of threads for TensorFlow operations
+        If None, the number of cpu of the current machine will be used.
     """
 
-    def __init__(self, policy, env, verbose=0, *, requires_vec_env, policy_base, policy_kwargs=None):
+    def __init__(self, policy, env, verbose=0, *, requires_vec_env, policy_base,
+                 policy_kwargs=None, seed=None, n_cpu_tf_sess=None):
         if isinstance(policy, str) and policy_base is not None:
             self.policy = get_policy_from_name(policy_base, policy)
         else:
@@ -49,7 +56,9 @@ class BaseRLModel(ABC):
         self.graph = None
         self.sess = None
         self.params = None
+        self.seed = seed
         self._param_load_ops = None
+        self.n_cpu_tf_sess = n_cpu_tf_sess
 
         if env is not None:
             if isinstance(env, str):
@@ -148,17 +157,35 @@ class BaseRLModel(ABC):
         """
         pass
 
-    def _setup_learn(self, seed):
+    def set_random_seed(self, seed):
         """
-        check the environment, set the seed, and set the logger
+        :param seed: (int) Seed for the pseudo-random generators. If None,
+            do not change the seeds.
+        """
+        # Ignore if the seed is None
+        if seed is None:
+            return
+        # Seed python, numpy and tf random generator
+        set_global_seeds(seed)
+        if self.env is not None:
+            if isinstance(self.env, VecEnv):
+                # Use a different seed for each env
+                for idx in range(self.env.num_envs):
+                    self.env.env_method("seed", seed + idx)
+            else:
+                self.env.seed(seed)
+            # Seed the action space
+            # useful when selecting random actions
+            self.env.action_space.seed(seed)
+        self.action_space.seed(seed)
 
-        :param seed: (int) the seed value
+    def _setup_learn(self):
+        """
+        Check the environment.
         """
         if self.env is None:
             raise ValueError("Error: cannot train the model without a valid environment, please set an environment with"
                              "set_env(self, env) method.")
-        if seed is not None:
-            set_global_seeds(seed)
 
     @abstractmethod
     def get_parameter_list(self):
@@ -306,13 +333,12 @@ class BaseRLModel(ABC):
         return self
 
     @abstractmethod
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="run",
+    def learn(self, total_timesteps, callback=None, log_interval=100, tb_log_name="run",
               reset_num_timesteps=True):
         """
         Return a trained model.
 
         :param total_timesteps: (int) The total number of samples to train on
-        :param seed: (int) The initial seed for training, if None: keep current seed
         :param callback: (function (dict, dict)) -> boolean function called at every steps with state of the algorithm.
             It takes the local and global variables. If it returns False, training is aborted.
         :param log_interval: (int) The number of timesteps before logging.
@@ -405,7 +431,7 @@ class BaseRLModel(ABC):
         else:
             # Assume a filepath or file-like.
             # Use existing deserializer to load the parameters.
-            # We only need the parameters part of the file, so 
+            # We only need the parameters part of the file, so
             # only load that part.
             _, params = BaseRLModel._load_from_file(load_path_or_dict, load_data=False)
 
@@ -523,7 +549,7 @@ class BaseRLModel(ABC):
         :param save_path: (str or file-like) Where to store the model
         :param data: (OrderedDict) Class parameters being stored
         :param params: (OrderedDict) Model parameters being stored
-        :param cloudpickle: (bool) Use old cloudpickle format 
+        :param cloudpickle: (bool) Use old cloudpickle format
             (stable-baselines<=2.7.0) instead of a zip archive.
         """
         if cloudpickle:
@@ -559,8 +585,8 @@ class BaseRLModel(ABC):
 
         :param load_path: (str or file-like) Where to load model from
         :param load_data: (bool) Whether we should load and return data
-            (class parameters). Mainly used by `load_parameters` to 
-            only load model parameters (weights). 
+            (class parameters). Mainly used by `load_parameters` to
+            only load model parameters (weights).
         :param custom_objects: (dict) Dictionary of objects to replace
             upon loading. If a variable is present in this dictionary as a
             key, it will not be deserialized and the corresponding item
@@ -688,12 +714,19 @@ class ActorCriticRLModel(BaseRLModel):
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param policy_base: (BasePolicy) the base policy used by this method (default=ActorCriticPolicy)
     :param requires_vec_env: (bool) Does this model require a vectorized environment
+    :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
+    :param seed: (int) Seed for the pseudo-random generators (python, numpy, tensorflow).
+        If None (default), use random seed. Note that if you want completely deterministic
+        results, you must set `n_cpu_tf_sess` to 1.
+    :param n_cpu_tf_sess: (int) The number of threads for TensorFlow operations
+        If None, the number of cpu of the current machine will be used.
     """
 
     def __init__(self, policy, env, _init_setup_model, verbose=0, policy_base=ActorCriticPolicy,
-                 requires_vec_env=False, policy_kwargs=None):
+                 requires_vec_env=False, policy_kwargs=None, seed=None, n_cpu_tf_sess=None):
         super(ActorCriticRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
-                                                 policy_base=policy_base, policy_kwargs=policy_kwargs)
+                                                 policy_base=policy_base, policy_kwargs=policy_kwargs,
+                                                 seed=seed, n_cpu_tf_sess=n_cpu_tf_sess)
 
         self.sess = None
         self.initial_state = None
@@ -706,7 +739,7 @@ class ActorCriticRLModel(BaseRLModel):
         pass
 
     @abstractmethod
-    def learn(self, total_timesteps, callback=None, seed=None,
+    def learn(self, total_timesteps, callback=None,
               log_interval=100, tb_log_name="run", reset_num_timesteps=True):
         pass
 
@@ -865,12 +898,20 @@ class OffPolicyRLModel(BaseRLModel):
     :param verbose: (int) the verbosity level: 0 none, 1 training information, 2 tensorflow debug
     :param requires_vec_env: (bool) Does this model require a vectorized environment
     :param policy_base: (BasePolicy) the base policy used by this method
+    :param policy_kwargs: (dict) additional arguments to be passed to the policy on creation
+    :param seed: (int) Seed for the pseudo-random generators (python, numpy, tensorflow).
+        If None (default), use random seed. Note that if you want completely deterministic
+        results, you must set `n_cpu_tf_sess` to 1.
+    :param n_cpu_tf_sess: (int) The number of threads for TensorFlow operations
+        If None, the number of cpu of the current machine will be used.
     """
 
     def __init__(self, policy, env, replay_buffer=None, _init_setup_model=False, verbose=0, *,
-                 requires_vec_env=False, policy_base=None, policy_kwargs=None):
+                 requires_vec_env=False, policy_base=None,
+                 policy_kwargs=None, seed=None, n_cpu_tf_sess=None):
         super(OffPolicyRLModel, self).__init__(policy, env, verbose=verbose, requires_vec_env=requires_vec_env,
-                                               policy_base=policy_base, policy_kwargs=policy_kwargs)
+                                               policy_base=policy_base, policy_kwargs=policy_kwargs,
+                                               seed=seed, n_cpu_tf_sess=n_cpu_tf_sess)
 
         self.replay_buffer = replay_buffer
 
@@ -879,7 +920,7 @@ class OffPolicyRLModel(BaseRLModel):
         pass
 
     @abstractmethod
-    def learn(self, total_timesteps, callback=None, seed=None,
+    def learn(self, total_timesteps, callback=None,
               log_interval=100, tb_log_name="run", reset_num_timesteps=True, replay_wrapper=None):
         pass
 
@@ -937,6 +978,9 @@ class _UnvecWrapper(VecEnvWrapper):
         """
         super().__init__(venv)
         assert venv.num_envs == 1, "Error: cannot unwrap a environment wrapper that has more than one environment."
+
+    def seed(self, seed=None):
+        return self.venv.env_method('seed', seed)
 
     def __getattr__(self, attr):
         if attr in self.__dict__:

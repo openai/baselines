@@ -11,19 +11,19 @@ from stable_baselines.common import set_global_seeds
 # Hyperparameters for learning identity for each RL model
 LEARN_FUNC_DICT = {
     'a2c': lambda e: A2C(policy="MlpPolicy", learning_rate=1e-3, n_steps=1,
-                         gamma=0.7, env=e).learn(total_timesteps=10000, seed=0),
-    'acer': lambda e: ACER(policy="MlpPolicy", env=e,
-                           n_steps=1, replay_ratio=1).learn(total_timesteps=15000, seed=0),
-    'acktr': lambda e: ACKTR(policy="MlpPolicy", env=e,
-                             learning_rate=5e-4, n_steps=1).learn(total_timesteps=20000, seed=0),
+                         gamma=0.7, env=e, seed=0).learn(total_timesteps=10000),
+    'acer': lambda e: ACER(policy="MlpPolicy", env=e, seed=0,
+                           n_steps=1, replay_ratio=1).learn(total_timesteps=15000),
+    'acktr': lambda e: ACKTR(policy="MlpPolicy", env=e, seed=0,
+                             learning_rate=5e-4, n_steps=1).learn(total_timesteps=20000),
     'dqn': lambda e: DQN(policy="MlpPolicy", batch_size=16, gamma=0.1,
-                         exploration_fraction=0.001, env=e).learn(total_timesteps=40000, seed=0),
-    'ppo1': lambda e: PPO1(policy="MlpPolicy", env=e, lam=0.5,
-                           optim_batchsize=16, optim_stepsize=1e-3).learn(total_timesteps=15000, seed=0),
-    'ppo2': lambda e: PPO2(policy="MlpPolicy", env=e,
-                           learning_rate=1.5e-3, lam=0.8).learn(total_timesteps=20000, seed=0),
-    'trpo': lambda e: TRPO(policy="MlpPolicy", env=e,
-                           max_kl=0.05, lam=0.7).learn(total_timesteps=10000, seed=0),
+                         exploration_fraction=0.001, env=e, seed=0).learn(total_timesteps=40000),
+    'ppo1': lambda e: PPO1(policy="MlpPolicy", env=e, seed=0, lam=0.5,
+                           optim_batchsize=16, optim_stepsize=1e-3).learn(total_timesteps=15000),
+    'ppo2': lambda e: PPO2(policy="MlpPolicy", env=e, seed=0,
+                           learning_rate=1.5e-3, lam=0.8).learn(total_timesteps=20000),
+    'trpo': lambda e: TRPO(policy="MlpPolicy", env=e, seed=0,
+                           max_kl=0.05, lam=0.7).learn(total_timesteps=10000),
 }
 
 
@@ -76,8 +76,9 @@ def test_identity_continuous(model_class):
     else:
         action_noise = None
 
-    model = model_class("MlpPolicy", env, gamma=0.1, action_noise=action_noise, buffer_size=int(1e6))
-    model.learn(total_timesteps=20000, seed=0)
+    model = model_class("MlpPolicy", env, gamma=0.1, seed=0,
+                         action_noise=action_noise, buffer_size=int(1e6))
+    model.learn(total_timesteps=20000)
 
     n_trials = 1000
     reward_sum = 0

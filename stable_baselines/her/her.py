@@ -106,9 +106,9 @@ class HER(BaseRLModel):
     def setup_model(self):
         pass
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="HER",
+    def learn(self, total_timesteps, callback=None, log_interval=100, tb_log_name="HER",
               reset_num_timesteps=True):
-        return self.model.learn(total_timesteps, callback=callback, seed=seed, log_interval=log_interval,
+        return self.model.learn(total_timesteps, callback=callback, log_interval=log_interval,
                                 tb_log_name=tb_log_name, reset_num_timesteps=reset_num_timesteps,
                                 replay_wrapper=self.replay_wrapper)
 

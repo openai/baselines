@@ -20,4 +20,4 @@ if mpi4py is not None:
     from stable_baselines.trpo_mpi import TRPO
 del mpi4py
 
-__version__ = "2.8.0"
+__version__ = "2.9.0a0"

@@ -48,7 +48,7 @@ class GAIL(TRPO):
         if _init_setup_model:
             self.setup_model()
 
-    def learn(self, total_timesteps, callback=None, seed=None, log_interval=100, tb_log_name="GAIL",
+    def learn(self, total_timesteps, callback=None, log_interval=100, tb_log_name="GAIL",
               reset_num_timesteps=True):
         assert self.expert_dataset is not None, "You must pass an expert dataset to GAIL for training"
-        return super().learn(total_timesteps, callback, seed, log_interval, tb_log_name, reset_num_timesteps)
+        return super().learn(total_timesteps, callback, log_interval, tb_log_name, reset_num_timesteps)

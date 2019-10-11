@@ -58,7 +58,7 @@ def test_model_manipulation(request, model_class, storage_method, store_format):
 
         # create and train
         model = model_class(policy="MlpPolicy", env=env)
-        model.learn(total_timesteps=50000, seed=0)
+        model.learn(total_timesteps=50000)
 
         # predict and measure the acc reward
         acc_reward = 0
@@ -119,7 +119,7 @@ def test_model_manipulation(request, model_class, storage_method, store_format):
                                                           "loading and saving"
 
         # learn post loading
-        model.learn(total_timesteps=100, seed=0)
+        model.learn(total_timesteps=100)
 
         # validate no reset post learning
         loaded_acc_reward = 0

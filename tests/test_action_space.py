@@ -26,7 +26,7 @@ def test_identity_multidiscrete(model_class):
     env = DummyVecEnv([lambda: IdentityEnvMultiDiscrete(10)])
 
     model = model_class("MlpPolicy", env)
-    model.learn(total_timesteps=1000, seed=0)
+    model.learn(total_timesteps=1000)
 
     n_trials = 1000
     reward_sum = 0
@@ -55,7 +55,7 @@ def test_identity_multibinary(model_class):
     env = DummyVecEnv([lambda: IdentityEnvMultiBinary(10)])
 
     model = model_class("MlpPolicy", env)
-    model.learn(total_timesteps=1000, seed=0)
+    model.learn(total_timesteps=1000)
 
     n_trials = 1000
     reward_sum = 0

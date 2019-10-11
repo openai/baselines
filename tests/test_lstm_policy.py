@@ -82,7 +82,7 @@ def test_lstm_policy(request, model_class, policy):
             model = model_class(policy, 'CartPole-v1', nminibatches=1)
         else:
             model = model_class(policy, 'CartPole-v1')
-        model.learn(total_timesteps=100, seed=0)
+        model.learn(total_timesteps=100)
 
         env = model.get_env()
         # predict and measure the acc reward
@@ -123,7 +123,7 @@ def test_lstm_train():
         nonlocal eprewmeans
         eprewmeans.append(safe_mean([ep_info['r'] for ep_info in local['ep_info_buf']]))
 
-    model.learn(total_timesteps=100000, seed=0, callback=reward_callback)
+    model.learn(total_timesteps=100000, callback=reward_callback)
 
     # Maximum episode reward is 500.
     # In CartPole-v1, a non-recurrent policy can easily get >= 450.

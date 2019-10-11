@@ -227,9 +227,7 @@ class ActorCriticPolicy(BasePolicy):
         self._deterministic_action = None
 
     def _setup_init(self):
-        """
-        sets up the distibutions, actions, and value
-        """
+        """Sets up the distributions, actions, and value."""
         with tf.variable_scope("output", reuse=True):
             assert self.policy is not None and self.proba_distribution is not None and self.value_fn is not None
             self._action = self.proba_distribution.sample()
@@ -365,7 +363,7 @@ class RecurrentActorCriticPolicy(ActorCriticPolicy):
     def states_ph(self):
         """tf.Tensor: placeholder for states, shape (self.n_env, ) + state_shape."""
         return self._states_ph
-    
+
     @abstractmethod
     def value(self, obs, state=None, mask=None):
         """
