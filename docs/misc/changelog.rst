@@ -30,11 +30,13 @@ Deprecations:
 
 Others:
 ^^^^^^^
+- Add upper bound for Tensorflow version (<2.0.0).
 
 Documentation:
 ^^^^^^^^^^^^^^
 - Add Snake Game AI project (@pedrohbtp)
-
+- Add note on the support Tensorflow versions.
+- Remove unnecessary steps required for Windows installation.
 
 Release 2.8.0 (2019-09-29)
 --------------------------

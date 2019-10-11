@@ -39,18 +39,16 @@ Homebrew installed, run the following:
 Windows 10
 ~~~~~~~~~~
 
-We recommend using `Anaconda <https://conda.io/docs/user-guide/install/windows.html>`_ for windows users.
+We recommend using `Anaconda <https://conda.io/docs/user-guide/install/windows.html>`_ for Windows users for easier installation of Python packages and required libraries. You need an environment with Python version 3.5 or above.
 
-0. Create a new environment in the Anaconda Navigator (at least python 3.5) and install ``zlib`` in this environment.
+For a quick start you can move straight to installing Stable-Baselines in the next step (without MPI). This supports most but not all algorithms.
 
-1. Install `MPI for Windows <https://www.microsoft.com/en-us/download/details.aspx?id=57467>`_ (you need to download and install ``msmpisetup.exe``)
+To support all algorithms, Install `MPI for Windows <https://www.microsoft.com/en-us/download/details.aspx?id=57467>`_ (you need to download and install ``msmpisetup.exe``) and follow the instructions on how to install Stable-Baselines with MPI support in following section.
 
-2. Clone Stable-Baselines Github repo and replace the line ``gym[atari,classic_control]>=0.10.9`` in ``setup.py`` by this one: ``gym[classic_control]>=0.10.9``
+.. note::
 
-3. Install Stable-Baselines from source, inside the folder, run ``pip install -e .``
-
-4. [Optional] If you want to use atari environments, you need to install this package: https://github.com/j8lp/atari-py
-(using again ``pip install -e .``)
+	Trying to create Atari environments may result to vague errors related to missing DLL files and modules. This is an
+	issue with atari-py package. `See this discussion for more information <https://github.com/openai/atari-py/issues/65>`_.
 
 
 .. _openmpi:
