@@ -148,6 +148,16 @@ then exported to tensorflowjs to run directly on the browser
 | Repository: https://github.com/pedrohbtp/snake-rl
 | Website: https://www.pedro-torres.com/snake-rl/
 
+
+Pwnagotchi
+--------------------------
+Pwnagotchi is an A2C-based “AI” powered by bettercap and running on a Raspberry Pi Zero W that learns from its surrounding WiFi environment in order to maximize the crackable WPA key material it captures (either through passive sniffing or by performing deauthentication and association attacks). This material is collected on disk as PCAP files containing any form of handshake supported by hashcat, including full and half WPA handshakes as well as PMKIDs.
+
+| Author: Simone Margaritelli (@evilsocket)
+| Repository: https://github.com/evilsocket/pwnagotchi
+| Website: https://pwnagotchi.ai/
+
+
 Quantized Reinforcement Learning (QuaRL)
 ----------------------------------------
 
@@ -158,4 +168,3 @@ this study are from stable-baselines.
 | Email: srivatsan@seas.harvard.edu
 | Github: https://github.com/harvard-edge/quarl
 | Paper: https://arxiv.org/pdf/1910.01055.pdf
-
