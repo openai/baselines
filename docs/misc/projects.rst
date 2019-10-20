@@ -147,3 +147,15 @@ then exported to tensorflowjs to run directly on the browser
 | Author: Pedro Torres (@pedrohbtp)
 | Repository: https://github.com/pedrohbtp/snake-rl
 | Website: https://www.pedro-torres.com/snake-rl/
+
+Quantized Reinforcement Learning (QuaRL)
+----------------------------------------
+
+QuaRL is a open-source framework to study the effects of quantization broad spectrum of reinforcement learning algorithms. The RL algorithms we used in
+this study are from stable-baselines.
+
+| Author: Srivatsan Krishnan, Sharad Chitlangia, Maximilian Lam, Zishen Wan, Aleksandra Faust, Vijay Janapa Reddi
+| Email: srivatsan@seas.harvard.edu
+| Github: https://github.com/harvard-edge/quarl
+| Paper: https://arxiv.org/pdf/1910.01055.pdf
+
