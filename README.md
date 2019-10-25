@@ -40,7 +40,7 @@ More thorough tutorial on virtualenvs and options can be found [here](https://vi
 
 
 ## Tensorflow versions
-The master branch supports Tensorflow from version 1.4 to 1.14. For Tensorflow 2.0 support, please use tf-2 branch.
+The master branch supports Tensorflow from version 1.4 to 1.14. For Tensorflow 2.0 support, please use tf2 branch.
 
 ## Installation
 - Clone the repo and cd into it:
