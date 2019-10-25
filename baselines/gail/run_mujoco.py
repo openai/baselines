@@ -165,7 +165,7 @@ def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
     U.initialize()
     # Prepare for rollouts
     # ----------------------------------------
-    U.load_state(load_model_path)
+    U.load_variables(load_model_path)
 
     obs_list = []
     acs_list = []
