@@ -306,8 +306,9 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            mean_100ep_reward = round(np.mean(episode_rewards[-100:]), 1)
             num_episodes = len(episode_rewards)
+            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1) if \
+                num_episodes > 1 else 0.0
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
