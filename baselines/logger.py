@@ -381,7 +381,6 @@ def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
     assert isinstance(dir, str)
     dir = os.path.expanduser(dir)
     os.makedirs(dir, exist_ok=True)
-    print('Log directry:', dir) # Let user know where log files will be put
 
     rank = get_rank_without_mpi_import()
     if rank > 0:
