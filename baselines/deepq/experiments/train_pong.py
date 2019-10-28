@@ -5,8 +5,13 @@ from baselines.common.atari_wrappers import make_atari
 
 
 def main():
+    # by default CSV logs will be created in OS temp directory
     logger.configure()
+
+    # create Atari environment, use no-op reset, max pool last two frames
     env = make_atari('PongNoFrameskip-v4')
+
+    # by default monitor will log episod reward and log
     env = bench.Monitor(env, logger.get_dir())
     env = deepq.wrap_atari_dqn(env)
 
