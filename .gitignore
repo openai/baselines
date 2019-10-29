@@ -35,3 +35,4 @@ src
 
 MUJOCO_LOG.TXT
 .vscode/
+runs/

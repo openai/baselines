@@ -13,7 +13,7 @@ class Monitor(Wrapper):
 
     def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), info_keywords=()):
         Wrapper.__init__(self, env=env)
-        self.tstart = time.time()
+        self.tstart = self.episode_start = time.time()
         if filename:
             self.results_writer = ResultsWriter(filename,
                 header={"t_start": time.time(), 'env_id' : env.spec and env.spec.id},
@@ -29,6 +29,7 @@ class Monitor(Wrapper):
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_times = []
+        self.episode_dts = []
         self.total_steps = 0
         self.current_reset_info = {} # extra info about the current episode, that was passed in during reset()
 
@@ -39,7 +40,9 @@ class Monitor(Wrapper):
             if v is None:
                 raise ValueError('Expected you to pass kwarg %s into reset'%k)
             self.current_reset_info[k] = v
-        return self.env.reset(**kwargs)
+        obs = self.env.reset(**kwargs)
+        self.episode_start = time.time()
+        return obs
 
     def reset_state(self):
         if not self.allow_early_resets and not self.needs_reset:
@@ -56,25 +59,28 @@ class Monitor(Wrapper):
         return (ob, rew, done, info)
 
     def update(self, ob, rew, done, info):
+        self.total_steps += 1
         self.rewards.append(rew)
         if done:
             self.needs_reset = True
             eprew = sum(self.rewards)
             eplen = len(self.rewards)
-            epinfo = {"r": round(eprew, 6), "l": eplen, "t": round(time.time() - self.tstart, 6)}
+            ep_t = time.time() - self.tstart
+            ep_dt = time.time() - self.episode_start
+            epinfo = {"r": round(eprew, 6), "l": eplen, "t": round(ep_t, 6), 
+                      "dt": round(ep_dt, 6), "i": self.total_steps}
             for k in self.info_keywords:
                 epinfo[k] = info[k]
             self.episode_rewards.append(eprew)
             self.episode_lengths.append(eplen)
-            self.episode_times.append(time.time() - self.tstart)
+            self.episode_times.append(ep_t)
+            self.episode_dts.append(ep_dt)
             epinfo.update(self.current_reset_info)
             if self.results_writer:
                 self.results_writer.write_row(epinfo)
             assert isinstance(info, dict)
             if isinstance(info, dict):
                 info['episode'] = epinfo
-
-        self.total_steps += 1
 
     def close(self):
         if self.f is not None:
@@ -109,7 +115,7 @@ class ResultsWriter(object):
         if isinstance(header, dict):
             header = '# {} \n'.format(json.dumps(header))
         self.f.write(header)
-        self.logger = csv.DictWriter(self.f, fieldnames=('r', 'l', 't')+tuple(extra_keys))
+        self.logger = csv.DictWriter(self.f, fieldnames=('i', 'r', 'l', 't', 'dt')+tuple(extra_keys))
         self.logger.writeheader()
         self.f.flush()
 
