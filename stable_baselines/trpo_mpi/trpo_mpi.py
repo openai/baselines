@@ -413,6 +413,9 @@ class TRPO(ActorCriticRLModel):
                                 # list of tuples
                                 paramsums = MPI.COMM_WORLD.allgather((thnew.sum(), self.vfadam.getflat().sum()))
                                 assert all(np.allclose(ps, paramsums[0]) for ps in paramsums[1:])
+                            
+                            for (loss_name, loss_val) in zip(self.loss_names, mean_losses):
+                                logger.record_tabular(loss_name, loss_val)
 
                         with self.timed("vf"):
                             for _ in range(self.vf_iters):
@@ -423,9 +426,6 @@ class TRPO(ActorCriticRLModel):
                                                                          shuffle=True):
                                     grad = self.allmean(self.compute_vflossandgrad(mbob, mbob, mbret, sess=self.sess))
                                     self.vfadam.update(grad, self.vf_stepsize)
-
-                    for (loss_name, loss_val) in zip(self.loss_names, mean_losses):
-                        logger.record_tabular(loss_name, loss_val)
 
                     logger.record_tabular("explained_variance_tdlam_before",
                                           explained_variance(vpredbefore, tdlamret))
