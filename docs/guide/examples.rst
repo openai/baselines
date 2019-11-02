@@ -282,10 +282,10 @@ will compute a running average and standard deviation of input features (it can 
   model = PPO2(MlpPolicy, env)
   model.learn(total_timesteps=2000)
 
-  # Don't forget to save the running average when saving the agent
+  # Don't forget to save the VecNormalize statistics when saving the agent
   log_dir = "/tmp/"
   model.save(log_dir + "ppo_reacher")
-  env.save_running_average(log_dir)
+  env.save(os.path.join(log_dir, "vec_normalize.pkl"))
 
 
 Custom Policy Network

@@ -17,6 +17,7 @@ Breaking Changes:
 New Features:
 ^^^^^^^^^^^^^
 - Add `n_cpu_tf_sess` to model constructor to choose the number of threads used by Tensorflow
+- `VecNormalize` now supports being pickled and unpickled.
 
 Bug Fixes:
 ^^^^^^^^^^
@@ -28,6 +29,7 @@ Deprecations:
 ^^^^^^^^^^^^^
 - `nprocs` (ACKTR) and `num_procs` (ACER) are deprecated in favor of `n_cpu_tf_sess` which is now common
   to all algorithms
+- `VecNormalize`: `load_running_average` and `save_running_average` are deprecated in favour of using pickle.
 
 Others:
 ^^^^^^^
