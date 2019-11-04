@@ -18,12 +18,17 @@ from baselines import bench
 from baselines import logger
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 from baselines.gail.adversary import TransitionClassifier
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.run import build_env
 
 
 def argsparser():
     parser = argparse.ArgumentParser("Tensorflow Implementation of GAIL")
-    parser.add_argument('--env_id', help='environment ID', default='Hopper-v2')
+    parser.add_argument('--env', help='environment ID', default='Hopper-v2')
     parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+    parser.add_argument('--num_env', help='Number of environment copies being run in parallel. When not specified, set to number of cpus for Atari, and to 1 for Mujoco', default=1, type=int)
+    parser.add_argument('--env_type', help='type of environment, used when the environment type cannot be automatically determined', type=str)
+    parser.add_argument('--reward_scale', help='Reward scale factor. Default: 1.0', default=1.0, type=float)
     parser.add_argument('--expert_path', type=str, default='data/deterministic.trpo.Hopper.0.00.npz')
     parser.add_argument('--checkpoint_dir', help='the directory to save model', default='checkpoint')
     parser.add_argument('--log_dir', help='the directory to save log file', default='log')
@@ -36,13 +41,13 @@ def argsparser():
     #  Mujoco Dataset Configuration
     parser.add_argument('--traj_limitation', type=int, default=-1)
     # Optimization Configuration
-    parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=3)
+    parser.add_argument('--g_step', help='number of steps to train policy in each epoch', type=int, default=1)
     parser.add_argument('--d_step', help='number of steps to train discriminator in each epoch', type=int, default=1)
     # Network Configuration (Using MLP Policy)
     parser.add_argument('--policy_hidden_size', type=int, default=100)
     parser.add_argument('--adversary_hidden_size', type=int, default=100)
     # Algorithms Configuration
-    parser.add_argument('--algo', type=str, choices=['trpo', 'ppo'], default='trpo')
+    parser.add_argument('--alg', type=str, choices=['trpo', 'ppo'], default='trpo')
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
@@ -92,7 +97,7 @@ def main(args):
               policy_fn,
               reward_giver,
               dataset,
-              args.algo,
+              args.alg,
               args.g_step,
               args.d_step,
               args.policy_entcoeff,
@@ -118,7 +123,7 @@ def main(args):
     env.close()
 
 
-def train(env, seed, policy_fn, reward_giver, dataset, algo,
+def train(env, seed, policy_fn, reward_giver, dataset, alg,
           g_step, d_step, policy_entcoeff, num_timesteps, save_per_iter,
           checkpoint_dir, log_dir, pretrained, BC_max_iter, task_name=None):
 
@@ -129,7 +134,7 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
         pretrained_weight = behavior_clone.learn(env, policy_fn, dataset,
                                                  max_iters=BC_max_iter)
 
-    if algo == 'trpo':
+    if alg == 'trpo':
         from baselines.gail import trpo_mpi
         # Set up for MPI seed
         rank = MPI.COMM_WORLD.Get_rank()
@@ -151,7 +156,22 @@ def train(env, seed, policy_fn, reward_giver, dataset, algo,
                        vf_iters=5, vf_stepsize=1e-3,
                        task_name=task_name)
     else:
-        raise NotImplementedError
+        from baselines.gail import pposgd_simple
+        rank = MPI.COMM_WORLD.Get_rank()
+        if rank != 0:
+            logger.set_level(logger.DISABLED)
+        workerseed = seed + 10000 * MPI.COMM_WORLD.Get_rank()
+        set_global_seeds(workerseed)
+        env.seed(workerseed)
+        pposgd_simple.learn(env, policy_fn, reward_giver, dataset, rank,
+                            pretrained=pretrained, pretrained_weight=pretrained_weight,
+                            g_step=g_step, d_step=d_step,
+                            timesteps_per_actorbatch=2048,
+                            clip_param=0.2, entcoeff=policy_entcoeff,
+                            optim_epochs=10, optim_stepsize=3e-4, optim_batchsize=64,
+                            gamma=0.99, lam=0.95,
+                            max_timesteps=num_timesteps,
+                            schedule='linear')
 
 
 def runner(env, policy_func, load_model_path, timesteps_per_batch, number_trajs,
