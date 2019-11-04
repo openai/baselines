@@ -61,33 +61,41 @@ def argsparser():
 
 
 def get_task_name(args):
-    task_name = args.algo + "_gail."
+    task_name = args.alg + "_gail."
     if args.pretrained:
         task_name += "with_pretrained."
     if args.traj_limitation != np.inf:
         task_name += "transition_limitation_%d." % args.traj_limitation
-    task_name += args.env_id.split("-")[0]
+    task_name += args.env.split("-")[0]
     task_name = task_name + ".g_step_" + str(args.g_step) + ".d_step_" + str(args.d_step) + \
         ".policy_entcoeff_" + str(args.policy_entcoeff) + ".adversary_entcoeff_" + str(args.adversary_entcoeff)
     task_name += ".seed_" + str(args.seed)
     return task_name
 
+def configure_logger(log_path, **kwargs):
+    if log_path is not None:
+        logger.configure(log_path)
+    else:
+        logger.configure(**kwargs)
 
 def main(args):
     U.make_session(num_cpu=1).__enter__()
     set_global_seeds(args.seed)
-    env = gym.make(args.env_id)
+
+    task_name = get_task_name(args)
+    args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
+    args.log_dir = osp.join(args.log_dir, task_name)
+    configure_logger(args.log_dir)
+    gym.logger.setLevel(logging.WARN)
+
+    env = gym.make(args.env)
+    env = bench.Monitor(env, logger.get_dir() and
+                osp.join(logger.get_dir(), str(MPI.COMM_WORLD.Get_rank())))
+    env.seed(args.seed)
 
     def policy_fn(name, ob_space, ac_space, reuse=False):
         return mlp_policy.MlpPolicy(name=name, ob_space=ob_space, ac_space=ac_space,
                                     reuse=reuse, hid_size=args.policy_hidden_size, num_hid_layers=2)
-    env = bench.Monitor(env, logger.get_dir() and
-                        osp.join(logger.get_dir(), "monitor.json"))
-    env.seed(args.seed)
-    gym.logger.setLevel(logging.WARN)
-    task_name = get_task_name(args)
-    args.checkpoint_dir = osp.join(args.checkpoint_dir, task_name)
-    args.log_dir = osp.join(args.log_dir, task_name)
 
     if args.task == 'train':
         dataset = Mujoco_Dset(expert_path=args.expert_path, traj_limitation=args.traj_limitation)
