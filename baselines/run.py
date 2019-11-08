@@ -221,7 +221,6 @@ def main(args):
             obs = np.expand_dims(np.array(obs), axis=0)
 
         state = model.initial_state if hasattr(model, 'initial_state') else None
-        dones = np.zeros((1,))
 
         episode_rew = 0
         while True:

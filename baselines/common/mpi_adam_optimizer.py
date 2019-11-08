@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from baselines.common.tests.test_with_mpi import with_mpi
 try:
     from mpi4py import MPI
 except ImportError:
