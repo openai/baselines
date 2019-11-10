@@ -31,7 +31,7 @@ setup(name='baselines',
       packages=[package for package in find_packages()
                 if package.startswith('baselines')],
       install_requires=[
-          'gym>=0.10.0, <1.0.0',
+          'gym>=0.15.4, <0.16.0',
           'scipy',
           'tqdm',
           'joblib',
