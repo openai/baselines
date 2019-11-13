@@ -226,7 +226,8 @@ def main(args):
         state = model.initial_state if hasattr(model, 'initial_state') else None
         dones = np.zeros((1,))
 
-        episode_rew = np.zeros(env.num_envs) if isinstance(env, VecEnv) else np.zeros(1)
+        is_vec_env = isinstance(env, VecEnv)
+        episode_rew = np.zeros(env.num_envs) if is_vec_env else np.zeros(1)
         while True:
             if state is not None:
                 actions, _, state, _ = model.step(obs,S=state, M=dones)
@@ -241,6 +242,8 @@ def main(args):
                 for i in np.nonzero(done)[0]:
                     print('episode_rew={}'.format(episode_rew[i]))
                     episode_rew[i] = 0
+                if not is_vec_env:
+                    obs = env.reset()
 
     env.close()
 
