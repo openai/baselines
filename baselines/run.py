@@ -97,7 +97,11 @@ def build_env(args):
             env = make_env(env_id, env_type, seed=seed, wrapper_kwargs={'frame_stack': True},
                            logger_dir=logger.get_dir())
         elif alg == 'trpo_mpi':
-            env = make_env(env_id, env_type, seed=seed, logger_dir=logger.get_dir(),
+            if logger.get_rank_without_mpi_import() == 0:
+                log_dir = logger.get_dir()
+            else:
+                log_dir = None
+            env = make_env(env_id, env_type, seed=seed, logger_dir=log_dir,
                            mpi_rank=logger.get_rank_without_mpi_import())
         else:
             frame_stack_size = 4
