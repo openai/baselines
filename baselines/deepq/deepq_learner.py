@@ -176,7 +176,7 @@ class DEEPQ(tf.Module):
         clipped_grads = []
         for grad in grads:
           clipped_grads.append(tf.clip_by_norm(grad, self.grad_norm_clipping))
-        clipped_grads = grads
+        grads = clipped_grads
       grads_and_vars = zip(grads, self.q_network.trainable_variables)
       self.optimizer.apply_gradients(grads_and_vars)
 
