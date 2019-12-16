@@ -39,7 +39,7 @@ class PiecewiseSchedule(object):
     def __init__(self, endpoints, interpolation=linear_interpolation, outside_value=None):
         """Piecewise schedule.
 
-        endpoints: [(int, int)]
+        endpoints: [(int, float)]
             list of pairs `(time, value)` meanining that schedule should output
             `value` when `t==time`. All the values for time must be sorted in
             an increasing order. When t is between two times, e.g. `(time_a, value_a)`
