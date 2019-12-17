@@ -224,7 +224,7 @@ def learn(env,
         if len(episode_rewards[-101:-1]) == 0:
             mean_100ep_reward = -np.inf
         else:
-            mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)       
+            mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
         num_episodes = len(episode_rewards)
         if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
             logger.record_tabular("steps", t)
