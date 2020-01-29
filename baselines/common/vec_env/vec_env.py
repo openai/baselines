@@ -118,7 +118,7 @@ class VecEnv(ABC):
         else:
             raise NotImplementedError
 
-    def get_images(self):
+    def get_images(self, **kwargs):
         """
         Return RGB images from each environment
         """
@@ -166,8 +166,8 @@ class VecEnvWrapper(VecEnv):
     def render(self, mode='human'):
         return self.venv.render(mode=mode)
 
-    def get_images(self):
-        return self.venv.get_images()
+    def get_images(self, **kwargs):
+        return self.venv.get_images(**kwargs)
 
     def __getattr__(self, name):
         if name.startswith('_'):
