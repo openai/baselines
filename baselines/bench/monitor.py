@@ -79,6 +79,7 @@ class Monitor(Wrapper):
         self.total_steps += 1
 
     def close(self):
+        super(Monitor, self).close()
         if self.f is not None:
             self.f.close()
 
