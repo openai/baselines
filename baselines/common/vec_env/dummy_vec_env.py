@@ -71,11 +71,15 @@ class DummyVecEnv(VecEnv):
     def _obs_from_buf(self):
         return dict_to_obs(copy_obs_dict(self.buf_obs))
 
-    def get_images(self):
-        return [env.render(mode='rgb_array') for env in self.envs]
+    def get_images(self, mode='rgb_array'):
+        return [env.render(mode=mode) for env in self.envs]
 
     def render(self, mode='human'):
         if self.num_envs == 1:
             return self.envs[0].render(mode=mode)
         else:
             return super().render(mode=mode)
+
+    def close_extras(self):
+        for env in self.envs:
+            env.close()
