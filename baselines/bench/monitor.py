@@ -9,7 +9,6 @@ import json
 
 class Monitor(Wrapper):
     EXT = "monitor.csv"
-    f = None
 
     def __init__(self, env, filename, allow_early_resets=False, reset_keywords=(), info_keywords=()):
         Wrapper.__init__(self, env=env)
@@ -78,8 +77,8 @@ class Monitor(Wrapper):
 
     def close(self):
         super(Monitor, self).close()
-        if self.f is not None:
-            self.f.close()
+        if self.results_writer is not None:
+            self.results_writer.close()
 
     def get_total_steps(self):
         return self.total_steps
