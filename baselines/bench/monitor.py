@@ -78,7 +78,7 @@ class Monitor(Wrapper):
     def close(self):
         super(Monitor, self).close()
         if self.results_writer is not None:
-            self.results_writer.close()
+            self.results_writer.f.close()
 
     def get_total_steps(self):
         return self.total_steps
