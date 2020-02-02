@@ -5,7 +5,9 @@ from baselines.common.models import get_network_builder
 class Model(object):
     def __init__(self, name, network='mlp', **network_kwargs):
         self.name = name
-        self.network_builder = get_network_builder(network)(**network_kwargs)
+        net_builder_dict = get_network_builder(network)
+        self.network_builder = net_builder_dict['func'](**network_kwargs)
+        self.is_recurrent_network = net_builder_dict['is_recurrent']
 
     @property
     def vars(self):
@@ -27,9 +29,18 @@ class Actor(Model):
 
     def __call__(self, obs, reuse=False):
         with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
-            x = self.network_builder(obs)
-            x = tf.layers.dense(x, self.nb_actions, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
-            x = tf.nn.tanh(x)
+            policy = self.network_builder(obs, '', '', False)
+            if not isinstance(policy, dict):
+                policy = {'latent': policy}
+            if 'policy_head' in policy:
+                x = policy['policy_head']
+            else:
+                if 'latent' in policy:
+                    x = policy['latent']
+                elif 'policy_latent' in policy:
+                    x = policy['policy_latent']
+                x = tf.layers.dense(x, self.nb_actions, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
+                x = tf.nn.tanh(x)
         return x
 
 
@@ -41,8 +52,17 @@ class Critic(Model):
     def __call__(self, obs, action, reuse=False):
         with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
             x = tf.concat([obs, action], axis=-1) # this assumes observation and action can be concatenated
-            x = self.network_builder(x)
-            x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3), name='output')
+            policy = self.network_builder(x, '', '', False)
+            if not isinstance(policy, dict):
+                policy = {'latent': policy}
+            if 'value_head' in policy:
+                x = policy['value_head']
+            else:
+                if 'latent' in policy:
+                    x = policy['latent']
+                elif 'value_latent' in policy:
+                    x = policy['value_latent']
+                x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3), name='output')
         return x
 
     @property

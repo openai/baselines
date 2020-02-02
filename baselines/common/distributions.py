@@ -352,4 +352,5 @@ def _matching_fc(tensor, name, size, init_scale, init_bias):
     if tensor.shape[-1] == size:
         return tensor
     else:
-        return fc(tensor, name, size, init_scale=init_scale, init_bias=init_bias)
+        h = fc(tensor, name, size, init_scale=init_scale, init_bias=init_bias)
+        return h

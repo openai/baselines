@@ -6,11 +6,36 @@ from baselines.common.mpi_running_mean_std import RunningMeanStd
 
 mapping = {}
 
-def register(name):
+def register(name, is_recurrent=False):
     def _thunk(func):
-        mapping[name] = func
+        mapping[name] = {
+            'func': func,
+            'is_recurrent': is_recurrent
+        }
         return func
     return _thunk
+
+def policy_dict_builder(X, network_fn, pol_scope, vf_scope, copy_vf):
+    if copy_vf:
+        policy_dict = {}
+        with tf.variable_scope(pol_scope, reuse=tf.AUTO_REUSE):
+            policy_dict['policy_latent'] = network_fn(X)
+        with tf.variable_scope(vf_scope, reuse=tf.AUTO_REUSE):
+            policy_dict['value_latent'] = network_fn(X)
+        return policy_dict
+    else:
+        with tf.variable_scope(pol_scope, reuse=tf.AUTO_REUSE):
+            latent = network_fn(X)
+        return latent
+
+def recurrent_policy_dict_builder(X, network_fn, pol_scope, vf_scope, copy_vf):
+    policy_dict = {}
+    with tf.variable_scope(pol_scope, reuse=tf.AUTO_REUSE):
+        latent, recurrent_tensors = network_fn(X)
+    policy_dict['policy_latent'] = latent
+    policy_dict['value_latent'] = latent
+    policy_dict['recurrent_tensors'] = recurrent_tensors
+    return policy_dict
 
 def nature_cnn(unscaled_images, **conv_kwargs):
     """
@@ -90,45 +115,50 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh, layer_norm=False):
 
     function that builds fully connected network with a given input tensor / placeholder
     """
-    def network_fn(X):
-        h = tf.layers.flatten(X)
-        for i in range(num_layers):
-            h = fc(h, 'mlp_fc{}'.format(i), nh=num_hidden, init_scale=np.sqrt(2))
-            if layer_norm:
-                h = tf.contrib.layers.layer_norm(h, center=True, scale=True)
-            h = activation(h)
+    def network_fn(X, pol_scope, vf_scope, copy_vf):
+        def network_builder_fn(X):
+            h = tf.layers.flatten(X)
+            for i in range(num_layers):
+                h = fc(h, 'mlp_fc{}'.format(i), nh=num_hidden, init_scale=np.sqrt(2))
+                if layer_norm:
+                    h = tf.contrib.layers.layer_norm(h, center=True, scale=True)
+                h = activation(h)
 
-        return h
+            return h
+
+        return policy_dict_builder(X, network_builder_fn, pol_scope, vf_scope, copy_vf)
 
     return network_fn
 
 
 @register("cnn")
 def cnn(**conv_kwargs):
-    def network_fn(X):
-        return nature_cnn(X, **conv_kwargs)
+    def network_fn(X, pol_scope, vf_scope, copy_vf):
+        return policy_dict_builder(X, lambda x: nature_cnn(x, **conv_kwargs), pol_scope, vf_scope, copy_vf)
     return network_fn
 
 @register("impala_cnn")
 def impala_cnn(**conv_kwargs):
-    def network_fn(X):
-        return build_impala_cnn(X)
+    def network_fn(X, pol_scope, vf_scope, copy_vf):
+        return policy_dict_builder(X, build_impala_cnn, pol_scope, vf_scope, copy_vf)
     return network_fn
 
 @register("cnn_small")
 def cnn_small(**conv_kwargs):
-    def network_fn(X):
-        h = tf.cast(X, tf.float32) / 255.
+    def network_fn(X, pol_scope, vf_scope, copy_vf):
+        def network_builder_fn(X):
+            h = tf.cast(X, tf.float32) / 255.
 
-        activ = tf.nn.relu
-        h = activ(conv(h, 'c1', nf=8, rf=8, stride=4, init_scale=np.sqrt(2), **conv_kwargs))
-        h = activ(conv(h, 'c2', nf=16, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
-        h = conv_to_fc(h)
-        h = activ(fc(h, 'fc1', nh=128, init_scale=np.sqrt(2)))
-        return h
+            activ = tf.nn.relu
+            h = activ(conv(h, 'c1', nf=8, rf=8, stride=4, init_scale=np.sqrt(2), **conv_kwargs))
+            h = activ(conv(h, 'c2', nf=16, rf=4, stride=2, init_scale=np.sqrt(2), **conv_kwargs))
+            h = conv_to_fc(h)
+            h = activ(fc(h, 'fc1', nh=128, init_scale=np.sqrt(2)))
+            return h
+        return policy_dict_builder(X, network_builder_fn, pol_scope, vf_scope, copy_vf)
     return network_fn
 
-@register("lstm")
+@register("lstm", is_recurrent=True)
 def lstm(nlstm=128, layer_norm=False):
     """
     Builds LSTM (Long-Short Term Memory) network to be used in a policy.
@@ -158,28 +188,29 @@ def lstm(nlstm=128, layer_norm=False):
     function that builds LSTM with a given input tensor / placeholder
     """
 
-    def network_fn(X, nenv=1):
-        nbatch = X.shape[0]
-        nsteps = nbatch // nenv
+    def network_fn(X, pol_scope, vf_scope, copy_vf, nenv=1):
+        def network_builder_fn(X):
+            nbatch = X.shape[0]
+            nsteps = nbatch // nenv
 
-        h = tf.layers.flatten(X)
+            h = tf.layers.flatten(X)
 
-        M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
-        S = tf.placeholder(tf.float32, [nenv, 2*nlstm]) #states
+            M = tf.placeholder(tf.float32, [nbatch]) #mask (done t-1)
+            S = tf.placeholder(tf.float32, [nenv, 2*nlstm]) #states
 
-        xs = batch_to_seq(h, nenv, nsteps)
-        ms = batch_to_seq(M, nenv, nsteps)
+            xs = batch_to_seq(h, nenv, nsteps)
+            ms = batch_to_seq(M, nenv, nsteps)
 
-        if layer_norm:
-            h5, snew = utils.lnlstm(xs, ms, S, scope='lnlstm', nh=nlstm)
-        else:
-            h5, snew = utils.lstm(xs, ms, S, scope='lstm', nh=nlstm)
+            if layer_norm:
+                h5, snew = utils.lnlstm(xs, ms, S, scope='lnlstm', nh=nlstm)
+            else:
+                h5, snew = utils.lstm(xs, ms, S, scope='lstm', nh=nlstm)
 
-        h = seq_to_batch(h5)
-        initial_state = np.zeros(S.shape.as_list(), dtype=float)
+            h = seq_to_batch(h5)
+            initial_state = np.zeros(S.shape.as_list(), dtype=float)
 
-        return h, {'S':S, 'M':M, 'state':snew, 'initial_state':initial_state}
-
+            return h, {'S':S, 'M':M, 'state':snew, 'initial_state':initial_state}
+        return recurrent_policy_dict_builder(X, network_builder_fn, pol_scope, vf_scope, copy_vf)
     return network_fn
 
 
@@ -261,14 +292,15 @@ def get_network_builder(name):
     Usage Example:
     -------------
     from baselines.common.models import register
-    @register("your_network_name")
+    @register("your_network_name", is_recurrent=False)
     def your_network_define(**net_kwargs):
         ...
         return network_fn
 
+    is_recurrent must be False for feed-forward networks and True for recurrent networks.
     """
     if callable(name):
-        return name
+        return {'func': name, 'is_recurrent': None} # Not known whether the network is recurrent or not, fall back to old code that checks for network builders returning recurrent networks.
     elif name in mapping:
         return mapping[name]
     else:

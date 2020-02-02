@@ -3,17 +3,27 @@ import tensorflow.contrib.layers as layers
 
 
 def build_q_func(network, hiddens=[256], dueling=True, layer_norm=False, **network_kwargs):
+    is_recurrent = None
     if isinstance(network, str):
         from baselines.common.models import get_network_builder
-        network = get_network_builder(network)(**network_kwargs)
+        network_builder_dict = get_network_builder(network)
+        network = network_builder_dict['func'](**network_kwargs)
+        is_recurrent = network_builder_dict['is_recurrent']
 
     def q_func_builder(input_placeholder, num_actions, scope, reuse=False):
         with tf.variable_scope(scope, reuse=reuse):
-            latent = network(input_placeholder)
-            if isinstance(latent, tuple):
-                if latent[1] is not None:
-                    raise NotImplementedError("DQN is not compatible with recurrent policies yet")
-                latent = latent[0]
+            if is_recurrent:
+                raise NotImplementedError("DQN is not compatible with recurrent policies yet")
+
+            policy_dict = network(input_placeholder, '', '', False)
+            if not isinstance(policy_dict, dict):
+                policy_dict = {'latent': policy_dict}
+            if 'latent' in policy_dict:
+                latent = policy_dict['latent']
+            elif 'policy_latent' in policy_dict:
+                latent = policy_dict['policy_latent']
+            else:
+                raise RuntimeError('DQN expects a network builder that supplies a latent space representation ("policy_latent" or "latent" entries filled in).')
 
             latent = layers.flatten(latent)
 
