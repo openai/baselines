@@ -13,7 +13,11 @@ from .shmem_vec_env import ShmemVecEnv
 from .subproc_vec_env import SubprocVecEnv
 from .vec_video_recorder import VecVideoRecorder
 
-@pytest.mark.parametrize('klass', (DummyVecEnv, ShmemVecEnv, SubprocVecEnv))
+# We don't test the threaded vec env here, because ATARI is thread-hostile and
+# therefore incompatible.
+@pytest.mark.parametrize(
+    'klass',
+    (DummyVecEnv, ShmemVecEnv, SubprocVecEnv))
 @pytest.mark.parametrize('num_envs', (1, 4))
 @pytest.mark.parametrize('video_length', (10, 100))
 @pytest.mark.parametrize('video_interval', (1, 50))
@@ -45,5 +49,3 @@ def test_video_recorder(klass, num_envs, video_length, video_interval):
         assert len(recorded_video) == 2
         # Files are not empty
         assert all(os.stat(p).st_size != 0 for p in recorded_video)
-
-
