@@ -108,7 +108,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--expert_path", type=str, default="../data/deterministic.trpo.Hopper.0.00.npz")
-    parser.add_argument("--traj_limitation", type=int, default=None)
+    parser.add_argument("--traj_limitation", type=int, default=-1)
     parser.add_argument("--plot", type=bool, default=False)
     args = parser.parse_args()
     test(args.expert_path, args.traj_limitation, args.plot)
