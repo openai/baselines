@@ -7,7 +7,7 @@ def build_q_func(network, hiddens=[256], dueling=True, layer_norm=False, **netwo
         from baselines.common.models import get_network_builder
         network = get_network_builder(network)(**network_kwargs)
 
-    def q_func_builder(input_placeholder, num_actions, scope, reuse=False):
+    def q_func_builder(input_placeholder, scope, reuse=False):
         with tf.variable_scope(scope, reuse=reuse):
             latent = network(input_placeholder)
             if isinstance(latent, tuple):
@@ -18,13 +18,14 @@ def build_q_func(network, hiddens=[256], dueling=True, layer_norm=False, **netwo
             latent = layers.flatten(latent)
 
             with tf.variable_scope("action_value"):
-                action_out = latent
-                for hidden in hiddens:
-                    action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=None)
-                    if layer_norm:
-                        action_out = layers.layer_norm(action_out, center=True, scale=True)
-                    action_out = tf.nn.relu(action_out)
-                action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
+                action_scores = latent
+                if not network_kwargs.get('as_is', False):
+                    for hidden in hiddens:
+                        action_out = layers.fully_connected(action_out, num_outputs=hidden, activation_fn=None)
+                        if layer_norm:
+                            action_out = layers.layer_norm(action_out, center=True, scale=True)
+                        action_out = tf.nn.relu(action_out)
+                    action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
 
             if dueling:
                 with tf.variable_scope("state_value"):

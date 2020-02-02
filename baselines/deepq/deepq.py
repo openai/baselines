@@ -115,7 +115,9 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
+          after_step_callback=None,
           load_path=None,
+          make_obs_ph=None,
           **network_kwargs
             ):
     """Train a deepq model.
@@ -195,13 +197,15 @@ def learn(env,
     # by cloudpickle when serializing make_obs_ph
 
     observation_space = env.observation_space
-    def make_obs_ph(name):
+    def _make_obs_ph(name):
         return ObservationInput(observation_space, name=name)
+
+    if make_obs_ph is None:
+        make_obs_ph = _make_obs_ph
 
     act, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
-        num_actions=env.action_space.n,
         optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
         grad_norm_clipping=10,
@@ -211,11 +215,11 @@ def learn(env,
     act_params = {
         'make_obs_ph': make_obs_ph,
         'q_func': q_func,
-        'num_actions': env.action_space.n,
     }
 
     act = ActWrapper(act, act_params)
 
+    print("A")
     # Create the replay buffer
     if prioritized_replay:
         replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
@@ -275,10 +279,13 @@ def learn(env,
                 kwargs['reset'] = reset
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
-            action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+            action = act(obs, update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
+            if after_step_callback is not None:
+                if after_step_callback(locals(), globals()):
+                    break
             # Store transition in the replay buffer.
             replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
