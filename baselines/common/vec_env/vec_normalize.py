@@ -29,7 +29,8 @@ class VecNormalize(VecEnvWrapper):
         obs = self._obfilt(obs)
         if self.ret_rms:
             self.ret_rms.update(self.ret)
-            rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
+            if self.ret_rms.count >= 2:
+                rews = np.clip(rews / np.sqrt(self.ret_rms.var + self.epsilon), -self.cliprew, self.cliprew)
         self.ret[news] = 0.
         return obs, rews, news, infos
 
