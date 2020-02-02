@@ -5,8 +5,16 @@ from baselines.common.atari_wrappers import make_atari
 
 
 def main():
-    logger.configure()
+    exp_dir = './runs/pong'
+
+    # by default CSV logs will be created in OS temp directory
+    logger.configure(dir=exp_dir, 
+        format_strs=['stdout','log','csv','tensorboard'], log_suffix=None)
+
+    # create Atari environment, use no-op reset, max pool last two frames
     env = make_atari('PongNoFrameskip-v4')
+
+    # by default monitor will log episod reward and log
     env = bench.Monitor(env, logger.get_dir())
     env = deepq.wrap_atari_dqn(env)
 
@@ -25,6 +33,8 @@ def main():
         learning_starts=10000,
         target_network_update_freq=1000,
         gamma=0.99,
+        checkpoint_path=exp_dir,
+        checkpoint_freq=100000
     )
 
     model.save('pong_model.pkl')

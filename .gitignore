@@ -34,3 +34,5 @@ src
 .cache
 
 MUJOCO_LOG.TXT
+.vscode/
+runs/
