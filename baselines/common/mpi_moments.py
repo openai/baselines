@@ -9,7 +9,7 @@ def mpi_mean(x, axis=0, comm=None, keepdims=False):
     if comm is None: comm = MPI.COMM_WORLD
     xsum = x.sum(axis=axis, keepdims=keepdims)
     n = xsum.size
-    localsum = np.zeros(n+1, x.dtype)
+    localsum = np.zeros(n+1, np.float32) # x.dtype)
     localsum[:n] = xsum.ravel()
     localsum[n] = x.shape[axis]
     # globalsum = np.zeros_like(localsum)
