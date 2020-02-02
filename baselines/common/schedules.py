@@ -15,7 +15,7 @@ class Schedule(object):
         raise NotImplementedError()
 
 
-class ConstantSchedule(object):
+class ConstantSchedule(Schedule):
     def __init__(self, value):
         """Value remains constant over time.
 
@@ -35,7 +35,7 @@ def linear_interpolation(l, r, alpha):
     return l + alpha * (r - l)
 
 
-class PiecewiseSchedule(object):
+class PiecewiseSchedule(Schedule):
     def __init__(self, endpoints, interpolation=linear_interpolation, outside_value=None):
         """Piecewise schedule.
 
@@ -73,7 +73,7 @@ class PiecewiseSchedule(object):
         return self._outside_value
 
 
-class LinearSchedule(object):
+class LinearSchedule(Schedule):
     def __init__(self, schedule_timesteps, final_p, initial_p=1.0):
         """Linear interpolation between initial_p and final_p over
         schedule_timesteps. After this many timesteps pass final_p is
