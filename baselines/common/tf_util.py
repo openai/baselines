@@ -404,7 +404,6 @@ def adjust_shape(placeholder, data):
 def _check_shape(placeholder_shape, data_shape):
     ''' check if two shapes are compatible (i.e. differ only by dimensions of size 1, or by the batch dimension)'''
 
-    return True
     squeezed_placeholder_shape = _squeeze_shape(placeholder_shape)
     squeezed_data_shape = _squeeze_shape(data_shape)
 
