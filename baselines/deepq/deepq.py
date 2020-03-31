@@ -1,10 +1,14 @@
 import os
+import pickle
+import random
 import tempfile
-
+import gym
 import tensorflow as tf
 import zipfile
 import cloudpickle
 import numpy as np
+import copy
+import time
 
 import baselines.common.tf_util as U
 from baselines.common.tf_util import load_variables, save_variables
@@ -13,7 +17,8 @@ from baselines.common.schedules import LinearSchedule
 from baselines.common import set_global_seeds
 
 from baselines import deepq
-from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer, \
+    DoublePrioritizedStateRecycledReplayBuffer
 from baselines.deepq.utils import ObservationInput
 
 from baselines.common.tf_util import get_session
@@ -113,11 +118,22 @@ def learn(env,
           prioritized_replay_beta0=0.4,
           prioritized_replay_beta_iters=None,
           prioritized_replay_eps=1e-6,
+          debug_flag=False,
+          dpsr_replay=False,
+          dpsr_replay_alpha1=0.6,
+          dpsr_replay_alpha2=0.6,
+          dpsr_replay_candidates_size=5,
+          dpsr_common_replacement_candidates_number=128,
+          dpsr_replay_beta_iters=None,
+          dpsr_replay_beta0=0.4,
+          dpsr_replay_eps=1e-6,
+          dpsr_state_recycle_max_priority_set=True,
+          state_recycle_freq=500,
           param_noise=False,
           callback=None,
           load_path=None,
-          **network_kwargs
-            ):
+          atari_env=True,
+          **network_kwargs):
     """Train a deepq model.
 
     Parameters
@@ -151,6 +167,8 @@ def learn(env,
         how often to save the model. This is so that the best version is restored
         at the end of the training. If you do not wish to restore the best version at
         the end of the training set this variable to None.
+    checkpoint_path: str
+        the saving path of the checkpoint files
     learning_starts: int
         how many steps of the model to collect transitions for before learning starts
     gamma: float
@@ -168,6 +186,29 @@ def learn(env,
         to 1.0. If set to None equals to total_timesteps.
     prioritized_replay_eps: float
         epsilon to add to the TD errors when updating priorities.
+    debug_flag: bool
+        if True DEBUG mode will be switched on
+    dpsr_replay: bool
+        if True DPSR replay buffer will be used
+    dpsr_replay_alpha1: float
+        alpha1 parameter for DPSR replay buffer
+    dpsr_replay_alpha2: float
+        alpha2 parameter for DPSR replay buffer
+    dpsr_replay_candidates_size: int
+        candidates size parameter for DPSR replay buffer state recycle
+    dpsr_common_replacement_candidates_number: int
+        candidates size parameter for DPSR replay buffer common replacement
+    dpsr_replay_beta_iters: int
+        number of iterations over which beta will be annealed from initial value
+        to 1.0. If set to None equals to total_timesteps.
+    dpsr_replay_beta0: float
+        initial value of beta for prioritized replay buffer
+    dpsr_replay_eps: float
+        epsilon to add to the TD errors when updating priorities.
+    dpsr_state_recycle_max_priority_set: bool
+        if True priority will be set as MAX when doing state recycling
+    state_recycle_freq: int
+        do state recycling every 'state_recycle_freq' steps
     param_noise: bool
         whether or not to use parameter space noise (https://arxiv.org/abs/1706.01905)
     callback: (locals, globals) -> None
@@ -175,6 +216,8 @@ def learn(env,
         If callback returns true training stops.
     load_path: str
         path to load the model from. (default: None)
+    atari_env: bool
+        if True the env is an atari env
     **network_kwargs
         additional keyword arguments to pass to the network builder.
 
@@ -195,6 +238,7 @@ def learn(env,
     # by cloudpickle when serializing make_obs_ph
 
     observation_space = env.observation_space
+
     def make_obs_ph(name):
         return ObservationInput(observation_space, name=name)
 
@@ -223,6 +267,18 @@ def learn(env,
             prioritized_replay_beta_iters = total_timesteps
         beta_schedule = LinearSchedule(prioritized_replay_beta_iters,
                                        initial_p=prioritized_replay_beta0,
+                                       final_p=1.0)
+    elif dpsr_replay:
+        replay_buffer = DoublePrioritizedStateRecycledReplayBuffer(buffer_size,
+                                                                   alpha1=dpsr_replay_alpha1,
+                                                                   alpha2=dpsr_replay_alpha2,
+                                                                   candidates_size=dpsr_replay_candidates_size,
+                                                                   # Not Used: env_id=env.env.spec.id
+                                                                   env_id=None)
+        if dpsr_replay_beta_iters is None:
+            dpsr_replay_beta_iters = total_timesteps
+        beta_schedule = LinearSchedule(dpsr_replay_beta_iters,
+                                       initial_p=dpsr_replay_beta0,
                                        final_p=1.0)
     else:
         replay_buffer = ReplayBuffer(buffer_size)
@@ -255,7 +311,6 @@ def learn(env,
             load_variables(load_path)
             logger.log('Loaded model from {}'.format(load_path))
 
-
         for t in range(total_timesteps):
             if callback is not None:
                 if callback(locals(), globals()):
@@ -271,16 +326,77 @@ def learn(env,
                 # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
                 # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
                 # for detailed explanation.
-                update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
+                update_param_noise_threshold = -np.log(
+                    1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
                 kwargs['reset'] = reset
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
+            env_clone_state = None
+            if dpsr_replay:
+                env_clone_state = env.clone_state() if atari_env \
+                    else copy.deepcopy(env.envs[0].env)
             new_obs, rew, done, _ = env.step(env_action)
             # Store transition in the replay buffer.
-            replay_buffer.add(obs, action, rew, new_obs, float(done))
+            if dpsr_replay:
+                if replay_buffer.not_full():
+                    replay_buffer.add(obs, action, rew, new_obs, float(done), env_clone_state, t)
+                elif state_recycle_freq and t % state_recycle_freq == 0:
+                    current_env_copy = None
+                    if not atari_env:
+                        current_env_copy = copy.deepcopy(env.envs[0].env)
+                    candidates_idxes, candidates = replay_buffer.replacement_candidates()
+                    candidates_recycled = []
+                    for candidate in candidates:
+                        cand_obs, cand_old_act, *_, cand_state, cand_t = candidate
+                        if atari_env:
+                            new_env = copy.deepcopy(env)
+                            new_env.reset()
+                            new_env.restore_state(cand_state)
+                        else:
+                            env.envs[0].env = cand_state
+                        new_action_cand = act(np.array(cand_obs)[None], update_eps=0.0, **kwargs)[0]
+                        # make sure that a new experience is made
+                        if new_action_cand != cand_old_act:
+                            new_action = new_action_cand
+                        else:
+                            while True:
+                                new_action_cand = env.action_space.sample()
+                                if new_action_cand != cand_old_act:
+                                    new_action = new_action_cand
+                                    break
+                        if atari_env:
+                            new_new_obs, new_rew, new_done, _ = new_env.step(new_action)
+                        else:
+                            new_new_obs, new_rew, new_done, _ = env.step(new_action)
+                        new_data = (cand_obs, new_action, new_rew, new_new_obs, new_done, cand_state, t)
+                        candidates_recycled.append(new_data)
+                    # get the new TDEs after recycling
+                    cand_obses = np.array([data[0] for data in candidates_recycled])
+                    cand_acts = np.array([data[1] for data in candidates_recycled])
+                    cand_rews = np.array([data[2] for data in candidates_recycled])
+                    cand_new_obses = np.array([data[3] for data in candidates_recycled])
+                    cand_dones = np.array([data[4] for data in candidates_recycled])
+                    cand_weights = np.zeros_like(cand_rews)
+                    cand_td_errors = train(cand_obses, cand_acts, cand_rews, cand_new_obses, cand_dones, cand_weights)
+                    new_cand_priorities = np.abs(cand_td_errors) + dpsr_replay_eps
+                    replay_buffer.update_priorities(candidates_idxes, new_cand_priorities)
+                    replay_buffer.state_recycle(candidates_idxes, candidates_recycled, cand_td_errors,
+                                                dpsr_state_recycle_max_priority_set)
+                    replay_buffer.add(obs, action, rew, new_obs, float(done), env_clone_state, t)
+                    if not atari_env:
+                        env.envs[0].env = current_env_copy
+                else:
+                    # common_replacement_candidates_number = 128
+                    candidates_idxes, candidates = replay_buffer.replacement_candidates(
+                        dpsr_common_replacement_candidates_number)
+                    cand_timestamps = [candidate[-1] for candidate in candidates]
+                    replace_idx = candidates_idxes[np.argmin(cand_timestamps)]
+                    replay_buffer.add(obs, action, rew, new_obs, float(done), env_clone_state, t, replace_idx)
+            else:
+                replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
 
             episode_rewards[-1] += rew
@@ -294,6 +410,10 @@ def learn(env,
                 if prioritized_replay:
                     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
                     (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
+                elif dpsr_replay:
+                    experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
+                    (obses_t, actions, rewards, obses_tp1, dones, env_states, timestamps,
+                     weights, batch_idxes) = experience
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
@@ -301,17 +421,26 @@ def learn(env,
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
+                elif dpsr_replay:
+                    new_priorities = np.abs(td_errors) + dpsr_replay_eps
+                    replay_buffer.update_priorities(batch_idxes, new_priorities)
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
                 update_target()
 
-            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+            mean_100ep_reward = np.round(np.mean(episode_rewards[-101:-1]), 1)
+            mean_10ep_reward = np.round(np.mean(episode_rewards[-11:-1]), 1)
+            mean_5ep_reward = np.round(np.mean(episode_rewards[-6:-1]), 1)
+            last_1ep_reward = np.round(np.mean(episode_rewards[-2:-1]), 1)
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
+                logger.record_tabular("mean 10 episode reward", mean_10ep_reward)
+                logger.record_tabular("mean 5 episode reward", mean_5ep_reward)
+                logger.record_tabular("last episode reward", last_1ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
                 logger.dump_tabular()
 
@@ -320,10 +449,11 @@ def learn(env,
                 if saved_mean_reward is None or mean_100ep_reward > saved_mean_reward:
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
-                                   saved_mean_reward, mean_100ep_reward))
+                            saved_mean_reward, mean_100ep_reward))
                     save_variables(model_file)
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
+
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
