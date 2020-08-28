@@ -36,16 +36,16 @@ class SegmentTree(object):
     def _reduce_helper(self, start, end, node, node_start, node_end):
         if start == node_start and end == node_end:
             return self._value[node]
-        mid = (node_start + node_end) // 2
+        mid = (node_start + node_end) >> 1
         if end <= mid:
-            return self._reduce_helper(start, end, 2 * node, node_start, mid)
+            return self._reduce_helper(start, end, node << 1, node_start, mid)
         else:
             if mid + 1 <= start:
-                return self._reduce_helper(start, end, 2 * node + 1, mid + 1, node_end)
+                return self._reduce_helper(start, end, node << 1 | 1, mid + 1, node_end)
             else:
                 return self._operation(
-                    self._reduce_helper(start, mid, 2 * node, node_start, mid),
-                    self._reduce_helper(mid + 1, end, 2 * node + 1, mid + 1, node_end)
+                    self._reduce_helper(start, mid, node << 1, node_start, mid),
+                    self._reduce_helper(mid + 1, end, node << 1 | 1, mid + 1, node_end)
                 )
 
     def reduce(self, start=0, end=None):
@@ -77,13 +77,13 @@ class SegmentTree(object):
         # index of the leaf
         idx += self._capacity
         self._value[idx] = val
-        idx //= 2
+        idx >>= 1
         while idx >= 1:
             self._value[idx] = self._operation(
-                self._value[2 * idx],
-                self._value[2 * idx + 1]
+                self._value[idx << 1],
+                self._value[idx << 1 | 1]
             )
-            idx //= 2
+            idx >>= 1
 
     def __getitem__(self, idx):
         assert 0 <= idx < self._capacity
@@ -123,11 +123,11 @@ class SumSegmentTree(SegmentTree):
         assert 0 <= prefixsum <= self.sum() + 1e-5
         idx = 1
         while idx < self._capacity:  # while non-leaf
-            if self._value[2 * idx] > prefixsum:
-                idx = 2 * idx
+            if self._value[idx << 1] > prefixsum:
+                idx <<= 1
             else:
-                prefixsum -= self._value[2 * idx]
-                idx = 2 * idx + 1
+                prefixsum -= self._value[idx << 1]
+                idx = idx << 1 | 1
         return idx - self._capacity
 
 
