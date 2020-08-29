@@ -32,20 +32,21 @@ class SegmentTree(object):
         self._capacity = capacity
         self._value = [neutral_element for _ in range(2 * capacity)]
         self._operation = operation
+        self._neutral_element = neutral_element
 
     def _reduce_helper(self, start, end, node, node_start, node_end):
         if start == node_start and end == node_end:
             return self._value[node]
-        mid = (node_start + node_end) // 2
+        mid = (node_start + node_end) >> 1
         if end <= mid:
-            return self._reduce_helper(start, end, 2 * node, node_start, mid)
+            return self._reduce_helper(start, end, node << 1, node_start, mid)
         else:
             if mid + 1 <= start:
-                return self._reduce_helper(start, end, 2 * node + 1, mid + 1, node_end)
+                return self._reduce_helper(start, end, node << 1 | 1, mid + 1, node_end)
             else:
                 return self._operation(
-                    self._reduce_helper(start, mid, 2 * node, node_start, mid),
-                    self._reduce_helper(mid + 1, end, 2 * node + 1, mid + 1, node_end)
+                    self._reduce_helper(start, mid, node << 1, node_start, mid),
+                    self._reduce_helper(mid + 1, end, node << 1 | 1, mid + 1, node_end)
                 )
 
     def reduce(self, start=0, end=None):
@@ -77,20 +78,47 @@ class SegmentTree(object):
         # index of the leaf
         idx += self._capacity
         self._value[idx] = val
-        idx //= 2
+        idx >>= 1
         while idx >= 1:
             self._value[idx] = self._operation(
-                self._value[2 * idx],
-                self._value[2 * idx + 1]
+                self._value[idx << 1],
+                self._value[idx << 1 | 1]
             )
-            idx //= 2
+            idx >>= 1
 
     def __getitem__(self, idx):
         assert 0 <= idx < self._capacity
         return self._value[self._capacity + idx]
 
 
-class SumSegmentTree(SegmentTree):
+class ZKWSegmentTree(SegmentTree):
+    def __init__(self, *args, **kwargs):
+        super(ZKWSegmentTree, self).__init__(*args, **kwargs)
+
+    def _reduce_helper(self, start: int, end: int, *args, **kwargs):
+        """
+        O(log segment size) range query without recursion
+        :param start: beginning of the subsequence
+        :param end: end of the subsequences
+        :return: same as origin _reduce_helper
+        """
+        result: float = self._neutral_element
+
+        left = start + self._capacity - 1
+        right = end + self._capacity + 1
+
+        while left ^ right ^ 1:
+            if ~left & 1:  # l % 2 == 0 thus $left is left son of $left >> 1
+                result = self._operation(result, self._value[left ^ 1])
+            if right & 1:  # r % 2 == 1 ths $right is right son of $right >> 1
+                result = self._operation(result, self._value[right ^ 1])
+            left >>= 1
+            right >>= 1
+
+        return result
+
+
+class SumSegmentTree(ZKWSegmentTree):
     def __init__(self, capacity):
         super(SumSegmentTree, self).__init__(
             capacity=capacity,
@@ -123,15 +151,15 @@ class SumSegmentTree(SegmentTree):
         assert 0 <= prefixsum <= self.sum() + 1e-5
         idx = 1
         while idx < self._capacity:  # while non-leaf
-            if self._value[2 * idx] > prefixsum:
-                idx = 2 * idx
+            if self._value[idx << 1] > prefixsum:
+                idx <<= 1
             else:
-                prefixsum -= self._value[2 * idx]
-                idx = 2 * idx + 1
+                prefixsum -= self._value[idx << 1]
+                idx = idx << 1 | 1
         return idx - self._capacity
 
 
-class MinSegmentTree(SegmentTree):
+class MinSegmentTree(ZKWSegmentTree):
     def __init__(self, capacity):
         super(MinSegmentTree, self).__init__(
             capacity=capacity,
