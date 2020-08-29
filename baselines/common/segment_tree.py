@@ -95,7 +95,13 @@ class ZKWSegmentTree(SegmentTree):
     def __init__(self, *args, **kwargs):
         super(ZKWSegmentTree, self).__init__(*args, **kwargs)
 
-    def _reduce_helper(self, start, end, node, node_start, node_end):
+    def _reduce_helper(self, start: int, end: int, *args, **kwargs):
+        """
+        O(log segment size) range query without recursion
+        :param start: beginning of the subsequence
+        :param end: end of the subsequences
+        :return: same as origin _reduce_helper
+        """
         result: float = self._neutral_element
 
         left = start + self._capacity - 1
