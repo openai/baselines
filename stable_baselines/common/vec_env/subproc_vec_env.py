@@ -75,7 +75,7 @@ class SubprocVecEnv(VecEnv):
             start_method = 'fork' if fork_available else 'spawn'
         ctx = multiprocessing.get_context(start_method)
 
-        self.remotes, self.work_remotes = zip(*[ctx.Pipe() for _ in range(n_envs)])
+        self.work_remotes, self.remotes = zip(*[ctx.Pipe() for _ in range(n_envs)])
         self.processes = []
         for work_remote, remote, env_fn in zip(self.work_remotes, self.remotes, env_fns):
             args = (work_remote, remote, CloudpickleWrapper(env_fn))
