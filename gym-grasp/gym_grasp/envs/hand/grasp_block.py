@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import random
 
 from gym import utils, error
 # from gym.envs.robotics import rotations, hand_env
@@ -31,7 +32,7 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
     def __init__(
         self, model_path, target_position, target_rotation,
         target_position_range, reward_type, initial_qpos={},
-        randomize_initial_position=True, randomize_initial_rotation=True,
+        randomize_initial_position=True, randomize_initial_rotation=True, randomize_object=True,
         distance_threshold=0.01, rotation_threshold=0.1, n_substeps=20, relative_control=False,
         ignore_z_target_rotation=False,
     ):
@@ -55,6 +56,7 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
             initial_qpos (dict): a dictionary of joint names and values that define the initial configuration
             randomize_initial_position (boolean): whether or not to randomize the initial position of the object
             randomize_initial_rotation (boolean): whether or not to randomize the initial rotation of the object
+            randomize_object (boolean)
             distance_threshold (float, in meters): the threshold after which the position of a goal is considered achieved
             rotation_threshold (float, in radians): the threshold after which the rotation of a goal is considered achieved
             n_substeps (int): number of substeps the simulation runs on every call to step
@@ -71,6 +73,11 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
         self.reward_type = reward_type
         self.ignore_z_target_rotation = ignore_z_target_rotation
 
+        self.object_list = ["box:joint", "apple:joint", "banana:joint", "beerbottle:joint", "book:joint",
+                            "needle:joint", "pen:joint", "teacup:joint"]
+        self.object = self.object_list[random.randrange(0, 8, 1)]
+        self.init_object_qpos = np.array([1, 0.87, 0.2, 1, 0, 0, 0])
+
         assert self.target_position in ['ignore', 'fixed', 'random']
         assert self.target_rotation in ['ignore', 'fixed', 'xyz', 'z', 'parallel']
 
@@ -81,9 +88,13 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
 
     def _get_achieved_goal(self):
         # Object position and rotation.
-        object_qpos = self.sim.data.get_joint_qpos('object:joint')
+        object_qpos = self.sim.data.get_joint_qpos(self.object)
         assert object_qpos.shape == (7,)
         return object_qpos
+
+    # def _randamize_target(self):
+    #     self.sim.data.set_joint_qpos("target0:joint", [1, 0.87, 0.4, 1, 0, 0, 0])
+    #     # print("##### {} #####".format(self.sim.data.get_joint_qpos("target0:joint")))
 
     def _goal_distance(self, goal_a, goal_b):
         assert goal_a.shape == goal_b.shape
@@ -147,7 +158,8 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
         self.sim.set_state(self.initial_state)
         self.sim.forward()
 
-        initial_qpos = self.sim.data.get_joint_qpos('object:joint').copy()
+        self.object = self.object_list[random.randrange(0, 8, 1)]
+        initial_qpos = self.init_object_qpos
         initial_pos, initial_quat = initial_qpos[:3], initial_qpos[3:]
         assert initial_qpos.shape == (7,)
         assert initial_pos.shape == (3,)
@@ -185,7 +197,7 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
 
         initial_quat /= np.linalg.norm(initial_quat)
         initial_qpos = np.concatenate([initial_pos, initial_quat])
-        self.sim.data.set_joint_qpos('object:joint', initial_qpos)
+        self.sim.data.set_joint_qpos(self.object, initial_qpos)
 
         def is_on_palm():
             self.sim.forward()
@@ -210,9 +222,9 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
             assert self.target_position_range.shape == (3, 2)
             offset = self.np_random.uniform(self.target_position_range[:, 0], self.target_position_range[:, 1])
             assert offset.shape == (3,)
-            target_pos = self.sim.data.get_joint_qpos('object:joint')[:3] + offset
+            target_pos = self.sim.data.get_joint_qpos(self.object)[:3] + offset
         elif self.target_position in ['ignore', 'fixed']:
-            target_pos = self.sim.data.get_joint_qpos('object:joint')[:3]
+            target_pos = self.sim.data.get_joint_qpos(self.object)[:3]
         else:
             raise error.Error('Unknown target_position option "{}".'.format(self.target_position))
         assert target_pos is not None
@@ -235,7 +247,7 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
             axis = self.np_random.uniform(-1., 1., size=3)
             target_quat = quat_from_angle_and_axis(angle, axis)
         elif self.target_rotation in ['ignore', 'fixed']:
-            target_quat = self.sim.data.get_joint_qpos('object:joint')
+            target_quat = self.sim.data.get_joint_qpos(self.object)
         else:
             raise error.Error('Unknown target_rotation option "{}".'.format(self.target_rotation))
         assert target_quat is not None
@@ -263,7 +275,7 @@ class ManipulateEnv(hand_env.HandEnv, utils.EzPickle):
 
     def _get_obs(self):
         robot_qpos, robot_qvel = robot_get_obs(self.sim)
-        object_qvel = self.sim.data.get_joint_qvel('object:joint')
+        object_qvel = self.sim.data.get_joint_qvel(self.object)
         achieved_goal = self._get_achieved_goal().ravel()  # this contains the object position + rotation
         observation = np.concatenate([robot_qpos, robot_qvel, object_qvel, achieved_goal])
         return {
