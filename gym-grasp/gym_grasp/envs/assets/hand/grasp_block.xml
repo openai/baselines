@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <mujoco>
-    <compiler angle="radian" coordinate="local" meshdir="../stls/hand" texturedir="../textures"></compiler>
+    <compiler angle="radian" coordinate="local" meshdir="../stls" texturedir="../textures"></compiler>
     <option timestep="0.002" iterations="20" apirate="200">
         <flag warmstart="enable"></flag>
     </option>
@@ -26,11 +26,11 @@
 
         <geom type="plane" pos="1 0.87 0.175" size="0.2 0.2 0.2" rgba=".9 .9 .9 1"/>
 
-        <body name="object" pos="1 0.85 0.2">
-            <geom name="object" type="box" size="0.025 0.025 0.025" material="material:object" condim="4" density="567"></geom>
+        <body name="object" pos="1.6 0.85 0.2">
+            <geom name="object" type="box" friction="1.5 0.005 0.0001" size="0.025 0.025 0.025" material="material:object" condim="4" density="567"></geom>
             <geom name="object_hidden" type="box" size="0.024 0.024 0.024" material="material:hidden" condim="4" contype="0" conaffinity="0" mass="0.0l"></geom>
             <site name="object:center" pos="0 0 0" rgba="1 0 0 0" size="0.01 0.01 0.01"></site>
-            <joint name="object:joint" type="free" damping="0.01"></joint>
+            <joint name="box:joint" type="free" damping="0.01"></joint>
         </body>
         <body name="target" pos="1 0.87 0.4">
             <geom name="target" type="box" size="0.025 0.025 0.025" material="material:target" condim="4" group="2" contype="0" conaffinity="0"></geom>
@@ -38,10 +38,45 @@
             <joint name="target:joint" type="free" damping="0.01"></joint>
         </body>
 
+        <body name="apple" pos="1.3 0.87 0.22">
+            <geom name="apple:C_target" friction="1.5 0.005 0.0001" type="mesh" mesh="target0:Apple" euler="0 0 1.57"></geom>
+            <joint name="apple:joint" type="free" damping="0.01"></joint>
+        </body>
+
+        <body name="banana" pos="0.7 0.87 0.2">
+            <geom name="banana:C_target" friction="1.5 0.005 0.0001" type="mesh" mesh="target0:Banana" euler="1.57 1.57 1.57"></geom>
+            <joint name="banana:joint" type="free" damping="0.01"></joint>
+        </body>
+
+        <body name="beerbottle" pos="0.7 1.17 0.22">
+            <geom name="beerbottle:C_target" friction="1.5 0.005 0.0001" type="mesh" mesh="target0:Beerbottle" euler="0 1.57 0"></geom>
+            <joint name="beerbottle:joint" type="free" damping="0.01"></joint>
+        </body>
+
+        <body name="book" pos="0.7 0.57 0.25">
+            <geom name="book:C_target" friction="1.5 0.005 0.0001" type="mesh" mesh="target0:Book" euler="1.57 1.57 0"></geom>
+            <joint name="book:joint" type="free" damping="0.01"></joint>
+        </body>
+
+        <body name="needle" pos="1 0.57 0.25">
+            <geom name="needle:C_target" friction="1.5 0.005 0.0001" type="mesh" mesh="target0:Needle" euler="1.57 1.57 0"></geom>
+            <joint name="needle:joint" type="free" damping="0.01"></joint>
+        </body>
+
+        <body name="pen" pos="1.3 0.57 0.25">
+            <geom name="pen:C_target" friction="1.5 0.005 0.0001" type="mesh" mesh="target0:Pen" euler="1.57 1.57 0"></geom>
+            <joint name="pen:joint" type="free" damping="0.01"></joint>
+        </body>
+
+        <body name="teacup" pos="1.3 1.17 0.24">
+            <geom name="teacup:C_target" friction="1.5 0.005 0.0001" type="mesh" mesh="target0:Teacup" euler="-1.57 1.57 0"></geom>
+            <joint name="teacup:joint" type="free" damping="0.01"></joint>
+        </body>
+
         <light directional="true" ambient="0.2 0.2 0.2" diffuse="0.8 0.8 0.8" specular="0.3 0.3 0.3" castshadow="false" pos="0 1 4" dir="0 0 -1" name="light0"></light>
     </worldbody>
 
     <actuator>
-        <position name="robot0:A_slider" joint="robot0:slider" ctrlrange="-0.6 0.6" ctrllimited="true" kp="5"/>
+        <position name="robot0:A_slider" joint="robot0:slider" ctrlrange="-0.6 0.8" ctrllimited="true" kp="7"/>
     </actuator>
 </mujoco>

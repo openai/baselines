@@ -11,16 +11,65 @@
     <material name="robot0:object" texture="robot0:texgeom" texuniform="false"></material>
     <material name="floor_mat" specular="0" shininess="0.5" reflectance="0" rgba="0.2 0.2 0.2 0"></material>
 
-    <mesh name="robot0:forearm" file="forearm_electric.stl"></mesh>
-    <mesh name="robot0:forearm_cvx" file="forearm_electric_cvx.stl"></mesh>
-    <mesh name="robot0:wrist" scale="0.001 0.001 0.001" file="wrist.stl"></mesh>
-    <mesh name="robot0:palm" scale="0.001 0.001 0.001" file="palm.stl"></mesh>
-    <mesh name="robot0:knuckle" scale="0.001 0.001 0.001" file="knuckle.stl"></mesh>
-    <mesh name="robot0:F3" scale="0.001 0.001 0.001" file="F3.stl"></mesh>
-    <mesh name="robot0:F2" scale="0.001 0.001 0.001" file="F2.stl"></mesh>
-    <mesh name="robot0:F1" scale="0.001 0.001 0.001" file="F1.stl"></mesh>
-    <mesh name="robot0:lfmetacarpal" scale="0.001 0.001 0.001" file="lfmetacarpal.stl"></mesh>
-    <mesh name="robot0:TH3_z" scale="0.001 0.001 0.001" file="TH3_z.stl"></mesh>
-    <mesh name="robot0:TH2_z" scale="0.001 0.001 0.001" file="TH2_z.stl"></mesh>
-    <mesh name="robot0:TH1_z" scale="0.001 0.001 0.001" file="TH1_z.stl"></mesh>
+    <mesh name="robot0:forearm" file="hand/forearm_electric.stl"></mesh>
+    <mesh name="robot0:forearm_cvx" file="hand/forearm_electric_cvx.stl"></mesh>
+    <mesh name="robot0:wrist" scale="0.001 0.001 0.001" file="hand/wrist.stl"></mesh>
+    <mesh name="robot0:palm" scale="0.001 0.001 0.001" file="hand/palm.stl"></mesh>
+    <mesh name="robot0:knuckle" scale="0.001 0.001 0.001" file="hand/knuckle.stl"></mesh>
+    <mesh name="robot0:F3" scale="0.001 0.001 0.001" file="hand/F3.stl"></mesh>
+    <mesh name="robot0:F2" scale="0.001 0.001 0.001" file="hand/F2.stl"></mesh>
+    <mesh name="robot0:F1" scale="0.001 0.001 0.001" file="hand/F1.stl"></mesh>
+    <mesh name="robot0:lfmetacarpal" scale="0.001 0.001 0.001" file="hand/lfmetacarpal.stl"></mesh>
+    <mesh name="robot0:TH3_z" scale="0.001 0.001 0.001" file="hand/TH3_z.stl"></mesh>
+    <mesh name="robot0:TH2_z" scale="0.001 0.001 0.001" file="hand/TH2_z.stl"></mesh>
+    <mesh name="robot0:TH1_z" scale="0.001 0.001 0.001" file="hand/TH1_z.stl"></mesh>
+    
+    <mesh name="target0:Apple" scale="0.7 0.7 0.7" file="target/Apple.stl"/>
+    <mesh name="target0:Ashtray" file="target/Ashtray.stl"/>
+    <mesh name="target0:Banana" scale="0.5 0.5 0.5" file="target/Banana.stl"/>
+    <mesh name="target0:Baseball" file="target/Baseball.stl"/>
+    <mesh name="target0:Beerbottle" file="target/Beerbottle.stl"/>
+    <mesh name="target0:Book" scale="0.3 0.3 0.3" file="target/Book.stl"/>
+    <mesh name="target0:Book2" file="target/Book2.stl"/>
+    <mesh name="target0:Bottle" file="target/Bottle.stl"/>
+    <mesh name="target0:Bottle2" file="target/Bottle2.stl"/>
+    <mesh name="target0:Bottle3" file="target/Bottle3.stl"/>
+    <mesh name="target0:Bucket" file="target/Bucket.stl"/>
+    <mesh name="target0:Calculator" file="target/Calculator.stl"/>
+    <mesh name="target0:Calculator2" file="target/Calculator2.stl"/>
+    <mesh name="target0:Can" file="target/Can.stl"/>
+    <mesh name="target0:Chalk" file="target/Chalk.stl"/>
+    <mesh name="target0:Cube" file="target/Cube.stl"/>
+    <mesh name="target0:Dish" file="target/Dish.stl"/>
+    <mesh name="target0:Doorkey" file="target/Doorkey.stl"/>
+    <mesh name="target0:Doorknob" file="target/Doorknob.stl"/>
+    <mesh name="target0:Frisbee" file="target/Frisbee.stl"/>
+    <mesh name="target0:Gun" file="target/Gun.stl"/>
+    <mesh name="target0:Gun2" file="target/Gun2.stl"/>
+    <mesh name="target0:Hammer" file="target/Hammer.stl"/>
+    <mesh name="target0:Handset" file="target/Handset.stl"/>
+    <mesh name="target0:Jar" file="target/Jar.stl"/>
+    <mesh name="target0:Knife" file="target/Knife.stl"/>
+    <mesh name="target0:LightBulb" file="target/LightBulb.stl"/>
+    <mesh name="target0:Lock" file="target/Lock.stl"/>
+    <mesh name="target0:MilkPack" file="target/MilkPack.stl"/>
+    <mesh name="target0:Mugcup" file="target/Mugcup.stl"/>
+    <mesh name="target0:Mugcup2" file="target/Mugcup2.stl"/>
+    <mesh name="target0:Mugcup3" file="target/Mugcup3.stl"/>
+    <mesh name="target0:Mugcup4" file="target/Mugcup4.stl"/>
+    <mesh name="target0:Mugcup5" file="target/Mugcup5.stl"/>
+    <mesh name="target0:Needle" scale="0.2 0.2 0.2" file="target/Needle.stl"/>
+    <mesh name="target0:Peer" file="target/Peer.stl"/>
+    <mesh name="target0:Pen" scale="0.2 0.2 0.2" file="target/Pen.stl"/>
+    <mesh name="target0:Pench" file="target/Pench.stl"/>
+    <mesh name="target0:Plate" file="target/Plate.stl"/>
+    <mesh name="target0:Pot" file="target/Pot.stl"/>
+    <mesh name="target0:Precisionscrewdriver" file="target/Precisionscrewdriver.stl"/>
+    <mesh name="target0:RemoteController" file="target/RemoteController.stl"/>
+    <mesh name="target0:Scissors" file="target/Scissors.stl"/>
+    <mesh name="target0:Screwdriver" file="target/Screwdriver.stl"/>
+    <mesh name="target0:Screwdriver2" file="target/Screwdriver2.stl"/>
+    <mesh name="target0:Stapler" file="target/Stapler.stl"/>
+    <mesh name="target0:Teacup" file="target/Teacup.stl"/>
+    <mesh name="target0:Wrench" file="target/Wrench.stl"/>
 </mujoco>
