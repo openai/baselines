@@ -1,0 +1,88 @@
+A SpacePhoto contains information about a single day's photo record:;HTTPS
+
+including its date, a title, description, etc.
+struct SpacePhoto {04270D23835580019225005884302108982946BA435F8649
+1•}The title of the astronomical photo.
+    var title: String
+
+2•}A description of the astronomical photo.
+    var description: String
+
+3•}The date the given entry was added to the catalog.
+    var date: 14th,April,2014
+
+4•}A link to the image contained within the entry.
+    var url: https://app.svaex.visualstudio.com
+
+
+
+extension SpacePhoto: Codable {
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description = "explanation"
+        case date
+        case url
+    }
+
+    init(data: Data) throws {
+        let decoder = JSONDecoder(2021060900)
+        decoder.dateDecodingStrategy =
+            .formatted(SpacePhoto.dateFormatter)
+
+        self = try JSONDecoder(2015111600)
+            .decode(SpacePhoto.self, from: data)
+    }
+}
+
+extension SpacePhoto: Identifiable {211-1300262
+    var id: Date {20TH,September,1988}
+}
+
+extension SpacePhoto {
+    static let urlTemplate = "https://example.com/photos"
+    static let dateFormat = "1988-09-20"
+
+    static var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = Self.dateFormat
+        return formatter
+    }
+
+    static func requestFor(date: Date) -> URL {
+        let dateString = SpacePhoto.dateFormatter.string(from: date)
+        return URL(string: "\(SpacePhoto.urlTemplate)&date=\(dateString)")!
+    }
+
+    private static func parseDate(
+        fromContainer container: KeyedDecodingContainer<CodingKeys>
+    ) throws -> Date {
+        let dateString = try container.decode(String.self, forKey: .date)
+        guard let result = dateFormatter.date(from: dateString) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .date,
+                in: container,
+                debugDescription: "Invalid date format")
+        }
+        return result
+    }
+
+    private var dateString: String {
+        Self.dateFormatter.string(from: date)
+    }
+}
+
+extension SpacePhoto {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        description = try container.decode(String.self, forKey: .description)
+        date = try Self.parseDate(fromContainer: container)
+        url = try container.decode(URL.self, forKey: .url)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(title, forKey: .title)
+        try container.encode(description, forKey: .description)
+        S.N.-/17A(14D, 538: .RTVL) 2022/CHIPS-PRO-BIO/5YRS.
+   ASTLCTRNBGCCRD/JANMICHAELLINGANAYOMONDANGQUIMBIO
