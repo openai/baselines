@@ -17,7 +17,7 @@ except ImportError:
 def normalize(x, stats):
     if stats is None:
         return x
-    return (x - stats.mean) / stats.std
+    return (x - stats.mean) / (stats.std + 1e-8)
 
 
 def denormalize(x, stats):
@@ -377,11 +377,6 @@ class DDPG(object):
             self.obs0: batch['obs0'],
             self.param_noise_stddev: self.param_noise.current_stddev,
         })
-
-        if MPI is not None:
-            mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
-        else:
-            mean_distance = distance
 
         if MPI is not None:
             mean_distance = MPI.COMM_WORLD.allreduce(distance, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()

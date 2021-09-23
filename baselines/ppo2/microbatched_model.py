@@ -8,7 +8,7 @@ class MicrobatchedModel(Model):
     on the entire minibatch causes some overflow
     """
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                nsteps, ent_coef, vf_coef, max_grad_norm, microbatch_size):
+                nsteps, ent_coef, vf_coef, max_grad_norm, mpi_rank_weight, comm, microbatch_size):
 
         self.nmicrobatches = nbatch_train // microbatch_size
         self.microbatch_size = microbatch_size
@@ -23,7 +23,9 @@ class MicrobatchedModel(Model):
                 nsteps=nsteps,
                 ent_coef=ent_coef,
                 vf_coef=vf_coef,
-                max_grad_norm=max_grad_norm)
+                max_grad_norm=max_grad_norm,
+                mpi_rank_weight=mpi_rank_weight,
+                comm=comm)
 
         self.grads_ph = [tf.placeholder(dtype=g.dtype, shape=g.shape) for g in self.grads]
         grads_ph_and_vars = list(zip(self.grads_ph, self.var))

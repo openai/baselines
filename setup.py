@@ -12,10 +12,9 @@ extras = {
         'filelock',
         'pytest',
         'pytest-forked',
-        'atari-py'
-    ],
-    'bullet': [
-        'pybullet',
+        'atari-py',
+        'matplotlib',
+        'pandas'
     ],
     'mpi': [
         'mpi4py'
@@ -32,12 +31,10 @@ setup(name='baselines',
       packages=[package for package in find_packages()
                 if package.startswith('baselines')],
       install_requires=[
-          'gym',
+          'gym>=0.15.4, <0.16.0',
           'scipy',
           'tqdm',
           'joblib',
-          'dill',
-          'progressbar2',
           'cloudpickle',
           'click',
           'opencv-python'
@@ -47,7 +44,7 @@ setup(name='baselines',
       author='OpenAI',
       url='https://github.com/openai/baselines',
       author_email='gym@openai.com',
-      version='0.1.5')
+      version='0.1.6')
 
 
 # ensure there is some tensorflow build with version above 1.4

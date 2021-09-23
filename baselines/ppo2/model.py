@@ -25,8 +25,11 @@ class Model(object):
     - Save load the model
     """
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
-                nsteps, ent_coef, vf_coef, max_grad_norm, microbatch_size=None):
+                nsteps, ent_coef, vf_coef, max_grad_norm, mpi_rank_weight=1, comm=None, microbatch_size=None):
         self.sess = sess = get_session()
+
+        if MPI is not None and comm is None:
+            comm = MPI.COMM_WORLD
 
         with tf.variable_scope('ppo2_model', reuse=tf.AUTO_REUSE):
             # CREATE OUR TWO MODELS
@@ -91,8 +94,8 @@ class Model(object):
         # 1. Get the model parameters
         params = tf.trainable_variables('ppo2_model')
         # 2. Build our trainer
-        if MPI is not None:
-            self.trainer = MpiAdamOptimizer(MPI.COMM_WORLD, learning_rate=LR, epsilon=1e-5)
+        if comm is not None and comm.Get_size() > 1:
+            self.trainer = MpiAdamOptimizer(comm, learning_rate=LR, mpi_rank_weight=mpi_rank_weight, epsilon=1e-5)
         else:
             self.trainer = tf.train.AdamOptimizer(learning_rate=LR, epsilon=1e-5)
         # 3. Calculate the gradients
@@ -125,7 +128,7 @@ class Model(object):
         initialize()
         global_variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="")
         if MPI is not None:
-            sync_from_root(sess, global_variables) #pylint: disable=E1101
+            sync_from_root(sess, global_variables, comm=comm) #pylint: disable=E1101
 
     def train(self, lr, cliprange, obs, returns, masks, actions, values, neglogpacs, states=None):
         # Here we calculate advantage A(s,a) = R + yV(s') - V(s)

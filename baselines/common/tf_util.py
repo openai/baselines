@@ -1,4 +1,3 @@
-import joblib
 import numpy as np
 import tensorflow as tf  # pylint: ignore-module
 import copy
@@ -186,6 +185,7 @@ class _Function(object):
             if not hasattr(inpt, 'make_feed_dict') and not (type(inpt) is tf.Tensor and len(inpt.op.inputs) == 0):
                 assert False, "inputs should all be placeholders, constants, or have a make_feed_dict method"
         self.inputs = inputs
+        self.input_names = {inp.name.split("/")[-1].split(":")[0]: inp for inp in inputs}
         updates = updates or []
         self.update_group = tf.group(*updates)
         self.outputs_update = list(outputs) + [self.update_group]
@@ -197,15 +197,17 @@ class _Function(object):
         else:
             feed_dict[inpt] = adjust_shape(inpt, value)
 
-    def __call__(self, *args):
-        assert len(args) <= len(self.inputs), "Too many arguments provided"
+    def __call__(self, *args, **kwargs):
+        assert len(args) + len(kwargs) <= len(self.inputs), "Too many arguments provided"
         feed_dict = {}
-        # Update the args
-        for inpt, value in zip(self.inputs, args):
-            self._feed_input(feed_dict, inpt, value)
         # Update feed dict with givens.
         for inpt in self.givens:
             feed_dict[inpt] = adjust_shape(inpt, feed_dict.get(inpt, self.givens[inpt]))
+        # Update the args
+        for inpt, value in zip(self.inputs, args):
+            self._feed_input(feed_dict, inpt, value)
+        for inpt_name, value in kwargs.items():
+            self._feed_input(feed_dict, self.input_names[inpt_name], value)
         results = get_session().run(self.outputs_update, feed_dict=feed_dict)[:-1]
         return results
 
@@ -303,12 +305,17 @@ def display_var_info(vars):
     logger.info("Total model parameters: %0.2f million" % (count_params*1e-6))
 
 
-def get_available_gpus():
-    # recipe from here:
-    # https://stackoverflow.com/questions/38559755/how-to-get-current-available-gpus-in-tensorflow?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
+def get_available_gpus(session_config=None):
+    # based on recipe from https://stackoverflow.com/a/38580201
+
+    # Unless we allocate a session here, subsequent attempts to create one
+    # will ignore our custom config (in particular, allow_growth=True will have
+    # no effect).
+    if session_config is None:
+        session_config = get_session()._config
 
     from tensorflow.python.client import device_lib
-    local_device_protos = device_lib.list_local_devices()
+    local_device_protos = device_lib.list_local_devices(session_config)
     return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
 # ================================================================
@@ -336,6 +343,7 @@ def save_state(fname, sess=None):
 # TODO: ensure there is no subtle differences and remove one
 
 def save_variables(save_path, variables=None, sess=None):
+    import joblib
     sess = sess or get_session()
     variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 
@@ -347,6 +355,7 @@ def save_variables(save_path, variables=None, sess=None):
     joblib.dump(save_dict, save_path)
 
 def load_variables(load_path, variables=None, sess=None):
+    import joblib
     sess = sess or get_session()
     variables = variables or tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
 

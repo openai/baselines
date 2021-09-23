@@ -7,6 +7,7 @@ import time
 import datetime
 import tempfile
 from collections import defaultdict
+from contextlib import contextmanager
 
 DEBUG = 10
 INFO = 20
@@ -37,8 +38,8 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         # Create strings for printing
         key2str = {}
         for (key, val) in sorted(kvs.items()):
-            if isinstance(val, float):
-                valstr = '%-8.3g' % (val,)
+            if hasattr(val, '__float__'):
+                valstr = '%-8.3g' % val
             else:
                 valstr = str(val)
             key2str[self._truncate(key)] = self._truncate(valstr)
@@ -68,7 +69,8 @@ class HumanOutputFormat(KVWriter, SeqWriter):
         self.file.flush()
 
     def _truncate(self, s):
-        return s[:20] + '...' if len(s) > 23 else s
+        maxlen = 30
+        return s[:maxlen-3] + '...' if len(s) > maxlen else s
 
     def writeseq(self, seq):
         seq = list(seq)
@@ -90,7 +92,6 @@ class JSONOutputFormat(KVWriter):
     def writekvs(self, kvs):
         for k, v in sorted(kvs.items()):
             if hasattr(v, 'dtype'):
-                v = v.tolist()
                 kvs[k] = float(v)
         self.file.write(json.dumps(kvs) + '\n')
         self.file.flush()
@@ -195,13 +196,13 @@ def logkv(key, val):
     Call this once for each diagnostic quantity, each iteration
     If called many times, last value will be used.
     """
-    Logger.CURRENT.logkv(key, val)
+    get_current().logkv(key, val)
 
 def logkv_mean(key, val):
     """
     The same as logkv(), but if called many times, values averaged.
     """
-    Logger.CURRENT.logkv_mean(key, val)
+    get_current().logkv_mean(key, val)
 
 def logkvs(d):
     """
@@ -213,21 +214,18 @@ def logkvs(d):
 def dumpkvs():
     """
     Write all of the diagnostics from the current iteration
-
-    level: int. (see logger.py docs) If the global logger level is higher than
-                the level argument here, don't print to stdout.
     """
-    Logger.CURRENT.dumpkvs()
+    return get_current().dumpkvs()
 
 def getkvs():
-    return Logger.CURRENT.name2val
+    return get_current().name2val
 
 
 def log(*args, level=INFO):
     """
     Write the sequence of args, with no separators, to the console and output files (if you've configured an output file).
     """
-    Logger.CURRENT.log(*args, level=level)
+    get_current().log(*args, level=level)
 
 def debug(*args):
     log(*args, level=DEBUG)
@@ -246,30 +244,29 @@ def set_level(level):
     """
     Set logging threshold on current logger.
     """
-    Logger.CURRENT.set_level(level)
+    get_current().set_level(level)
+
+def set_comm(comm):
+    get_current().set_comm(comm)
 
 def get_dir():
     """
     Get directory that log files are being written to.
     will be None if there is no output directory (i.e., if you didn't call start)
     """
-    return Logger.CURRENT.get_dir()
+    return get_current().get_dir()
 
 record_tabular = logkv
 dump_tabular = dumpkvs
 
-class ProfileKV:
-    """
-    Usage:
-    with logger.ProfileKV("interesting_scope"):
-        code
-    """
-    def __init__(self, n):
-        self.n = "wait_" + n
-    def __enter__(self):
-        self.t1 = time.time()
-    def __exit__(self ,type, value, traceback):
-        Logger.CURRENT.name2val[self.n] += time.time() - self.t1
+@contextmanager
+def profile_kv(scopename):
+    logkey = 'wait_' + scopename
+    tstart = time.time()
+    try:
+        yield
+    finally:
+        get_current().name2val[logkey] += time.time() - tstart
 
 def profile(n):
     """
@@ -279,7 +276,7 @@ def profile(n):
     """
     def decorator_with_name(func):
         def func_wrapper(*args, **kwargs):
-            with ProfileKV(n):
+            with profile_kv(n):
                 return func(*args, **kwargs)
         return func_wrapper
     return decorator_with_name
@@ -289,17 +286,25 @@ def profile(n):
 # Backend
 # ================================================================
 
+def get_current():
+    if Logger.CURRENT is None:
+        _configure_default_logger()
+
+    return Logger.CURRENT
+
+
 class Logger(object):
     DEFAULT = None  # A logger with no output files. (See right below class definition)
                     # So that you can still log to the terminal without setting up any output files
     CURRENT = None  # Current logger being used by the free functions above
 
-    def __init__(self, dir, output_formats):
+    def __init__(self, dir, output_formats, comm=None):
         self.name2val = defaultdict(float)  # values this iteration
         self.name2cnt = defaultdict(int)
         self.level = INFO
         self.dir = dir
         self.output_formats = output_formats
+        self.comm = comm
 
     # Logging API, forwarded
     # ----------------------------------------
@@ -307,20 +312,27 @@ class Logger(object):
         self.name2val[key] = val
 
     def logkv_mean(self, key, val):
-        if val is None:
-            self.name2val[key] = None
-            return
         oldval, cnt = self.name2val[key], self.name2cnt[key]
         self.name2val[key] = oldval*cnt/(cnt+1) + val/(cnt+1)
         self.name2cnt[key] = cnt + 1
 
     def dumpkvs(self):
-        if self.level == DISABLED: return
+        if self.comm is None:
+            d = self.name2val
+        else:
+            from baselines.common import mpi_util
+            d = mpi_util.mpi_weighted_mean(self.comm,
+                {name : (val, self.name2cnt.get(name, 1))
+                    for (name, val) in self.name2val.items()})
+            if self.comm.rank != 0:
+                d['dummy'] = 1 # so we don't get a warning about empty dict
+        out = d.copy() # Return the dict for unit testing purposes
         for fmt in self.output_formats:
             if isinstance(fmt, KVWriter):
-                fmt.writekvs(self.name2val)
+                fmt.writekvs(d)
         self.name2val.clear()
         self.name2cnt.clear()
+        return out
 
     def log(self, *args, level=INFO):
         if self.level <= level:
@@ -330,6 +342,9 @@ class Logger(object):
     # ----------------------------------------
     def set_level(self, level):
         self.level = level
+
+    def set_comm(self, comm):
+        self.comm = comm
 
     def get_dir(self):
         return self.dir
@@ -345,24 +360,31 @@ class Logger(object):
             if isinstance(fmt, SeqWriter):
                 fmt.writeseq(map(str, args))
 
-def configure(dir=None, format_strs=None):
+def get_rank_without_mpi_import():
+    # check environment variables here instead of importing mpi4py
+    # to avoid calling MPI_Init() when this module is imported
+    for varname in ['PMI_RANK', 'OMPI_COMM_WORLD_RANK']:
+        if varname in os.environ:
+            return int(os.environ[varname])
+    return 0
+
+
+def configure(dir=None, format_strs=None, comm=None, log_suffix=''):
+    """
+    If comm is provided, average all numerical stats across that comm
+    """
     if dir is None:
         dir = os.getenv('OPENAI_LOGDIR')
     if dir is None:
         dir = osp.join(tempfile.gettempdir(),
             datetime.datetime.now().strftime("openai-%Y-%m-%d-%H-%M-%S-%f"))
     assert isinstance(dir, str)
-    os.makedirs(dir, exist_ok=True)
+    dir = os.path.expanduser(dir)
+    os.makedirs(os.path.expanduser(dir), exist_ok=True)
 
-    log_suffix = ''
-    rank = 0
-    # check environment variables here instead of importing mpi4py
-    # to avoid calling MPI_Init() when this module is imported
-    for varname in ['PMI_RANK', 'OMPI_COMM_WORLD_RANK']:
-        if varname in os.environ:
-            rank = int(os.environ[varname])
+    rank = get_rank_without_mpi_import()
     if rank > 0:
-        log_suffix = "-rank%03i" % rank
+        log_suffix = log_suffix + "-rank%03i" % rank
 
     if format_strs is None:
         if rank == 0:
@@ -372,15 +394,12 @@ def configure(dir=None, format_strs=None):
     format_strs = filter(None, format_strs)
     output_formats = [make_output_format(f, dir, log_suffix) for f in format_strs]
 
-    Logger.CURRENT = Logger(dir=dir, output_formats=output_formats)
-    log('Logging to %s'%dir)
+    Logger.CURRENT = Logger(dir=dir, output_formats=output_formats, comm=comm)
+    if output_formats:
+        log('Logging to %s'%dir)
 
 def _configure_default_logger():
-    format_strs = None
-    # keep the old default of only writing to stdout
-    if 'OPENAI_LOG_FORMAT' not in os.environ:
-        format_strs = ['stdout']
-    configure(format_strs=format_strs)
+    configure()
     Logger.DEFAULT = Logger.CURRENT
 
 def reset():
@@ -389,17 +408,15 @@ def reset():
         Logger.CURRENT = Logger.DEFAULT
         log('Reset logger')
 
-class scoped_configure(object):
-    def __init__(self, dir=None, format_strs=None):
-        self.dir = dir
-        self.format_strs = format_strs
-        self.prevlogger = None
-    def __enter__(self):
-        self.prevlogger = Logger.CURRENT
-        configure(dir=self.dir, format_strs=self.format_strs)
-    def __exit__(self, *args):
+@contextmanager
+def scoped_configure(dir=None, format_strs=None, comm=None):
+    prevlogger = Logger.CURRENT
+    configure(dir=dir, format_strs=format_strs, comm=comm)
+    try:
+        yield
+    finally:
         Logger.CURRENT.close()
-        Logger.CURRENT = self.prevlogger
+        Logger.CURRENT = prevlogger
 
 # ================================================================
 
@@ -423,7 +440,7 @@ def _demo():
     logkv_mean("b", -44.4)
     logkv("a", 5.5)
     dumpkvs()
-    info("^^^ should see b = 33.3")
+    info("^^^ should see b = -33.3")
 
     logkv("b", -2.5)
     dumpkvs()
@@ -456,7 +473,6 @@ def read_tb(path):
     import pandas
     import numpy as np
     from glob import glob
-    from collections import defaultdict
     import tensorflow as tf
     if osp.isdir(path):
         fnames = glob(osp.join(path, "events.*"))
@@ -481,9 +497,6 @@ def read_tb(path):
         for (step, value) in pairs:
             data[step-1, colidx] = value
     return pandas.DataFrame(data, columns=tags)
-
-# configure the default logger on import
-_configure_default_logger()
 
 if __name__ == "__main__":
     _demo()

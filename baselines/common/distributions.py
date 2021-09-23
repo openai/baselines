@@ -75,7 +75,8 @@ class CategoricalPdType(PdType):
 
 class MultiCategoricalPdType(PdType):
     def __init__(self, nvec):
-        self.ncats = nvec
+        self.ncats = nvec.astype('int32')
+        assert (self.ncats > 0).all()
     def pdclass(self):
         return MultiCategoricalPd
     def pdfromflat(self, flat):
@@ -205,7 +206,8 @@ class CategoricalPd(Pd):
 class MultiCategoricalPd(Pd):
     def __init__(self, nvec, flat):
         self.flat = flat
-        self.categoricals = list(map(CategoricalPd, tf.split(flat, nvec, axis=-1)))
+        self.categoricals = list(map(CategoricalPd,
+            tf.split(flat, np.array(nvec, dtype=np.int32), axis=-1)))
     def flatparam(self):
         return self.flat
     def mode(self):
