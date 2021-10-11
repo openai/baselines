@@ -4,7 +4,8 @@ import tensorflow as tf
 
 from baselines import logger
 
-from baselines.common import set_global_seeds, explained_variance
+from baselines.common.misc_util import set_global_seeds
+from baselines.common.math_util import explained_variance
 from baselines.common import tf_util
 from baselines.common.policies import build_policy
 
