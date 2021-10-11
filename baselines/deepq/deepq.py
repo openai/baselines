@@ -10,7 +10,7 @@ import baselines.common.tf_util as U
 from baselines.common.tf_util import load_variables, save_variables
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
-from baselines.common import set_global_seeds
+from baselines.common.misc_util import set_global_seeds
 
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
