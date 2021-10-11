@@ -12,7 +12,8 @@ import numpy as np
 import gym
 
 from baselines.gail import mlp_policy
-from baselines.common import set_global_seeds, tf_util as U
+from baselines.common.misc_util import set_global_seeds
+import baselines.common.tf_util as U
 from baselines.common.misc_util import boolean_flag
 from baselines import bench
 from baselines import logger
