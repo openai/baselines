@@ -14,7 +14,8 @@ import tensorflow as tf
 
 from baselines.gail import run_mujoco
 from baselines.gail import mlp_policy
-from baselines.common import set_global_seeds, tf_util as U
+from baselines.common.misc_util import set_global_seeds
+import baselines.common.tf_util as U
 from baselines.common.misc_util import boolean_flag
 from baselines.gail.dataset.mujoco_dset import Mujoco_Dset
 
