@@ -1,11 +1,12 @@
-from baselines.common import explained_variance, zipsame, dataset
+from baselines.common import dataset
 from baselines import logger
 import baselines.common.tf_util as U
 import tensorflow as tf, numpy as np
 import time
 from baselines.common import colorize
 from collections import deque
-from baselines.common import set_global_seeds
+from baselines.common.misc_util import set_global_seeds, zipsame
+from baselines.common.math_util import explained_variance
 from baselines.common.mpi_adam import MpiAdam
 from baselines.common.cg import cg
 from baselines.common.input import observation_placeholder
