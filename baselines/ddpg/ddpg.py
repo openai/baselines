@@ -7,7 +7,7 @@ from baselines.ddpg.ddpg_learner import DDPG
 from baselines.ddpg.models import Actor, Critic
 from baselines.ddpg.memory import Memory
 from baselines.ddpg.noise import AdaptiveParamNoiseSpec, NormalActionNoise, OrnsteinUhlenbeckActionNoise
-from baselines.common import set_global_seeds
+from baselines.common.misc_util import set_global_seeds
 import baselines.common.tf_util as U
 
 from baselines import logger
