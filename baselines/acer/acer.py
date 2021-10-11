@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 from baselines import logger
 
-from baselines.common import set_global_seeds
+from baselines.common.misc_util import set_global_seeds
 from baselines.common.policies import build_policy
 from baselines.common.tf_util import get_session, save_variables, load_variables
 from baselines.common.vec_env.vec_frame_stack import VecFrameStack
