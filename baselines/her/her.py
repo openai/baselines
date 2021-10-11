@@ -6,7 +6,8 @@ import json
 from mpi4py import MPI
 
 from baselines import logger
-from baselines.common import set_global_seeds, tf_util
+from baselines.common.misc_util import set_global_seeds
+from baselines.common import tf_util
 from baselines.common.mpi_moments import mpi_moments
 import baselines.her.experiment.config as config
 from baselines.her.rollout import RolloutWorker
