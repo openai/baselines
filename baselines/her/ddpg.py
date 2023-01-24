@@ -56,7 +56,7 @@ class DDPG(object):
             gamma (float): gamma used for Q learning updates
             reuse (boolean): whether or not the networks should be reused
             bc_loss: whether or not the behavior cloning loss should be used as an auxiliary loss
-            q_filter: whether or not a filter on the q value update should be used when training with demonstartions
+            q_filter: whether or not a filter on the q value update should be used when training with demonstrations
             num_demo: Number of episodes in to be used in the demonstration buffer
             demo_batch_size: number of samples to be used from the demonstrations buffer, per mpi thread
             prm_loss_weight: Weight corresponding to the primary loss
