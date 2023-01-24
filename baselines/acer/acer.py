@@ -99,7 +99,7 @@ class Model(object):
         # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
 
         # action probability distributions according to train_model, polyak_model and step_model
-        # poilcy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
+        # policy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
         train_model_p = tf.nn.softmax(train_model.pi)
         polyak_model_p = tf.nn.softmax(polyak_model.pi)
         step_model_p = tf.nn.softmax(step_model.pi)
