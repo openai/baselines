@@ -88,7 +88,7 @@ The functions in this file can are used to create the following functions:
 
         Q(s,a) - (r + gamma * max_a' Q'(s', a'))
 
-    Where Q' is lagging behind Q to stablize the learning. For example for Atari
+    Where Q' is lagging behind Q to stabilize the learning. For example for Atari
 
     Q' is set to Q once every 10000 updates training steps.
 
