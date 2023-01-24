@@ -48,7 +48,7 @@ python experiment/data_generation/fetch_data_generation.py
 ```
 This outputs ```data_fetch_random_100.npz``` file which is our data file.
 
-To launch training with demonstrations (more technically, with behaviour cloning loss as an auxilliary loss), run the following
+To launch training with demonstrations (more technically, with behaviour cloning loss as an auxiliary loss), run the following
 ```bash
 python -m baselines.run --alg=her --env=FetchPickAndPlace-v1 --num_timesteps=2.5e6 --demo_file=/Path/to/demo_file.npz
 ```
@@ -58,12 +58,12 @@ To inspect what the agent has learned, use the `--play` flag as described above.
 #### Configuration
 The provided configuration is for training an agent with HER without demonstrations, we need to change a few paramters for the HER algorithm to learn through demonstrations, to do that, set:
 
-* bc_loss: 1 - whether or not to use the behavior cloning loss as an auxilliary loss
+* bc_loss: 1 - whether or not to use the behavior cloning loss as an auxiliary loss
 * q_filter: 1 - whether or not a Q value filter should be used on the Actor outputs
 * num_demo: 100 - number of expert demo episodes
 * demo_batch_size: 128 - number of samples to be used from the demonstrations buffer, per mpi thread
 * prm_loss_weight: 0.001 - Weight corresponding to the primary loss
-* aux_loss_weight:  0.0078 - Weight corresponding to the auxilliary loss also called the cloning loss
+* aux_loss_weight:  0.0078 - Weight corresponding to the auxiliary loss also called the cloning loss
 
 Apart from these changes the reported results also have the following configurational changes:
 

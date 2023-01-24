@@ -55,12 +55,12 @@ class DDPG(object):
             sample_transitions (function) function that samples from the replay buffer
             gamma (float): gamma used for Q learning updates
             reuse (boolean): whether or not the networks should be reused
-            bc_loss: whether or not the behavior cloning loss should be used as an auxilliary loss
+            bc_loss: whether or not the behavior cloning loss should be used as an auxiliary loss
             q_filter: whether or not a filter on the q value update should be used when training with demonstartions
             num_demo: Number of episodes in to be used in the demonstration buffer
             demo_batch_size: number of samples to be used from the demonstrations buffer, per mpi thread
             prm_loss_weight: Weight corresponding to the primary loss
-            aux_loss_weight: Weight corresponding to the auxilliary loss also called the cloning loss
+            aux_loss_weight: Weight corresponding to the auxiliary loss also called the cloning loss
         """
         if self.clip_return is None:
             self.clip_return = np.inf
@@ -364,7 +364,7 @@ class DDPG(object):
             self.cloning_loss_tf = tf.reduce_sum(tf.square(tf.boolean_mask(tf.boolean_mask((self.main.pi_tf), mask), maskMain, axis=0) - tf.boolean_mask(tf.boolean_mask((batch_tf['u']), mask), maskMain, axis=0)))
             self.pi_loss_tf = -self.prm_loss_weight * tf.reduce_mean(self.main.Q_pi_tf) #primary loss scaled by it's respective weight prm_loss_weight
             self.pi_loss_tf += self.prm_loss_weight * self.action_l2 * tf.reduce_mean(tf.square(self.main.pi_tf / self.max_u)) #L2 loss on action values scaled by the same weight prm_loss_weight
-            self.pi_loss_tf += self.aux_loss_weight * self.cloning_loss_tf #adding the cloning loss to the actor loss as an auxilliary loss scaled by its weight aux_loss_weight
+            self.pi_loss_tf += self.aux_loss_weight * self.cloning_loss_tf #adding the cloning loss to the actor loss as an auxiliary loss scaled by its weight aux_loss_weight
 
         elif self.bc_loss == 1 and self.q_filter == 0: # train with demonstrations without q_filter
             self.cloning_loss_tf = tf.reduce_sum(tf.square(tf.boolean_mask((self.main.pi_tf), mask) - tf.boolean_mask((batch_tf['u']), mask)))
