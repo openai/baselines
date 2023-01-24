@@ -96,7 +96,7 @@ class Model(object):
         with tf.variable_scope("acer_model", custom_getter=custom_getter, reuse=True):
             polyak_model = policy(nbatch=nbatch, nsteps=nsteps, observ_placeholder=train_ob_placeholder, sess=sess)
 
-        # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
+        # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
 
         # action probability distributions according to train_model, polyak_model and step_model
         # policy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
