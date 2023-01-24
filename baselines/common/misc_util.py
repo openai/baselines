@@ -126,7 +126,7 @@ class RunningAvg(object):
         Parameters
         ----------
         new_val: float
-            new observated value of estimated quantity.
+            new observed value of estimated quantity.
         """
         if self._value is None:
             self._value = new_val
