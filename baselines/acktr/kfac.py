@@ -64,7 +64,7 @@ class KfacOptimizer():
         fops = []
 
         def searchFactors(gradient, graph):
-            # hard coded search stratergy
+            # hard coded search strategy
             bpropOp = gradient.op
             bpropOp_name = bpropOp.name
 
