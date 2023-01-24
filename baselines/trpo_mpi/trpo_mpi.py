@@ -277,7 +277,7 @@ def learn(*,
     rewbuffer = deque(maxlen=40) # rolling buffer for episode rewards
 
     if sum([max_iters>0, total_timesteps>0, max_episodes>0])==0:
-        # noththing to be done
+        # nothing to be done
         return pi
 
     assert sum([max_iters>0, total_timesteps>0, max_episodes>0]) < 2, \
