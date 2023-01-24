@@ -64,7 +64,7 @@ class KfacOptimizer():
         fops = []
 
         def searchFactors(gradient, graph):
-            # hard coded search stratergy
+            # hard coded search strategy
             bpropOp = gradient.op
             bpropOp_name = bpropOp.name
 
@@ -72,7 +72,7 @@ class KfacOptimizer():
             fTensors = []
 
             # combining additive gradient, assume they are the same op type and
-            # indepedent
+            # independent
             if 'AddN' in bpropOp_name:
                 factors = []
                 for g in gradient.op.inputs:
@@ -134,7 +134,7 @@ class KfacOptimizer():
 
         ########
         # check associated weights and bias for homogeneous coordinate representation
-        # and check redundent factors
+        # and check redundant factors
         # TO-DO: there may be a bug to detect associate bias and weights for
         # forking layer, e.g. in inception models.
         for param in varlist:
@@ -785,7 +785,7 @@ class KfacOptimizer():
             local_vg = tf.reduce_sum(grad * g * (self._lr * self._lr))
             vg += local_vg
 
-        # recale everything
+        # rescale everything
         if KFAC_DEBUG:
             print('apply vFv clipping')
 

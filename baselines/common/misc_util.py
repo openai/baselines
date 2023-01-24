@@ -70,8 +70,8 @@ def pretty_eta(seconds_left):
     2 hours and 37 minutes
     less than a minute
 
-    Paramters
-    ---------
+    Parameters
+    ----------
     seconds_left: int
         Number of seconds to be converted to the ETA
     Returns
@@ -126,7 +126,7 @@ class RunningAvg(object):
         Parameters
         ----------
         new_val: float
-            new observated value of estimated quantity.
+            new observed value of estimated quantity.
         """
         if self._value is None:
             self._value = new_val
@@ -192,7 +192,7 @@ def relatively_safe_pickle_dump(obj, path, compression=False):
         - it is sometimes possible that we end up with useless temp file which needs to be
           deleted manually (it will be removed automatically on the next function call)
 
-    The indended use case is periodic checkpoints of experiment state, such that we never
+    The intended use case is periodic checkpoints of experiment state, such that we never
     corrupt previous checkpoints if the current one fails.
 
     Parameters

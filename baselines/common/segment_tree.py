@@ -16,8 +16,8 @@ class SegmentTree(object):
                `reduce` operation which reduces `operation` over
                a contiguous subsequence of items in the array.
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         capacity: int
             Total size of the array - must be a power of two.
         operation: lambda obj, obj -> obj

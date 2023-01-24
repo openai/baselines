@@ -36,7 +36,7 @@ def update_mean_var_count_from_moments(mean, var, count, batch_mean, batch_var, 
 class TfRunningMeanStd(object):
     # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
     '''
-    TensorFlow variables-based implmentation of computing running mean and std
+    TensorFlow variables-based implementation of computing running mean and std
     Benefit of this implementation is that it can be saved / loaded together with the tensorflow model
     '''
     def __init__(self, epsilon=1e-4, shape=(), scope=''):

@@ -72,7 +72,7 @@ The functions in this file can are used to create the following functions:
         obs_tp1 gets ignored, but must be of the valid shape.
         dtype must be float32 and shape must be (batch_size,)
     weight: np.array
-        imporance weights for every element of the batch (gradient is multiplied
+        importance weights for every element of the batch (gradient is multiplied
         by the importance weight) dtype must be float32 and shape must be (batch_size,)
 
     Returns
@@ -88,7 +88,7 @@ The functions in this file can are used to create the following functions:
 
         Q(s,a) - (r + gamma * max_a' Q'(s', a'))
 
-    Where Q' is lagging behind Q to stablize the learning. For example for Atari
+    Where Q' is lagging behind Q to stabilize the learning. For example for Atari
 
     Q' is set to Q once every 10000 updates training steps.
 
@@ -388,7 +388,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
         q_t = q_func(obs_t_input.get(), num_actions, scope="q_func", reuse=True)  # reuse parameters from act
         q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/q_func")
 
-        # target q network evalution
+        # target q network evaluation
         q_tp1 = q_func(obs_tp1_input.get(), num_actions, scope="target_q_func")
         target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/target_q_func")
 

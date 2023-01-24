@@ -96,10 +96,10 @@ class Model(object):
         with tf.variable_scope("acer_model", custom_getter=custom_getter, reuse=True):
             polyak_model = policy(nbatch=nbatch, nsteps=nsteps, observ_placeholder=train_ob_placeholder, sess=sess)
 
-        # Notation: (var) = batch variable, (var)s = seqeuence variable, (var)_i = variable index by action at step i
+        # Notation: (var) = batch variable, (var)s = sequence variable, (var)_i = variable index by action at step i
 
         # action probability distributions according to train_model, polyak_model and step_model
-        # poilcy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
+        # policy.pi is probability distribution parameters; to obtain distribution that sums to 1 need to take softmax
         train_model_p = tf.nn.softmax(train_model.pi)
         polyak_model_p = tf.nn.softmax(polyak_model.pi)
         step_model_p = tf.nn.softmax(step_model.pi)
@@ -123,7 +123,7 @@ class Model(object):
         # entropy = tf.reduce_mean(strip(train_model.pd.entropy(), nenvs, nsteps))
         entropy = tf.reduce_mean(cat_entropy_softmax(f))
 
-        # Policy Graident loss, with truncated importance sampling & bias correction
+        # Policy Gradient loss, with truncated importance sampling & bias correction
         v = strip(v, nenvs, nsteps, True)
         check_shape([qret, v, rho_i, f_i], [[nenvs * nsteps]] * 4)
         check_shape([rho, f, q], [[nenvs * nsteps, nact]] * 2)

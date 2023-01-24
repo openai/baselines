@@ -127,7 +127,7 @@ def learn(*,
 
     cg_damping              conjugate gradient damping
 
-    vf_stepsize             learning rate for adam optimizer used to optimie value function loss
+    vf_stepsize             learning rate for adam optimizer used to optimize value function loss
 
     vf_iters                number of iterations of value function optimization iterations per each policy optimization step
 
@@ -277,7 +277,7 @@ def learn(*,
     rewbuffer = deque(maxlen=40) # rolling buffer for episode rewards
 
     if sum([max_iters>0, total_timesteps>0, max_episodes>0])==0:
-        # noththing to be done
+        # nothing to be done
         return pi
 
     assert sum([max_iters>0, total_timesteps>0, max_episodes>0]) < 2, \
@@ -299,7 +299,7 @@ def learn(*,
 
         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-        vpredbefore = seg["vpred"] # predicted value function before udpate
+        vpredbefore = seg["vpred"] # predicted value function before update
         atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
 
         if hasattr(pi, "ret_rms"): pi.ret_rms.update(tdlamret)

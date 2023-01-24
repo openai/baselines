@@ -30,7 +30,7 @@ def argsparser():
     parser.add_argument('--load_model_path', help='if provided, load the model', type=str, default=None)
     # Task
     parser.add_argument('--task', type=str, choices=['train', 'evaluate', 'sample'], default='train')
-    # for evaluatation
+    # for evaluation
     boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
     #  Mujoco Dataset Configuration
@@ -46,7 +46,7 @@ def argsparser():
     parser.add_argument('--max_kl', type=float, default=0.01)
     parser.add_argument('--policy_entcoeff', help='entropy coefficiency of policy', type=float, default=0)
     parser.add_argument('--adversary_entcoeff', help='entropy coefficiency of discriminator', type=float, default=1e-3)
-    # Traing Configuration
+    # Training Configuration
     parser.add_argument('--save_per_iter', help='save model every xx iterations', type=int, default=100)
     parser.add_argument('--num_timesteps', help='number of timesteps per episode', type=int, default=5e6)
     # Behavior Cloning

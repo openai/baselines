@@ -24,7 +24,7 @@ Hopper-v1, Walker2d-v1, HalfCheetah-v1, Humanoid-v1, HumanoidStandup-v1. Every i
 
 For details (e.g., adversarial loss, discriminator accuracy, etc.) about GAIL training, please see [here](https://drive.google.com/drive/folders/1nnU8dqAV9i37-_5_vWIspyFUJFQLCsDD?usp=sharing)
 
-### Determinstic Policy (Set std=0)
+### Deterministic Policy (Set std=0)
 |   | Un-normalized | Normalized |
 |---|---|---|
 | Hopper-v1 | <img src='Hopper-unnormalized-deterministic-scores.png'> | <img src='Hopper-normalized-deterministic-scores.png'> |
@@ -33,7 +33,7 @@ For details (e.g., adversarial loss, discriminator accuracy, etc.) about GAIL tr
 | Humanoid-v1 | <img src='Humanoid-unnormalized-deterministic-scores.png'> | <img src='Humanoid-normalized-deterministic-scores.png'> |
 | HumanoidStandup-v1 | <img src='HumanoidStandup-unnormalized-deterministic-scores.png'> | <img src='HumanoidStandup-normalized-deterministic-scores.png'> |
 
-### Stochatic Policy 
+### Stochastic Policy 
 |   | Un-normalized | Normalized |
 |---|---|---|
 | Hopper-v1 | <img src='Hopper-unnormalized-stochastic-scores.png'> | <img src='Hopper-normalized-stochastic-scores.png'> |

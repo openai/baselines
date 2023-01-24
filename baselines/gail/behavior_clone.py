@@ -32,7 +32,7 @@ def argsparser():
     parser.add_argument('--traj_limitation', type=int, default=-1)
     # Network Configuration (Using MLP Policy)
     parser.add_argument('--policy_hidden_size', type=int, default=100)
-    # for evaluatation
+    # for evaluation
     boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
     parser.add_argument('--BC_max_iter', help='Max iteration for training BC', type=int, default=1e5)
