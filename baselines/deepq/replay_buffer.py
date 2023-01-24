@@ -148,7 +148,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             denoting importance weight of each sampled transition
         idxes: np.array
             Array of shape (batch_size,) and dtype np.int32
-            idexes in buffer of sampled experiences
+            indexes in buffer of sampled experiences
         """
         assert beta > 0
 
