@@ -299,7 +299,7 @@ def learn(*,
 
         # ob, ac, atarg, ret, td1ret = map(np.concatenate, (obs, acs, atargs, rets, td1rets))
         ob, ac, atarg, tdlamret = seg["ob"], seg["ac"], seg["adv"], seg["tdlamret"]
-        vpredbefore = seg["vpred"] # predicted value function before udpate
+        vpredbefore = seg["vpred"] # predicted value function before update
         atarg = (atarg - atarg.mean()) / atarg.std() # standardized advantage function estimate
 
         if hasattr(pi, "ret_rms"): pi.ret_rms.update(tdlamret)
