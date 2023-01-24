@@ -30,7 +30,7 @@ def argsparser():
     parser.add_argument('--load_model_path', help='if provided, load the model', type=str, default=None)
     # Task
     parser.add_argument('--task', type=str, choices=['train', 'evaluate', 'sample'], default='train')
-    # for evaluatation
+    # for evaluation
     boolean_flag(parser, 'stochastic_policy', default=False, help='use stochastic/deterministic policy to evaluate')
     boolean_flag(parser, 'save_sample', default=False, help='save the trajectories or not')
     #  Mujoco Dataset Configuration
