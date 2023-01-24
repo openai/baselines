@@ -70,8 +70,8 @@ def pretty_eta(seconds_left):
     2 hours and 37 minutes
     less than a minute
 
-    Paramters
-    ---------
+    Parameters
+    ----------
     seconds_left: int
         Number of seconds to be converted to the ETA
     Returns

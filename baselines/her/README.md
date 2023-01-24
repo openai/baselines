@@ -56,7 +56,7 @@ This will train a DDPG+HER agent on the `FetchPickAndPlace` environment by using
 To inspect what the agent has learned, use the `--play` flag as described above.
 
 #### Configuration
-The provided configuration is for training an agent with HER without demonstrations, we need to change a few paramters for the HER algorithm to learn through demonstrations, to do that, set:
+The provided configuration is for training an agent with HER without demonstrations, we need to change a few parameters for the HER algorithm to learn through demonstrations, to do that, set:
 
 * bc_loss: 1 - whether or not to use the behavior cloning loss as an auxiliary loss
 * q_filter: 1 - whether or not a Q value filter should be used on the Actor outputs
