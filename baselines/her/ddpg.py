@@ -57,7 +57,7 @@ class DDPG(object):
             reuse (boolean): whether or not the networks should be reused
             bc_loss: whether or not the behavior cloning loss should be used as an auxiliary loss
             q_filter: whether or not a filter on the q value update should be used when training with demonstrations
-            num_demo: Number of episodes in to be used in the demonstration buffer
+            num_demo: Number of episodes to be used in the demonstration buffer
             demo_batch_size: number of samples to be used from the demonstrations buffer, per mpi thread
             prm_loss_weight: Weight corresponding to the primary loss
             aux_loss_weight: Weight corresponding to the auxiliary loss also called the cloning loss
