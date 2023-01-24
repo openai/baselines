@@ -785,7 +785,7 @@ class KfacOptimizer():
             local_vg = tf.reduce_sum(grad * g * (self._lr * self._lr))
             vg += local_vg
 
-        # recale everything
+        # rescale everything
         if KFAC_DEBUG:
             print('apply vFv clipping')
 
