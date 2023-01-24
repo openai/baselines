@@ -72,7 +72,7 @@ class KfacOptimizer():
             fTensors = []
 
             # combining additive gradient, assume they are the same op type and
-            # indepedent
+            # independent
             if 'AddN' in bpropOp_name:
                 factors = []
                 for g in gradient.op.inputs:
