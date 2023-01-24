@@ -72,7 +72,7 @@ The functions in this file can are used to create the following functions:
         obs_tp1 gets ignored, but must be of the valid shape.
         dtype must be float32 and shape must be (batch_size,)
     weight: np.array
-        imporance weights for every element of the batch (gradient is multiplied
+        importance weights for every element of the batch (gradient is multiplied
         by the importance weight) dtype must be float32 and shape must be (batch_size,)
 
     Returns
