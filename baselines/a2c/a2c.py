@@ -159,7 +159,7 @@ def learn(
 
     vf_coef:            float, coefficient in front of value function loss in the total loss function (default: 0.5)
 
-    ent_coef:           float, coeffictiant in front of the policy entropy in the total loss function (default: 0.01)
+    ent_coef:           float, coefficient in front of the policy entropy in the total loss function (default: 0.01)
 
     max_gradient_norm:  float, gradient is clipped to have global L2 norm no more than this value (default: 0.5)
 
