@@ -33,7 +33,7 @@ For details (e.g., adversarial loss, discriminator accuracy, etc.) about GAIL tr
 | Humanoid-v1 | <img src='Humanoid-unnormalized-deterministic-scores.png'> | <img src='Humanoid-normalized-deterministic-scores.png'> |
 | HumanoidStandup-v1 | <img src='HumanoidStandup-unnormalized-deterministic-scores.png'> | <img src='HumanoidStandup-normalized-deterministic-scores.png'> |
 
-### Stochatic Policy 
+### Stochastic Policy 
 |   | Un-normalized | Normalized |
 |---|---|---|
 | Hopper-v1 | <img src='Hopper-unnormalized-stochastic-scores.png'> | <img src='Hopper-normalized-stochastic-scores.png'> |
