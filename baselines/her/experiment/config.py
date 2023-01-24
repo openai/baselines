@@ -84,7 +84,7 @@ def prepare_params(kwargs):
             except ImportError:
                 MPI = None
                 mpi_rank = 0
-                logger.warn('Running with a single MPI process. This should work, but the results may differ from the ones publshed in Plappert et al.')
+                logger.warn('Running with a single MPI process. This should work, but the results may differ from the ones published in Plappert et al.')
 
             max_episode_steps = env._max_episode_steps
             env =  Monitor(env,
