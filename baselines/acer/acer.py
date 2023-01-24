@@ -123,7 +123,7 @@ class Model(object):
         # entropy = tf.reduce_mean(strip(train_model.pd.entropy(), nenvs, nsteps))
         entropy = tf.reduce_mean(cat_entropy_softmax(f))
 
-        # Policy Graident loss, with truncated importance sampling & bias correction
+        # Policy Gradient loss, with truncated importance sampling & bias correction
         v = strip(v, nenvs, nsteps, True)
         check_shape([qret, v, rho_i, f_i], [[nenvs * nsteps]] * 4)
         check_shape([rho, f, q], [[nenvs * nsteps, nact]] * 2)
