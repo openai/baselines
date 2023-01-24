@@ -15,7 +15,7 @@ class MnistEnv(Env):
         import filelock
         from tensorflow.examples.tutorials.mnist import input_data
         # we could use temporary directory for this with a context manager and
-        # TemporaryDirecotry, but then each test that uses mnist would re-download the data
+        # TemporaryDirectory, but then each test that uses mnist would re-download the data
         # this way the data is not cleaned up, but we only download it once per machine
         mnist_path = osp.join(tempfile.gettempdir(), 'MNIST_data')
         with filelock.FileLock(mnist_path + '.lock'):
