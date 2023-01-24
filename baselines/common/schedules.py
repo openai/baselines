@@ -40,7 +40,7 @@ class PiecewiseSchedule(object):
         """Piecewise schedule.
 
         endpoints: [(int, int)]
-            list of pairs `(time, value)` meanining that schedule should output
+            list of pairs `(time, value)` meaning that schedule should output
             `value` when `t==time`. All the values for time must be sorted in
             an increasing order. When t is between two times, e.g. `(time_a, value_a)`
             and `(time_b, value_b)`, such that `time_a <= t < time_b` then value outputs
