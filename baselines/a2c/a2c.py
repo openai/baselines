@@ -150,7 +150,7 @@ def learn(
     env:                RL environment. Should implement interface similar to VecEnv (baselines.common/vec_env) or be wrapped with DummyVecEnv (baselines.common/vec_env/dummy_vec_env.py)
 
 
-    seed:               seed to make random number sequence in the alorightm reproducible. By default is None which means seed from system noise generator (not reproducible)
+    seed:               seed to make random number sequence in the algorithm reproducible. By default is None which means seed from system noise generator (not reproducible)
 
     nsteps:             int, number of steps of the vectorized environment per update (i.e. batch size is nsteps * nenv where
                         nenv is number of environment copies simulated in parallel)
