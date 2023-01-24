@@ -26,7 +26,7 @@ class TransitionClassifier(object):
         self.num_actions = env.action_space.shape[0]
         self.hidden_size = hidden_size
         self.build_ph()
-        # Build grpah
+        # Build graph
         generator_logits = self.build_graph(self.generator_obs_ph, self.generator_acs_ph, reuse=False)
         expert_logits = self.build_graph(self.expert_obs_ph, self.expert_acs_ph, reuse=True)
         # Build accuracy
