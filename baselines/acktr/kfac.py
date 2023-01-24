@@ -134,7 +134,7 @@ class KfacOptimizer():
 
         ########
         # check associated weights and bias for homogeneous coordinate representation
-        # and check redundent factors
+        # and check redundant factors
         # TO-DO: there may be a bug to detect associate bias and weights for
         # forking layer, e.g. in inception models.
         for param in varlist:
