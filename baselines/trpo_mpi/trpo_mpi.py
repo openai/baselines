@@ -127,7 +127,7 @@ def learn(*,
 
     cg_damping              conjugate gradient damping
 
-    vf_stepsize             learning rate for adam optimizer used to optimie value function loss
+    vf_stepsize             learning rate for adam optimizer used to optimize value function loss
 
     vf_iters                number of iterations of value function optimization iterations per each policy optimization step
 
