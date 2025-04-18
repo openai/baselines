@@ -1,0 +1,65 @@
+# Ignore environment variable files
+.env
+.env.local
+.env.*.local
+
+# Ignore secret key files
+*.key
+*.pem
+*.crt
+
+# Ignore database credentials and configuration
+database.yml
+*.db
+*.sqlite3
+
+# Ignore log files
+*.log
+logs/
+log/
+
+# Ignore sensitive JSON or YAML configuration files
+*.secret.json
+*.secret.yaml
+*.secret.yml
+
+# Ignore API keys and access tokens
+api_keys.config
+secrets.config
+
+# Ignore any file containing credentials
+credentials/
+credentials.*
+
+# Ignore backup files
+*.bak
+*.old
+*.swp
+
+# Ignore temporary files created by editors or IDEs
+*.tmp
+*.temp
+.DS_Store
+.idea/
+.vscode/
+
+# Ignore build and dependency directories
+node_modules/
+build/
+dist/
+target/
+
+# Ignore sensitive Docker-related files
+docker-compose.override.yml
+.docker/
+
+# Ignore sensitive Terraform and CloudFormation files
+*.tfstate
+*.tfvars
+
+# Ignore sensitive Git files
+.gitconfig
+.git-credentials
+
+# Ignore any custom sensitive files
+custom_secrets/
